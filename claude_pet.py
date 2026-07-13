@@ -460,7 +460,8 @@ def run_gui():
     state = {"stats": None, "cost": None, "cost_month": None,
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
-             "last_mood": "idle", "dragging": False, "greet_cool": 0.0}
+             "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
+             "hover": False}
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
 
@@ -652,20 +653,38 @@ def run_gui():
                 NSRectFillUsingOperation(pet_rect,
                                          NSCompositingOperationSourceAtop)
 
-            # ── 접기 버튼 ──
-            bx, by = self.btnOrigin()
-            C_PILL.set()
-            NSBezierPath.bezierPathWithOvalInRect_(
-                NSMakeRect(bx, by, BTN_R * 2, BTN_R * 2)).fill()
-            C_BTNL.set()
-            p = NSBezierPath.bezierPathWithOvalInRect_(
-                NSMakeRect(bx, by, BTN_R * 2, BTN_R * 2))
-            p.setLineWidth_(1)
-            p.stroke()
-            chev = astr("⌄" if state["show_panel"] else "⌃", F_CHEV)
-            cs = chev.size()
-            chev.drawAtPoint_(NSMakePoint(bx + BTN_R - cs.width / 2,
-                                          by + BTN_R - cs.height / 2))
+            # ── 접기 버튼 (마우스 오버 시에만 표시) ──
+            if state["hover"]:
+                bx, by = self.btnOrigin()
+                C_PILL.set()
+                NSBezierPath.bezierPathWithOvalInRect_(
+                    NSMakeRect(bx, by, BTN_R * 2, BTN_R * 2)).fill()
+                C_BTNL.set()
+                ring = NSBezierPath.bezierPathWithOvalInRect_(
+                    NSMakeRect(bx, by, BTN_R * 2, BTN_R * 2))
+                ring.setLineWidth_(1)
+                ring.stroke()
+                # 꺾쇠: 필이 열리는/닫히는 방향을 가리키도록 직접 그림
+                pill_below = not self.petOnBottom()   # 필이 펫 아래에 붙는 배치
+                # 열려 있으면 '접는' 방향(필 반대쪽), 닫혀 있으면 '펼치는' 방향(필 쪽)
+                point_down = (pill_below and not state["show_panel"]) or \
+                             (not pill_below and state["show_panel"])
+                cx, cy = bx + BTN_R, by + BTN_R
+                wdt, hgt = 5.5, 3.0
+                chev = NSBezierPath.bezierPath()
+                chev.setLineWidth_(2.0)
+                chev.setLineCapStyle_(1)   # round
+                chev.setLineJoinStyle_(1)  # round
+                if point_down:  # flipped 좌표: 아래 = y 증가
+                    chev.moveToPoint_(NSMakePoint(cx - wdt, cy - hgt / 2))
+                    chev.lineToPoint_(NSMakePoint(cx, cy + hgt))
+                    chev.lineToPoint_(NSMakePoint(cx + wdt, cy - hgt / 2))
+                else:
+                    chev.moveToPoint_(NSMakePoint(cx - wdt, cy + hgt / 2))
+                    chev.lineToPoint_(NSMakePoint(cx, cy - hgt))
+                    chev.lineToPoint_(NSMakePoint(cx + wdt, cy + hgt / 2))
+                C_SUB.set()
+                chev.stroke()
 
         # ── 마우스 ──
         def mouseDown_(self, event):
@@ -972,6 +991,15 @@ def run_gui():
                     else:
                         state["frame"] = nxt
                     dirty = True
+
+            # 마우스 호버 감지 (접기 버튼 표시용)
+            mpos_h = NSEvent.mouseLocation()
+            fh_ = win.frame()
+            hover = (fh_.origin.x <= mpos_h.x <= fh_.origin.x + fh_.size.width
+                     and fh_.origin.y <= mpos_h.y <= fh_.origin.y + fh_.size.height)
+            if hover != state["hover"]:
+                state["hover"] = hover
+                dirty = True
 
             # 마우스 근접 인사 (평소엔 가만히)
             if (RUNTIME.get("greet") and not state["dragging"]
