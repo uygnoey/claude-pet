@@ -148,10 +148,15 @@ def parse_usage_entries(since: datetime):
                         continue
                     if ts < since:
                         continue
-                    noncache = (usage.get("input_tokens", 0)
-                                + usage.get("output_tokens", 0)
-                                + usage.get("cache_creation_input_tokens", 0))
-                    total = noncache + usage.get("cache_read_input_tokens", 0)
+                    # 비용 가중 토큰: 실제 한도는 비용 기준으로 차감되는 것으로
+                    # 보이므로 API 단가 비율로 가중 (입력1/출력5/캐시쓰기1.25/캐시읽기0.1)
+                    # → 사용 패턴(캐시 비중)이 바뀌어도 % 보정이 유지됨
+                    w_in = usage.get("input_tokens", 0)
+                    w_out = usage.get("output_tokens", 0) * 5.0
+                    w_cw = usage.get("cache_creation_input_tokens", 0) * 1.25
+                    w_cr = usage.get("cache_read_input_tokens", 0) * 0.1
+                    noncache = w_in + w_out + w_cw
+                    total = noncache + w_cr
                     if total > 0:
                         entries.append((ts, total,
                                         (msg.get("model") or "").lower(),
@@ -204,21 +209,21 @@ def compute_usage():
     weekly = sum(e[1] for e in wk_entries)
     weekly_opus = sum(e[1] for e in wk_entries if kw in e[2])
 
-    # 세션 블록: 마지막 활동부터 거꾸로, 5h 넘는 공백에서 끊고 시작을 정시로 스냅
+    # 세션 블록: 앱과 같은 방식으로 5시간 단위 타일링.
+    # 블록이 끝난 뒤 첫 활동 시각(정시 스냅)에 새 블록이 시작됨.
+    # (연속 사용 시에도 5시간마다 정확히 리셋되어 앱 %와 어긋나지 않음)
     session_tokens, session_reset, last_activity = 0, None, None
     if entries:
         last_activity = entries[-1][0]
-        block = [entries[-1]]
-        for i in range(len(entries) - 2, -1, -1):
-            if (block[0][0] - entries[i][0]) > timedelta(hours=SESSION_HOURS):
-                break
-            block.insert(0, entries[i])
-        start = block[0][0].replace(minute=0, second=0, microsecond=0)
-        session_reset = start + timedelta(hours=SESSION_HOURS)
-        if session_reset < now:
-            session_tokens, session_reset = 0, None
-        else:
-            session_tokens = sum(e[1] for e in block if e[0] >= start)
+        block_start = block_end = None
+        for e in entries:
+            if block_end is None or e[0] >= block_end:
+                block_start = e[0].replace(minute=0, second=0, microsecond=0)
+                block_end = block_start + timedelta(hours=SESSION_HOURS)
+        if now < block_end:  # 현재 블록이 아직 유효
+            session_reset = block_end
+            session_tokens = sum(e[1] for e in entries
+                                 if block_start <= e[0] < block_end)
 
     # 주간 리셋: 설정된 요일/시각이 있으면 그 기준, 없으면 롤링 7일
     if week_start is not None:
