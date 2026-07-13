@@ -726,11 +726,12 @@ def run_gui():
                 best, best_d = vf, d
         if best is None:
             return
-        MARGIN = 80  # 최소한 이만큼은 화면 안에 남김
-        nx = max(best.origin.x - W + MARGIN,
-                 min(f.origin.x, best.origin.x + best.size.width - MARGIN))
-        ny = max(best.origin.y - 10,
-                 min(f.origin.y, best.origin.y + best.size.height - MARGIN))
+        # 창 전체가 화면 안에 있도록 (필은 안쪽으로 플립되므로 이게 자연스러움)
+        fw, fh = f.size.width, f.size.height
+        nx = min(max(f.origin.x, best.origin.x),
+                 best.origin.x + best.size.width - fw)
+        ny = min(max(f.origin.y, best.origin.y),
+                 best.origin.y + best.size.height - fh)
         if abs(nx - f.origin.x) > 0.5 or abs(ny - f.origin.y) > 0.5:
             win.setFrameOrigin_(NSMakePoint(nx, ny))
 
