@@ -27,6 +27,7 @@ import shutil
 import threading
 import subprocess
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 
 # ──────────────────────────── 설정 ────────────────────────────
@@ -322,10 +323,21 @@ def fetch_api_cost_month():
 OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
 _oauth_cache = {"t": 0.0, "gauges": None}
+# 토큰은 실행당 1회만 키체인에서 읽어 캐시 — 재조회 시 macOS 허용 프롬프트가
+# 반복되기 때문. 만료(401)로 실패할 때만 force=True로 다시 읽는다.
+_oauth_token_cache = {"read": False, "tok": None}
 
 
-def _read_oauth_token():
-    """Claude Code OAuth 토큰: macOS 키체인 → ~/.claude/.credentials.json 순."""
+def _read_oauth_token(force=False):
+    """Claude Code OAuth 토큰: macOS 키체인 → ~/.claude/.credentials.json 순.
+
+    실행당 1회만 실제로 읽어 메모리에 캐시한다. 키체인 비밀값(-w) 접근은
+    macOS 허용 프롬프트를 띄우므로, 3분 주기 폴링마다 재조회하면 계속
+    물어보게 된다. 토큰이 만료돼 API가 401을 주면 force=True로 1회 재조회.
+    """
+    if _oauth_token_cache["read"] and not force:
+        return _oauth_token_cache["tok"]
+    tok = None
     if sys.platform == "darwin":
         try:
             r = subprocess.run(
@@ -335,16 +347,18 @@ def _read_oauth_token():
             if r.returncode == 0 and r.stdout.strip():
                 data = json.loads(r.stdout.strip())
                 tok = (data.get("claudeAiOauth") or {}).get("accessToken")
-                if tok:
-                    return tok
         except Exception:
-            pass
-    try:
-        with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
-            data = json.load(f)
-        return (data.get("claudeAiOauth") or {}).get("accessToken")
-    except Exception:
-        return None
+            tok = None
+    if not tok:
+        try:
+            with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
+                data = json.load(f)
+            tok = (data.get("claudeAiOauth") or {}).get("accessToken")
+        except Exception:
+            tok = None
+    _oauth_token_cache["read"] = True
+    _oauth_token_cache["tok"] = tok
+    return tok
 
 
 def _oauth_label(key):
@@ -426,18 +440,28 @@ def _fetch_oauth_usage():
     tok = _read_oauth_token()
     if not tok:
         return None
-    req = urllib.request.Request(OAUTH_USAGE_URL, headers={
-        "Authorization": f"Bearer {tok}",
-        "User-Agent": "claude-code/2.1.0",   # 없으면 429 버킷에 걸림
-        "anthropic-beta": "oauth-2025-04-20",
-        "Accept": "application/json",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read().decode())
-        return _parse_oauth_usage(data)
-    except Exception:
-        return None
+    for attempt in (0, 1):
+        req = urllib.request.Request(OAUTH_USAGE_URL, headers={
+            "Authorization": f"Bearer {tok}",
+            "User-Agent": "claude-code/2.1.0",   # 없으면 429 버킷에 걸림
+            "anthropic-beta": "oauth-2025-04-20",
+            "Accept": "application/json",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode())
+            return _parse_oauth_usage(data)
+        except urllib.error.HTTPError as e:
+            # 토큰 만료 추정 → 키체인에서 1회 재조회 후 재시도 (그래도 실패면 포기)
+            if e.code in (401, 403) and attempt == 0:
+                tok = _read_oauth_token(force=True)
+                if not tok:
+                    return None
+                continue
+            return None
+        except Exception:
+            return None
+    return None
 
 
 def _find_claude_cli():
