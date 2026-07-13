@@ -39,6 +39,8 @@ PLIST
 #!/bin/zsh
 DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
 CANDIDATES=(
+  "$HOME/.pyenv/shims/python3"
+  "$PYENV_ROOT/shims/python3"
   /opt/homebrew/bin/python3
   /usr/local/bin/python3
   /Library/Frameworks/Python.framework/Versions/Current/bin/python3
