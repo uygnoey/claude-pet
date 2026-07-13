@@ -366,6 +366,10 @@ def _parse_oauth_usage(data):
     found = []
 
     def walk(obj, hint):
+        if isinstance(obj, list):
+            for item in obj:
+                walk(item, hint)
+            return
         if not isinstance(obj, dict):
             return
         if "utilization" in obj:
@@ -385,11 +389,14 @@ def _parse_oauth_usage(data):
                         rdt = datetime.fromtimestamp(float(raw), tz=timezone.utc)
                     except (TypeError, ValueError):
                         pass
-            label, order = _oauth_label(hint)
+            # 항목 안에 model/name이 있으면 라벨 힌트에 포함 (모델별 주간 한도)
+            model_hint = str(obj.get("model") or obj.get("name") or
+                             obj.get("label") or "")
+            label, order = _oauth_label(f"{hint}_{model_hint}".lower())
             found.append((order, label, min(100.0, max(0.0, pct)), rdt))
         else:
             for k, v in obj.items():
-                walk(v, k)
+                walk(v, f"{hint}_{k}" if hint else k)
 
     walk(data, "")
     found.sort(key=lambda x: x[0])
