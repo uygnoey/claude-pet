@@ -189,10 +189,17 @@ def _weekly_window_start():
 PREMIUM_FAMILIES = ["fable", "mythos", "opus"]
 
 def _detect_model_keyword(entries):
-    """로그에 등장한 모델명에서 상위 티어 패밀리를 자동 감지."""
-    for fam in PREMIUM_FAMILIES:
-        if any(fam in e[2] for e in entries):
-            return fam
+    """로그에서 실제로 가장 많이 쓴 상위 티어 패밀리를 자동 감지.
+    (로컬 로그는 Claude Code 사용량만 담고 있으므로, 거기서 주력인 모델을
+    추적해야 게이지가 의미 있음. 웹/데스크톱 채팅 사용량은 로그에 없음)"""
+    usage_by_fam = {}
+    for _, t, m, _ in entries:
+        for fam in PREMIUM_FAMILIES:
+            if fam in m:
+                usage_by_fam[fam] = usage_by_fam.get(fam, 0) + t
+                break
+    if usage_by_fam:
+        return max(usage_by_fam, key=usage_by_fam.get)
     return "opus"
 
 
