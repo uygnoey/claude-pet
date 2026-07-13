@@ -356,7 +356,9 @@ def _oauth_label(key):
             if fam in k:
                 return (fam.capitalize(), 2)
         return ("주간", 1)
-    return (key, 3)
+    if "extra" in k or "credit" in k:
+        return ("크레딧", 9)   # 추가 사용량(크레딧) — 주요 3개 있으면 잘림
+    return (key, 5)
 
 
 def _parse_oauth_usage(data):
