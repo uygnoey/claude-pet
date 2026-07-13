@@ -1,13 +1,23 @@
 #!/bin/zsh
-# 맥에서 직접 ClaudePet.app 빌드 (권한/격리 문제 없음)
+# Claude Pet 빌드/설치 스크립트
+#
+#   ./build_app.sh            # 레포 안에 ClaudePet.app 빌드만
+#   ./build_app.sh install    # 빌드 → /Applications 설치 → 재시작 (추천)
+#   ./build_app.sh update     # 코드만 갱신 (빠름: claude_pet.py만 교체 후 재시작)
+#
 set -e
 cd "$(dirname "$0")"
 APP=ClaudePet.app
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp claude_pet.py "$APP/Contents/Resources/"
-cp -R frames "$APP/Contents/Resources/frames"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+DEST="/Applications/$APP"
+
+build() {
+  rm -rf "$APP"
+  mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+  cp claude_pet.py "$APP/Contents/Resources/"
+  cp -R frames "$APP/Contents/Resources/frames"
+  find "$APP" -name ".DS_Store" -delete 2>/dev/null || true
+
+  cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -24,7 +34,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
-cat > "$APP/Contents/MacOS/ClaudePet" <<'LAUNCH'
+
+  cat > "$APP/Contents/MacOS/ClaudePet" <<'LAUNCH'
 #!/bin/zsh
 DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
 CANDIDATES=(
@@ -51,5 +62,39 @@ done
 osascript -e 'display dialog "설치 실패. 터미널에서: pip3 install pyobjc-framework-Cocoa" buttons {"확인"} default button 1 with title "Claude Pet"'
 exit 1
 LAUNCH
-chmod +x "$APP/Contents/MacOS/ClaudePet"
-echo "✅ $APP 빌드 완료 — 더블클릭으로 실행하세요"
+  chmod +x "$APP/Contents/MacOS/ClaudePet"
+  echo "✅ 빌드 완료: $(pwd)/$APP"
+}
+
+stop_pet() {
+  pkill -f "Resources/claude_pet.py" 2>/dev/null && echo "· 실행 중이던 펫 종료" || true
+  sleep 0.3
+}
+
+case "$1" in
+  install)
+    build
+    stop_pet
+    rm -rf "$DEST"
+    cp -R "$APP" "$DEST"
+    xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+    echo "✅ 설치: $DEST"
+    open "$DEST"
+    echo "🐱 실행!"
+    ;;
+  update)
+    if [ ! -d "$DEST" ]; then
+      echo "⚠️  $DEST 가 없어요. 먼저 ./build_app.sh install"
+      exit 1
+    fi
+    stop_pet
+    cp claude_pet.py "$DEST/Contents/Resources/claude_pet.py"
+    echo "✅ 코드 갱신: $DEST"
+    open "$DEST"
+    echo "🐱 재시작!"
+    ;;
+  *)
+    build
+    echo "설치까지 하려면: ./build_app.sh install"
+    ;;
+esac
