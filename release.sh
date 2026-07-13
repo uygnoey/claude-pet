@@ -25,6 +25,12 @@ build() {
 }
 
 sign() {
+  # AppleDouble(._*)/.DS_Store/xattr 청소 — framework 루트에 잡파일 있으면
+  # Gatekeeper가 "unsealed contents present..."로 거부함
+  find "$APP" \( -name "._*" -o -name ".DS_Store" \) -delete
+  dot_clean "$APP" 2>/dev/null || true
+  xattr -cr "$APP" 2>/dev/null || true
+
   find "$APP/Contents" \( -name "*.so" -o -name "*.dylib" \) -type f -print0 \
     | while IFS= read -r -d '' f; do
         codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" "$f" 2>/dev/null
@@ -42,11 +48,12 @@ sign() {
 
 notarize() {
   mkdir -p release; rm -f "$ZIP"
-  /usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
+  # --norsrc: 리소스포크/xattr을 zip에 넣지 않음 → 압축 해제 시 ._* 재생성 방지
+  /usr/bin/ditto -c -k --norsrc --keepParent "$APP" "$ZIP"
   echo "→ 공증 제출 (Apple 서버, 보통 1~5분)…"
   xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
   xcrun stapler staple "$APP"
-  rm -f "$ZIP"; /usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
+  rm -f "$ZIP"; /usr/bin/ditto -c -k --norsrc --keepParent "$APP" "$ZIP"
   echo "✅ 공증+staple 완료 → $ZIP"
   spctl -a -vv "$APP" 2>&1 | head -3
 }
