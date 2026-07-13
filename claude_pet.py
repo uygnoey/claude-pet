@@ -39,6 +39,16 @@ def _default_pet_dir():
     here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames")
     if os.path.isdir(here):
         return here
+    # 앱 번들(py2app/수동)에서: Contents/Resources/frames
+    try:
+        from Foundation import NSBundle
+        rp = NSBundle.mainBundle().resourcePath()
+        if rp:
+            cand = os.path.join(str(rp), "frames")
+            if os.path.isdir(cand):
+                return cand
+    except Exception:
+        pass
     return os.path.expanduser("~/.codex/pet-runs/patch-entp-cat/frames")
 
 PET_DIR = _default_pet_dir()
