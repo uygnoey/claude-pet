@@ -611,8 +611,8 @@ def run_gui():
             px, py = self.petOrigin()
             by = py + int(26 * g["scale"])
             if self.petOnRight():
-                return (px + PW + 2, by)             # 버튼은 펫 바깥쪽
-            return (px - BTN_R * 2 - 2, by)
+                return (px - BTN_R * 2 - 2, by)      # 펫 오른쪽 → 버튼 왼쪽
+            return (px + PW + 2, by)                 # 펫 왼쪽 → 버튼 오른쪽
 
         def drawRect_(self, rect):
             stats = state["stats"]
