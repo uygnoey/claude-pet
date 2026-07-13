@@ -588,10 +588,23 @@ def run_gui():
             wx = w.frame().origin.x if w else vf.origin.x
             return (wx + W / 2) >= (vf.origin.x + vf.size.width / 2)
 
+        def petOnBottom(self):
+            """펫이 화면 아래쪽 절반에 있으면 True → 필이 위로 붙음."""
+            w = self.window()
+            scr = (w.screen() if w else None) or NSScreen.mainScreen()
+            vf = scr.frame()
+            wy = w.frame().origin.y if w else vf.origin.y
+            return (wy + H / 2) < (vf.origin.y + vf.size.height / 2)
+
+        def pillTop(self):
+            """필의 y (flipped 좌표). 펫이 아래쪽이면 필이 위."""
+            return 4 if self.petOnBottom() else PH + GAP
+
         def petOrigin(self):
+            py = PILL_H + GAP if self.petOnBottom() else 2
             if self.petOnRight():
-                return (W - PW - BTN_R * 2 - 8, 2)   # 펫 오른쪽, 필은 왼쪽으로
-            return (BTN_R * 2 + 8, 2)                # 펫 왼쪽, 필은 오른쪽으로
+                return (W - PW - BTN_R * 2 - 8, py)  # 펫 오른쪽, 필은 왼쪽으로
+            return (BTN_R * 2 + 8, py)               # 펫 왼쪽, 필은 오른쪽으로
 
         def btnOrigin(self):
             px, py = self.petOrigin()
@@ -607,10 +620,10 @@ def run_gui():
             fr = 0 if state["resting"] else state["frame"] % len(seq)
             img = seq[fr]
 
-            # ── 상태 필 ──
+            # ── 상태 필 (펫 위치 기준 상하 플립) ──
             if state["show_panel"]:
                 gx0 = (W - PILL_W) // 2
-                gy0 = PH + GAP
+                gy0 = self.pillTop()
                 C_PILL.set()
                 NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                     NSMakeRect(gx0, gy0, PILL_W, PILL_H), PILL_R, PILL_R).fill()
