@@ -58,10 +58,22 @@ notarize() {
   spctl -a -vv "$APP" 2>&1 | head -3
 }
 
+publish() {
+  command -v gh >/dev/null 2>&1 || {
+    echo "❌ gh CLI 필요: brew install gh && gh auth login (개인 계정으로)"; exit 1; }
+  local TAG
+  TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1-beta")
+  gh release upload "$TAG" "$ZIP" --clobber
+  echo "🚀 GitHub Release 업로드 완료: $TAG ← $ZIP"
+  gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null || true
+}
+
 case "${1:-all}" in
   build)    build ;;
   sign)     sign ;;
   notarize) notarize ;;
+  publish)  publish ;;                      # zip을 GitHub Release에 업로드만
   all)      build; sign; notarize ;;
-  *) echo "사용법: ./release.sh [build|sign|notarize|all]"; exit 1 ;;
+  ship)     build; sign; notarize; publish ;;   # 전 과정 + 업로드까지 한 방
+  *) echo "사용법: ./release.sh [build|sign|notarize|publish|all|ship]"; exit 1 ;;
 esac
