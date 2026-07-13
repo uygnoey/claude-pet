@@ -453,6 +453,35 @@ _CLI_LINE = re.compile(
     r"Current (session|week \(([^)]*)\)):\s*(\d+(?:\.\d+)?)% used"
     r"(?:\s*·\s*resets (.*))?")
 
+_MONTHS = {m: i + 1 for i, m in enumerate(
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"])}
+
+
+def _parse_cli_reset(txt):
+    """'Jul 18 at 8pm' / 'Jul 13 at 2:10pm' → 로컬 타임존 datetime."""
+    m = re.match(r"([A-Z][a-z]{2})\.?\s+(\d{1,2})\s+at\s+"
+                 r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)", txt.strip(), re.I)
+    if not m:
+        return None
+    mon = _MONTHS.get(m.group(1).capitalize())
+    if not mon:
+        return None
+    day = int(m.group(2))
+    hour = int(m.group(3)) % 12
+    if m.group(5).lower() == "pm":
+        hour += 12
+    minute = int(m.group(4) or 0)
+    now_local = datetime.now().astimezone()
+    try:
+        dt = now_local.replace(month=mon, day=day, hour=hour,
+                               minute=minute, second=0, microsecond=0)
+    except ValueError:
+        return None
+    if dt < now_local - timedelta(days=1):   # 연말 넘어가는 경우
+        dt = dt.replace(year=dt.year + 1)
+    return dt
+
 
 def _fetch_cli_usage():
     """`claude -p /usage` 출력 파싱 — OAuth 실패 시 폴백."""
@@ -475,9 +504,11 @@ def _fetch_cli_usage():
             scope = (m.group(2) or "").strip().lower()
             label = "주간" if scope.startswith("all") else (m.group(2) or "모델").strip()
         txt = (m.group(4) or "").strip() or None
+        rdt = None
         if txt:
             txt = re.sub(r"\s*\([^)]*\)\s*$", "", txt)  # (Asia/Seoul) 제거
-        rows.append((label, float(m.group(3)), None, txt))
+            rdt = _parse_cli_reset(txt)   # 카운트다운 표시용
+        rows.append((label, float(m.group(3)), rdt, txt))
     return rows[:PILL_ROWS] or None
 
 
