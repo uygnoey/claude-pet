@@ -3,6 +3,22 @@
 Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
 macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
+## 요구사항 (파이썬)
+
+GUI 펫이 화면에 뜨려면 **framework 빌드 파이썬**이 필요합니다. 다음 중 하나면 OK:
+
+- **Homebrew**: `brew install python@3.13` (framework 빌드라 그대로 됨)
+- **pyenv**: 반드시 `--enable-framework`로 설치
+  ```bash
+  brew install pyenv
+  PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.13.14
+  pyenv global 3.13.14
+  ```
+
+> ⚠️ macOS **시스템 파이썬(`/usr/bin/python3`, 3.9)** 은 pyobjc 설치가 깨지니 쓰지 마세요.
+> `build_app.sh`는 실행 시 `pyenv shim → Homebrew → 시스템` 순으로 AppKit 되는 파이썬을 자동으로 찾습니다.
+> pyenv 일반 빌드(framework 아님)는 터미널 `--report`만 되고 GUI는 안 뜹니다.
+
 ## 설치 & 실행
 
 **앱으로 (추천)**:
@@ -13,10 +29,14 @@ open ClaudePet.app    # 이후엔 더블클릭
 
 **터미널로**:
 ```bash
-pip3 install pyobjc-framework-Cocoa   # 최초 1회
-python3 claude_pet.py                  # 펫 실행
-python3 claude_pet.py --report         # 터미널 리포트만
+python3 -m pip install pyobjc-framework-Cocoa   # 최초 1회 (framework 파이썬에)
+python3 claude_pet.py                            # 펫 실행
+python3 claude_pet.py --report                   # 터미널 리포트만
 ```
+
+> 💡 **첫 실행 시 키체인 허용 창**이 뜹니다("Claude Code-credentials" 접근).
+> 정확 모드가 Claude Code의 OAuth 토큰을 읽어 서버 계산 %를 가져오기 때문이며,
+> **"항상 허용"** 을 누르면 다음부터 안 물어봅니다. (토큰은 실행당 1회만 조회)
 
 ## 행동
 
