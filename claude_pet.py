@@ -580,12 +580,25 @@ def run_gui():
         def acceptsFirstMouse_(self, event):
             return True
 
+        def petOnRight(self):
+            """펫이 화면 오른쪽 절반에 있으면 True → 필이 왼쪽으로 붙음."""
+            w = self.window()
+            scr = (w.screen() if w else None) or NSScreen.mainScreen()
+            vf = scr.frame()
+            wx = w.frame().origin.x if w else vf.origin.x
+            return (wx + W / 2) >= (vf.origin.x + vf.size.width / 2)
+
         def petOrigin(self):
-            return (W - PW - BTN_R * 2 - 8, 2)
+            if self.petOnRight():
+                return (W - PW - BTN_R * 2 - 8, 2)   # 펫 오른쪽, 필은 왼쪽으로
+            return (BTN_R * 2 + 8, 2)                # 펫 왼쪽, 필은 오른쪽으로
 
         def btnOrigin(self):
             px, py = self.petOrigin()
-            return (px + PW + 2, py + int(26 * g["scale"]))
+            by = py + int(26 * g["scale"])
+            if self.petOnRight():
+                return (px + PW + 2, by)             # 버튼은 펫 바깥쪽
+            return (px - BTN_R * 2 - 2, by)
 
         def drawRect_(self, rect):
             stats = state["stats"]
@@ -663,9 +676,11 @@ def run_gui():
         def mouseUp_(self, event):
             state["dragging"] = False
             clear_sticky()
+            clamp_to_screen()   # 화면 밖으로 나갔으면 다시 안으로
             fo = self.window().frame().origin
             cfg["x"], cfg["y"] = fo.x, fo.y
             save_config(cfg)
+            self.setNeedsDisplay_(True)  # 좌우 플립 반영
             if getattr(self, "_moved", False):
                 return
             if event.clickCount() == 2:
@@ -695,6 +710,29 @@ def run_gui():
 
         def scrollWheel_(self, event):
             set_scale(g["scale"] + event.scrollingDeltaY() * 0.004)
+
+    # ── 화면 경계 클램프: 창이 모든 모니터 밖으로 나가 증발하는 것 방지 ──
+    def clamp_to_screen():
+        f = win.frame()
+        cx = f.origin.x + f.size.width / 2
+        cy = f.origin.y + f.size.height / 2
+        best, best_d = None, None
+        for scr in NSScreen.screens():
+            vf = scr.visibleFrame()
+            dx = max(vf.origin.x - cx, 0, cx - (vf.origin.x + vf.size.width))
+            dy = max(vf.origin.y - cy, 0, cy - (vf.origin.y + vf.size.height))
+            d = dx * dx + dy * dy
+            if best_d is None or d < best_d:
+                best, best_d = vf, d
+        if best is None:
+            return
+        MARGIN = 80  # 최소한 이만큼은 화면 안에 남김
+        nx = max(best.origin.x - W + MARGIN,
+                 min(f.origin.x, best.origin.x + best.size.width - MARGIN))
+        ny = max(best.origin.y - 10,
+                 min(f.origin.y, best.origin.y + best.size.height - MARGIN))
+        if abs(nx - f.origin.x) > 0.5 or abs(ny - f.origin.y) > 0.5:
+            win.setFrameOrigin_(NSMakePoint(nx, ny))
 
     # ── 크기 조절 ──
     def set_scale(value):
@@ -968,11 +1006,13 @@ def run_gui():
     win.setBackgroundColor_(NSColor.clearColor())
     win.setHasShadow_(False)
     win.setLevel_(25)
-    win.setCollectionBehavior_(1 << 0 | 1 << 4)
+    # 모든 스페이스에 표시 + 전체화면 앱 위에도 보조로 표시
+    win.setCollectionBehavior_(1 << 0 | 1 << 8)
 
     view = PetView.alloc().initWithFrame_(NSMakeRect(0, 0, W, H))
     win.setContentView_(view)
     win.orderFrontRegardless()
+    clamp_to_screen()   # 저장된 좌표가 화면 밖이면 안으로 복구
 
     handler = Handler.alloc().init()
     ticker = Ticker.alloc().init()
