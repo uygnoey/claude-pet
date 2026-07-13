@@ -3,38 +3,19 @@
 Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
 macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
-## 요구사항 (파이썬)
+> 🧪 현재 **v0.1 (beta)** — 실험 단계라 동작/표기가 바뀔 수 있어요.
 
-GUI 펫이 화면에 뜨려면 **framework 빌드 파이썬**이 필요합니다. 다음 중 하나면 OK:
+![Patch](preview.png)
 
-- **Homebrew**: `brew install python@3.13` (framework 빌드라 그대로 됨)
-- **pyenv**: 반드시 `--enable-framework`로 설치
-  ```bash
-  brew install pyenv
-  PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.13.14
-  pyenv global 3.13.14
-  ```
+## 다운로드 & 설치 (권장)
 
-> ⚠️ macOS **시스템 파이썬(`/usr/bin/python3`, 3.9)** 은 pyobjc 설치가 깨지니 쓰지 마세요.
-> `build_app.sh`는 실행 시 `pyenv shim → Homebrew → 시스템` 순으로 AppKit 되는 파이썬을 자동으로 찾습니다.
-> pyenv 일반 빌드(framework 아님)는 터미널 `--report`만 되고 GUI는 안 뜹니다.
+**Python 설치 불필요** — 앱에 내장돼 있고 **Apple 공증**되어 Gatekeeper 경고 없이 바로 열립니다.
 
-## 설치 & 실행
+1. [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest)에서 `ClaudePet.zip` 다운로드
+2. 압축 해제 → `ClaudePet.app`을 **응용 프로그램** 폴더로 이동 → 더블클릭
+3. macOS 12+ (Apple Silicon)
 
-**앱으로 (추천)**:
-```bash
-./build_app.sh        # ClaudePet.app 생성 (맥에서 직접 빌드)
-open ClaudePet.app    # 이후엔 더블클릭
-```
-
-**터미널로**:
-```bash
-python3 -m pip install pyobjc-framework-Cocoa   # 최초 1회 (framework 파이썬에)
-python3 claude_pet.py                            # 펫 실행
-python3 claude_pet.py --report                   # 터미널 리포트만
-```
-
-## 권한 (첫 실행 시)
+### 권한 (첫 실행 시)
 
 펫은 **`~/.claude`(사용량 로그)와 키체인의 OAuth 토큰만** 읽습니다. 그 외 폴더(사진·다운로드·문서 등)는 건드리지 않아요. 첫 실행 때 딱 이것만 뜹니다:
 
@@ -46,6 +27,31 @@ python3 claude_pet.py --report                   # 터미널 리포트만
 - 토큰은 **실행당 1회만** 조회하고, 서명된 앱이라 결정이 영구 저장돼 다시 안 물어봅니다.
 - **사진/다운로드/음악/데스크탑/문서/iCloud/네트워크볼륨 팝업은 뜨지 않습니다.** (과거엔 `claude` CLI를 자식으로 실행해 그 스캔이 앱에 귀속되며 떴지만, 지금은 CLI 호출을 기본 OFF로 막음)
   - 모델별(Fable) 줄을 CLI로 보충받고 싶으면 `CLAUDE_PET_USE_CLI=1`로 켤 수 있으나, 그러면 폴더 팝업이 다시 뜹니다.
+
+### 업데이트
+
+앱이 시작할 때 GitHub 최신 릴리즈를 확인해, 새 버전이 있으면 **우클릭 → "⬆︎ 새 버전 설치"** 로 다운로드·교체·재실행까지 자동 처리합니다.
+
+---
+
+## 직접 빌드 (개발자용)
+
+소스에서 빌드하려면 **framework 빌드 파이썬**이 필요합니다:
+
+- **Homebrew**: `brew install python@3.13` (framework 빌드라 그대로 됨)
+- **pyenv**: 반드시 `--enable-framework`로 설치
+  ```bash
+  PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.13.14 && pyenv global 3.13.14
+  ```
+  > ⚠️ 시스템 파이썬(`/usr/bin/python3`, 3.9)은 pyobjc 빌드가 깨지니 쓰지 마세요.
+
+```bash
+./build_app.sh install     # 로컬 빌드+서명 → /Applications 설치+실행
+python3 claude_pet.py --report   # GUI 없이 터미널 리포트만
+
+./release.sh               # 배포용 자체포함 앱(py2app)+Developer ID 서명+공증+zip
+```
+`release.sh`는 최초 1회 공증 자격증명 등록이 필요합니다(스크립트 상단 주석 참고).
 
 ## 행동
 
