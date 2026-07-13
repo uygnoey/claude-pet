@@ -449,6 +449,10 @@ def _label_order(label):
     return 5
 
 
+# 정확 모드 상태 — 토큰 만료(401 지속) 시 폴백 필에 안내를 띄우기 위함
+OAUTH_STATUS = {"auth_error": False}
+
+
 def _fetch_oauth_usage():
     tok = _read_oauth_token()
     if not tok:
@@ -463,14 +467,17 @@ def _fetch_oauth_usage():
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
                 data = json.loads(r.read().decode())
+            OAUTH_STATUS["auth_error"] = False
             return _parse_oauth_usage(data)
         except urllib.error.HTTPError as e:
             # 토큰 만료 추정 → 키체인에서 1회 재조회 후 재시도 (그래도 실패면 포기)
-            if e.code in (401, 403) and attempt == 0:
-                tok = _read_oauth_token(force=True)
-                if not tok:
-                    return None
-                continue
+            if e.code in (401, 403):
+                if attempt == 0:
+                    tok = _read_oauth_token(force=True)
+                    if tok:
+                        continue
+                # 재조회한 토큰도 거부 = 키체인 토큰 자체가 만료
+                OAUTH_STATUS["auth_error"] = True
             return None
         except Exception:
             return None
@@ -889,6 +896,13 @@ def run_gui():
             NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 NSMakeRect(bx0, ry + 17,
                            max(8, bw * gg["pct"] / 100), 6), 3, 3).fill()
+        # 폴백 모드 표시 — 정확 모드가 왜 안 되는지 알려줌 (Opus/추정 혼란 방지)
+        if OAUTH_STATUS.get("auth_error"):
+            hint = astr("⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
+                        F_TINY)
+        else:
+            hint = astr("(로그 추정)", F_TINY)
+        hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, gy0 + pill_h() - 15))
         if state["cost"] is not None:
             c = astr(f"오늘 API ${state['cost']:.2f}", F_TINY)
             cw = c.size()
