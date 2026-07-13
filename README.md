@@ -1,5 +1,7 @@
 # 🐱 Claude Pet (Patch 에디션)
 
+**[한국어](README.md) · [English](README.en.md) · [Español](README.es.md)**
+
 Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
 macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
