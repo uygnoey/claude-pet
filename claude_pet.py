@@ -508,7 +508,15 @@ def _parse_cli_reset(txt):
 
 
 def _fetch_cli_usage():
-    """`claude -p /usage` 출력 파싱 — OAuth 실패 시 폴백."""
+    """`claude -p /usage` 출력 파싱 — OAuth 실패 시 폴백.
+
+    주의: claude CLI는 Claude Code 전체(Node 앱)를 자식으로 띄워 홈/프로젝트/
+    여러 폴더를 스캔한다. 그 접근이 부모(ClaudePet)에 귀속돼 macOS가 다운로드/
+    사진/네트워크볼륨 등 보호폴더 접근 프롬프트를 띄운다. OAuth 정확 모드가
+    이미 세션/주간/모델/크레딧을 주므로 기본은 OFF. 켜려면 CLAUDE_PET_USE_CLI=1.
+    """
+    if os.environ.get("CLAUDE_PET_USE_CLI", "0") != "1":
+        return None
     cli = _find_claude_cli()
     if not cli:
         return None
@@ -1037,6 +1045,10 @@ def run_gui():
                 return
             if event.clickCount() == 2:
                 set_override("jumping")
+                _oauth_cache["t"] = 0.0        # 캐시 무효화 → 즉시 재조회
+                tk = state.get("ticker")
+                if tk is not None:
+                    tk.refresh_(None)           # 사용량 즉시 갱신
                 return
             loc = self.convertPoint_fromView_(event.locationInWindow(), None)
             bx, by = self.btnOrigin()
@@ -1379,6 +1391,7 @@ def run_gui():
 
     handler = Handler.alloc().init()
     ticker = Ticker.alloc().init()
+    state["ticker"] = ticker   # 더블클릭 즉시 갱신용
     NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
         TICK, ticker, "tick:", None, True)
     NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(

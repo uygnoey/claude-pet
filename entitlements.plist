@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 번들 python이 외부/자체서명 framework를 로드할 수 있게 (하드닝 런타임 하에서) -->
+    <key>com.apple.security.cs.disable-library-validation</key><true/>
+    <key>com.apple.security.cs.allow-jit</key><true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key><true/>
+</dict>
+</plist>

@@ -24,7 +24,7 @@ build() {
 <dict>
     <key>CFBundleName</key><string>ClaudePet</string>
     <key>CFBundleDisplayName</key><string>Claude Pet</string>
-    <key>CFBundleIdentifier</key><string>com.yeongyu.claudepet</string>
+    <key>CFBundleIdentifier</key><string>me.yeongyu.claudepet</string>
     <key>CFBundleVersion</key><string>1.0</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -35,27 +35,62 @@ build() {
 </plist>
 PLIST
 
-  # 런처는 컴파일된 Mach-O — 코드서명하려면 실행파일이 Mach-O여야 하고,
-  # python을 exec가 아닌 fork+wait(자식)로 띄워야 책임 프로세스가 이 서명된
-  # 번들(ClaudePet)로 남는다 → macOS가 권한을 python3.13이 아닌 앱에 기억.
+  # 런처는 컴파일된 Mach-O (코드서명하려면 실행파일이 Mach-O여야 함)
   clang -O2 -arch arm64 -arch x86_64 -o "$APP/Contents/MacOS/ClaudePet" launcher.c 2>/dev/null \
     || clang -O2 -o "$APP/Contents/MacOS/ClaudePet" launcher.c
   chmod +x "$APP/Contents/MacOS/ClaudePet"
+
+  # 번들 안에 python 실행파일 복사 → 실행 시 [NSBundle mainBundle]이 ClaudePet.app으로
+  # 잡혀 macOS가 문서앱(org.python.python)으로 오인하지 않음 → 보호폴더 프롬프트 제거.
+  local PY PYPREFIX PYBIN
+  PY=$(find_py)
+  if [ -n "$PY" ]; then
+    PYPREFIX=$("$PY" -c 'import sys;print(sys.prefix)' 2>/dev/null)
+    PYBIN="$PYPREFIX/Resources/Python.app/Contents/MacOS/Python"
+    [ -x "$PYBIN" ] || PYBIN="$PY"
+    cp "$PYBIN" "$APP/Contents/MacOS/ClaudePet_py"
+    chmod +x "$APP/Contents/MacOS/ClaudePet_py"
+    echo "🐍 번들 python: $PYBIN"
+  else
+    echo "⚠️  AppKit 가능한 python을 못 찾음 — 번들 python 없이 빌드(폴백 실행)"
+  fi
 
   sign_app
   echo "✅ 빌드 완료: $(pwd)/$APP"
 }
 
+# AppKit 임포트 되는 framework python 하나 찾기
+find_py() {
+  local c
+  for c in "$HOME/.pyenv/shims/python3" /opt/homebrew/bin/python3 \
+           /usr/local/bin/python3 \
+           /Library/Frameworks/Python.framework/Versions/Current/bin/python3 \
+           /usr/bin/python3; do
+    [ -x "$c" ] && "$c" -c "import AppKit" >/dev/null 2>&1 && { echo "$c"; return; }
+  done
+}
+
 # 앱 서명: 정식 Apple 인증서 > 로컬 자체서명(ClaudePet Local) > ad-hoc
 # TCC/키체인 권한이 안정적으로 기억되려면 서명이 필요하다.
 sign_app() {
-  local id
+  local id; local -a opts
+  local ENT="$(cd "$(dirname "$0")" && pwd)/entitlements.plist"
+  local pybin="$APP/Contents/MacOS/ClaudePet_py"
   id=$(security find-identity -v -p codesigning 2>/dev/null \
         | grep -Eo '"(Developer ID Application|Apple Development)[^"]*"' | head -1 | tr -d '"')
-  [ -z "$id" ] && id="ClaudePet Local"   # 자체서명 (없으면 아래 codesign이 실패 → ad-hoc)
-  if codesign --force --identifier com.yeongyu.claudepet --sign "$id" "$APP" 2>/dev/null; then
+  if [ -n "$id" ]; then
+    # 공증 요건: 하드닝 런타임 + 보안 타임스탬프 + python용 엔타이틀먼트
+    opts=(--options runtime --timestamp)
+    [ -f "$ENT" ] && opts+=(--entitlements "$ENT")
+  else
+    id="ClaudePet Local"; opts=()          # 로컬 자체서명 (없으면 codesign 실패 → ad-hoc)
+  fi
+  # 중첩 실행파일(번들 python) 먼저 서명 → 그다음 번들
+  [ -f "$pybin" ] && codesign --force "${opts[@]}" --sign "$id" "$pybin" 2>/dev/null
+  if codesign --force --identifier me.yeongyu.claudepet "${opts[@]}" --sign "$id" "$APP" 2>/dev/null; then
     echo "🔏 서명: $id"
   else
+    [ -f "$pybin" ] && codesign --force --sign - "$pybin" 2>/dev/null
     codesign --force --sign - "$APP" 2>/dev/null && echo "🔏 서명: ad-hoc (인증서 없음)"
   fi
 }

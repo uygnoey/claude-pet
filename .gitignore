@@ -2,3 +2,12 @@ __pycache__/
 .DS_Store
 ClaudePet.app/
 *.zip
+
+# 서명/공증 자격증명 (레포에 넣지 말 것)
+*.p12
+*.cer
+*.certSigningRequest
+*_key.pem
+
+# 스크린샷
+스크린샷*.png
