@@ -58,14 +58,35 @@ notarize() {
   spctl -a -vv "$APP" 2>&1 | head -3
 }
 
+# 현재 버전 (claude_pet.py의 APP_VERSION이 유일한 진실)
+cur_version() {
+  grep -Eo 'APP_VERSION = "[^"]+"' claude_pet.py | cut -d'"' -f2
+}
+
+# ./release.sh ship 0.2  →  APP_VERSION 갱신 + 커밋 + 태그 + 푸시
+bump_version() {
+  local NEW="$1"
+  [ -z "$NEW" ] && return 0
+  NEW="${NEW#v}"
+  sed -i '' -E "s/^APP_VERSION = \"[^\"]+\"/APP_VERSION = \"$NEW\"/" claude_pet.py
+  git add claude_pet.py
+  git commit -m "v$NEW"
+  git tag "v$NEW"
+  git push && git push --tags
+  echo "🔖 버전 업: v$NEW (커밋+태그+푸시 완료)"
+}
+
 publish() {
   command -v gh >/dev/null 2>&1 || {
     echo "❌ gh CLI 필요: brew install gh && gh auth login (개인 계정으로)"; exit 1; }
-  local TAG
-  TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1-beta")
-  gh release upload "$TAG" "$ZIP" --clobber
-  echo "🚀 GitHub Release 업로드 완료: $TAG ← $ZIP"
-  gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null || true
+  local TAG="v$(cur_version)"
+  if gh release view "$TAG" >/dev/null 2>&1; then
+    gh release upload "$TAG" "$ZIP" --clobber
+    echo "🚀 기존 릴리즈에 업로드: $TAG ← $ZIP"
+  else
+    gh release create "$TAG" "$ZIP" --title "ClaudePet $TAG" --generate-notes
+    echo "🚀 새 릴리즈 생성: $TAG ← $ZIP"
+  fi
 }
 
 case "${1:-all}" in
@@ -74,6 +95,8 @@ case "${1:-all}" in
   notarize) notarize ;;
   publish)  publish ;;                      # zip을 GitHub Release에 업로드만
   all)      build; sign; notarize ;;
-  ship)     build; sign; notarize; publish ;;   # 전 과정 + 업로드까지 한 방
-  *) echo "사용법: ./release.sh [build|sign|notarize|publish|all|ship]"; exit 1 ;;
+  ship)     bump_version "$2"; build; sign; notarize; publish ;;
+  *) echo "사용법: ./release.sh [build|sign|notarize|publish|all|ship [새버전]]"
+     echo "  예: ./release.sh ship 0.2   # 버전업+빌드+공증+새 릴리즈 생성까지 한 방"
+     exit 1 ;;
 esac
