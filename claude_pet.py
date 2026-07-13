@@ -400,14 +400,26 @@ def _parse_oauth_usage(data):
 
     walk(data, "")
     found.sort(key=lambda x: x[0])
-    # 같은 라벨 중복 제거, 최대 3줄. (label, pct, reset_dt, reset_text)
+    # 같은 라벨 중복 제거. (label, pct, reset_dt, reset_text)
     seen, rows = set(), []
     for _, label, pct, rdt in found:
         if label in seen:
             continue
         seen.add(label)
         rows.append((label, pct, rdt, None))
-    return rows[:3] or None
+    return rows[:PILL_ROWS] or None
+
+
+def _label_order(label):
+    if label == "세션":
+        return 0
+    if label == "주간":
+        return 1
+    if label == "크레딧":
+        return 9
+    if label.lower() in PREMIUM_FAMILIES + ["sonnet", "haiku"]:
+        return 2
+    return 5
 
 
 def _fetch_oauth_usage():
@@ -466,17 +478,29 @@ def _fetch_cli_usage():
         if txt:
             txt = re.sub(r"\s*\([^)]*\)\s*$", "", txt)  # (Asia/Seoul) 제거
         rows.append((label, float(m.group(3)), None, txt))
-    return rows[:3] or None
+    return rows[:PILL_ROWS] or None
 
 
 def fetch_exact_usage():
-    """정확 사용량 [(label, pct, reset_dt, reset_text)] — OAuth → CLI → None.
+    """정확 사용량 [(label, pct, reset_dt, reset_text)] 최대 4줄.
+    OAuth 우선, 모델별(Fable 등) 줄이 없으면 CLI(claude -p /usage)에서 보충.
     180초 캐시 (과호출 시 429)."""
     now = time.time()
     if now - _oauth_cache["t"] < OAUTH_CACHE_SEC:
         return _oauth_cache["gauges"]
     _oauth_cache["t"] = now
-    rows = _fetch_oauth_usage() or _fetch_cli_usage()
+    rows = _fetch_oauth_usage()
+    if rows is None:
+        rows = _fetch_cli_usage()
+    elif not any(_label_order(r[0]) == 2 for r in rows):
+        # OAuth 응답에 모델별 항목이 없으면 CLI에서 Fable 줄 보충
+        cli = _fetch_cli_usage() or []
+        have = {r[0] for r in rows}
+        for r in cli:
+            if r[0] not in have:
+                rows.append(r)
+    if rows:
+        rows = sorted(rows, key=lambda r: _label_order(r[0]))[:PILL_ROWS]
     _oauth_cache["gauges"] = rows
     return rows
 
@@ -522,7 +546,8 @@ PILL_W = 330          # 상태 필 너비
 PILL_R = 18           # 라운드 반경
 PILL_PAD = 13         # 필 내부 패딩
 ROW_H = 30            # 필 안 행 높이
-PILL_H = PILL_PAD * 2 + ROW_H * 3 - 6
+PILL_ROWS = 4         # 세션 / 주간 / 모델(Fable 등) / 크레딧
+PILL_H = PILL_PAD * 2 + ROW_H * PILL_ROWS - 6
 GAP = 6               # 펫-필 간격
 BTN_R = 13            # 접기 버튼 반지름
 
@@ -719,7 +744,7 @@ def run_gui():
         """정확 모드: OAuth/CLI에서 받은 서버 계산 % 표시 (보정 불필요)."""
         stats = state["stats"]
         now_utc = datetime.now(timezone.utc)
-        for i, (label, pct, rdt, rtxt) in enumerate(rows[:3]):
+        for i, (label, pct, rdt, rtxt) in enumerate(rows[:PILL_ROWS]):
             ry = gy0 + PILL_PAD + i * ROW_H
             astr(label, F_BOLD).drawAtPoint_(
                 NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
@@ -743,10 +768,11 @@ def run_gui():
             hexcolor(COL_BAD if spiking else bar_color(pct)).set()
             NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 NSMakeRect(bx0, ry + 17, max(8, bw * pct / 100), 6), 3, 3).fill()
-        tag = astr("정확 모드", F_TINY)
-        ts_ = tag.size()
-        tag.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts_.width,
-                                     gy0 + PILL_H - 15))
+        if len(rows) < PILL_ROWS:
+            tag = astr("정확 모드", F_TINY)
+            ts_ = tag.size()
+            tag.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts_.width,
+                                         gy0 + PILL_H - 15))
 
     def draw_api_pill(gx0, gy0):
         if not RUNTIME.get("admin_key"):
