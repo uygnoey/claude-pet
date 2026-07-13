@@ -35,37 +35,29 @@ build() {
 </plist>
 PLIST
 
-  cat > "$APP/Contents/MacOS/ClaudePet" <<'LAUNCH'
-#!/bin/zsh
-DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
-CANDIDATES=(
-  "$HOME/.pyenv/shims/python3"
-  "$PYENV_ROOT/shims/python3"
-  /opt/homebrew/bin/python3
-  /usr/local/bin/python3
-  /Library/Frameworks/Python.framework/Versions/Current/bin/python3
-  /usr/bin/python3
-)
-for PY in $CANDIDATES; do
-  if [ -x "$PY" ] && "$PY" -c "import AppKit" >/dev/null 2>&1; then
-    exec "$PY" "$DIR/claude_pet.py"
-  fi
-done
-osascript -e 'display dialog "pyobjc가 필요해서 설치할게요 (최초 1회)" buttons {"확인"} default button 1 with title "Claude Pet"'
-for PY in $CANDIDATES; do
-  if [ -x "$PY" ]; then
-    "$PY" -m pip install --user pyobjc-framework-Cocoa >/tmp/claudepet_pip.log 2>&1 || \
-    "$PY" -m pip install --user --break-system-packages pyobjc-framework-Cocoa >>/tmp/claudepet_pip.log 2>&1
-    if "$PY" -c "import AppKit" >/dev/null 2>&1; then
-      exec "$PY" "$DIR/claude_pet.py"
-    fi
-  fi
-done
-osascript -e 'display dialog "설치 실패. 터미널에서: pip3 install pyobjc-framework-Cocoa" buttons {"확인"} default button 1 with title "Claude Pet"'
-exit 1
-LAUNCH
+  # 런처는 컴파일된 Mach-O — 코드서명하려면 실행파일이 Mach-O여야 하고,
+  # python을 exec가 아닌 fork+wait(자식)로 띄워야 책임 프로세스가 이 서명된
+  # 번들(ClaudePet)로 남는다 → macOS가 권한을 python3.13이 아닌 앱에 기억.
+  clang -O2 -arch arm64 -arch x86_64 -o "$APP/Contents/MacOS/ClaudePet" launcher.c 2>/dev/null \
+    || clang -O2 -o "$APP/Contents/MacOS/ClaudePet" launcher.c
   chmod +x "$APP/Contents/MacOS/ClaudePet"
+
+  sign_app
   echo "✅ 빌드 완료: $(pwd)/$APP"
+}
+
+# 앱 서명: 정식 Apple 인증서 > 로컬 자체서명(ClaudePet Local) > ad-hoc
+# TCC/키체인 권한이 안정적으로 기억되려면 서명이 필요하다.
+sign_app() {
+  local id
+  id=$(security find-identity -v -p codesigning 2>/dev/null \
+        | grep -Eo '"(Developer ID Application|Apple Development)[^"]*"' | head -1 | tr -d '"')
+  [ -z "$id" ] && id="ClaudePet Local"   # 자체서명 (없으면 아래 codesign이 실패 → ad-hoc)
+  if codesign --force --identifier com.yeongyu.claudepet --sign "$id" "$APP" 2>/dev/null; then
+    echo "🔏 서명: $id"
+  else
+    codesign --force --sign - "$APP" 2>/dev/null && echo "🔏 서명: ad-hoc (인증서 없음)"
+  fi
 }
 
 stop_pet() {
@@ -80,6 +72,7 @@ case "$1" in
     rm -rf "$DEST"
     cp -R "$APP" "$DEST"
     xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+    APP="$DEST" sign_app          # 설치본 재서명 (복사 후 봉인 보장)
     echo "✅ 설치: $DEST"
     open "$DEST"
     echo "🐱 실행!"
@@ -91,6 +84,7 @@ case "$1" in
     fi
     stop_pet
     cp claude_pet.py "$DEST/Contents/Resources/claude_pet.py"
+    APP="$DEST" sign_app          # py 교체로 깨진 서명 봉인 재적용 (같은 인증서 → 권한 유지)
     echo "✅ 코드 갱신: $DEST"
     open "$DEST"
     echo "🐱 재시작!"
