@@ -1,94 +1,94 @@
-# 🐱 Claude Pet (Patch 에디션)
+# 🐱 Claude Pet (Patch Edition)
 
-**[한국어](README.md) · [English](README.en.md) · [Español](README.es.md)**
+**English** · [한국어](README.ko.md) · [日本語](README.ja.md) · [Español](README.es.md)
 
-Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
-macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
+A desktop pet — Patch floats on your screen and watches your Claude token usage, à la Codex Pets.
+Rendered natively on macOS (AppKit) — no window frame, no background, no ghosting.
 
-> 🧪 현재 **v0.1 (beta)** — 실험 단계라 동작/표기가 바뀔 수 있어요.
+> 🧪 Currently **v0.1 (beta)** — experimental; behavior and labels may change.
 
 ![Patch](preview.png)
 
-## 다운로드 & 설치 (권장)
+## Download & Install (recommended)
 
-**Python 설치 불필요** — 앱에 내장돼 있고 **Apple 공증**되어 Gatekeeper 경고 없이 바로 열립니다.
+**No Python needed** — it's bundled inside the app, which is **notarized by Apple**, so it opens with no Gatekeeper warning.
 
-1. [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest)에서 `ClaudePet.zip` 다운로드
-2. 압축 해제 → `ClaudePet.app`을 **응용 프로그램** 폴더로 이동 → 더블클릭
+1. Download `ClaudePet.zip` from [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest)
+2. Unzip → move `ClaudePet.app` to your **Applications** folder → double-click
 3. macOS 12+ (Apple Silicon)
 
-### 권한 (첫 실행 시)
+### Permissions (first launch)
 
-펫은 **`~/.claude`(사용량 로그)와 키체인의 OAuth 토큰만** 읽습니다. 그 외 폴더(사진·다운로드·문서 등)는 건드리지 않아요. 첫 실행 때 딱 이것만 뜹니다:
+The pet only reads **`~/.claude` (usage logs) and the OAuth token in your Keychain**. It never touches other folders (Photos, Downloads, Documents, …). On first launch you'll see only these:
 
-| 팝업 | 무엇 | 누를 것 |
+| Prompt | What | Choose |
 |---|---|---|
-| **키체인** — "Claude Code-credentials" | 정확 모드가 서버 계산 %를 가져올 OAuth 토큰 | **항상 허용** |
-| **"다른 앱의 데이터"** — `~/.claude` | 사용량 로그 읽기 | **허용** |
+| **Keychain** — "Claude Code-credentials" | OAuth token so Exact mode can fetch server-computed % | **Always Allow** |
+| **"data from other apps"** — `~/.claude` | reading usage logs | **Allow** |
 
-- 토큰은 **실행당 1회만** 조회하고, 서명된 앱이라 결정이 영구 저장돼 다시 안 물어봅니다.
-- **사진/다운로드/음악/데스크탑/문서/iCloud/네트워크볼륨 팝업은 뜨지 않습니다.** (과거엔 `claude` CLI를 자식으로 실행해 그 스캔이 앱에 귀속되며 떴지만, 지금은 CLI 호출을 기본 OFF로 막음)
-  - 모델별(Fable) 줄을 CLI로 보충받고 싶으면 `CLAUDE_PET_USE_CLI=1`로 켤 수 있으나, 그러면 폴더 팝업이 다시 뜹니다.
+- The token is read **once per launch**, and because the app is signed the decision is remembered — you won't be asked again.
+- **No Photos / Downloads / Music / Desktop / Documents / iCloud / Network-volume prompts appear.** (They used to, because the pet spawned the `claude` CLI as a child and its home scan was attributed to the app — that CLI call is now OFF by default.)
+  - To supplement the per-model (Fable) row via the CLI, set `CLAUDE_PET_USE_CLI=1` — but then the folder prompts come back.
 
-### 업데이트
+### Updates
 
-앱이 시작할 때 GitHub 최신 릴리즈를 확인해, 새 버전이 있으면 **우클릭 → "⬆︎ 새 버전 설치"** 로 다운로드·교체·재실행까지 자동 처리합니다.
+On launch the app checks the latest GitHub release; if a newer version exists, **right-click → "⬆︎ Install new version"** downloads, replaces, and relaunches automatically.
 
 ---
 
-## 직접 빌드 (개발자용)
+## Build from source (developers)
 
-소스에서 빌드하려면 **framework 빌드 파이썬**이 필요합니다:
+To build from source you need a **framework build of Python**:
 
-- **Homebrew**: `brew install python@3.13` (framework 빌드라 그대로 됨)
-- **pyenv**: 반드시 `--enable-framework`로 설치
+- **Homebrew**: `brew install python@3.13` (already a framework build)
+- **pyenv**: install with `--enable-framework`
   ```bash
   PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.13.14 && pyenv global 3.13.14
   ```
-  > ⚠️ 시스템 파이썬(`/usr/bin/python3`, 3.9)은 pyobjc 빌드가 깨지니 쓰지 마세요.
+  > ⚠️ Don't use the system Python (`/usr/bin/python3`, 3.9) — pyobjc fails to build there.
 
 ```bash
-./build_app.sh install     # 로컬 빌드+서명 → /Applications 설치+실행
-python3 claude_pet.py --report   # GUI 없이 터미널 리포트만
+./build_app.sh install     # local build+sign → install to /Applications and run
+python3 claude_pet.py --report   # terminal report only, no GUI
 
-./release.sh               # 배포용 자체포함 앱(py2app)+Developer ID 서명+공증+zip
+./release.sh               # distributable self-contained app (py2app) + Developer ID sign + notarize + zip
 ```
-`release.sh`는 최초 1회 공증 자격증명 등록이 필요합니다(스크립트 상단 주석 참고).
+`release.sh` needs notarization credentials stored once (see the comment at the top of the script).
 
-## 행동
+## Behavior
 
-- **평소엔 가만히** — 첫 프레임 정지, 25초에 한 번 숨쉬기/깜빡임만
-- **마우스가 가까이 가면** 손 흔들며 인사 (쿨다운 30초)
-- **잡고 끌면** 끄는 방향으로 달리기, **더블클릭** 점프 + **사용량 즉시 갱신**(캐시 무시 재조회)
-- **토큰 소비 급증하면** 몸에 경고색 펄스 + 패닉 표정 + 게이지에 ▲급증:
-  - 🔴 세션 급증 / 🟣 모델(Fable/Opus) 급증 / 🟠 주간 급증
-- **세션 리셋 감지하면** 신나서 점프
+- **Idle by default** — first frame frozen; a breath/blink only once every 25s
+- **When the mouse comes close** — waves hello (30s cooldown)
+- **Grab & drag** — runs in the drag direction; **double-click** = jump + **instant usage refresh** (cache-busting refetch)
+- **When token usage spikes** — warning-color pulse + panic face + ▲spike on the gauge:
+  - 🔴 session spike / 🟣 model (Fable/Opus) spike / 🟠 weekly spike
+- **When a session reset is detected** — jumps for joy
 
-## 조작
+## Controls
 
-- **스크롤 (펫 위에서)**: 크기 조절 (0.3×~2.0×, 저장됨. 기본 0.5×)
-- **클릭 (⌄ 버튼)**: 게이지 패널 접기/펴기
-- **드래그**: 이동 (위치 저장)
-- **우클릭**: 메뉴 — 설정 / 접기 / 크기 원래대로 / 종료
+- **Scroll (over the pet)**: resize (0.3×–2.0×, saved; default 0.5×)
+- **Click (⌄ button)**: collapse/expand the gauge panel
+- **Drag**: move (position saved)
+- **Right-click**: menu — Settings / Collapse / Reset size / Quit
 
-## 게이지 3종 (구독 모드)
+## Three gauges (subscription mode)
 
-세션(5h) / 주간 전체 / 주간 모델별 — 각각 %, 남은 토큰, 리셋 카운트다운.
-모델별 게이지는 로그에서 상위 티어(fable → mythos → opus 순)를 **자동 감지**.
+Session (5h) / weekly total / weekly per-model — each with %, remaining tokens, reset countdown.
+The per-model gauge **auto-detects** the top tier from the logs (fable → mythos → opus).
 
-## 설정 (우클릭 → 설정)
+## Settings (right-click → Settings)
 
-- **데이터 소스**: 구독(Claude Code 로그) / API(Admin API 비용 — 오늘·이번 달·월 예산 게이지)
-- **🔧 보정 (제일 중요!)**: 한도 토큰 수는 Anthropic 비공개라 아무도 모름.
-  대신 Claude 앱 **설정 > 사용량**에 표시된 %를 그대로 입력하고 저장하면
-  `한도 = 현재 사용량 ÷ %`로 자동 역산. 입력한 항목만 반영됨.
-- **주간 리셋 요일/시각**: 앱에 "(토) 오후 8:00에 재설정"이라 나오면 토요일/20시로 설정. 미설정 시 롤링 7일.
-- 모델 키워드(auto 권장), 급증 민감도, 마우스 인사 on/off, Admin API 키, 월 예산
+- **Data source**: subscription (Claude Code logs) / API (Admin API cost — today, this month, monthly-budget gauge)
+- **🔧 Calibration (most important!)**: the token limits are private to Anthropic, so nobody knows them.
+  Instead, type the % shown in the Claude app's **Settings > Usage** and save — the app back-solves
+  `limit = current usage ÷ %`. Only the fields you enter are applied.
+- **Weekly reset day/time**: if the app says "resets Sat 8:00 PM", set Saturday/20:00. Rolling 7 days if unset.
+- Model keyword (auto recommended), spike sensitivity, mouse-greeting on/off, Admin API key, monthly budget
 
-모든 설정·크기·위치는 `~/.claude_pet.json`에 저장.
+All settings, size, and position are saved in `~/.claude_pet.json`.
 
-## 한계 (솔직하게)
+## Limits (honestly)
 
-- 데이터는 Claude Code 로컬 로그 기준 — 웹/데스크톱 채팅 사용량은 미포함. 그래서 앱 %보다 낮게 나올 수 있고, 보정을 주기적으로 다시 해주면 정확해짐.
-- Admin API 비용은 Console 조직 것이며 구독 한도와 별개.
-- Admin API 키는 `~/.claude_pet.json`에 평문 저장되니 개인 기기에서만 사용 권장.
+- Data is based on Claude Code's local logs — web/desktop chat usage is not included. So it can read lower than the app's %; recalibrate periodically to stay accurate.
+- Admin API cost is your Console organization's, separate from the subscription limit.
+- The Admin API key is stored in plaintext in `~/.claude_pet.json`, so use it only on a personal machine.

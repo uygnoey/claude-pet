@@ -1,6 +1,6 @@
 # 🐱 Claude Pet (Edición Patch)
 
-**[한국어](README.md) · [English](README.en.md) · [Español](README.es.md)**
+[English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **Español**
 
 Una mascota de escritorio: Patch flota en tu pantalla y vigila tu uso de tokens de Claude, al estilo de Codex Pets.
 Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estelas.
