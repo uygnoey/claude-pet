@@ -601,6 +601,12 @@ def run_gui():
             """필의 y (flipped 좌표). 펫이 아래쪽이면 필이 위."""
             return 4 if self.petOnBottom() else PH + GAP
 
+        def pillLeft(self):
+            """필의 x — 펫이 있는 쪽으로 정렬."""
+            if self.petOnRight():
+                return W - PILL_W - 4    # 펫 오른쪽 → 필도 오른쪽 정렬
+            return 4                     # 펫 왼쪽 → 필도 왼쪽 정렬
+
         def petOrigin(self):
             py = PILL_H + GAP if self.petOnBottom() else 2
             if self.petOnRight():
@@ -621,9 +627,9 @@ def run_gui():
             fr = 0 if state["resting"] else state["frame"] % len(seq)
             img = seq[fr]
 
-            # ── 상태 필 (펫 위치 기준 상하 플립) ──
+            # ── 상태 필 (펫 위치 기준 상하 플립 + 좌우 정렬) ──
             if state["show_panel"]:
-                gx0 = (W - PILL_W) // 2
+                gx0 = self.pillLeft()
                 gy0 = self.pillTop()
                 C_PILL.set()
                 NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
