@@ -57,6 +57,9 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
+APP_VERSION = "1.0"                 # CFBundleShortVersionString 과 일치
+GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
+
 # 런타임 설정 — 환경변수가 기본값, ~/.claude_pet.json(설정 UI)이 덮어씀
 RUNTIME = {
     "mode": "sub",   # "sub"=구독(Claude Code 로그) / "api"=Admin API 비용
@@ -577,6 +580,66 @@ def fetch_exact_usage():
     _oauth_cache["gauges"] = rows
     return rows
 
+
+# ─────────────── 자동 업데이트 (GitHub 릴리즈) ───────────────
+
+def _ver_tuple(v):
+    out = []
+    for part in str(v).split("."):
+        num = "".join(ch for ch in part if ch.isdigit())
+        out.append(int(num) if num else 0)
+    return tuple(out)
+
+
+def check_github_update():
+    """최신 릴리즈가 현재 버전보다 높으면 (버전, zip_url), 아니면 None."""
+    try:
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest",
+            headers={"Accept": "application/vnd.github+json",
+                     "User-Agent": "claude-pet"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+        tag = (data.get("tag_name") or "").lstrip("vV")
+        if not tag or _ver_tuple(tag) <= _ver_tuple(APP_VERSION):
+            return None
+        for a in data.get("assets", []):
+            if (a.get("name") or "").lower().endswith(".zip"):
+                return (tag, a.get("browser_download_url"))
+    except Exception:
+        pass
+    return None
+
+
+def install_github_update(zip_url):
+    """새 zip 다운로드 → 현재 앱 번들 교체 → 재실행 예약. 성공 시 True(=종료해야 함)."""
+    import tempfile, shlex
+    try:
+        from Foundation import NSBundle
+        app_path = str(NSBundle.mainBundle().bundlePath())
+    except Exception:
+        return False
+    if not app_path.endswith(".app"):
+        return False
+    d = tempfile.mkdtemp()
+    zp = os.path.join(d, "u.zip")
+    try:
+        urllib.request.urlretrieve(zip_url, zp)
+        subprocess.run(["/usr/bin/ditto", "-x", "-k", zp, d], check=True)
+        newapp = os.path.join(d, "ClaudePet.app")
+        if not os.path.isdir(newapp):
+            return False
+        q = shlex.quote
+        sh = (f"sleep 1.5; rm -rf {q(app_path)}; "
+              f"/usr/bin/ditto {q(newapp)} {q(app_path)}; "
+              f"xattr -dr com.apple.quarantine {q(app_path)} 2>/dev/null; "
+              f"open {q(app_path)}")
+        subprocess.Popen(["/bin/sh", "-c", sh])
+        return True
+    except Exception:
+        return False
+
+
 # ─────────────────────── 유틸 ───────────────────────
 
 def fmt_tokens(n):
@@ -636,8 +699,10 @@ PILL_W = 330          # 상태 필 너비
 PILL_R = 18           # 라운드 반경
 PILL_PAD = 13         # 필 내부 패딩
 ROW_H = 30            # 필 안 행 높이
-PILL_ROWS = 4         # 세션 / 주간 / 모델(Fable 등) / 크레딧
-PILL_H = PILL_PAD * 2 + ROW_H * PILL_ROWS - 6
+PILL_ROWS = 4         # 최대 행 수: 세션 / 주간 / 모델(Fable 등) / 크레딧
+CUR_PILL = {"n": PILL_ROWS}   # 현재 표시 행 수 (행 수만큼만 필 높이 사용)
+def pill_h():
+    return PILL_PAD * 2 + ROW_H * CUR_PILL["n"] - 6
 GAP = 6               # 펫-필 간격
 BTN_R = 13            # 접기 버튼 반지름
 
@@ -744,7 +809,7 @@ def run_gui():
         pw = int(PW0 * g["scale"])
         ph = int(PH0 * g["scale"])
         w = max(pw + BTN_R * 2 + 16, PILL_W + 8)
-        h = ph + GAP + PILL_H + 4
+        h = ph + GAP + pill_h() + 4
         return pw, ph, w, h
 
     PW, PH, W, H = geom()
@@ -753,7 +818,7 @@ def run_gui():
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
-             "hover": False}
+             "hover": False, "update": None}
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
 
@@ -828,7 +893,7 @@ def run_gui():
             c = astr(f"오늘 API ${state['cost']:.2f}", F_TINY)
             cw = c.size()
             c.drawAtPoint_(NSMakePoint(
-                gx0 + PILL_W - PILL_PAD - cw.width, gy0 + PILL_H - 15))
+                gx0 + PILL_W - PILL_PAD - cw.width, gy0 + pill_h() - 15))
 
     def draw_exact_pill(gx0, gy0, rows):
         """정확 모드: OAuth/CLI에서 받은 서버 계산 % 표시 (보정 불필요)."""
@@ -862,14 +927,14 @@ def run_gui():
             tag = astr("정확 모드", F_TINY)
             ts_ = tag.size()
             tag.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts_.width,
-                                         gy0 + PILL_H - 15))
+                                         gy0 + pill_h() - 15))
 
     def draw_api_pill(gx0, gy0):
         if not RUNTIME.get("admin_key"):
             m = astr("우클릭 → 설정에서 Admin API 키를 입력하세요", F_SUB)
             ms = m.size()
             m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
-                                       gy0 + (PILL_H - ms.height) / 2))
+                                       gy0 + (pill_h() - ms.height) / 2))
             return
         today = state["cost"]
         month = state["cost_month"]
@@ -937,7 +1002,7 @@ def run_gui():
             return 4                     # 펫 왼쪽 → 필도 왼쪽 정렬
 
         def petOrigin(self):
-            py = PILL_H + GAP if self.petOnBottom() else 2
+            py = pill_h() + GAP if self.petOnBottom() else 2
             # 버튼이 안쪽에 붙으므로 펫은 창 가장자리에 밀착
             if self.petOnRight():
                 return (W - PW - 6, py)   # 펫 오른쪽 끝, 버튼은 왼쪽 안쪽
@@ -963,7 +1028,7 @@ def run_gui():
                 gy0 = self.pillTop()
                 C_PILL.set()
                 NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                    NSMakeRect(gx0, gy0, PILL_W, PILL_H), PILL_R, PILL_R).fill()
+                    NSMakeRect(gx0, gy0, PILL_W, pill_h()), PILL_R, PILL_R).fill()
 
                 if RUNTIME["mode"] == "api":
                     draw_api_pill(gx0, gy0)
@@ -975,7 +1040,7 @@ def run_gui():
                     m = astr("사용량 스캔 중...", F_SUB)
                     ms = m.size()
                     m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
-                                               gy0 + (PILL_H - ms.height) / 2))
+                                               gy0 + (pill_h() - ms.height) / 2))
 
             # ── 펫 ──
             px, py = self.petOrigin()
@@ -1080,6 +1145,13 @@ def run_gui():
                     title, action, "")
                 mi.setTarget_(handler)
                 menu.addItem_(mi)
+            upd = state.get("update")
+            if upd:   # 새 버전 있으면 최상단에 설치 항목
+                top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    f"⬆︎ 새 버전 v{upd[0]} 설치", "doUpdate:", "")
+                top.setTarget_(handler)
+                menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
+                menu.insertItem_atIndex_(top, 0)
             NSMenu.popUpContextMenu_withEvent_forView_(menu, event, self)
 
         def scrollWheel_(self, event):
@@ -1123,6 +1195,27 @@ def run_gui():
         view.setNeedsDisplay_(True)
         cfg["scale"] = round(g["scale"], 3)
         save_config(cfg)
+
+    def cur_rows_n():
+        if RUNTIME["mode"] == "api":
+            return 3
+        if state["oauth"]:
+            return max(1, len(state["oauth"]))   # 정확 모드: 실제 행 수(Fable 유무)
+        return 3                                 # 구독 게이지 3종
+
+    def apply_pill_rows():
+        """표시 행 수가 바뀌면 필 높이/창 크기 갱신 (상단 고정)."""
+        nonlocal PW, PH, W, H
+        n = cur_rows_n()
+        if n == CUR_PILL["n"]:
+            return
+        CUR_PILL["n"] = n
+        fr = win.frame()
+        top = fr.origin.y + fr.size.height
+        PW, PH, W, H = geom()
+        win.setFrame_display_(NSMakeRect(fr.origin.x, top - H, W, H), True)
+        view.setFrame_(NSMakeRect(0, 0, W, H))
+        view.setNeedsDisplay_(True)
 
     # ── 설정 창 ──
     def open_settings():
@@ -1295,12 +1388,23 @@ def run_gui():
         def quitApp_(self, sender):
             NSApplication.sharedApplication().terminate_(None)
 
+        def doUpdate_(self, sender):
+            upd = state.get("update")
+            if not upd:
+                return
+            def work():
+                if install_github_update(upd[1]):
+                    self.performSelectorOnMainThread_withObject_waitUntilDone_(
+                        "quitApp:", None, False)
+            threading.Thread(target=work, daemon=True).start()
+
         def saveSettings_(self, sender):
             save_settings()
 
     # ── 타이머 ──
     class Ticker(NSObject):
         def tick_(self, timer):
+            apply_pill_rows()          # Fable 유무 등에 따라 필 높이 자동 조정
             mood = current_mood()
             if mood != state["last_mood"]:
                 state["last_mood"] = mood
@@ -1408,6 +1512,13 @@ def run_gui():
         REFRESH_SEC, ticker, "refresh:", None, True)
     ticker.refresh_(None)
     set_override("waving")
+
+    # 시작 시 GitHub 릴리즈 확인 (백그라운드) → 새 버전이면 우클릭 메뉴에 노출
+    def _upd_check():
+        u = check_github_update()
+        if u:
+            state["update"] = u
+    threading.Thread(target=_upd_check, daemon=True).start()
 
     AppHelper.runEventLoop()
 
