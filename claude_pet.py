@@ -609,9 +609,10 @@ def run_gui():
 
         def petOrigin(self):
             py = PILL_H + GAP if self.petOnBottom() else 2
+            # 버튼이 안쪽에 붙으므로 펫은 창 가장자리에 밀착
             if self.petOnRight():
-                return (W - PW - BTN_R * 2 - 8, py)  # 펫 오른쪽, 필은 왼쪽으로
-            return (BTN_R * 2 + 8, py)               # 펫 왼쪽, 필은 오른쪽으로
+                return (W - PW - 6, py)   # 펫 오른쪽 끝, 버튼은 왼쪽 안쪽
+            return (6, py)                # 펫 왼쪽 끝, 버튼은 오른쪽 안쪽
 
         def btnOrigin(self):
             px, py = self.petOrigin()
