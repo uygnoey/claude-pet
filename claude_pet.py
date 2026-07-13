@@ -188,18 +188,13 @@ def _weekly_window_start():
 # 상위 티어 모델 패밀리, 최신 우선 (모델별 주간 한도가 걸리는 대상)
 PREMIUM_FAMILIES = ["fable", "mythos", "opus"]
 
-def _detect_model_keyword(entries):
-    """로그에서 실제로 가장 많이 쓴 상위 티어 패밀리를 자동 감지.
-    (로컬 로그는 Claude Code 사용량만 담고 있으므로, 거기서 주력인 모델을
-    추적해야 게이지가 의미 있음. 웹/데스크톱 채팅 사용량은 로그에 없음)"""
-    usage_by_fam = {}
-    for _, t, m, _ in entries:
-        for fam in PREMIUM_FAMILIES:
-            if fam in m:
-                usage_by_fam[fam] = usage_by_fam.get(fam, 0) + t
-                break
-    if usage_by_fam:
-        return max(usage_by_fam, key=usage_by_fam.get)
+def _detect_model_keyword(wk_entries, all_entries):
+    """모델 게이지 대상 자동 감지 — 앱과 같은 기준:
+    이번 주간 창에서 사용된 가장 최신 상위 티어 (없으면 전체 로그에서)."""
+    for pool in (wk_entries, all_entries):
+        for fam in PREMIUM_FAMILIES:          # 최신 우선
+            if any(fam in e[2] and e[1] > 0 for e in pool):
+                return fam
     return "opus"
 
 
@@ -207,12 +202,12 @@ def compute_usage():
     now = datetime.now(timezone.utc)
     entries = parse_usage_entries(now - timedelta(days=7))
 
-    kw = str(RUNTIME.get("model_keyword", "auto")).lower().strip()
-    if kw in ("auto", ""):
-        kw = _detect_model_keyword(entries)
     week_start = _weekly_window_start()
     wk_entries = [e for e in entries
                   if week_start is None or e[0] >= week_start]
+    kw = str(RUNTIME.get("model_keyword", "auto")).lower().strip()
+    if kw in ("auto", ""):
+        kw = _detect_model_keyword(wk_entries, entries)
     weekly = sum(e[1] for e in wk_entries)
     weekly_opus = sum(e[1] for e in wk_entries if kw in e[2])
 
