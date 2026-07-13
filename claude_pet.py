@@ -558,6 +558,23 @@ def fmt_countdown(reset, now):
     return f"{h}시간 {m}분 후" if h else f"{m}분 후"
 
 
+def fmt_reset(reset, now):
+    """앱과 같은 표기: 24시간 이내면 '리셋 32분 후',
+    그 이상이면 '(토) 오후 7:59에 재설정'."""
+    if not reset:
+        return "-"
+    secs = (reset - now).total_seconds()
+    if secs <= 0:
+        return "리셋됨"
+    if secs < 24 * 3600:
+        return "리셋 " + fmt_countdown(reset, now)
+    local = reset.astimezone()
+    wd = "월화수목금토일"[local.weekday()]
+    ampm = "오전" if local.hour < 12 else "오후"
+    h12 = local.hour % 12 or 12
+    return f"({wd}) {ampm} {h12}:{local.minute:02d}에 재설정"
+
+
 def worst_pct(stats):
     return max(stats["session"]["pct"], stats["weekly"]["pct"], stats["opus"]["pct"])
 
@@ -749,7 +766,7 @@ def run_gui():
                 NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
             spiking = sp.get(keys[i])
             txt = (f"{gg['pct']:.0f}% · 남음 {fmt_tokens(gg['left'])}"
-                   f" · {fmt_countdown(gg['reset'], stats['now'])}")
+                   f" · {fmt_reset(gg['reset'], stats['now'])}")
             if spiking:
                 txt = "▲급증 " + txt
             sub = astr(txt, F_ALERT if spiking else F_SUB)
@@ -780,7 +797,7 @@ def run_gui():
             astr(label, F_BOLD).drawAtPoint_(
                 NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
             if rdt is not None:
-                reset_s = "리셋 " + fmt_countdown(rdt, now_utc)
+                reset_s = fmt_reset(rdt, now_utc)
             elif rtxt:
                 reset_s = "리셋 " + rtxt
             else:
