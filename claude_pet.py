@@ -1565,7 +1565,9 @@ def run_gui():
                 cfg[ckey] = max(int(used * 100 / pct), used)
         apply_config(cfg)
         save_config(cfg)
+        _oauth_cache["t"] = 0.0   # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
         ui["panel"].orderOut_(None)
+        ui["panel"] = None        # 다음에 열 때 새 언어로 재구성
         ticker.refresh_(None)
         view.setNeedsDisplay_(True)
 
