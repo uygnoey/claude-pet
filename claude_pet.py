@@ -59,6 +59,8 @@ REFRESH_SEC = 30
 
 APP_VERSION = "0.3"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
+UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
+_upd_cache = {"t": 0.0}
 
 # 런타임 설정 — 환경변수가 기본값, ~/.claude_pet.json(설정 UI)이 덮어씀
 RUNTIME = {
@@ -1677,6 +1679,12 @@ def run_gui():
                     state["cost_month"] = fetch_api_cost_month()
                 if prev and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
                     set_override("jumping")
+                # 주기적 새 버전 확인 (오래 실행돼도 감지)
+                if not state.get("update") and time.time() - _upd_cache["t"] > UPDATE_CHECK_SEC:
+                    _upd_cache["t"] = time.time()
+                    u = check_github_update()
+                    if u:
+                        state["update"] = u
             threading.Thread(target=work, daemon=True).start()
 
     # ── 앱/윈도우 ──
@@ -1713,6 +1721,7 @@ def run_gui():
 
     # 시작 시 GitHub 릴리즈 확인 (백그라운드) → 새 버전이면 우클릭 메뉴에 노출
     def _upd_check():
+        _upd_cache["t"] = time.time()
         u = check_github_update()
         if u:
             state["update"] = u
