@@ -879,14 +879,15 @@ def mood_for(stats):
 
 # ─────────────────── 픽셀 지오메트리 (GUI/미리보기 공용) ───────────────────
 
-PILL_W = 330          # 상태 필 너비
+PILL_W = 260          # 상태 필(둥근 사각형 패널) 너비
 PILL_R = 18           # 라운드 반경
 PILL_PAD = 13         # 필 내부 패딩
 ROW_H = 30            # 필 안 행 높이
 PILL_ROWS = 4         # 최대 행 수: 세션 / 주간 / 모델(Fable 등) / 크레딧
+STATUS_H = 16         # 하단 상태줄(모드 + 버전) 높이
 CUR_PILL = {"n": PILL_ROWS}   # 현재 표시 행 수 (행 수만큼만 필 높이 사용)
 def pill_h():
-    return PILL_PAD * 2 + ROW_H * CUR_PILL["n"] - 6
+    return PILL_PAD * 2 + ROW_H * CUR_PILL["n"] - 6 + STATUS_H
 GAP = 6               # 펫-필 간격
 BTN_R = 13            # 접기 버튼 반지름
 
@@ -946,16 +947,21 @@ def run_gui():
     C_SUB = hexcolor(TXT_SUB)
     C_BTNL = hexcolor("#2E2E33")
 
-    F_BOLD = {NSFontAttributeName: NSFont.boldSystemFontOfSize_(12),
+    def mono(size, bold=False):
+        return NSFont.monospacedSystemFontOfSize_weight_(size, 0.4 if bold else 0.0)
+
+    F_BOLD = {NSFontAttributeName: mono(12, True),
               NSForegroundColorAttributeName: C_MAIN}
-    F_BIG = {NSFontAttributeName: NSFont.boldSystemFontOfSize_(15),
+    F_BIG = {NSFontAttributeName: mono(15, True),
              NSForegroundColorAttributeName: C_MAIN}
-    F_SUB = {NSFontAttributeName: NSFont.systemFontOfSize_(9.5),
+    F_SUB = {NSFontAttributeName: mono(9.5),
              NSForegroundColorAttributeName: C_SUB}
-    F_ALERT = {NSFontAttributeName: NSFont.boldSystemFontOfSize_(9.5),
+    F_ALERT = {NSFontAttributeName: mono(9.5, True),
                NSForegroundColorAttributeName: hexcolor(COL_BAD)}
-    F_TINY = {NSFontAttributeName: NSFont.systemFontOfSize_(8.5),
+    F_TINY = {NSFontAttributeName: mono(8.5),
               NSForegroundColorAttributeName: hexcolor("#5A5A60")}
+    F_STATUS = {NSFontAttributeName: mono(10),
+                NSForegroundColorAttributeName: hexcolor("#7A7A82")}
     F_CHEV = {NSFontAttributeName: NSFont.boldSystemFontOfSize_(12),
               NSForegroundColorAttributeName: C_SUB}
 
@@ -1073,17 +1079,7 @@ def run_gui():
             NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 NSMakeRect(bx0, ry + 17,
                            max(8, bw * gg["pct"] / 100), 6), 3, 3).fill()
-        # 폴백 모드 표시 — 정확 모드가 왜 안 되는지 알려줌 (Opus/추정 혼란 방지)
-        if OAUTH_STATUS.get("auth_error"):
-            hint = astr(t("token_expired"), F_TINY)
-        else:
-            hint = astr(t("log_estimate"), F_TINY)
-        hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, gy0 + pill_h() - 15))
-        if state["cost"] is not None:
-            c = astr(f"{t('today_api')} ${state['cost']:.2f}", F_TINY)
-            cw = c.size()
-            c.drawAtPoint_(NSMakePoint(
-                gx0 + PILL_W - PILL_PAD - cw.width, gy0 + pill_h() - 15))
+        # (하단 모드/버전 상태줄은 draw_status_line에서 통합 처리)
 
     def draw_exact_pill(gx0, gy0, rows):
         """정확 모드: OAuth/CLI에서 받은 서버 계산 % 표시 (보정 불필요)."""
@@ -1113,11 +1109,7 @@ def run_gui():
             hexcolor(COL_BAD if spiking else bar_color(pct)).set()
             NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 NSMakeRect(bx0, ry + 17, max(8, bw * pct / 100), 6), 3, 3).fill()
-        if len(rows) < PILL_ROWS:
-            tag = astr(t("exact_mode"), F_TINY)
-            ts_ = tag.size()
-            tag.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts_.width,
-                                         gy0 + pill_h() - 15))
+        # (하단 모드/버전 상태줄은 draw_status_line에서 통합 처리)
 
     def draw_api_pill(gx0, gy0):
         if not RUNTIME.get("admin_key"):
@@ -1157,6 +1149,21 @@ def run_gui():
         else:
             hint = astr(t("need_budget"), F_TINY)
             hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry + 2))
+
+    def draw_status_line(gx0, gy0):
+        """필 하단 한 줄: 왼쪽=모드, 오른쪽=버전 (겹침 없이 깔끔하게)."""
+        if RUNTIME["mode"] == "api":
+            mode = "API"
+        elif state["oauth"]:
+            mode = t("exact_mode")
+        else:
+            est = t("log_estimate").strip("()（）")
+            mode = est + (" ⚠" if OAUTH_STATUS.get("auth_error") else "")
+        y = gy0 + pill_h() - 14
+        astr(mode, F_STATUS).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, y))
+        ver = astr(f"v{APP_VERSION}", F_STATUS)
+        ver.drawAtPoint_(NSMakePoint(
+            gx0 + PILL_W - PILL_PAD - ver.size().width, y))
 
     class PetView(NSView):
         def isFlipped(self):
@@ -1231,6 +1238,8 @@ def run_gui():
                     ms = m.size()
                     m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
                                                gy0 + (pill_h() - ms.height) / 2))
+                if stats or state["oauth"]:
+                    draw_status_line(gx0, gy0)   # 하단: 모드 + 버전
 
             # ── 펫 ──
             px, py = self.petOrigin()
@@ -1335,6 +1344,12 @@ def run_gui():
                     title, action, "")
                 mi.setTarget_(handler)
                 menu.addItem_(mi)
+            # 버전 표시 (비활성 항목)
+            menu.addItem_(NSMenuItem.separatorItem())
+            vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                f"ClaudePet v{APP_VERSION}", None, "")
+            vitem.setEnabled_(False)
+            menu.addItem_(vitem)
             upd = state.get("update")
             if upd:   # 새 버전 있으면 최상단에 설치 항목
                 top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -1518,6 +1533,9 @@ def run_gui():
         y -= 30
         label(t("s_budget"), 20, y)
         f_bud = field(180, y - 2, 90, RUNTIME.get("api_budget") or 0)
+
+        vl = label(f"ClaudePet v{APP_VERSION}", 20, 18, 200)
+        vl.setTextColor_(NSColor.secondaryLabelColor())
 
         save_btn = NSButton.alloc().initWithFrame_(
             NSMakeRect(PWID - 110, 12, 90, 30))
@@ -1747,7 +1765,7 @@ def print_report():
         print(f" {name:<6} {g['pct']:5.1f}%  {t('r_used')} {fmt_tokens(g['used'])} / {fmt_tokens(g['limit'])}"
               f"  · {t('r_left')} {fmt_tokens(g['left'])}  · {t('r_reset')} {fmt_countdown(g['reset'], s['now'])}")
     print("─" * 60)
-    print(" " + t("r_title"))
+    print(f" {t('r_title')}  ·  v{APP_VERSION}")
     print("─" * 60)
     line(t("session"), s["session"])
     line(t("weekly"), s["weekly"])
