@@ -1054,22 +1054,36 @@ def run_gui():
         return mood_for(stats) if stats else "idle"
 
     # ── 필 그리기 헬퍼 (클래스 밖: PyObjC 셀렉터 변환 회피) ──
+    def draw_sub_right(txt, base, ry, gx0, label_w):
+        """서브텍스트 우측 정렬 — 라벨과 겹치면 폰트를 줄여 맞춘다(언어별 길이 대응)."""
+        x_left = gx0 + PILL_PAD + 2 + label_w + 10
+        x_right = gx0 + PILL_W - PILL_PAD
+        avail = x_right - x_left
+        s = astr(txt, base)
+        w = s.size().width
+        if avail > 20 and w > avail:
+            f = base[NSFontAttributeName]
+            scale = max(0.68, avail / w)
+            fa = dict(base)
+            fa[NSFontAttributeName] = NSFont.fontWithDescriptor_size_(
+                f.fontDescriptor(), f.pointSize() * scale)
+            s = astr(txt, fa)
+            w = s.size().width
+        s.drawAtPoint_(NSMakePoint(x_right - w, ry))
+
     def draw_sub_pill(gx0, gy0, stats):
         sp = stats.get("spikes") or {}
         keys = ["session", "weekly", "opus"]
         for i, (label, gg) in enumerate(gauge_rows(stats)):
             ry = gy0 + PILL_PAD + i * ROW_H
-            astr(label, F_BOLD).drawAtPoint_(
-                NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
+            lbl = astr(label, F_BOLD)
+            lbl.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
             spiking = sp.get(keys[i])
             txt = (f"{gg['pct']:.0f}% · {t('left')} {fmt_tokens(gg['left'])}"
                    f" · {fmt_reset(gg['reset'], stats['now'])}")
             if spiking:
                 txt = t("spike_prefix") + txt
-            sub = astr(txt, F_ALERT if spiking else F_SUB)
-            ss = sub.size()
-            sub.drawAtPoint_(
-                NSMakePoint(gx0 + PILL_W - PILL_PAD - ss.width, ry))
+            draw_sub_right(txt, F_ALERT if spiking else F_SUB, ry, gx0, lbl.size().width)
             bx0 = gx0 + PILL_PAD + 2
             bw = PILL_W - PILL_PAD * 2 - 4
             C_TRACK.set()
@@ -1087,19 +1101,16 @@ def run_gui():
         now_utc = datetime.now(timezone.utc)
         for i, (label, pct, rdt, rtxt) in enumerate(rows[:PILL_ROWS]):
             ry = gy0 + PILL_PAD + i * ROW_H
-            astr(label, F_BOLD).drawAtPoint_(
-                NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
+            lbl = astr(label, F_BOLD)
+            lbl.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
             if rdt is not None:
                 reset_s = fmt_reset(rdt, now_utc)
             elif rtxt:
                 reset_s = t("reset_prefix") + rtxt
             else:
                 reset_s = ""
-            sub = astr(f"{pct:.0f}% {t('used')}" + (f" · {reset_s}" if reset_s else ""),
-                       F_SUB)
-            ss = sub.size()
-            sub.drawAtPoint_(
-                NSMakePoint(gx0 + PILL_W - PILL_PAD - ss.width, ry))
+            txt = f"{pct:.0f}% {t('used')}" + (f" · {reset_s}" if reset_s else "")
+            draw_sub_right(txt, F_SUB, ry, gx0, lbl.size().width)
             bx0 = gx0 + PILL_PAD + 2
             bw = PILL_W - PILL_PAD * 2 - 4
             C_TRACK.set()
