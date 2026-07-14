@@ -57,7 +57,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.2"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.3"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 
 # 런타임 설정 — 환경변수가 기본값, ~/.claude_pet.json(설정 UI)이 덮어씀
