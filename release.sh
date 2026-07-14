@@ -17,6 +17,7 @@ ENT="$(pwd)/entitlements.plist"
 APP="dist/ClaudePet.app"
 PROFILE="claudepet-notary"
 ZIP="release/ClaudePet.zip"
+NOTES="RELEASE_NOTES.md"   # 릴리즈 노트 고정 파일 (git 히스토리 노출 대신 이 내용 사용)
 
 build() {
   rm -rf build dist
@@ -82,9 +83,10 @@ publish() {
   local TAG="v$(cur_version)"
   if gh release view "$TAG" >/dev/null 2>&1; then
     gh release upload "$TAG" "$ZIP" --clobber
+    gh release edit "$TAG" --notes-file "$NOTES"   # 노트도 고정본으로 갱신
     echo "🚀 기존 릴리즈에 업로드: $TAG ← $ZIP"
   else
-    gh release create "$TAG" "$ZIP" --title "ClaudePet $TAG" --generate-notes
+    gh release create "$TAG" "$ZIP" --title "ClaudePet $TAG" --notes-file "$NOTES"
     echo "🚀 새 릴리즈 생성: $TAG ← $ZIP"
   fi
 }
