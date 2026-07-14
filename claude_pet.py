@@ -57,7 +57,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.3"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.4"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
