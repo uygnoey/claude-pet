@@ -83,9 +83,185 @@ RUNTIME = {
 def apply_config(cfg):
     for k in ("mode", "session_limit", "weekly_limit", "opus_limit",
               "spike_mult", "greet", "admin_key", "api_budget",
-              "model_keyword", "weekly_reset_day", "weekly_reset_hour"):
+              "model_keyword", "weekly_reset_day", "weekly_reset_hour", "lang"):
         if k in cfg:
             RUNTIME[k] = cfg[k]
+    set_lang(RUNTIME.get("lang"))
+
+# ─────────────────────── 다국어 (i18n) ───────────────────────
+SUPPORTED_LANGS = ("en", "ko", "ja", "es")
+LANG_NAMES = {"en": "English", "ko": "한국어", "ja": "日本語", "es": "Español"}
+
+def _system_lang():
+    try:
+        from Foundation import NSLocale
+        for pl in (NSLocale.preferredLanguages() or []):
+            code = str(pl).split("-")[0].split("_")[0].lower()
+            if code in SUPPORTED_LANGS:
+                return code
+    except Exception:
+        pass
+    return "en"
+
+L = {"lang": _system_lang()}
+
+def set_lang(code):
+    L["lang"] = code if code in SUPPORTED_LANGS else _system_lang()
+
+def t(key, **kw):
+    d = TR.get(L["lang"]) or TR["en"]
+    s = d.get(key)
+    if s is None:
+        s = TR["en"].get(key, key)
+    return s.format(**kw) if kw else s
+
+WEEKDAYS = {  # 짧은 요일명 (월=0 … 일=6)
+    "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "ko": ["월", "화", "수", "목", "금", "토", "일"],
+    "ja": ["月", "火", "水", "木", "金", "土", "日"],
+    "es": ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"],
+}
+WEEKDAYS_FULL = {
+    "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "ko": ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"],
+    "ja": ["月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜"],
+    "es": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"],
+}
+
+TR = {
+  "en": {
+    "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
+    "reset_done": "reset", "cd_days": "in {d}d {h}h", "cd_hm": "in {h}h {m}m",
+    "cd_m": "in {m}m", "reset_prefix": "reset ", "reset_at": "resets {wd} {h12}:{mm} {ampm}",
+    "am": "AM", "pm": "PM",
+    "used": "used", "left": "left", "spike_prefix": "▲spike ", "exact_mode": "Exact",
+    "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
+    "loading": "loading…", "today": "Today", "this_month": "This month", "budget": "Budget",
+    "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
+    "log_estimate": "(log estimate)",
+    "need_admin_key": "Right-click → Settings to enter an Admin API key",
+    "need_budget": "Set a monthly budget ($) in Settings to see this gauge",
+    "scanning": "Scanning usage…",
+    "menu_settings": "Settings…", "menu_toggle": "Collapse/expand gauges",
+    "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
+    "menu_update": "⬆︎ Install v{v}",
+    "settings_title": "Claude Pet Settings", "s_data_source": "Data source",
+    "s_mode_sub": "Subscription (Claude Code logs)", "s_mode_api": "API (Admin API cost)",
+    "s_model_kw": "Model gauge keyword", "s_auto_detect": "(auto = auto-detect)",
+    "s_weekly_reset": "Weekly reset", "s_rolling7": "Rolling 7 days", "s_hour": "h",
+    "s_calib1": "🔧 Calibrate: enter the % from Claude app > Settings > Usage",
+    "s_calib2": "      and limits are back-solved (only fields you fill)",
+    "s_calib_session": "Current session used (%)", "s_calib_weekly_all": "Weekly all models (%)",
+    "s_calib_weekly_model": "Weekly per-model (%)", "s_limit_session": "Session limit (M tokens)",
+    "s_limit_weekly": "Weekly limit (M tokens)", "s_limit_model": "Model limit (M tokens)",
+    "s_spike_sens": "Spike alert sensitivity", "s_sens_high": "High (alert on small use)",
+    "s_sens_normal": "Normal", "s_sens_low": "Low (alert only on heavy use)",
+    "s_greet": "Wave when the mouse comes close", "s_admin_key": "Admin API key",
+    "s_budget": "API monthly budget ($)", "s_save": "Save", "s_language": "Language",
+    "r_title": "Claude Pet usage report", "r_exact": "Exact mode (server values)",
+    "r_used": "used", "r_left": "left", "r_reset": "reset",
+    "r_last_activity": "Last activity", "r_today_cost": "Today API cost",
+  },
+  "ko": {
+    "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
+    "reset_done": "리셋됨", "cd_days": "{d}일 {h}시간 후", "cd_hm": "{h}시간 {m}분 후",
+    "cd_m": "{m}분 후", "reset_prefix": "리셋 ", "reset_at": "({wd}) {ampm} {h12}:{mm}에 재설정",
+    "am": "오전", "pm": "오후",
+    "used": "사용", "left": "남음", "spike_prefix": "▲급증 ", "exact_mode": "정확 모드",
+    "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
+    "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "budget": "예산",
+    "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
+    "log_estimate": "(로그 추정)",
+    "need_admin_key": "우클릭 → 설정에서 Admin API 키를 입력하세요",
+    "need_budget": "설정에서 월 예산($)을 넣으면 게이지가 생겨요",
+    "scanning": "사용량 스캔 중…",
+    "menu_settings": "설정…", "menu_toggle": "게이지 접기/펴기",
+    "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
+    "menu_update": "⬆︎ 새 버전 v{v} 설치",
+    "settings_title": "Claude Pet 설정", "s_data_source": "데이터 소스",
+    "s_mode_sub": "구독 (Claude Code 로그)", "s_mode_api": "API (Admin API 비용)",
+    "s_model_kw": "모델 게이지 키워드", "s_auto_detect": "(auto=자동감지)",
+    "s_weekly_reset": "주간 리셋", "s_rolling7": "롤링 7일", "s_hour": "시",
+    "s_calib1": "🔧 보정: Claude 앱 설정 > 사용량의 %를 입력하면",
+    "s_calib2": "      한도를 자동으로 계산해요 (입력한 것만 반영)",
+    "s_calib_session": "현재 세션 사용됨 (%)", "s_calib_weekly_all": "주간 모든 모델 (%)",
+    "s_calib_weekly_model": "주간 모델별 (%)", "s_limit_session": "세션 한도 (백만 토큰)",
+    "s_limit_weekly": "주간 한도 (백만 토큰)", "s_limit_model": "모델 한도 (백만 토큰)",
+    "s_spike_sens": "급증 알림 민감도", "s_sens_high": "민감 (조금만 써도 경보)",
+    "s_sens_normal": "보통", "s_sens_low": "둔감 (많이 써야 경보)",
+    "s_greet": "마우스가 가까이 오면 인사하기", "s_admin_key": "Admin API 키",
+    "s_budget": "API 월 예산 ($)", "s_save": "저장", "s_language": "언어",
+    "r_title": "Claude Pet 사용량 리포트", "r_exact": "정확 모드 (서버 계산 값)",
+    "r_used": "사용", "r_left": "남음", "r_reset": "리셋",
+    "r_last_activity": "마지막 활동", "r_today_cost": "오늘 API 비용",
+  },
+  "ja": {
+    "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
+    "reset_done": "リセット済み", "cd_days": "{d}日{h}時間後", "cd_hm": "{h}時間{m}分後",
+    "cd_m": "{m}分後", "reset_prefix": "リセット ", "reset_at": "{wd} {ampm}{h12}:{mm} にリセット",
+    "am": "午前", "pm": "午後",
+    "used": "使用", "left": "残り", "spike_prefix": "▲急増 ", "exact_mode": "正確モード",
+    "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
+    "loading": "取得中…", "today": "今日", "this_month": "今月", "budget": "予算",
+    "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
+    "log_estimate": "（ログ推定）",
+    "need_admin_key": "右クリック → 設定で Admin API キーを入力してください",
+    "need_budget": "設定で月次予算($)を入れるとゲージが出ます",
+    "scanning": "使用量をスキャン中…",
+    "menu_settings": "設定…", "menu_toggle": "ゲージの折りたたみ",
+    "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
+    "menu_update": "⬆︎ 新バージョン v{v} をインストール",
+    "settings_title": "Claude Pet 設定", "s_data_source": "データソース",
+    "s_mode_sub": "サブスク (Claude Code ログ)", "s_mode_api": "API (Admin API コスト)",
+    "s_model_kw": "モデルゲージのキーワード", "s_auto_detect": "(auto=自動検出)",
+    "s_weekly_reset": "週間リセット", "s_rolling7": "7日ローリング", "s_hour": "時",
+    "s_calib1": "🔧 補正: Claude アプリ 設定 > 使用状況 の % を入力すると",
+    "s_calib2": "      上限を自動計算します（入力した項目のみ）",
+    "s_calib_session": "現在のセッション使用 (%)", "s_calib_weekly_all": "週間 全モデル (%)",
+    "s_calib_weekly_model": "週間 モデル別 (%)", "s_limit_session": "セッション上限 (百万トークン)",
+    "s_limit_weekly": "週間上限 (百万トークン)", "s_limit_model": "モデル上限 (百万トークン)",
+    "s_spike_sens": "急増アラート感度", "s_sens_high": "高 (少しの使用でも警告)",
+    "s_sens_normal": "普通", "s_sens_low": "低 (大量使用時のみ警告)",
+    "s_greet": "マウスが近づいたら手を振る", "s_admin_key": "Admin API キー",
+    "s_budget": "API 月次予算 ($)", "s_save": "保存", "s_language": "言語",
+    "r_title": "Claude Pet 使用量レポート", "r_exact": "正確モード（サーバー値）",
+    "r_used": "使用", "r_left": "残り", "r_reset": "リセット",
+    "r_last_activity": "最終アクティビティ", "r_today_cost": "本日のAPIコスト",
+  },
+  "es": {
+    "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
+    "reset_done": "reiniciado", "cd_days": "en {d}d {h}h", "cd_hm": "en {h}h {m}m",
+    "cd_m": "en {m}m", "reset_prefix": "reinicio ", "reset_at": "reinicia {wd} {h12}:{mm} {ampm}",
+    "am": "AM", "pm": "PM",
+    "used": "usado", "left": "resta", "spike_prefix": "▲pico ", "exact_mode": "Exacto",
+    "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
+    "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "budget": "Presupuesto",
+    "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
+    "log_estimate": "(est. de registros)",
+    "need_admin_key": "Clic derecho → Ajustes para introducir una clave de Admin API",
+    "need_budget": "Pon un presupuesto mensual ($) en Ajustes para ver este medidor",
+    "scanning": "Escaneando uso…",
+    "menu_settings": "Ajustes…", "menu_toggle": "Contraer/expandir medidores",
+    "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
+    "menu_update": "⬆︎ Instalar v{v}",
+    "settings_title": "Ajustes de Claude Pet", "s_data_source": "Fuente de datos",
+    "s_mode_sub": "Suscripción (registros de Claude Code)", "s_mode_api": "API (coste de Admin API)",
+    "s_model_kw": "Palabra clave del medidor de modelo", "s_auto_detect": "(auto = detección automática)",
+    "s_weekly_reset": "Reinicio semanal", "s_rolling7": "7 días rodantes", "s_hour": "h",
+    "s_calib1": "🔧 Calibrar: introduce el % de Ajustes > Uso de la app de Claude",
+    "s_calib2": "      y los límites se despejan (solo los campos que rellenes)",
+    "s_calib_session": "Sesión actual usada (%)", "s_calib_weekly_all": "Semanal todos los modelos (%)",
+    "s_calib_weekly_model": "Semanal por modelo (%)", "s_limit_session": "Límite de sesión (M tokens)",
+    "s_limit_weekly": "Límite semanal (M tokens)", "s_limit_model": "Límite de modelo (M tokens)",
+    "s_spike_sens": "Sensibilidad de alerta de pico", "s_sens_high": "Alta (alerta con poco uso)",
+    "s_sens_normal": "Normal", "s_sens_low": "Baja (alerta solo con uso alto)",
+    "s_greet": "Saludar cuando el ratón se acerca", "s_admin_key": "Clave de Admin API",
+    "s_budget": "Presupuesto mensual de API ($)", "s_save": "Guardar", "s_language": "Idioma",
+    "r_title": "Informe de uso de Claude Pet", "r_exact": "Modo exacto (valores del servidor)",
+    "r_used": "usado", "r_left": "resta", "r_reset": "reinicio",
+    "r_last_activity": "Última actividad", "r_today_cost": "Coste de API hoy",
+  },
+}
 
 # 모션별 (프레임 간격 ms, 반복, 루프 후 휴식 ms) — 평소엔 얌전히!
 # 휴식 중엔 첫 프레임으로 정지. idle은 8초에 한 번만 숨쉬기/깜빡임.
@@ -377,14 +553,14 @@ def _read_oauth_token(force=False):
 def _oauth_label(key):
     k = key.lower()
     if "five_hour" in k or "session" in k:
-        return ("세션", 0)
+        return (t("session"), 0)
     if "seven_day" in k or "weekly" in k:
         for fam in PREMIUM_FAMILIES + ["sonnet", "haiku"]:
             if fam in k:
                 return (fam.capitalize(), 2)
-        return ("주간", 1)
+        return (t("weekly"), 1)
     if "extra" in k or "credit" in k:
-        return ("크레딧", 9)   # 추가 사용량(크레딧) — 주요 3개 있으면 잘림
+        return (t("credit"), 9)   # 추가 사용량(크레딧) — 주요 3개 있으면 잘림
     return (key, 5)
 
 
@@ -438,11 +614,11 @@ def _parse_oauth_usage(data):
 
 
 def _label_order(label):
-    if label == "세션":
+    if label == t("session"):
         return 0
-    if label == "주간":
+    if label == t("weekly"):
         return 1
-    if label == "크레딧":
+    if label == t("credit"):
         return 9
     if label.lower() in PREMIUM_FAMILIES + ["sonnet", "haiku"]:
         return 2
@@ -551,10 +727,10 @@ def _fetch_cli_usage():
         if not m:
             continue
         if m.group(1) == "session":
-            label = "세션"
+            label = t("session")
         else:
             scope = (m.group(2) or "").strip().lower()
-            label = "주간" if scope.startswith("all") else (m.group(2) or "모델").strip()
+            label = t("weekly") if scope.startswith("all") else (m.group(2) or t("model")).strip()
         txt = (m.group(4) or "").strip() or None
         rdt = None
         if txt:
@@ -662,29 +838,28 @@ def fmt_countdown(reset, now):
         return "-"
     d = reset - now
     if d.total_seconds() <= 0:
-        return "리셋됨"
+        return t("reset_done")
     h, rem = divmod(int(d.total_seconds()), 3600)
     m = rem // 60
     if h >= 24:
-        return f"{h//24}일 {h%24}시간 후"
-    return f"{h}시간 {m}분 후" if h else f"{m}분 후"
+        return t("cd_days", d=h // 24, h=h % 24)
+    return t("cd_hm", h=h, m=m) if h else t("cd_m", m=m)
 
 
 def fmt_reset(reset, now):
-    """앱과 같은 표기: 24시간 이내면 '리셋 32분 후',
-    그 이상이면 '(토) 오후 7:59에 재설정'."""
+    """24h 이내면 '리셋 32분 후', 그 이상이면 '(토) 오후 7:59에 재설정' 형태 (언어별)."""
     if not reset:
         return "-"
     secs = (reset - now).total_seconds()
     if secs <= 0:
-        return "리셋됨"
+        return t("reset_done")
     if secs < 24 * 3600:
-        return "리셋 " + fmt_countdown(reset, now)
+        return t("reset_prefix") + fmt_countdown(reset, now)
     local = reset.astimezone()
-    wd = "월화수목금토일"[local.weekday()]
-    ampm = "오전" if local.hour < 12 else "오후"
+    wd = WEEKDAYS[L["lang"]][local.weekday()]
+    ampm = t("am") if local.hour < 12 else t("pm")
     h12 = local.hour % 12 or 12
-    return f"({wd}) {ampm} {h12}:{local.minute:02d}에 재설정"
+    return t("reset_at", wd=wd, ampm=ampm, h12=h12, mm=f"{local.minute:02d}")
 
 
 def worst_pct(stats):
@@ -726,7 +901,7 @@ def bar_color(pct):
 
 def gauge_rows(stats):
     model_label = str(stats.get("model_kw", "opus")).capitalize()
-    return [("세션", stats["session"]), ("주간", stats["weekly"]),
+    return [(t("session"), stats["session"]), (t("weekly"), stats["weekly"]),
             (model_label, stats["opus"])]
 
 # ─────────────────────── GUI (macOS 네이티브 AppKit) ───────────────────────
@@ -852,11 +1027,11 @@ def run_gui():
             return None
         sp = stats.get("spikes") or {}
         if sp.get("session"):
-            return ("#FF453A", "세션")
+            return ("#FF453A", t("session"))
         if sp.get("opus"):
             return ("#BF5AF2", "Opus")
         if sp.get("weekly"):
-            return ("#FF9F0A", "주간")
+            return ("#FF9F0A", t("weekly"))
         return None
 
     def current_mood():
@@ -879,10 +1054,10 @@ def run_gui():
             astr(label, F_BOLD).drawAtPoint_(
                 NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
             spiking = sp.get(keys[i])
-            txt = (f"{gg['pct']:.0f}% · 남음 {fmt_tokens(gg['left'])}"
+            txt = (f"{gg['pct']:.0f}% · {t('left')} {fmt_tokens(gg['left'])}"
                    f" · {fmt_reset(gg['reset'], stats['now'])}")
             if spiking:
-                txt = "▲급증 " + txt
+                txt = t("spike_prefix") + txt
             sub = astr(txt, F_ALERT if spiking else F_SUB)
             ss = sub.size()
             sub.drawAtPoint_(
@@ -898,13 +1073,12 @@ def run_gui():
                            max(8, bw * gg["pct"] / 100), 6), 3, 3).fill()
         # 폴백 모드 표시 — 정확 모드가 왜 안 되는지 알려줌 (Opus/추정 혼란 방지)
         if OAUTH_STATUS.get("auth_error"):
-            hint = astr("⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
-                        F_TINY)
+            hint = astr(t("token_expired"), F_TINY)
         else:
-            hint = astr("(로그 추정)", F_TINY)
+            hint = astr(t("log_estimate"), F_TINY)
         hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, gy0 + pill_h() - 15))
         if state["cost"] is not None:
-            c = astr(f"오늘 API ${state['cost']:.2f}", F_TINY)
+            c = astr(f"{t('today_api')} ${state['cost']:.2f}", F_TINY)
             cw = c.size()
             c.drawAtPoint_(NSMakePoint(
                 gx0 + PILL_W - PILL_PAD - cw.width, gy0 + pill_h() - 15))
@@ -920,10 +1094,10 @@ def run_gui():
             if rdt is not None:
                 reset_s = fmt_reset(rdt, now_utc)
             elif rtxt:
-                reset_s = "리셋 " + rtxt
+                reset_s = t("reset_prefix") + rtxt
             else:
                 reset_s = ""
-            sub = astr(f"{pct:.0f}% 사용" + (f" · {reset_s}" if reset_s else ""),
+            sub = astr(f"{pct:.0f}% {t('used')}" + (f" · {reset_s}" if reset_s else ""),
                        F_SUB)
             ss = sub.size()
             sub.drawAtPoint_(
@@ -938,14 +1112,14 @@ def run_gui():
             NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 NSMakeRect(bx0, ry + 17, max(8, bw * pct / 100), 6), 3, 3).fill()
         if len(rows) < PILL_ROWS:
-            tag = astr("정확 모드", F_TINY)
+            tag = astr(t("exact_mode"), F_TINY)
             ts_ = tag.size()
             tag.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts_.width,
                                          gy0 + pill_h() - 15))
 
     def draw_api_pill(gx0, gy0):
         if not RUNTIME.get("admin_key"):
-            m = astr("우클릭 → 설정에서 Admin API 키를 입력하세요", F_SUB)
+            m = astr(t("need_admin_key"), F_SUB)
             ms = m.size()
             m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
                                        gy0 + (pill_h() - ms.height) / 2))
@@ -953,21 +1127,21 @@ def run_gui():
         today = state["cost"]
         month = state["cost_month"]
         ry = gy0 + PILL_PAD
-        astr("오늘", F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry))
-        t = astr("조회 중..." if today is None else f"${today:.2f}", F_BIG)
-        ts = t.size()
-        t.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts.width, ry - 3))
+        astr(t("today"), F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry))
+        tv = astr(t("loading") if today is None else f"${today:.2f}", F_BIG)
+        ts = tv.size()
+        tv.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts.width, ry - 3))
         ry += ROW_H
-        astr("이번 달", F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry))
-        m2 = astr("조회 중..." if month is None else f"${month:.2f}", F_BIG)
+        astr(t("this_month"), F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry))
+        m2 = astr(t("loading") if month is None else f"${month:.2f}", F_BIG)
         m2s = m2.size()
         m2.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - m2s.width, ry - 3))
         ry += ROW_H
         budget = float(RUNTIME.get("api_budget") or 0)
         if budget > 0 and month is not None:
             pct = min(100.0, month / budget * 100)
-            astr("예산", F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
-            sub = astr(f"{pct:.0f}% · 남음 ${max(0, budget - month):.0f} / ${budget:.0f}", F_SUB)
+            astr(t("budget"), F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
+            sub = astr(f"{pct:.0f}% · {t('left')} ${max(0, budget - month):.0f} / ${budget:.0f}", F_SUB)
             ss = sub.size()
             sub.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ss.width, ry))
             bx0 = gx0 + PILL_PAD + 2
@@ -979,7 +1153,7 @@ def run_gui():
             NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
                 NSMakeRect(bx0, ry + 17, max(8, bw * pct / 100), 6), 3, 3).fill()
         else:
-            hint = astr("설정에서 월 예산($)을 넣으면 게이지가 생겨요", F_TINY)
+            hint = astr(t("need_budget"), F_TINY)
             hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry + 2))
 
     class PetView(NSView):
@@ -1051,7 +1225,7 @@ def run_gui():
                 elif stats:
                     draw_sub_pill(gx0, gy0, stats)
                 else:
-                    m = astr("사용량 스캔 중...", F_SUB)
+                    m = astr(t("scanning"), F_SUB)
                     ms = m.size()
                     m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
                                                gy0 + (pill_h() - ms.height) / 2))
@@ -1147,11 +1321,11 @@ def run_gui():
 
         def rightMouseDown_(self, event):
             menu = NSMenu.alloc().initWithTitle_("ClaudePet")
-            for title, action in (("설정...", "openSettings:"),
-                                  ("게이지 접기/펴기", "togglePanel:"),
-                                  ("크기 원래대로", "resetScale:"),
+            for title, action in ((t("menu_settings"), "openSettings:"),
+                                  (t("menu_toggle"), "togglePanel:"),
+                                  (t("menu_reset_size"), "resetScale:"),
                                   (None, None),
-                                  ("Claude Pet 종료", "quitApp:")):
+                                  (t("menu_quit"), "quitApp:")):
                 if title is None:
                     menu.addItem_(NSMenuItem.separatorItem())
                     continue
@@ -1162,7 +1336,7 @@ def run_gui():
             upd = state.get("update")
             if upd:   # 새 버전 있으면 최상단에 설치 항목
                 top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                    f"⬆︎ 새 버전 v{upd[0]} 설치", "doUpdate:", "")
+                    t("menu_update", v=upd[0]), "doUpdate:", "")
                 top.setTarget_(handler)
                 menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
                 menu.insertItem_atIndex_(top, 0)
@@ -1237,12 +1411,12 @@ def run_gui():
             ui["panel"].makeKeyAndOrderFront_(None)
             NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
             return
-        PWID, PHT = 420, 520
+        PWID, PHT = 420, 560
         panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, PWID, PHT),
             NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
             NSBackingStoreBuffered, False)
-        panel.setTitle_("Claude Pet 설정")
+        panel.setTitle_(t("settings_title"))
         panel.center()
         cv = panel.contentView()
 
@@ -1264,81 +1438,88 @@ def run_gui():
             return f
 
         y = PHT - 40
-        label("데이터 소스", 20, y)
+        label(t("s_language"), 20, y)
+        lang_pop = NSPopUpButton.alloc().initWithFrame_pullsDown_(
+            NSMakeRect(180, y - 3, 160, 26), False)
+        lang_pop.addItemsWithTitles_([LANG_NAMES[c] for c in SUPPORTED_LANGS])
+        lang_pop.selectItemAtIndex_(SUPPORTED_LANGS.index(L["lang"]))
+        cv.addSubview_(lang_pop)
+
+        y -= 34
+        label(t("s_data_source"), 20, y)
         mode = NSPopUpButton.alloc().initWithFrame_pullsDown_(
             NSMakeRect(180, y - 3, 220, 26), False)
-        mode.addItemsWithTitles_(["구독 (Claude Code 로그)", "API (Admin API 비용)"])
+        mode.addItemsWithTitles_([t("s_mode_sub"), t("s_mode_api")])
         mode.selectItemAtIndex_(1 if RUNTIME["mode"] == "api" else 0)
         cv.addSubview_(mode)
 
         y -= 34
-        label("모델 게이지 키워드", 20, y)
+        label(t("s_model_kw"), 20, y)
         f_kw = field(180, y - 2, 100, RUNTIME.get("model_keyword", "auto"))
-        label("(auto=자동감지)", 288, y, 120)
+        label(t("s_auto_detect"), 288, y, 120)
 
         y -= 34
-        label("주간 리셋", 20, y)
+        label(t("s_weekly_reset"), 20, y)
         wreset = NSPopUpButton.alloc().initWithFrame_pullsDown_(
             NSMakeRect(180, y - 3, 130, 26), False)
-        wreset.addItemsWithTitles_(["롤링 7일", "월요일", "화요일", "수요일",
-                                    "목요일", "금요일", "토요일", "일요일"])
+        wreset.addItemsWithTitles_([t("s_rolling7")] + WEEKDAYS_FULL[L["lang"]])
         wd = RUNTIME.get("weekly_reset_day")
         wreset.selectItemAtIndex_(0 if wd is None else int(wd) + 1)
         cv.addSubview_(wreset)
         f_wh = field(318, y - 2, 40, int(RUNTIME.get("weekly_reset_hour", 20)))
-        label("시", 362, y, 30)
+        label(t("s_hour"), 362, y, 30)
 
         # ── 보정: Claude 앱의 % 입력 → 한도 자동 역산 ──
         y -= 40
-        label("🔧 보정: Claude 앱 설정 > 사용량의 %를 입력하면", 20, y, 380)
+        label(t("s_calib1"), 20, y, 380)
         y -= 20
-        label("      한도를 자동으로 계산해요 (입력한 것만 반영)", 20, y, 380)
+        label(t("s_calib2"), 20, y, 380)
         y -= 28
-        label("현재 세션 사용됨 (%)", 20, y)
+        label(t("s_calib_session"), 20, y)
         f_cs = field(180, y - 2, 60, "")
         y -= 30
-        label("주간 모든 모델 (%)", 20, y)
+        label(t("s_calib_weekly_all"), 20, y)
         f_cw = field(180, y - 2, 60, "")
         y -= 30
-        label("주간 모델별 (%)", 20, y)
+        label(t("s_calib_weekly_model"), 20, y)
         f_cm = field(180, y - 2, 60, "")
 
         y -= 40
-        label("세션 한도 (백만 토큰)", 20, y)
+        label(t("s_limit_session"), 20, y)
         f_ses = field(180, y - 2, 90, round(RUNTIME["session_limit"] / 1e6, 2))
         y -= 30
-        label("주간 한도 (백만 토큰)", 20, y)
+        label(t("s_limit_weekly"), 20, y)
         f_wk = field(180, y - 2, 90, round(RUNTIME["weekly_limit"] / 1e6, 2))
         y -= 30
-        label("모델 한도 (백만 토큰)", 20, y)
+        label(t("s_limit_model"), 20, y)
         f_op = field(180, y - 2, 90, round(RUNTIME["opus_limit"] / 1e6, 2))
 
         y -= 36
-        label("급증 알림 민감도", 20, y)
+        label(t("s_spike_sens"), 20, y)
         sens = NSPopUpButton.alloc().initWithFrame_pullsDown_(
             NSMakeRect(180, y - 3, 220, 26), False)
-        sens.addItemsWithTitles_(["민감 (조금만 써도 경보)", "보통", "둔감 (많이 써야 경보)"])
+        sens.addItemsWithTitles_([t("s_sens_high"), t("s_sens_normal"), t("s_sens_low")])
         m = RUNTIME.get("spike_mult", 1.0)
         sens.selectItemAtIndex_(0 if m < 0.9 else (2 if m > 1.5 else 1))
         cv.addSubview_(sens)
 
         y -= 32
-        greet = NSButton.alloc().initWithFrame_(NSMakeRect(20, y, 300, 22))
+        greet = NSButton.alloc().initWithFrame_(NSMakeRect(20, y, 340, 22))
         greet.setButtonType_(3)  # 체크박스
-        greet.setTitle_("마우스가 가까이 오면 인사하기")
+        greet.setTitle_(t("s_greet"))
         greet.setState_(1 if RUNTIME.get("greet") else 0)
         cv.addSubview_(greet)
 
         y -= 34
-        label("Admin API 키", 20, y)
+        label(t("s_admin_key"), 20, y)
         f_key = field(180, y - 2, 220, RUNTIME.get("admin_key", ""), secure=True)
         y -= 30
-        label("API 월 예산 ($)", 20, y)
+        label(t("s_budget"), 20, y)
         f_bud = field(180, y - 2, 90, RUNTIME.get("api_budget") or 0)
 
         save_btn = NSButton.alloc().initWithFrame_(
             NSMakeRect(PWID - 110, 12, 90, 30))
-        save_btn.setTitle_("저장")
+        save_btn.setTitle_(t("s_save"))
         save_btn.setBezelStyle_(1)
         save_btn.setTarget_(handler)
         save_btn.setAction_("saveSettings:")
@@ -1347,7 +1528,7 @@ def run_gui():
         ui.update({"panel": panel, "mode": mode, "ses": f_ses, "wk": f_wk,
                    "op": f_op, "sens": sens, "greet": greet,
                    "key": f_key, "bud": f_bud, "kw": f_kw,
-                   "wreset": wreset, "whour": f_wh,
+                   "wreset": wreset, "whour": f_wh, "lang": lang_pop,
                    "cs": f_cs, "cw": f_cw, "cm": f_cm})
         panel.makeKeyAndOrderFront_(None)
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
@@ -1358,6 +1539,7 @@ def run_gui():
                 return float(str(fld.stringValue()).replace(",", "").replace("%", "").strip())
             except ValueError:
                 return default
+        cfg["lang"] = SUPPORTED_LANGS[ui["lang"].indexOfSelectedItem()]
         cfg["mode"] = "api" if ui["mode"].indexOfSelectedItem() == 1 else "sub"
         cfg["model_keyword"] = (str(ui["kw"].stringValue()).strip().lower()
                                 or "auto")
@@ -1545,25 +1727,25 @@ def print_report():
     exact = fetch_exact_usage()
     if exact:
         print("─" * 60)
-        print(" 정확 모드 (서버 계산 값)")
+        print(" " + t("r_exact"))
         for label, pct, rdt, rtxt in exact:
             reset = fmt_countdown(rdt, datetime.now(timezone.utc)) if rdt else (rtxt or "-")
-            print(f" {label:<6} {pct:5.1f}%  · 리셋 {reset}")
+            print(f" {label:<6} {pct:5.1f}%  · {t('r_reset')} {reset}")
     s = compute_usage()
     def line(name, g):
-        print(f" {name:<6} {g['pct']:5.1f}%  사용 {fmt_tokens(g['used'])} / {fmt_tokens(g['limit'])}"
-              f"  · 남음 {fmt_tokens(g['left'])}  · 리셋 {fmt_countdown(g['reset'], s['now'])}")
+        print(f" {name:<6} {g['pct']:5.1f}%  {t('r_used')} {fmt_tokens(g['used'])} / {fmt_tokens(g['limit'])}"
+              f"  · {t('r_left')} {fmt_tokens(g['left'])}  · {t('r_reset')} {fmt_countdown(g['reset'], s['now'])}")
     print("─" * 60)
-    print(" Claude Pet 사용량 리포트")
+    print(" " + t("r_title"))
     print("─" * 60)
-    line("세션", s["session"])
-    line("주간", s["weekly"])
+    line(t("session"), s["session"])
+    line(t("weekly"), s["weekly"])
     line("Opus", s["opus"])
     if s["last_activity"]:
-        print(f" 마지막 활동: {s['last_activity'].astimezone():%Y-%m-%d %H:%M}")
+        print(f" {t('r_last_activity')}: {s['last_activity'].astimezone():%Y-%m-%d %H:%M}")
     cost = fetch_api_cost_today()
     if cost is not None:
-        print(f" 오늘 API 비용: ${cost:.2f}")
+        print(f" {t('r_today_cost')}: ${cost:.2f}")
     print("─" * 60)
 
 
