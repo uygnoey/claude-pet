@@ -7,7 +7,7 @@ Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estel
 
 > 🧪 Actualmente **v0.1 (beta)** — experimental; el comportamiento y las etiquetas pueden cambiar.
 
-![Patch](preview.png)
+![Patch](preview.gif)
 
 ## Descarga e instalación (recomendado)
 
