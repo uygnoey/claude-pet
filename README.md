@@ -7,7 +7,7 @@ Rendered natively on macOS (AppKit) — no window frame, no background, no ghost
 
 > 🧪 Currently **v0.1 (beta)** — experimental; behavior and labels may change.
 
-![Patch](preview.gif)
+![Patch](preview.png)
 
 ## Download & Install (recommended)
 
