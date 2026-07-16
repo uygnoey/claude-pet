@@ -53,3 +53,18 @@ En el primer arranque solo pide el **Llavero** ("Permitir siempre") y **`~/.clau
 
 macOS 12+ (Apple Silicon) · autocontenido
 </details>
+
+---
+
+### 📝 변경 내역 / Changelog
+
+**v0.9**
+- 최상위 모델 게이지 라벨을 서버 표기(예: Fable, Opus) 그대로 표시
+
+**v0.8**
+- 정확 모드에서 안 뜨던 **최상위 모델 게이지 복구** (모델별 주간 한도 표시 + 리셋 시각 보정)
+- 크레딧 미설정 계정에 뜨던 **"크레딧 0%" 유령 행 제거**
+
+**v0.7**
+- **세션 사용률이 가끔 100%로 잘못 표시되던 문제** 수정
+- 정상 사용 중에도 뜨던 **토큰 급증(▲급증) 오탐** 수정
