@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claude Pet — Patch</title>
-<meta name="description" content="Patch, a tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<title>Claude Pet</title>
+<meta name="description" content="A tiny desktop pet that floats on your screen and watches your Claude token usage.">
 <link rel="canonical" href="https://claude-pet.yeongyu.me/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Claude Pet — Patch">
-<meta property="og:description" content="Patch, a tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<meta property="og:title" content="Claude Pet">
+<meta property="og:description" content="A tiny desktop pet that floats on your screen and watches your Claude token usage.">
 <meta property="og:url" content="https://claude-pet.yeongyu.me/">
 <meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Claude Pet — Patch">
-<meta name="twitter:description" content="Patch, a tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<meta name="twitter:title" content="Claude Pet">
+<meta name="twitter:description" content="A tiny desktop pet that floats on your screen and watches your Claude token usage.">
 <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E">
 <style>
@@ -34,7 +34,7 @@
     --radius:20px;
   }
   @media (prefers-color-scheme: dark){
-    :root{
+    :root:not([data-theme="light"]){
       --bg:#211c17;
       --bg-soft:#2a231d;
       --ink:#f3ece2;
@@ -47,8 +47,23 @@
       --shadow:rgba(0,0,0,0.35);
     }
   }
+  :root[data-theme="dark"]{
+    --bg:#211c17;
+    --bg-soft:#2a231d;
+    --ink:#f3ece2;
+    --ink-soft:#b8ab9c;
+    --accent:#e78b64;
+    --accent-dark:#f2a77f;
+    --accent-soft:#3a2c22;
+    --card:#2a2320;
+    --card-border:#3d3229;
+    --shadow:rgba(0,0,0,0.35);
+  }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
+  :lang(ko){word-break:keep-all}
+  h1.hero-title,.section-title{text-wrap:balance}
+  .hero-sub,.section-sub,.shot-caption,.footer-fine,.card p,.step-body p{text-wrap:pretty}
   body{
     margin:0;
     font-family:"SF Pro Text","Segoe UI","Pretendard","Noto Sans KR","Helvetica Neue",Arial,sans-serif;
@@ -88,6 +103,13 @@
   .btn-primary:hover{background:var(--accent-dark)}
   .btn-ghost{background:var(--card);color:var(--ink);border-color:var(--card-border)}
   .nav .btn-ghost{padding:9px 16px;font-size:13px}
+  .theme-btn{
+    width:36px;height:36px;border-radius:50%;flex:none;
+    background:var(--card);border:1px solid var(--card-border);color:var(--ink);
+    font-size:16px;line-height:1;cursor:pointer;transition:.2s transform;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .theme-btn:hover{transform:translateY(-1px)}
 
   /* ---------- hero ---------- */
   .hero{padding:72px 24px 40px;text-align:center;position:relative}
@@ -141,7 +163,9 @@
   .section-sub{color:var(--ink-soft);font-size:15.5px}
 
   /* ---------- feature grid ---------- */
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;max-width:1000px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:1000px;margin:0 auto}
+  @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:560px){.grid{grid-template-columns:1fr}}
   .card{
     background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
     padding:26px 22px;transition:.2s transform,.2s box-shadow;
@@ -230,6 +254,7 @@
         <button class="lang-btn" data-lang="ja">日本語</button>
         <button class="lang-btn" data-lang="es">Español</button>
       </div>
+      <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
       <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="nav.download">Download</a>
     </div>
@@ -240,7 +265,7 @@
   <section class="hero">
     <div class="wrap">
       <div class="eyebrow"><span class="dot"></span><span>macOS · Apple Silicon · <span id="app-version">v0.9</span></span></div>
-      <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Patch</span><span data-i18n="hero.title.post">, your Claude usage pet</span></h1>
+      <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Claude Pet</span><span data-i18n="hero.title.post">, your token-watching desk buddy</span></h1>
       <p class="hero-sub" data-i18n="hero.sub">A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
@@ -248,10 +273,10 @@
       </div>
 
       <div class="pet-stage">
-        <img id="pet-sprite" src="assets/frames/idle/00.png" alt="Patch the Claude Pet" draggable="false">
+        <img id="pet-sprite" src="assets/frames/idle/00.png" alt="Claude Pet mascot" draggable="false">
       </div>
       <div class="pet-shadow"></div>
-      <div class="pet-hint" data-i18n="hero.pethint">👋 hover to say hi · click to make Patch jump</div>
+      <div class="pet-hint" data-i18n="hero.pethint">👋 hover to say hi · click to make it jump</div>
     </div>
   </section>
 
@@ -260,7 +285,7 @@
       <div class="section-head">
         <div class="section-eyebrow" data-i18n="features.eyebrow">Behavior</div>
         <h2 class="section-title" data-i18n="features.title">Small, alive, never in the way</h2>
-        <p class="section-sub" data-i18n="features.sub">Patch is rendered natively on macOS — no window frame, no background, no ghosting.</p>
+        <p class="section-sub" data-i18n="features.sub">Rendered natively on macOS — no window frame, no background, no ghosting.</p>
       </div>
       <div class="grid" id="feature-grid"></div>
     </div>
@@ -300,9 +325,9 @@
         <h2 class="section-title" data-i18n="preview.title">See it in action</h2>
       </div>
       <div class="shot-frame">
-        <img src="assets/preview.png" alt="Claude Pet gauges with Patch on a transparent background">
+        <img src="assets/preview.png" alt="Claude Pet gauges and mascot on a transparent background">
       </div>
-      <p class="shot-caption" data-i18n="preview.caption">Patch floating over your desktop — no window frame, no background, no ghosting.</p>
+      <p class="shot-caption" data-i18n="preview.caption">Floats over your desktop — no window frame, no background, no ghosting.</p>
     </div>
   </section>
 
@@ -311,12 +336,12 @@
       <div class="section-head">
         <div class="section-eyebrow" data-i18n="install.eyebrow">Install</div>
         <h2 class="section-title" data-i18n="install.title">Get started in under a minute</h2>
-        <p class="section-sub" data-i18n="install.sub">No Python needed — Patch is bundled inside a notarized app, so it opens without any Gatekeeper warning.</p>
+        <p class="section-sub" data-i18n="install.sub">Everything is bundled inside a notarized app, so it opens without any Gatekeeper warning.</p>
       </div>
       <div class="steps" id="install-steps"></div>
       <div class="note-box">
         <span>🔒</span>
-        <span data-i18n="install.note">Patch only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.</span>
+        <span data-i18n="install.note">The pet only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.</span>
       </div>
     </div>
   </section>
@@ -326,7 +351,7 @@
       <div class="section-head">
         <div class="section-eyebrow" data-i18n="cal.eyebrow">Calibration</div>
         <h2 class="section-title" data-i18n="cal.title">Calibrated to your real limits</h2>
-        <p class="section-sub" data-i18n="cal.sub">Token limits are private to Anthropic, so Patch can't know them outright. Type the % shown in Claude's Settings → Usage, and Patch back-solves the rest: limit = current usage ÷ %.</p>
+        <p class="section-sub" data-i18n="cal.sub">Token limits are private to Anthropic, so the app can't know them outright. Type the % shown in Claude's Settings → Usage, and it back-solves the rest: limit = current usage ÷ %.</p>
       </div>
     </div>
   </section>
@@ -362,14 +387,14 @@ const I18N = {
   en: {
     "nav.download": "Download",
     "hero.title.pre": "Meet",
-    "hero.title.post": ", your Claude usage pet",
+    "hero.title.post": ", your token-watching desk buddy",
     "hero.sub": "A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.",
     "hero.cta.primary": "⬇ Download for macOS",
     "hero.cta.secondary": "View source on GitHub",
-    "hero.pethint": "👋 hover to say hi · click to make Patch jump",
+    "hero.pethint": "👋 hover to say hi · click to make it jump",
     "features.eyebrow": "Behavior",
     "features.title": "Small, alive, never in the way",
-    "features.sub": "Patch is rendered natively on macOS — no window frame, no background, no ghosting.",
+    "features.sub": "Rendered natively on macOS — no window frame, no background, no ghosting.",
     "gauges.eyebrow": "Usage gauges",
     "gauges.title": "Three gauges, always in view",
     "gauges.sub": "Session (5h), weekly total, and weekly per-model — each with %, remaining tokens, and a reset countdown.",
@@ -384,30 +409,30 @@ const I18N = {
     "gauges.reset3": "resets in 3d",
     "preview.eyebrow": "Preview",
     "preview.title": "See it in action",
-    "preview.caption": "Patch floating over your desktop — no window frame, no background, no ghosting.",
+    "preview.caption": "Floats over your desktop — no window frame, no background, no ghosting.",
     "install.eyebrow": "Install",
     "install.title": "Get started in under a minute",
-    "install.sub": "No Python needed — Patch is bundled inside a notarized app, so it opens without any Gatekeeper warning.",
-    "install.note": "Patch only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.",
+    "install.sub": "Everything is bundled inside a notarized app, so it opens without any Gatekeeper warning.",
+    "install.note": "The pet only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.",
     "cal.eyebrow": "Calibration",
     "cal.title": "Calibrated to your real limits",
-    "cal.sub": "Token limits are private to Anthropic, so Patch can't know them outright. Type the % shown in Claude's Settings → Usage, and Patch back-solves the rest: limit = current usage ÷ %.",
+    "cal.sub": "Token limits are private to Anthropic, so the app can't know them outright. Type the % shown in Claude's Settings → Usage, and it back-solves the rest: limit = current usage ÷ %.",
     "honesty.eyebrow": "Honestly",
     "honesty.title": "The limits, no spin",
     "footer.fine": "An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic.<br>Claude is a trademark of Anthropic PBC.",
     "footer.releases": "Releases",
     features: [
-      ["🫧","Idle & breathe","Patch sits quietly on your screen, breathing and blinking once every 25 seconds. Never demands attention."],
-      ["👋","Waves hello","Move your mouse close and Patch waves back, with a 30-second cooldown."],
-      ["🏃","Grab & drag","Drag Patch anywhere and it runs along. Double-click to jump and force-refresh your usage instantly."],
-      ["🚨","Spike alerts","When token usage spikes, Patch pulses a warning color and panics — session, model, or weekly."],
-      ["🎉","Reset celebration","The instant your session resets, Patch jumps for joy."],
+      ["🫧","Idle & breathe","It sits quietly on your screen, breathing and blinking once every 25 seconds. Never demands attention."],
+      ["👋","Waves hello","Move your mouse close and it waves back, with a 30-second cooldown."],
+      ["🏃","Grab & drag","Drag it anywhere and it runs along. Double-click to jump and force-refresh your usage instantly."],
+      ["🚨","Spike alerts","When token usage spikes, it pulses a warning color and panics — session, model, or weekly."],
+      ["🎉","Reset celebration","The instant your session resets, it jumps for joy."],
       ["🔄","Auto-updates","Right-click → Install new version. Downloads, replaces, and relaunches — done."]
     ],
     steps: [
       ["Download ClaudePet.zip","Grab the latest build from the GitHub Releases page."],
       ["Move it to Applications","Unzip, drag ClaudePet.app into Applications, then double-click to launch."],
-      ["That's it","Works on macOS 12+ with Apple Silicon. No Python, no setup — the app checks GitHub for updates on launch."]
+      ["That's it","Works on macOS 12+ with Apple Silicon. No setup — the app checks GitHub for updates on launch."]
     ],
     honesty: [
       "Data comes from Claude Code's local logs only — web/desktop chat usage isn't included, so recalibrate occasionally to stay accurate.",
@@ -418,7 +443,7 @@ const I18N = {
   ko: {
     "nav.download": "다운로드",
     "hero.title.pre": "화면 위의 작은 친구,",
-    "hero.title.post": "를 소개합니다",
+    "hero.title.post": "을 소개합니다",
     "hero.sub": "화면에 둥둥 떠서 조용히 Claude 토큰 사용량을 지켜봐 주는 아주 작은 데스크톱 펫이에요.",
     "hero.cta.primary": "⬇ macOS용 다운로드",
     "hero.cta.secondary": "GitHub에서 소스 보기",
@@ -440,14 +465,14 @@ const I18N = {
     "gauges.reset3": "3일 후 리셋",
     "preview.eyebrow": "미리보기",
     "preview.title": "실제로 이렇게 생겼어요",
-    "preview.caption": "창 프레임도, 배경도, 잔상도 없이 데스크탑 위를 떠다니는 Patch.",
+    "preview.caption": "창 프레임도, 배경도, 잔상도 없이 데스크탑 위를 떠다녀요.",
     "install.eyebrow": "설치",
     "install.title": "1분이면 시작할 수 있어요",
-    "install.sub": "Python 설치가 필요 없어요 — 공증(notarized)된 앱이라 Gatekeeper 경고 없이 바로 실행돼요.",
-    "install.note": "Patch는 <code>~/.claude</code> 사용량 로그와 키체인의 OAuth 토큰만 읽어요 — 사진·다운로드·문서 폴더는 절대 건드리지 않아요.",
+    "install.sub": "공증(notarized)된 앱이라 Gatekeeper 경고 없이 바로 실행돼요.",
+    "install.note": "펫은 <code>~/.claude</code> 사용량 로그와 키체인의 OAuth 토큰만 읽어요 — 사진·다운로드·문서 폴더는 절대 건드리지 않아요.",
     "cal.eyebrow": "보정",
     "cal.title": "당신의 실제 한도에 맞춰 보정",
-    "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 Patch가 그대로 알 수는 없어요. Claude 앱의 설정 → 사용량에 표시된 %를 입력하면, Patch가 '한도 = 현재 사용량 ÷ %'로 역산해요.",
+    "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 앱이 그대로 알 수는 없어요. Claude 앱의 설정 → 사용량에 표시된 %를 입력하면 '한도 = 현재 사용량 ÷ %'로 자동 역산해요.",
     "honesty.eyebrow": "솔직하게 말하면",
     "honesty.title": "숨기지 않는 한계",
     "footer.fine": "커뮤니티가 만든 독립 프로젝트예요. Anthropic과 제휴하거나 공식 지원을 받지 않아요.<br>Claude는 Anthropic PBC의 상표입니다.",
@@ -463,7 +488,7 @@ const I18N = {
     steps: [
       ["ClaudePet.zip 다운로드","GitHub Releases 페이지에서 최신 버전을 받아요."],
       ["응용 프로그램 폴더로 이동","압축을 풀고 ClaudePet.app을 응용 프로그램 폴더로 옮긴 뒤 더블클릭하면 실행돼요."],
-      ["끝이에요","macOS 12+ (Apple Silicon)에서 동작해요. Python도, 별도 설정도 필요 없고, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
+      ["끝이에요","macOS 12+ (Apple Silicon)에서 동작해요. 별도 설정 없이, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
     ],
     honesty: [
       "데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요. 가끔 다시 보정해줘야 정확해요.",
@@ -496,14 +521,14 @@ const I18N = {
     "gauges.reset3": "3日後にリセット",
     "preview.eyebrow": "プレビュー",
     "preview.title": "実際はこんな感じです",
-    "preview.caption": "ウィンドウ枠も背景も残像もなく、デスクトップに浮かぶ Patch。",
+    "preview.caption": "ウィンドウ枠も背景も残像もなく、デスクトップにふわりと浮かびます。",
     "install.eyebrow": "インストール",
     "install.title": "1分で始められます",
-    "install.sub": "Python 不要 — Apple 公証（notarized）済みアプリなので、Gatekeeper の警告なしで開けます。",
-    "install.note": "Patch が読むのは <code>~/.claude</code> の使用ログとキーチェーンの OAuth トークンだけ — 写真・ダウンロード・書類フォルダには一切触れません。",
+    "install.sub": "Apple 公証（notarized）済みアプリなので、Gatekeeper の警告なしで開けます。",
+    "install.note": "ペットが読むのは <code>~/.claude</code> の使用ログとキーチェーンの OAuth トークンだけ — 写真・ダウンロード・書類フォルダには一切触れません。",
     "cal.eyebrow": "キャリブレーション",
     "cal.title": "あなたの実際の上限に合わせて補正",
-    "cal.sub": "トークン上限は Anthropic の非公開情報なので、Patch が直接知ることはできません。Claude アプリの設定 → 使用量に表示される % を入力すれば、「上限 = 現在の使用量 ÷ %」で逆算します。",
+    "cal.sub": "トークン上限は Anthropic の非公開情報なので、アプリが直接知ることはできません。Claude アプリの設定 → 使用量に表示される % を入力すれば、「上限 = 現在の使用量 ÷ %」で逆算します。",
     "honesty.eyebrow": "正直に言うと",
     "honesty.title": "隠さない制限事項",
     "footer.fine": "コミュニティ製の独立プロジェクトです。Anthropic とは提携しておらず、公認も受けていません。<br>Claude は Anthropic PBC の商標です。",
@@ -519,7 +544,7 @@ const I18N = {
     steps: [
       ["ClaudePet.zip をダウンロード","GitHub Releases から最新版を入手します。"],
       ["アプリケーションフォルダへ移動","展開して ClaudePet.app をアプリケーションフォルダに移動し、ダブルクリックで起動します。"],
-      ["これで完了","macOS 12+（Apple Silicon）で動作。Python も設定も不要 — 起動時に GitHub で新バージョンを確認します。"]
+      ["これで完了","macOS 12+（Apple Silicon）で動作。設定も不要 — 起動時に GitHub で新バージョンを確認します。"]
     ],
     honesty: [
       "データは Claude Code のローカルログ基準 — Web／デスクトップチャットの使用量は含まれません。ときどき再補正すると正確になります。",
@@ -530,14 +555,14 @@ const I18N = {
   es: {
     "nav.download": "Descargar",
     "hero.title.pre": "Conoce a",
-    "hero.title.post": ", tu mascota de uso de Claude",
+    "hero.title.post": ", la mascota que vigila tus tokens",
     "hero.sub": "Una pequeña compañera de escritorio que flota en tu pantalla y vigila en silencio tu uso de tokens de Claude, para que tú no tengas que hacerlo.",
     "hero.cta.primary": "⬇ Descargar para macOS",
     "hero.cta.secondary": "Ver el código en GitHub",
     "hero.pethint": "👋 pasa el cursor para saludar · haz clic para que salte",
     "features.eyebrow": "Comportamiento",
     "features.title": "Pequeña, viva, nunca estorba",
-    "features.sub": "Patch se renderiza de forma nativa en macOS: sin marco de ventana, sin fondo, sin estelas.",
+    "features.sub": "Se renderiza de forma nativa en macOS: sin marco de ventana, sin fondo, sin estelas.",
     "gauges.eyebrow": "Medidores de uso",
     "gauges.title": "Tres medidores, siempre visibles",
     "gauges.sub": "Sesión (5h), total semanal y semanal por modelo — cada uno con %, tokens restantes y cuenta atrás de reinicio.",
@@ -552,30 +577,30 @@ const I18N = {
     "gauges.reset3": "se reinicia en 3d",
     "preview.eyebrow": "Vista previa",
     "preview.title": "Míralo en acción",
-    "preview.caption": "Patch flotando sobre tu escritorio — sin marco de ventana, sin fondo, sin estelas.",
+    "preview.caption": "Flota sobre tu escritorio — sin marco de ventana, sin fondo, sin estelas.",
     "install.eyebrow": "Instalación",
     "install.title": "Empieza en menos de un minuto",
-    "install.sub": "No necesitas Python — Patch viene incluido en una app certificada (notarized), así que se abre sin avisos de Gatekeeper.",
-    "install.note": "Patch solo lee los registros de uso de <code>~/.claude</code> y el token OAuth de tu Llavero — nunca toca Fotos, Descargas ni Documentos.",
+    "install.sub": "Todo viene incluido en una app certificada (notarized), así que se abre sin avisos de Gatekeeper.",
+    "install.note": "La mascota solo lee los registros de uso de <code>~/.claude</code> y el token OAuth de tu Llavero — nunca toca Fotos, Descargas ni Documentos.",
     "cal.eyebrow": "Calibración",
     "cal.title": "Calibrado a tus límites reales",
-    "cal.sub": "Los límites de tokens son privados de Anthropic, así que Patch no puede conocerlos directamente. Escribe el % que muestra Claude en Ajustes → Uso, y Patch calcula el resto: límite = uso actual ÷ %.",
+    "cal.sub": "Los límites de tokens son privados de Anthropic, así que la app no puede conocerlos directamente. Escribe el % que muestra Claude en Ajustes → Uso, y la app calcula el resto: límite = uso actual ÷ %.",
     "honesty.eyebrow": "Con honestidad",
     "honesty.title": "Los límites, sin adornos",
     "footer.fine": "Un proyecto independiente hecho por la comunidad. No afiliado ni respaldado por Anthropic.<br>Claude es una marca registrada de Anthropic PBC.",
     "footer.releases": "Releases",
     features: [
-      ["🫧","Quieta y respirando","Patch se queda quieta en tu pantalla, respirando y parpadeando una vez cada 25 segundos. Nunca reclama atención."],
-      ["👋","Saluda con la mano","Acerca el cursor y Patch te saluda de vuelta, con 30 segundos de enfriamiento."],
-      ["🏃","Agárrala y arrástrala","Arrastra a Patch y correrá en esa dirección. Doble clic = salto + actualización instantánea del uso."],
-      ["🚨","Alertas de pico","Cuando el consumo de tokens se dispara, Patch pulsa en color de alerta y pone cara de pánico — de sesión, modelo o semana."],
-      ["🎉","Celebra el reinicio","En el instante en que tu sesión se reinicia, Patch salta de alegría."],
+      ["🫧","Quieta y respirando","Se queda quieta en tu pantalla, respirando y parpadeando una vez cada 25 segundos. Nunca reclama atención."],
+      ["👋","Saluda con la mano","Acerca el cursor y te saluda de vuelta, con 30 segundos de enfriamiento."],
+      ["🏃","Agárrala y arrástrala","Arrástrala y correrá en esa dirección. Doble clic = salto + actualización instantánea del uso."],
+      ["🚨","Alertas de pico","Cuando el consumo de tokens se dispara, la mascota pulsa en color de alerta y pone cara de pánico — de sesión, modelo o semana."],
+      ["🎉","Celebra el reinicio","En el instante en que tu sesión se reinicia, salta de alegría."],
       ["🔄","Actualizaciones automáticas","Clic derecho → Instalar nueva versión. Descarga, reemplaza y reinicia sola."]
     ],
     steps: [
       ["Descarga ClaudePet.zip","Consíguelo desde la página de Releases en GitHub."],
       ["Muévelo a Aplicaciones","Descomprime, arrastra ClaudePet.app a Aplicaciones y haz doble clic para abrirlo."],
-      ["Listo","Funciona en macOS 12+ con Apple Silicon. Sin Python, sin configuración — la app revisa nuevas versiones en GitHub al abrirse."]
+      ["Listo","Funciona en macOS 12+ con Apple Silicon. Sin configuración — la app revisa nuevas versiones en GitHub al abrirse."]
     ],
     honesty: [
       "Los datos vienen solo de los registros locales de Claude Code — el uso del chat web/escritorio no se incluye, así que recalibra de vez en cuando.",
@@ -639,6 +664,33 @@ document.querySelectorAll(".lang-btn").forEach(btn => {
 });
 
 applyLang(currentLang);
+
+/* ---------------- manual light/dark toggle ---------------- */
+const themeBtn = document.getElementById("theme-toggle");
+
+function effectiveTheme(){
+  const saved = localStorage.getItem("claudepet-theme");
+  if(saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme, persist){
+  document.documentElement.dataset.theme = theme;
+  if(persist) localStorage.setItem("claudepet-theme", theme);
+  themeBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+  themeBtn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+}
+
+applyTheme(effectiveTheme(), false);
+
+themeBtn.addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+});
+
+// Follow OS changes only while the user hasn't picked a theme manually
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+  if(!localStorage.getItem("claudepet-theme")) applyTheme(e.matches ? "dark" : "light", false);
+});
 
 /* Always show the latest released version in the hero badge.
    The download buttons use GitHub's /releases/latest/download/ redirect,
