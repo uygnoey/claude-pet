@@ -10,11 +10,11 @@
 <meta property="og:title" content="Claude Pet — Patch">
 <meta property="og:description" content="Patch, a tiny desktop pet that floats on your screen and watches your Claude token usage.">
 <meta property="og:url" content="https://claude-pet.yeongyu.me/">
-<meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.jpg">
+<meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Claude Pet — Patch">
 <meta name="twitter:description" content="Patch, a tiny desktop pet that floats on your screen and watches your Claude token usage.">
-<meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.jpg">
+<meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -227,10 +227,11 @@
       <div class="lang-switch" role="group" aria-label="Language">
         <button class="lang-btn" data-lang="ko">한국어</button>
         <button class="lang-btn" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="ja">日本語</button>
         <button class="lang-btn" data-lang="es">Español</button>
       </div>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
-      <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="nav.download">Download</a>
+      <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="nav.download">Download</a>
     </div>
   </div>
 </header>
@@ -238,11 +239,11 @@
 <main>
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">macOS · Apple Silicon · v0.1 beta</span></div>
+      <div class="eyebrow"><span class="dot"></span><span>macOS · Apple Silicon · <span id="app-version">v0.9</span></span></div>
       <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Patch</span><span data-i18n="hero.title.post">, your Claude usage pet</span></h1>
       <p class="hero-sub" data-i18n="hero.sub">A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
+        <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
         <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener" data-i18n="hero.cta.secondary">View source on GitHub</a>
       </div>
 
@@ -299,7 +300,7 @@
         <h2 class="section-title" data-i18n="preview.title">See it in action</h2>
       </div>
       <div class="shot-frame">
-        <img src="assets/preview.jpg" alt="Claude Pet floating over a desktop">
+        <img src="assets/preview.gif" alt="Claude Pet gauges with Patch idling, waving and jumping">
       </div>
       <p class="shot-caption" data-i18n="preview.caption">Patch floating over your desktop — no window frame, no background, no ghosting.</p>
     </div>
@@ -345,14 +346,12 @@
   <div class="footer-inner">
     <div>
       <div class="footer-brand">🐱 Claude Pet</div>
-      <p class="footer-fine" data-i18n="footer.fine">An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.</p>
+      <p class="footer-fine" data-i18n="footer.fine">An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic.<br>Claude is a trademark of Anthropic PBC.</p>
     </div>
     <div class="footer-links">
       <a href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="footer.releases">Releases</a>
-      <a href="https://github.com/uygnoey/claude-pet/blob/main/README.md" target="_blank" rel="noopener">README (EN)</a>
-      <a href="https://github.com/uygnoey/claude-pet/blob/main/README.ko.md" target="_blank" rel="noopener">README (KO)</a>
-      <a href="https://github.com/uygnoey/claude-pet/blob/main/README.es.md" target="_blank" rel="noopener">README (ES)</a>
+      <a id="readme-link" href="https://github.com/uygnoey/claude-pet/blob/main/README.md" target="_blank" rel="noopener">README</a>
     </div>
   </div>
 </footer>
@@ -362,7 +361,6 @@
 const I18N = {
   en: {
     "nav.download": "Download",
-    "hero.eyebrow": "macOS · Apple Silicon · v0.1 beta",
     "hero.title.pre": "Meet",
     "hero.title.post": ", your Claude usage pet",
     "hero.sub": "A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.",
@@ -396,7 +394,7 @@ const I18N = {
     "cal.sub": "Token limits are private to Anthropic, so Patch can't know them outright. Type the % shown in Claude's Settings → Usage, and Patch back-solves the rest: limit = current usage ÷ %.",
     "honesty.eyebrow": "Honestly",
     "honesty.title": "The limits, no spin",
-    "footer.fine": "An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.",
+    "footer.fine": "An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic.<br>Claude is a trademark of Anthropic PBC.",
     "footer.releases": "Releases",
     features: [
       ["🫧","Idle & breathe","Patch sits quietly on your screen, breathing and blinking once every 25 seconds. Never demands attention."],
@@ -419,7 +417,6 @@ const I18N = {
   },
   ko: {
     "nav.download": "다운로드",
-    "hero.eyebrow": "macOS · Apple Silicon · v0.1 베타",
     "hero.title.pre": "화면 위의 작은 친구,",
     "hero.title.post": "를 소개합니다",
     "hero.sub": "화면에 둥둥 떠서 조용히 Claude 토큰 사용량을 지켜봐 주는 아주 작은 데스크톱 펫이에요.",
@@ -453,7 +450,7 @@ const I18N = {
     "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 Patch가 그대로 알 수는 없어요. Claude 앱의 설정 → 사용량에 표시된 %를 입력하면, Patch가 '한도 = 현재 사용량 ÷ %'로 역산해요.",
     "honesty.eyebrow": "솔직하게 말하면",
     "honesty.title": "숨기지 않는 한계",
-    "footer.fine": "커뮤니티가 만든 독립 프로젝트예요. Anthropic과 제휴하거나 공식 지원을 받지 않아요. Claude는 Anthropic PBC의 상표입니다.",
+    "footer.fine": "커뮤니티가 만든 독립 프로젝트예요. Anthropic과 제휴하거나 공식 지원을 받지 않아요.<br>Claude는 Anthropic PBC의 상표입니다.",
     "footer.releases": "릴리즈",
     features: [
       ["🫧","가만히, 숨쉬듯이","평소엔 화면 위에 조용히 앉아 25초에 한 번씩만 숨 쉬고 눈을 깜빡여요. 절대 신경 쓰이게 하지 않아요."],
@@ -474,9 +471,64 @@ const I18N = {
       "Admin API 키는 ~/.claude_pet.json에 평문으로 저장되니 개인 기기에서만 사용하세요."
     ]
   },
+  ja: {
+    "nav.download": "ダウンロード",
+    "hero.title.pre": "画面の上の小さな相棒、",
+    "hero.title.post": "をご紹介",
+    "hero.sub": "画面にふわっと浮かんで、Claude のトークン使用量をそっと見守ってくれる、小さなデスクトップペットです。",
+    "hero.cta.primary": "⬇ macOS 版をダウンロード",
+    "hero.cta.secondary": "GitHub でソースを見る",
+    "hero.pethint": "👋 マウスを近づけると挨拶 · クリックでジャンプ",
+    "features.eyebrow": "ふるまい",
+    "features.title": "小さくて、生きていて、邪魔しない",
+    "features.sub": "macOS ネイティブ（AppKit）でレンダリング — ウィンドウ枠も背景も残像もありません。",
+    "gauges.eyebrow": "使用量ゲージ",
+    "gauges.title": "いつでも見える 3 つのゲージ",
+    "gauges.sub": "セッション（5時間）・週間合計・週間モデル別 — それぞれ %、残りトークン、リセットまでの時間を表示します。",
+    "gauges.session": "セッション (5h)",
+    "gauges.remaining": "残り 31.2万トークン",
+    "gauges.reset1": "2時間14分後にリセット",
+    "gauges.weekly": "週間合計",
+    "gauges.remaining2": "(土) 午後8時にリセット",
+    "gauges.reset2": "3日後にリセット",
+    "gauges.model": "週間 · Opus",
+    "gauges.autodetect": "上位モデルを自動検出",
+    "gauges.reset3": "3日後にリセット",
+    "preview.eyebrow": "プレビュー",
+    "preview.title": "実際はこんな感じです",
+    "preview.caption": "ウィンドウ枠も背景も残像もなく、デスクトップに浮かぶ Patch。",
+    "install.eyebrow": "インストール",
+    "install.title": "1分で始められます",
+    "install.sub": "Python 不要 — Apple 公証（notarized）済みアプリなので、Gatekeeper の警告なしで開けます。",
+    "install.note": "Patch が読むのは <code>~/.claude</code> の使用ログとキーチェーンの OAuth トークンだけ — 写真・ダウンロード・書類フォルダには一切触れません。",
+    "cal.eyebrow": "キャリブレーション",
+    "cal.title": "あなたの実際の上限に合わせて補正",
+    "cal.sub": "トークン上限は Anthropic の非公開情報なので、Patch が直接知ることはできません。Claude アプリの設定 → 使用量に表示される % を入力すれば、「上限 = 現在の使用量 ÷ %」で逆算します。",
+    "honesty.eyebrow": "正直に言うと",
+    "honesty.title": "隠さない制限事項",
+    "footer.fine": "コミュニティ製の独立プロジェクトです。Anthropic とは提携しておらず、公認も受けていません。<br>Claude は Anthropic PBC の商標です。",
+    "footer.releases": "リリース",
+    features: [
+      ["🫧","静かに、息づくように","普段は画面の上に静かに座り、25秒に一度だけ呼吸してまばたきします。決して気を散らしません。"],
+      ["👋","手を振って挨拶","マウスを近づけると手を振って挨拶します（クールダウン30秒）。"],
+      ["🏃","つかんでドラッグ","ドラッグするとその方向に走ります。ダブルクリック = ジャンプ + 使用量を即時更新。"],
+      ["🚨","急増アラート","トークン消費が急増すると、警告色のパルスとパニック顔に — セッション・モデル・週間ごとに。"],
+      ["🎉","リセットのお祝いジャンプ","セッションがリセットされた瞬間、嬉しくてジャンプします。"],
+      ["🔄","自動アップデート","右クリック → 新バージョンをインストール。ダウンロード・置き換え・再起動まで全自動。"]
+    ],
+    steps: [
+      ["ClaudePet.zip をダウンロード","GitHub Releases から最新版を入手します。"],
+      ["アプリケーションフォルダへ移動","展開して ClaudePet.app をアプリケーションフォルダに移動し、ダブルクリックで起動します。"],
+      ["これで完了","macOS 12+（Apple Silicon）で動作。Python も設定も不要 — 起動時に GitHub で新バージョンを確認します。"]
+    ],
+    honesty: [
+      "データは Claude Code のローカルログ基準 — Web／デスクトップチャットの使用量は含まれません。ときどき再補正すると正確になります。",
+      "Admin API のコストは Console 組織のもので、サブスクリプションの上限とは別物です。",
+      "Admin API キーは ~/.claude_pet.json に平文で保存されるため、個人のマシンでのみ使用してください。"
+    ]
+  },
   es: {
     "nav.download": "Descargar",
-    "hero.eyebrow": "macOS · Apple Silicon · v0.1 beta",
     "hero.title.pre": "Conoce a",
     "hero.title.post": ", tu mascota de uso de Claude",
     "hero.sub": "Una pequeña compañera de escritorio que flota en tu pantalla y vigila en silencio tu uso de tokens de Claude, para que tú no tengas que hacerlo.",
@@ -510,7 +562,7 @@ const I18N = {
     "cal.sub": "Los límites de tokens son privados de Anthropic, así que Patch no puede conocerlos directamente. Escribe el % que muestra Claude en Ajustes → Uso, y Patch calcula el resto: límite = uso actual ÷ %.",
     "honesty.eyebrow": "Con honestidad",
     "honesty.title": "Los límites, sin adornos",
-    "footer.fine": "Un proyecto independiente hecho por la comunidad. No afiliado ni respaldado por Anthropic. Claude es una marca registrada de Anthropic PBC.",
+    "footer.fine": "Un proyecto independiente hecho por la comunidad. No afiliado ni respaldado por Anthropic.<br>Claude es una marca registrada de Anthropic PBC.",
     "footer.releases": "Releases",
     features: [
       ["🫧","Quieta y respirando","Patch se queda quieta en tu pantalla, respirando y parpadeando una vez cada 25 segundos. Nunca reclama atención."],
@@ -536,9 +588,14 @@ const I18N = {
 function detectDefaultLang(){
   const nav = (navigator.language || "en").toLowerCase();
   if(nav.startsWith("ko")) return "ko";
+  if(nav.startsWith("ja")) return "ja";
   if(nav.startsWith("es")) return "es";
   return "en";
 }
+
+const README_BY_LANG = {
+  en: "README.md", ko: "README.ko.md", ja: "README.ja.md", es: "README.es.md"
+};
 
 let currentLang = localStorage.getItem("claudepet-lang") || detectDefaultLang();
 
@@ -572,6 +629,8 @@ function applyLang(lang){
     if(t[key] !== undefined) el.innerHTML = t[key];
   });
   document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+  document.getElementById("readme-link").href =
+    "https://github.com/uygnoey/claude-pet/blob/main/" + README_BY_LANG[lang];
   renderLists(lang);
 }
 
@@ -580,6 +639,18 @@ document.querySelectorAll(".lang-btn").forEach(btn => {
 });
 
 applyLang(currentLang);
+
+/* Always show the latest released version in the hero badge.
+   The download buttons use GitHub's /releases/latest/download/ redirect,
+   which likewise always serves the newest release's ClaudePet.zip. */
+fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
+  .then(r => r.ok ? r.json() : null)
+  .then(rel => {
+    if(rel && rel.tag_name){
+      document.getElementById("app-version").textContent = rel.tag_name;
+    }
+  })
+  .catch(() => {});
 
 /* ---------------- pet sprite animation ---------------- */
 const FRAMES = {
