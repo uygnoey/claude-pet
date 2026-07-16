@@ -93,14 +93,16 @@
   .lang-select-wrap{
     position:relative;display:flex;align-items:center;
     background:var(--card);border:1px solid var(--card-border);border-radius:999px;
-    padding:0 12px 0 12px;height:36px;
+    padding:0 12px 0 12px;height:38px;transition:.2s transform;
   }
-  .lang-globe{font-size:14px;pointer-events:none}
+  .lang-select-wrap:hover{transform:translateY(-1px)}
+  .lang-globe{font-size:14px;pointer-events:none;line-height:1}
   .lang-select-wrap select{
     appearance:none;-webkit-appearance:none;border:none;background:transparent;
-    color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;
+    color:var(--ink);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
     padding:0 16px 0 7px;height:100%;outline:none;
   }
+  .lang-select-wrap select option{background:var(--card);color:var(--ink);font-weight:600}
   .lang-caret{
     position:absolute;right:11px;pointer-events:none;
     color:var(--ink-soft);font-size:11px;
@@ -114,9 +116,9 @@
   .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 20px -8px var(--accent)}
   .btn-primary:hover{background:var(--accent-dark)}
   .btn-ghost{background:var(--card);color:var(--ink);border-color:var(--card-border)}
-  .nav .btn-ghost{padding:9px 16px;font-size:13px}
+  .nav-actions .btn{height:38px;padding:0 16px;font-size:13px}
   .theme-btn{
-    width:36px;height:36px;border-radius:50%;flex:none;
+    width:38px;height:38px;border-radius:50%;flex:none;
     background:var(--card);border:1px solid var(--card-border);color:var(--ink);
     font-size:16px;line-height:1;cursor:pointer;transition:.2s transform;
     display:flex;align-items:center;justify-content:center;
@@ -216,7 +218,7 @@
   .shot-caption{text-align:center;color:var(--ink-soft);font-size:13.5px;margin-top:16px}
 
   /* ---------- steps ---------- */
-  .steps{max-width:640px;margin:0 auto;counter-reset:step}
+  .steps{max-width:720px;margin:0 auto;counter-reset:step}
   .step{display:flex;gap:18px;margin-bottom:22px}
   .step-num{
     counter-increment:step;flex:none;width:34px;height:34px;border-radius:50%;
@@ -245,7 +247,7 @@
   .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px}
   .footer-links a{color:var(--ink-soft);text-decoration:none}
   .footer-links a:hover{color:var(--accent)}
-  .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:480px}
+  .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:640px}
   .footer-brand{font-weight:800;margin-bottom:6px}
 
   @media (max-width:640px){
@@ -387,7 +389,7 @@
   <div class="footer-inner">
     <div>
       <div class="footer-brand">🐱 Claude Pet</div>
-      <p class="footer-fine" data-i18n="footer.fine">An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic.<br>Claude is a trademark of Anthropic PBC.</p>
+      <p class="footer-fine" data-i18n="footer.fine">Claude Pet is an independent project by Yeongyu Yang (uygnoey); the name “Claude Pet” is a mark of its creator.<br>Claude is a trademark of Anthropic PBC.<br>Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p>
     </div>
     <div class="footer-links">
       <a href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
@@ -435,7 +437,7 @@ const I18N = {
     "cal.sub": "Token limits are private to Anthropic, so the app can't know them outright. Type the % shown in Claude's Settings → Usage, and it back-solves the rest: limit = current usage ÷ %.",
     "honesty.eyebrow": "Honestly",
     "honesty.title": "The limits, no spin",
-    "footer.fine": "An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic.<br>Claude is a trademark of Anthropic PBC.",
+    "footer.fine": "Claude Pet is an independent project by Yeongyu Yang (uygnoey); the name “Claude Pet” is a mark of its creator.<br>Claude is a trademark of Anthropic PBC.<br>Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.",
     "footer.releases": "Releases",
     features: [
       ["🫧","Idle & breathe","It sits quietly on your screen, breathing and blinking once every 25 seconds. Never demands attention."],
@@ -491,7 +493,7 @@ const I18N = {
     "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 앱이 그대로 알 수는 없어요.<br>Claude 앱의 설정 → 사용량에 표시된 %를 입력하면 '한도 = 현재 사용량 ÷ %'로 자동 역산해요.",
     "honesty.eyebrow": "솔직하게 말하면",
     "honesty.title": "숨기지 않는 한계",
-    "footer.fine": "커뮤니티가 만든 독립 프로젝트예요.<br>Anthropic과 제휴하거나 공식 지원을 받지 않아요.<br>Claude는 Anthropic PBC의 상표입니다.",
+    "footer.fine": "Claude Pet은 Yeongyu Yang(uygnoey)이 만든 독립 프로젝트이며, 'Claude Pet'이라는 이름은 제작자의 상표입니다.<br>Claude는 Anthropic PBC의 상표입니다.<br>Claude Pet은 Anthropic과 무관하며, 제휴하거나 공식 지원을 받지 않습니다.",
     "footer.releases": "릴리즈",
     features: [
       ["🫧","가만히, 숨쉬듯이","평소엔 화면 위에 조용히 앉아 25초에 한 번씩만 숨 쉬고 눈을 깜빡여요.<br>절대 신경 쓰이게 하지 않아요."],
@@ -547,7 +549,7 @@ const I18N = {
     "cal.sub": "トークン上限は Anthropic の非公開情報なので、アプリが直接知ることはできません。Claude アプリの設定 → 使用量に表示される % を入力すれば、「上限 = 現在の使用量 ÷ %」で逆算します。",
     "honesty.eyebrow": "正直に言うと",
     "honesty.title": "隠さない制限事項",
-    "footer.fine": "コミュニティ製の独立プロジェクトです。Anthropic とは提携しておらず、公認も受けていません。<br>Claude は Anthropic PBC の商標です。",
+    "footer.fine": "Claude Pet は Yeongyu Yang（uygnoey）による独立プロジェクトであり、「Claude Pet」の名称は制作者に帰属します。<br>Claude は Anthropic PBC の商標です。<br>Claude Pet は Anthropic とは無関係であり、提携や公認も受けていません。",
     "footer.releases": "リリース",
     features: [
       ["🫧","静かに、息づくように","普段は画面の上に静かに座り、25秒に一度だけ呼吸してまばたきします。決して気を散らしません。"],
@@ -603,7 +605,7 @@ const I18N = {
     "cal.sub": "Los límites de tokens son privados de Anthropic, así que la app no puede conocerlos directamente. Escribe el % que muestra Claude en Ajustes → Uso, y la app calcula el resto: límite = uso actual ÷ %.",
     "honesty.eyebrow": "Con honestidad",
     "honesty.title": "Los límites, sin adornos",
-    "footer.fine": "Un proyecto independiente hecho por la comunidad. No afiliado ni respaldado por Anthropic.<br>Claude es una marca registrada de Anthropic PBC.",
+    "footer.fine": "Claude Pet es un proyecto independiente de Yeongyu Yang (uygnoey); el nombre «Claude Pet» es una marca de su creador.<br>Claude es una marca registrada de Anthropic PBC.<br>Claude Pet no está afiliado a Anthropic ni cuenta con su respaldo; no existe relación entre ambos.",
     "footer.releases": "Releases",
     features: [
       ["🫧","Quieta y respirando","Se queda quieta en tu pantalla, respirando y parpadeando una vez cada 25 segundos. Nunca reclama atención."],
