@@ -90,23 +90,34 @@
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-0.01em}
   .brand-emoji{font-size:22px}
   .nav-actions{display:flex;align-items:center;gap:10px}
-  .lang-select-wrap{
-    position:relative;display:flex;align-items:center;
+  .lang-dd{position:relative}
+  .lang-dd-btn{
+    display:flex;align-items:center;gap:7px;height:38px;padding:0 14px;
     background:var(--card);border:1px solid var(--card-border);border-radius:999px;
-    padding:0 12px 0 12px;height:38px;transition:.2s transform;
-  }
-  .lang-select-wrap:hover{transform:translateY(-1px)}
-  .lang-globe{font-size:14px;pointer-events:none;line-height:1}
-  .lang-select-wrap select{
-    appearance:none;-webkit-appearance:none;border:none;background:transparent;
     color:var(--ink);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
-    padding:0 16px 0 7px;height:100%;outline:none;
+    transition:.2s transform;
   }
-  .lang-select-wrap select option{background:var(--card);color:var(--ink);font-weight:600}
-  .lang-caret{
-    position:absolute;right:11px;pointer-events:none;
-    color:var(--ink-soft);font-size:11px;
+  .lang-dd-btn:hover{transform:translateY(-1px)}
+  .lang-globe{font-size:14px;line-height:1}
+  .lang-caret{color:var(--ink-soft);font-size:11px;transition:.2s transform}
+  .lang-dd.open .lang-caret{transform:rotate(180deg)}
+  .lang-dd-menu{
+    position:absolute;top:calc(100% + 8px);right:0;min-width:152px;
+    background:var(--card);border:1px solid var(--card-border);border-radius:16px;
+    padding:6px;margin:0;list-style:none;
+    box-shadow:0 18px 40px -18px var(--shadow);
+    opacity:0;transform:translateY(-6px);pointer-events:none;transition:.18s;
+    z-index:60;
   }
+  .lang-dd.open .lang-dd-menu{opacity:1;transform:translateY(0);pointer-events:auto}
+  .lang-dd-menu li{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 12px;border-radius:10px;font-size:13px;font-weight:600;
+    color:var(--ink);cursor:pointer;transition:.15s background;
+  }
+  .lang-dd-menu li:hover{background:var(--accent-soft)}
+  .lang-dd-menu li.active{color:var(--accent);font-weight:700}
+  .lang-dd-menu li.active::after{content:"✓";font-size:12px}
   .btn{
     display:inline-flex;align-items:center;gap:8px;justify-content:center;
     padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;
@@ -245,7 +256,8 @@
   /* ---------- footer ---------- */
   footer{padding:48px 24px 60px;border-top:1px solid var(--card-border);margin-top:20px}
   .footer-inner{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
-  .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px}
+  .footer-inner > div:first-child{flex:1 1 auto;min-width:0}
+  .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;flex:none}
   .footer-links a{color:var(--ink-soft);text-decoration:none}
   .footer-links a:hover{color:var(--accent)}
   .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:none}
@@ -263,15 +275,18 @@
   <div class="nav-inner">
     <div class="brand"><span class="brand-emoji">🐱</span> Claude Pet</div>
     <div class="nav-actions">
-      <div class="lang-select-wrap">
-        <span class="lang-globe" aria-hidden="true">🌐</span>
-        <select id="lang-select" aria-label="Language">
-          <option value="ko">한국어</option>
-          <option value="en">English</option>
-          <option value="ja">日本語</option>
-          <option value="es">Español</option>
-        </select>
-        <span class="lang-caret" aria-hidden="true">▾</span>
+      <div class="lang-dd" id="lang-dd">
+        <button class="lang-dd-btn" id="lang-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <span class="lang-globe" aria-hidden="true">🌐</span>
+          <span id="lang-dd-label">English</span>
+          <span class="lang-caret" aria-hidden="true">▾</span>
+        </button>
+        <ul class="lang-dd-menu" id="lang-dd-menu" role="listbox">
+          <li role="option" data-lang="ko">한국어</li>
+          <li role="option" data-lang="en">English</li>
+          <li role="option" data-lang="ja">日本語</li>
+          <li role="option" data-lang="es">Español</li>
+        </ul>
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
@@ -672,13 +687,40 @@ function applyLang(lang){
     const key = el.getAttribute("data-i18n");
     if(t[key] !== undefined) el.innerHTML = t[key];
   });
-  document.getElementById("lang-select").value = lang;
+  const LANG_LABELS = {ko:"한국어", en:"English", ja:"日本語", es:"Español"};
+  document.getElementById("lang-dd-label").textContent = LANG_LABELS[lang];
+  document.querySelectorAll("#lang-dd-menu li").forEach(li =>
+    li.classList.toggle("active", li.dataset.lang === lang));
   document.getElementById("readme-link").href =
     "https://github.com/uygnoey/claude-pet/blob/main/" + README_BY_LANG[lang];
   renderLists(lang);
 }
 
-document.getElementById("lang-select").addEventListener("change", e => applyLang(e.target.value));
+const langDd = document.getElementById("lang-dd");
+const langDdBtn = document.getElementById("lang-dd-btn");
+langDdBtn.addEventListener("click", () => {
+  langDd.classList.toggle("open");
+  langDdBtn.setAttribute("aria-expanded", langDd.classList.contains("open"));
+});
+document.querySelectorAll("#lang-dd-menu li").forEach(li => {
+  li.addEventListener("click", () => {
+    applyLang(li.dataset.lang);
+    langDd.classList.remove("open");
+    langDdBtn.setAttribute("aria-expanded", "false");
+  });
+});
+document.addEventListener("click", e => {
+  if(!langDd.contains(e.target)){
+    langDd.classList.remove("open");
+    langDdBtn.setAttribute("aria-expanded", "false");
+  }
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){
+    langDd.classList.remove("open");
+    langDdBtn.setAttribute("aria-expanded", "false");
+  }
+});
 
 applyLang(currentLang);
 
