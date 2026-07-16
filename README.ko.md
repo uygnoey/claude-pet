@@ -7,7 +7,7 @@ macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
 > 🧪 현재 **v0.1 (beta)** — 실험 단계라 동작/표기가 바뀔 수 있어요.
 
-![Patch](preview.gif)
+![Patch](preview.png)
 
 ## 다운로드 & 설치 (권장)
 
