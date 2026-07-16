@@ -11,3 +11,7 @@ ClaudePet.app/
 
 # 스크린샷
 스크린샷*.png
+
+# 로컬 디버그 덤프 (사용량 응답 등)
+oauth_usage_dump.txt
+oauth_usage_*.json

@@ -57,7 +57,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.8"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.9"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -620,12 +620,13 @@ def _rows_from_limits(data):
         elif "extra" in kind or "credit" in kind:
             label, order = t("credit"), 9
         elif "scoped" in kind or "model" in kind:
-            # 모델별 주간 한도(최상위 모델) — scope.model.display_name 이 라벨
-            model = (((lim.get("scope") or {}).get("model") or {}).get("display_name")
-                     or ((lim.get("scope") or {}).get("model") or {}).get("id") or "")
+            # 모델별 주간 한도(최상위 모델). 라벨은 서버가 준 값을 그대로 쓴다
+            # (display_name 우선, 없으면 id). 서버 표기를 가공하지 않는다.
+            scope_model = (lim.get("scope") or {}).get("model") or {}
+            model = scope_model.get("display_name") or scope_model.get("id") or ""
             if not model:
                 continue
-            label, order = str(model).capitalize(), 2
+            label, order = str(model), 2
         elif "weekly" in kind or "seven" in kind:
             label, order = t("weekly"), 1
         else:
