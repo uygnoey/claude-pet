@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Pet — Patch</title>
+<meta name="description" content="Patch, a tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#f6f1e9;
+    --bg-soft:#fbf8f2;
+    --ink:#2c2620;
+    --ink-soft:#6b6055;
+    --accent:#d97757;
+    --accent-dark:#b85a3e;
+    --accent-soft:#f2ddc8;
+    --card:#ffffff;
+    --card-border:#ecdfd0;
+    --shadow:rgba(60,40,20,0.10);
+    --green:#5f9e6e;
+    --purple:#9174c4;
+    --orange:#e0954f;
+    --radius:20px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#211c17;
+      --bg-soft:#2a231d;
+      --ink:#f3ece2;
+      --ink-soft:#b8ab9c;
+      --accent:#e78b64;
+      --accent-dark:#f2a77f;
+      --accent-soft:#3a2c22;
+      --card:#2a2320;
+      --card-border:#3d3229;
+      --shadow:rgba(0,0,0,0.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    font-family:"SF Pro Text","Segoe UI","Pretendard","Noto Sans KR","Helvetica Neue",Arial,sans-serif;
+    background:
+      radial-gradient(680px 420px at 90% -10%, var(--accent-soft), transparent 60%),
+      radial-gradient(600px 380px at -10% 20%, var(--accent-soft), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  a{color:inherit}
+  img{max-width:100%;display:block}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ---------- nav ---------- */
+  header.nav{
+    position:sticky; top:0; z-index:50;
+    backdrop-filter:blur(10px);
+    background:color-mix(in srgb, var(--bg) 78%, transparent);
+    border-bottom:1px solid var(--card-border);
+  }
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;max-width:1080px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-0.01em}
+  .brand-emoji{font-size:22px}
+  .nav-actions{display:flex;align-items:center;gap:10px}
+  .lang-switch{display:flex;background:var(--bg-soft);border:1px solid var(--card-border);border-radius:999px;padding:3px;gap:2px}
+  .lang-btn{border:none;background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;transition:.2s}
+  .lang-btn.active{background:var(--accent);color:#fff}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;
+    padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;
+    text-decoration:none;border:1px solid transparent;cursor:pointer;transition:.2s transform,.2s box-shadow;white-space:nowrap;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 20px -8px var(--accent)}
+  .btn-primary:hover{background:var(--accent-dark)}
+  .btn-ghost{background:var(--card);color:var(--ink);border-color:var(--card-border)}
+  .nav .btn-ghost{padding:9px 16px;font-size:13px}
+
+  /* ---------- hero ---------- */
+  .hero{padding:72px 24px 40px;text-align:center;position:relative}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--card);border:1px solid var(--card-border);color:var(--ink-soft);
+    font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;margin-bottom:22px;
+  }
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent)}
+  h1.hero-title{font-size:clamp(32px,5.4vw,58px);line-height:1.08;letter-spacing:-0.03em;margin:0 0 18px;font-weight:800}
+  h1.hero-title .accent{color:var(--accent)}
+  .hero-sub{max-width:600px;margin:0 auto 34px;color:var(--ink-soft);font-size:clamp(15px,2vw,18px)}
+  .hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+  .hero-ctas .btn{padding:13px 24px;font-size:15px}
+
+  .pet-stage{
+    position:relative;
+    width:min(300px,70vw);
+    margin:44px auto 8px;
+    padding-top:26px;
+  }
+  .pet-stage img{
+    width:100%;
+    image-rendering:pixelated;
+    filter:drop-shadow(0 22px 26px var(--shadow));
+    cursor:pointer;
+    animation:bob 3.2s ease-in-out infinite;
+    user-select:none;
+    -webkit-user-drag:none;
+  }
+  @keyframes bob{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-10px)}
+  }
+  .pet-hint{font-size:12.5px;color:var(--ink-soft);margin-top:10px}
+  .pet-shadow{
+    width:56%;height:16px;margin:2px auto 0;
+    background:radial-gradient(ellipse at center, color-mix(in srgb, var(--ink) 22%, transparent) 0%, transparent 72%);
+    animation:shrink 3.2s ease-in-out infinite;
+  }
+  @keyframes shrink{
+    0%,100%{transform:scale(1);opacity:.55}
+    50%{transform:scale(0.78);opacity:.35}
+  }
+
+  /* ---------- section shell ---------- */
+  section{padding:64px 24px}
+  .section-head{text-align:center;max-width:640px;margin:0 auto 44px}
+  .section-eyebrow{color:var(--accent);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+  .section-title{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-0.02em;margin:0 0 12px}
+  .section-sub{color:var(--ink-soft);font-size:15.5px}
+
+  /* ---------- feature grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;max-width:1000px;margin:0 auto}
+  .card{
+    background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+    padding:26px 22px;transition:.2s transform,.2s box-shadow;
+  }
+  .card:hover{transform:translateY(-4px);box-shadow:0 16px 30px -18px var(--shadow)}
+  .card .icon{
+    width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;background:var(--accent-soft);margin-bottom:16px;
+  }
+  .card h3{margin:0 0 8px;font-size:16.5px;font-weight:700;letter-spacing:-0.01em}
+  .card p{margin:0;color:var(--ink-soft);font-size:14px}
+
+  /* ---------- gauges ---------- */
+  .gauge-panel{
+    max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--card-border);
+    border-radius:var(--radius);padding:28px 26px;box-shadow:0 20px 40px -30px var(--shadow);
+  }
+  .gauge-row{margin-bottom:20px}
+  .gauge-row:last-child{margin-bottom:0}
+  .gauge-label{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;margin-bottom:8px}
+  .gauge-label span.pct{color:var(--ink-soft);font-weight:600}
+  .gauge-track{height:10px;border-radius:999px;background:var(--bg-soft);overflow:hidden;border:1px solid var(--card-border)}
+  .gauge-fill{height:100%;border-radius:999px;transition:width 1s ease}
+  .gauge-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-top:6px}
+  .g-session{background:linear-gradient(90deg,var(--accent),var(--accent-dark))}
+  .g-weekly{background:linear-gradient(90deg,var(--purple),#7457b0)}
+  .g-model{background:linear-gradient(90deg,var(--orange),#c9762c)}
+
+  /* ---------- screenshot ---------- */
+  .shot-frame{
+    max-width:640px;margin:0 auto;border-radius:24px;padding:14px;
+    background:linear-gradient(160deg,var(--card),var(--bg-soft));
+    border:1px solid var(--card-border);box-shadow:0 30px 60px -30px var(--shadow);
+  }
+  .shot-frame img{border-radius:16px;width:100%}
+  .shot-caption{text-align:center;color:var(--ink-soft);font-size:13.5px;margin-top:16px}
+
+  /* ---------- steps ---------- */
+  .steps{max-width:640px;margin:0 auto;counter-reset:step}
+  .step{display:flex;gap:18px;margin-bottom:22px}
+  .step-num{
+    counter-increment:step;flex:none;width:34px;height:34px;border-radius:50%;
+    background:var(--accent);color:#fff;font-weight:800;font-size:14.5px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .step-num::before{content:counter(step)}
+  .step-body h4{margin:2px 0 6px;font-size:15.5px;font-weight:700}
+  .step-body p{margin:0;color:var(--ink-soft);font-size:14px}
+  .note-box{
+    max-width:640px;margin:26px auto 0;background:var(--accent-soft);border-radius:16px;
+    padding:16px 20px;font-size:13.5px;color:var(--ink);display:flex;gap:10px;
+  }
+
+  /* ---------- honesty list ---------- */
+  .honesty{max-width:640px;margin:0 auto;list-style:none;padding:0}
+  .honesty li{
+    display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--card-border);font-size:14.5px;color:var(--ink-soft);
+  }
+  .honesty li:last-child{border-bottom:none}
+  .honesty li::before{content:"◆";color:var(--accent);flex:none}
+
+  /* ---------- footer ---------- */
+  footer{padding:48px 24px 60px;border-top:1px solid var(--card-border);margin-top:20px}
+  .footer-inner{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
+  .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px}
+  .footer-links a{color:var(--ink-soft);text-decoration:none}
+  .footer-links a:hover{color:var(--accent)}
+  .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:480px}
+  .footer-brand{font-weight:800;margin-bottom:6px}
+
+  @media (max-width:640px){
+    .nav-actions .btn-ghost{display:none}
+    section{padding:52px 18px}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="brand-emoji">🐱</span> Claude Pet</div>
+    <div class="nav-actions">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button class="lang-btn" data-lang="ko">한국어</button>
+        <button class="lang-btn" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="es">Español</button>
+      </div>
+      <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="nav.download">Download</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">macOS · Apple Silicon · v0.1 beta</span></div>
+      <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Patch</span><span data-i18n="hero.title.post">, your Claude usage pet</span></h1>
+      <p class="hero-sub" data-i18n="hero.sub">A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener" data-i18n="hero.cta.secondary">View source on GitHub</a>
+      </div>
+
+      <div class="pet-stage">
+        <img id="pet-sprite" src="assets/frames/idle/00.png" alt="Patch the Claude Pet" draggable="false">
+      </div>
+      <div class="pet-shadow"></div>
+      <div class="pet-hint" data-i18n="hero.pethint">👋 hover to say hi · click to make Patch jump</div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="features.eyebrow">Behavior</div>
+        <h2 class="section-title" data-i18n="features.title">Small, alive, never in the way</h2>
+        <p class="section-sub" data-i18n="features.sub">Patch is rendered natively on macOS — no window frame, no background, no ghosting.</p>
+      </div>
+      <div class="grid" id="feature-grid"></div>
+    </div>
+  </section>
+
+  <section id="gauges">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="gauges.eyebrow">Usage gauges</div>
+        <h2 class="section-title" data-i18n="gauges.title">Three gauges, always in view</h2>
+        <p class="section-sub" data-i18n="gauges.sub">Session (5h), weekly total, and weekly per-model — each with %, remaining tokens, and a reset countdown.</p>
+      </div>
+      <div class="gauge-panel">
+        <div class="gauge-row">
+          <div class="gauge-label"><span data-i18n="gauges.session">Session (5h)</span><span class="pct">62%</span></div>
+          <div class="gauge-track"><div class="gauge-fill g-session" style="width:62%"></div></div>
+          <div class="gauge-meta"><span data-i18n="gauges.remaining">312K tokens left</span><span data-i18n="gauges.reset1">resets in 2h 14m</span></div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-label"><span data-i18n="gauges.weekly">Weekly total</span><span class="pct">41%</span></div>
+          <div class="gauge-track"><div class="gauge-fill g-weekly" style="width:41%"></div></div>
+          <div class="gauge-meta"><span data-i18n="gauges.remaining2">Sat 8:00 PM</span><span data-i18n="gauges.reset2">resets in 3d</span></div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-label"><span data-i18n="gauges.model">Weekly · Opus</span><span class="pct">78%</span></div>
+          <div class="gauge-track"><div class="gauge-fill g-model" style="width:78%"></div></div>
+          <div class="gauge-meta"><span data-i18n="gauges.autodetect">auto-detected top tier</span><span data-i18n="gauges.reset3">resets in 3d</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="preview">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="preview.eyebrow">Preview</div>
+        <h2 class="section-title" data-i18n="preview.title">See it in action</h2>
+      </div>
+      <div class="shot-frame">
+        <img src="assets/preview.png" alt="Claude Pet floating over a desktop">
+      </div>
+      <p class="shot-caption" data-i18n="preview.caption">Patch floating over your desktop — no window frame, no background, no ghosting.</p>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="install.eyebrow">Install</div>
+        <h2 class="section-title" data-i18n="install.title">Get started in under a minute</h2>
+        <p class="section-sub" data-i18n="install.sub">No Python needed — Patch is bundled inside a notarized app, so it opens without any Gatekeeper warning.</p>
+      </div>
+      <div class="steps" id="install-steps"></div>
+      <div class="note-box">
+        <span>🔒</span>
+        <span data-i18n="install.note">Patch only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="calibration">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="cal.eyebrow">Calibration</div>
+        <h2 class="section-title" data-i18n="cal.title">Calibrated to your real limits</h2>
+        <p class="section-sub" data-i18n="cal.sub">Token limits are private to Anthropic, so Patch can't know them outright. Type the % shown in Claude's Settings → Usage, and Patch back-solves the rest: limit = current usage ÷ %.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="honesty">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="honesty.eyebrow">Honestly</div>
+        <h2 class="section-title" data-i18n="honesty.title">The limits, no spin</h2>
+      </div>
+      <ul class="honesty" id="honesty-list"></ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">🐱 Claude Pet</div>
+      <p class="footer-fine" data-i18n="footer.fine">An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="footer.releases">Releases</a>
+      <a href="https://github.com/uygnoey/claude-pet/blob/main/README.md" target="_blank" rel="noopener">README (EN)</a>
+      <a href="https://github.com/uygnoey/claude-pet/blob/main/README.ko.md" target="_blank" rel="noopener">README (KO)</a>
+      <a href="https://github.com/uygnoey/claude-pet/blob/main/README.es.md" target="_blank" rel="noopener">README (ES)</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ---------------- i18n content ---------------- */
+const I18N = {
+  en: {
+    "nav.download": "Download",
+    "hero.eyebrow": "macOS · Apple Silicon · v0.1 beta",
+    "hero.title.pre": "Meet",
+    "hero.title.post": ", your Claude usage pet",
+    "hero.sub": "A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.",
+    "hero.cta.primary": "⬇ Download for macOS",
+    "hero.cta.secondary": "View source on GitHub",
+    "hero.pethint": "👋 hover to say hi · click to make Patch jump",
+    "features.eyebrow": "Behavior",
+    "features.title": "Small, alive, never in the way",
+    "features.sub": "Patch is rendered natively on macOS — no window frame, no background, no ghosting.",
+    "gauges.eyebrow": "Usage gauges",
+    "gauges.title": "Three gauges, always in view",
+    "gauges.sub": "Session (5h), weekly total, and weekly per-model — each with %, remaining tokens, and a reset countdown.",
+    "gauges.session": "Session (5h)",
+    "gauges.remaining": "312K tokens left",
+    "gauges.reset1": "resets in 2h 14m",
+    "gauges.weekly": "Weekly total",
+    "gauges.remaining2": "resets Sat 8:00 PM",
+    "gauges.reset2": "resets in 3d",
+    "gauges.model": "Weekly · Opus",
+    "gauges.autodetect": "auto-detected top tier",
+    "gauges.reset3": "resets in 3d",
+    "preview.eyebrow": "Preview",
+    "preview.title": "See it in action",
+    "preview.caption": "Patch floating over your desktop — no window frame, no background, no ghosting.",
+    "install.eyebrow": "Install",
+    "install.title": "Get started in under a minute",
+    "install.sub": "No Python needed — Patch is bundled inside a notarized app, so it opens without any Gatekeeper warning.",
+    "install.note": "Patch only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.",
+    "cal.eyebrow": "Calibration",
+    "cal.title": "Calibrated to your real limits",
+    "cal.sub": "Token limits are private to Anthropic, so Patch can't know them outright. Type the % shown in Claude's Settings → Usage, and Patch back-solves the rest: limit = current usage ÷ %.",
+    "honesty.eyebrow": "Honestly",
+    "honesty.title": "The limits, no spin",
+    "footer.fine": "An independent, community-made desktop pet. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.",
+    "footer.releases": "Releases",
+    features: [
+      ["🫧","Idle & breathe","Patch sits quietly on your screen, breathing and blinking once every 25 seconds. Never demands attention."],
+      ["👋","Waves hello","Move your mouse close and Patch waves back, with a 30-second cooldown."],
+      ["🏃","Grab & drag","Drag Patch anywhere and it runs along. Double-click to jump and force-refresh your usage instantly."],
+      ["🚨","Spike alerts","When token usage spikes, Patch pulses a warning color and panics — session, model, or weekly."],
+      ["🎉","Reset celebration","The instant your session resets, Patch jumps for joy."],
+      ["🔄","Auto-updates","Right-click → Install new version. Downloads, replaces, and relaunches — done."]
+    ],
+    steps: [
+      ["Download ClaudePet.zip","Grab the latest build from the GitHub Releases page."],
+      ["Move it to Applications","Unzip, drag ClaudePet.app into Applications, then double-click to launch."],
+      ["That's it","Works on macOS 12+ with Apple Silicon. No Python, no setup — the app checks GitHub for updates on launch."]
+    ],
+    honesty: [
+      "Data comes from Claude Code's local logs only — web/desktop chat usage isn't included, so recalibrate occasionally to stay accurate.",
+      "Admin API cost belongs to your Console organization and is separate from your subscription limit.",
+      "The Admin API key is stored in plaintext in ~/.claude_pet.json — use it on a personal machine only."
+    ]
+  },
+  ko: {
+    "nav.download": "다운로드",
+    "hero.eyebrow": "macOS · Apple Silicon · v0.1 베타",
+    "hero.title.pre": "화면 위의 작은 친구,",
+    "hero.title.post": "를 소개합니다",
+    "hero.sub": "화면에 둥둥 떠서 조용히 Claude 토큰 사용량을 지켜봐 주는 아주 작은 데스크톱 펫이에요.",
+    "hero.cta.primary": "⬇ macOS용 다운로드",
+    "hero.cta.secondary": "GitHub에서 소스 보기",
+    "hero.pethint": "👋 마우스를 가까이 대면 인사해요 · 클릭하면 점프해요",
+    "features.eyebrow": "행동 패턴",
+    "features.title": "작고, 살아있고, 방해하지 않아요",
+    "features.sub": "macOS 네이티브(AppKit)로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요.",
+    "gauges.eyebrow": "사용량 게이지",
+    "gauges.title": "항상 보이는 세 개의 게이지",
+    "gauges.sub": "세션(5시간) · 주간 전체 · 주간 모델별 — 각각 %, 남은 토큰, 리셋까지 남은 시간을 보여줘요.",
+    "gauges.session": "세션 (5시간)",
+    "gauges.remaining": "31.2만 토큰 남음",
+    "gauges.reset1": "2시간 14분 후 리셋",
+    "gauges.weekly": "주간 전체",
+    "gauges.remaining2": "토요일 오후 8시 리셋",
+    "gauges.reset2": "3일 후 리셋",
+    "gauges.model": "주간 · Opus",
+    "gauges.autodetect": "상위 티어 자동 감지",
+    "gauges.reset3": "3일 후 리셋",
+    "preview.eyebrow": "미리보기",
+    "preview.title": "실제로 이렇게 생겼어요",
+    "preview.caption": "창 프레임도, 배경도, 잔상도 없이 데스크탑 위를 떠다니는 Patch.",
+    "install.eyebrow": "설치",
+    "install.title": "1분이면 시작할 수 있어요",
+    "install.sub": "Python 설치가 필요 없어요 — 공증(notarized)된 앱이라 Gatekeeper 경고 없이 바로 실행돼요.",
+    "install.note": "Patch는 <code>~/.claude</code> 사용량 로그와 키체인의 OAuth 토큰만 읽어요 — 사진·다운로드·문서 폴더는 절대 건드리지 않아요.",
+    "cal.eyebrow": "보정",
+    "cal.title": "당신의 실제 한도에 맞춰 보정",
+    "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 Patch가 그대로 알 수는 없어요. Claude 앱의 설정 → 사용량에 표시된 %를 입력하면, Patch가 '한도 = 현재 사용량 ÷ %'로 역산해요.",
+    "honesty.eyebrow": "솔직하게 말하면",
+    "honesty.title": "숨기지 않는 한계",
+    "footer.fine": "커뮤니티가 만든 독립 프로젝트예요. Anthropic과 제휴하거나 공식 지원을 받지 않아요. Claude는 Anthropic PBC의 상표입니다.",
+    "footer.releases": "릴리즈",
+    features: [
+      ["🫧","가만히, 숨쉬듯이","평소엔 화면 위에 조용히 앉아 25초에 한 번씩만 숨 쉬고 눈을 깜빡여요. 절대 신경 쓰이게 하지 않아요."],
+      ["👋","손을 흔들며 인사","마우스가 가까이 가면 손을 흔들어 인사해요 (쿨다운 30초)."],
+      ["🏃","잡고 끌기","드래그하면 그 방향으로 달려가요. 더블클릭하면 점프하면서 사용량을 즉시 새로고침해요."],
+      ["🚨","급증 경고","토큰 사용량이 급증하면 경고색으로 펄스가 일고 패닉 표정을 지어요 — 세션·모델·주간별로."],
+      ["🎉","리셋 축하 점프","세션이 리셋되는 순간, 신나서 점프해요."],
+      ["🔄","자동 업데이트","우클릭 → 새 버전 설치. 다운로드·교체·재실행까지 알아서 끝내줘요."]
+    ],
+    steps: [
+      ["ClaudePet.zip 다운로드","GitHub Releases 페이지에서 최신 버전을 받아요."],
+      ["응용 프로그램 폴더로 이동","압축을 풀고 ClaudePet.app을 응용 프로그램 폴더로 옮긴 뒤 더블클릭하면 실행돼요."],
+      ["끝이에요","macOS 12+ (Apple Silicon)에서 동작해요. Python도, 별도 설정도 필요 없고, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
+    ],
+    honesty: [
+      "데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요. 가끔 다시 보정해줘야 정확해요.",
+      "Admin API 비용은 Console 조직 기준이라 구독 한도와는 별개예요.",
+      "Admin API 키는 ~/.claude_pet.json에 평문으로 저장되니 개인 기기에서만 사용하세요."
+    ]
+  },
+  es: {
+    "nav.download": "Descargar",
+    "hero.eyebrow": "macOS · Apple Silicon · v0.1 beta",
+    "hero.title.pre": "Conoce a",
+    "hero.title.post": ", tu mascota de uso de Claude",
+    "hero.sub": "Una pequeña compañera de escritorio que flota en tu pantalla y vigila en silencio tu uso de tokens de Claude, para que tú no tengas que hacerlo.",
+    "hero.cta.primary": "⬇ Descargar para macOS",
+    "hero.cta.secondary": "Ver el código en GitHub",
+    "hero.pethint": "👋 pasa el cursor para saludar · haz clic para que salte",
+    "features.eyebrow": "Comportamiento",
+    "features.title": "Pequeña, viva, nunca estorba",
+    "features.sub": "Patch se renderiza de forma nativa en macOS: sin marco de ventana, sin fondo, sin estelas.",
+    "gauges.eyebrow": "Medidores de uso",
+    "gauges.title": "Tres medidores, siempre visibles",
+    "gauges.sub": "Sesión (5h), total semanal y semanal por modelo — cada uno con %, tokens restantes y cuenta atrás de reinicio.",
+    "gauges.session": "Sesión (5h)",
+    "gauges.remaining": "312K tokens restantes",
+    "gauges.reset1": "se reinicia en 2h 14m",
+    "gauges.weekly": "Total semanal",
+    "gauges.remaining2": "se reinicia sáb 20:00",
+    "gauges.reset2": "se reinicia en 3d",
+    "gauges.model": "Semanal · Opus",
+    "gauges.autodetect": "nivel superior detectado automáticamente",
+    "gauges.reset3": "se reinicia en 3d",
+    "preview.eyebrow": "Vista previa",
+    "preview.title": "Míralo en acción",
+    "preview.caption": "Patch flotando sobre tu escritorio — sin marco de ventana, sin fondo, sin estelas.",
+    "install.eyebrow": "Instalación",
+    "install.title": "Empieza en menos de un minuto",
+    "install.sub": "No necesitas Python — Patch viene incluido en una app certificada (notarized), así que se abre sin avisos de Gatekeeper.",
+    "install.note": "Patch solo lee los registros de uso de <code>~/.claude</code> y el token OAuth de tu Llavero — nunca toca Fotos, Descargas ni Documentos.",
+    "cal.eyebrow": "Calibración",
+    "cal.title": "Calibrado a tus límites reales",
+    "cal.sub": "Los límites de tokens son privados de Anthropic, así que Patch no puede conocerlos directamente. Escribe el % que muestra Claude en Ajustes → Uso, y Patch calcula el resto: límite = uso actual ÷ %.",
+    "honesty.eyebrow": "Con honestidad",
+    "honesty.title": "Los límites, sin adornos",
+    "footer.fine": "Un proyecto independiente hecho por la comunidad. No afiliado ni respaldado por Anthropic. Claude es una marca registrada de Anthropic PBC.",
+    "footer.releases": "Releases",
+    features: [
+      ["🫧","Quieta y respirando","Patch se queda quieta en tu pantalla, respirando y parpadeando una vez cada 25 segundos. Nunca reclama atención."],
+      ["👋","Saluda con la mano","Acerca el cursor y Patch te saluda de vuelta, con 30 segundos de enfriamiento."],
+      ["🏃","Agárrala y arrástrala","Arrastra a Patch y correrá en esa dirección. Doble clic = salto + actualización instantánea del uso."],
+      ["🚨","Alertas de pico","Cuando el consumo de tokens se dispara, Patch pulsa en color de alerta y pone cara de pánico — de sesión, modelo o semana."],
+      ["🎉","Celebra el reinicio","En el instante en que tu sesión se reinicia, Patch salta de alegría."],
+      ["🔄","Actualizaciones automáticas","Clic derecho → Instalar nueva versión. Descarga, reemplaza y reinicia sola."]
+    ],
+    steps: [
+      ["Descarga ClaudePet.zip","Consíguelo desde la página de Releases en GitHub."],
+      ["Muévelo a Aplicaciones","Descomprime, arrastra ClaudePet.app a Aplicaciones y haz doble clic para abrirlo."],
+      ["Listo","Funciona en macOS 12+ con Apple Silicon. Sin Python, sin configuración — la app revisa nuevas versiones en GitHub al abrirse."]
+    ],
+    honesty: [
+      "Los datos vienen solo de los registros locales de Claude Code — el uso del chat web/escritorio no se incluye, así que recalibra de vez en cuando.",
+      "El coste de Admin API pertenece a tu organización en Console y es independiente de tu límite de suscripción.",
+      "La clave de Admin API se guarda en texto plano en ~/.claude_pet.json — úsala solo en un equipo personal."
+    ]
+  }
+};
+
+function detectDefaultLang(){
+  const nav = (navigator.language || "en").toLowerCase();
+  if(nav.startsWith("ko")) return "ko";
+  if(nav.startsWith("es")) return "es";
+  return "en";
+}
+
+let currentLang = localStorage.getItem("claudepet-lang") || detectDefaultLang();
+
+function renderLists(lang){
+  const t = I18N[lang];
+  document.getElementById("feature-grid").innerHTML = t.features.map(([icon,title,desc]) => `
+    <div class="card">
+      <div class="icon">${icon}</div>
+      <h3>${title}</h3>
+      <p>${desc}</p>
+    </div>
+  `).join("");
+
+  document.getElementById("install-steps").innerHTML = t.steps.map(([title,desc]) => `
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body"><h4>${title}</h4><p>${desc}</p></div>
+    </div>
+  `).join("");
+
+  document.getElementById("honesty-list").innerHTML = t.honesty.map(item => `<li>${item}</li>`).join("");
+}
+
+function applyLang(lang){
+  currentLang = lang;
+  localStorage.setItem("claudepet-lang", lang);
+  document.documentElement.lang = lang;
+  const t = I18N[lang];
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if(t[key] !== undefined) el.innerHTML = t[key];
+  });
+  document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+  renderLists(lang);
+}
+
+document.querySelectorAll(".lang-btn").forEach(btn => {
+  btn.addEventListener("click", () => applyLang(btn.dataset.lang));
+});
+
+applyLang(currentLang);
+
+/* ---------------- pet sprite animation ---------------- */
+const FRAMES = {
+  idle: Array.from({length:6}, (_,i) => `assets/frames/idle/0${i}.png`),
+  waving: Array.from({length:4}, (_,i) => `assets/frames/waving/0${i}.png`),
+  jumping: Array.from({length:5}, (_,i) => `assets/frames/jumping/0${i}.png`)
+};
+
+const sprite = document.getElementById("pet-sprite");
+let mode = "idle";
+let idleFrame = 0;
+let playing = false;
+
+function playSequence(frames, frameDelay, onDone){
+  playing = true;
+  let i = 0;
+  const tick = () => {
+    if(i >= frames.length){ playing = false; onDone && onDone(); return; }
+    sprite.src = frames[i];
+    i++;
+    setTimeout(tick, frameDelay);
+  };
+  tick();
+}
+
+setInterval(() => {
+  if(playing || mode !== "idle") return;
+  idleFrame = (idleFrame + 1) % FRAMES.idle.length;
+  sprite.src = FRAMES.idle[idleFrame];
+}, 260);
+
+sprite.addEventListener("mouseenter", () => {
+  if(playing) return;
+  mode = "waving";
+  playSequence(FRAMES.waving, 140, () => { mode = "idle"; });
+});
+
+sprite.addEventListener("click", () => {
+  if(playing) return;
+  mode = "jumping";
+  sprite.style.transition = "transform .15s ease";
+  playSequence(FRAMES.jumping, 110, () => {
+    mode = "idle";
+    sprite.style.transform = "translateY(0)";
+  });
+  let up = true;
+  const bounce = setInterval(() => {
+    sprite.style.transform = up ? "translateY(-26px)" : "translateY(0)";
+    up = !up;
+  }, 130);
+  setTimeout(() => clearInterval(bounce), 5*130);
+});
+</script>
+</body>
+</html>
