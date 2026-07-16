@@ -7,7 +7,7 @@ macOS ネイティブ（AppKit）描画 — ウィンドウ枠・背景・残像
 
 > 🧪 現在 **v0.1 (beta)** — 実験段階のため、挙動や表記が変わることがあります。
 
-![Patch](preview.png)
+![Patch](preview.gif)
 
 ## ダウンロードとインストール（推奨）
 
