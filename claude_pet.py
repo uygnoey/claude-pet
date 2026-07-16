@@ -57,7 +57,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.6"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.7"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -282,7 +282,9 @@ DEFAULT_CFG = (400, True, 15000)
 
 # 소비 급증 기본 임계치(%): 최근 5분 소비가 한도의 몇 %를 넘으면 경보
 # 실제 임계치 = 기본값 × RUNTIME["spike_mult"] (설정 UI의 민감도)
-SPIKE_BASE = {"session": 1.0, "weekly": 0.5, "opus": 1.0}
+# 세션 1%는 활발한 정상 사용의 5분 burn과 거의 붙어 있어 오탐이 잦았다 →
+# 2%로 올려 안전마진 확보. (base=활동 버킷 평균으로 2.5배 게이트도 정상화)
+SPIKE_BASE = {"session": 2.0, "weekly": 0.5, "opus": 2.0}
 
 CONFIG_PATH = os.path.expanduser("~/.claude_pet.json")
 
@@ -431,16 +433,30 @@ def compute_usage():
 
     # 소비 급증 감지 — "평소보다 갑자기 많이" 쓸 때만.
     # 캐시 읽기 토큰은 제외(항상 커서 오탐 유발)하고,
-    # 최근 5분 소비가 (a) 한도 대비 임계치 이상 AND (b) 직전 25분 평균의 2.5배 이상
+    # 최근 5분 소비가 (a) 한도 대비 임계치 이상 AND (b) 직전 활동 속도의 2.5배 이상
     five_ago = now - timedelta(minutes=5)
     thirty_ago = now - timedelta(minutes=30)
     burn_all = sum(e[3] for e in entries if e[0] >= five_ago)
     burn_opus = sum(e[3] for e in entries if e[0] >= five_ago and kw in e[2])
-    prev_all = sum(e[3] for e in entries if thirty_ago <= e[0] < five_ago)
-    prev_opus = sum(e[3] for e in entries
-                    if thirty_ago <= e[0] < five_ago and kw in e[2])
-    base_all = prev_all / 5.0    # 직전 25분의 5분당 평균
-    base_opus = prev_opus / 5.0
+
+    def active_base(model_kw=None):
+        """직전 25분을 5분 버킷 5개로 나눠, 활동이 있던 버킷만 평균.
+        유휴 구간(0)을 평균에 넣으면 base가 실제 활동 속도보다 낮게 잡혀
+        2.5배 게이트가 무력화되므로(정상 사용도 급증 오탐) 활동 버킷만 센다."""
+        buckets = [0.0] * 5
+        for e in entries:
+            if not (thirty_ago <= e[0] < five_ago):
+                continue
+            if model_kw is not None and model_kw not in e[2]:
+                continue
+            idx = int((e[0] - thirty_ago).total_seconds() // 300)
+            if 0 <= idx < 5:
+                buckets[idx] += e[3]
+        active = [b for b in buckets if b > 0]
+        return sum(active) / len(active) if active else 0.0
+
+    base_all = active_base()
+    base_opus = active_base(kw)
     mult = float(RUNTIME.get("spike_mult", 1.0)) or 1.0
 
     def is_spike(burn, base, limit, base_pct):
@@ -582,8 +598,9 @@ def _parse_oauth_usage(data):
                 pct = float(obj.get("utilization") or 0)
             except (TypeError, ValueError):
                 return
-            if pct <= 1.5:
-                pct *= 100
+            # utilization은 이미 퍼센트(0~100) 단위로 온다. 예전엔 0~1 소수라고
+            # 가정해 pct<=1.5면 *100 했는데, 실제로는 세션을 조금만 쓴(0~1.5%)
+            # 정상 상태를 100%로 튀게 만드는 버그였다. 스케일 변환하지 않는다.
             raw = obj.get("resets_at") or obj.get("reset_at") or obj.get("resets")
             rdt = None
             if raw is not None:
