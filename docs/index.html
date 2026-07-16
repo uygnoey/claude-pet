@@ -90,9 +90,21 @@
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-0.01em}
   .brand-emoji{font-size:22px}
   .nav-actions{display:flex;align-items:center;gap:10px}
-  .lang-switch{display:flex;background:var(--bg-soft);border:1px solid var(--card-border);border-radius:999px;padding:3px;gap:2px}
-  .lang-btn{border:none;background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;transition:.2s}
-  .lang-btn.active{background:var(--accent);color:#fff}
+  .lang-select-wrap{
+    position:relative;display:flex;align-items:center;
+    background:var(--card);border:1px solid var(--card-border);border-radius:999px;
+    padding:0 12px 0 12px;height:36px;
+  }
+  .lang-globe{font-size:14px;pointer-events:none}
+  .lang-select-wrap select{
+    appearance:none;-webkit-appearance:none;border:none;background:transparent;
+    color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;
+    padding:0 16px 0 7px;height:100%;outline:none;
+  }
+  .lang-caret{
+    position:absolute;right:11px;pointer-events:none;
+    color:var(--ink-soft);font-size:11px;
+  }
   .btn{
     display:inline-flex;align-items:center;gap:8px;justify-content:center;
     padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;
@@ -248,11 +260,15 @@
   <div class="nav-inner">
     <div class="brand"><span class="brand-emoji">🐱</span> Claude Pet</div>
     <div class="nav-actions">
-      <div class="lang-switch" role="group" aria-label="Language">
-        <button class="lang-btn" data-lang="ko">한국어</button>
-        <button class="lang-btn" data-lang="en">English</button>
-        <button class="lang-btn" data-lang="ja">日本語</button>
-        <button class="lang-btn" data-lang="es">Español</button>
+      <div class="lang-select-wrap">
+        <span class="lang-globe" aria-hidden="true">🌐</span>
+        <select id="lang-select" aria-label="Language">
+          <option value="ko">한국어</option>
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+          <option value="es">Español</option>
+        </select>
+        <span class="lang-caret" aria-hidden="true">▾</span>
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
@@ -444,7 +460,7 @@ const I18N = {
     "nav.download": "다운로드",
     "hero.title.pre": "화면 위의 작은 친구,",
     "hero.title.post": "을 소개합니다",
-    "hero.sub": "화면에 둥둥 떠서 조용히 Claude 토큰 사용량을 지켜봐 주는 아주 작은 데스크톱 펫이에요.",
+    "hero.sub": "화면에 둥둥 떠서 Claude 토큰 사용량을 지켜보는 작은 데스크톱 펫이에요.",
     "hero.cta.primary": "⬇ macOS용 다운로드",
     "hero.cta.secondary": "GitHub에서 소스 보기",
     "hero.pethint": "👋 마우스를 가까이 대면 인사해요 · 클릭하면 점프해요",
@@ -469,16 +485,16 @@ const I18N = {
     "install.eyebrow": "설치",
     "install.title": "1분이면 시작할 수 있어요",
     "install.sub": "공증(notarized)된 앱이라 Gatekeeper 경고 없이 바로 실행돼요.",
-    "install.note": "펫은 <code>~/.claude</code> 사용량 로그와 키체인의 OAuth 토큰만 읽어요 — 사진·다운로드·문서 폴더는 절대 건드리지 않아요.",
+    "install.note": "Claude Pet은 <code>~/.claude</code> 사용량 로그와 키체인의 OAuth 토큰만 읽어요.<br>사진·다운로드·문서 폴더는 절대 건드리지 않아요.",
     "cal.eyebrow": "보정",
     "cal.title": "당신의 실제 한도에 맞춰 보정",
-    "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 앱이 그대로 알 수는 없어요. Claude 앱의 설정 → 사용량에 표시된 %를 입력하면 '한도 = 현재 사용량 ÷ %'로 자동 역산해요.",
+    "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 앱이 그대로 알 수는 없어요.<br>Claude 앱의 설정 → 사용량에 표시된 %를 입력하면 '한도 = 현재 사용량 ÷ %'로 자동 역산해요.",
     "honesty.eyebrow": "솔직하게 말하면",
     "honesty.title": "숨기지 않는 한계",
-    "footer.fine": "커뮤니티가 만든 독립 프로젝트예요. Anthropic과 제휴하거나 공식 지원을 받지 않아요.<br>Claude는 Anthropic PBC의 상표입니다.",
+    "footer.fine": "커뮤니티가 만든 독립 프로젝트예요.<br>Anthropic과 제휴하거나 공식 지원을 받지 않아요.<br>Claude는 Anthropic PBC의 상표입니다.",
     "footer.releases": "릴리즈",
     features: [
-      ["🫧","가만히, 숨쉬듯이","평소엔 화면 위에 조용히 앉아 25초에 한 번씩만 숨 쉬고 눈을 깜빡여요. 절대 신경 쓰이게 하지 않아요."],
+      ["🫧","가만히, 숨쉬듯이","평소엔 화면 위에 조용히 앉아 25초에 한 번씩만 숨 쉬고 눈을 깜빡여요.<br>절대 신경 쓰이게 하지 않아요."],
       ["👋","손을 흔들며 인사","마우스가 가까이 가면 손을 흔들어 인사해요 (쿨다운 30초)."],
       ["🏃","잡고 끌기","드래그하면 그 방향으로 달려가요. 더블클릭하면 점프하면서 사용량을 즉시 새로고침해요."],
       ["🚨","급증 경고","토큰 사용량이 급증하면 경고색으로 펄스가 일고 패닉 표정을 지어요 — 세션·모델·주간별로."],
@@ -488,10 +504,10 @@ const I18N = {
     steps: [
       ["ClaudePet.zip 다운로드","GitHub Releases 페이지에서 최신 버전을 받아요."],
       ["응용 프로그램 폴더로 이동","압축을 풀고 ClaudePet.app을 응용 프로그램 폴더로 옮긴 뒤 더블클릭하면 실행돼요."],
-      ["끝이에요","macOS 12+ (Apple Silicon)에서 동작해요. 별도 설정 없이, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
+      ["끝이에요","macOS 12+ (Apple Silicon)에서 동작해요. 별도 설정 없이,<br>실행할 때마다 GitHub에서 새 버전을 확인해요."]
     ],
     honesty: [
-      "데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요. 가끔 다시 보정해줘야 정확해요.",
+      "데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요.<br>가끔 다시 보정해줘야 정확해요.",
       "Admin API 비용은 Console 조직 기준이라 구독 한도와는 별개예요.",
       "Admin API 키는 ~/.claude_pet.json에 평문으로 저장되니 개인 기기에서만 사용하세요."
     ]
@@ -653,15 +669,13 @@ function applyLang(lang){
     const key = el.getAttribute("data-i18n");
     if(t[key] !== undefined) el.innerHTML = t[key];
   });
-  document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+  document.getElementById("lang-select").value = lang;
   document.getElementById("readme-link").href =
     "https://github.com/uygnoey/claude-pet/blob/main/" + README_BY_LANG[lang];
   renderLists(lang);
 }
 
-document.querySelectorAll(".lang-btn").forEach(btn => {
-  btn.addEventListener("click", () => applyLang(btn.dataset.lang));
-});
+document.getElementById("lang-select").addEventListener("change", e => applyLang(e.target.value));
 
 applyLang(currentLang);
 
