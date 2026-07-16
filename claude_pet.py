@@ -57,7 +57,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.7"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.8"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -582,8 +582,66 @@ def _oauth_label(key):
     return (key, 5)
 
 
-def _parse_oauth_usage(data):
-    """응답에서 utilization 항목을 관용적으로 수집 → [(label, pct, reset_dt)]"""
+def _parse_reset_ts(raw):
+    """resets_at(ISO8601 또는 epoch) → aware datetime. 실패 시 None."""
+    if raw is None:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            return datetime.fromtimestamp(float(raw), tz=timezone.utc)
+        except (TypeError, ValueError):
+            return None
+
+
+def _rows_from_limits(data):
+    """신규 limits 배열 → [(order, label, pct, reset_dt)].
+
+    서버가 세션/주간/모델별 한도를 limits 배열(kind + percent + scope.model)로
+    보낸다. 모델별 주간 한도(kind=weekly_scoped)는 여기에만 있고 레거시
+    seven_day_opus 등은 null로 오므로, 이 배열을 정확 모드의 1순위로 읽는다.
+    """
+    limits = data.get("limits")
+    if not isinstance(limits, list):
+        return []
+    out = []
+    for lim in limits:
+        if not isinstance(lim, dict):
+            continue
+        kind = str(lim.get("kind") or "").lower()
+        try:
+            pct = float(lim.get("percent") or 0)
+        except (TypeError, ValueError):
+            continue
+        rdt = _parse_reset_ts(lim.get("resets_at"))
+        if "session" in kind or "five_hour" in kind:
+            label, order = t("session"), 0
+        elif "extra" in kind or "credit" in kind:
+            label, order = t("credit"), 9
+        elif "scoped" in kind or "model" in kind:
+            # 모델별 주간 한도(최상위 모델) — scope.model.display_name 이 라벨
+            model = (((lim.get("scope") or {}).get("model") or {}).get("display_name")
+                     or ((lim.get("scope") or {}).get("model") or {}).get("id") or "")
+            if not model:
+                continue
+            label, order = str(model).capitalize(), 2
+        elif "weekly" in kind or "seven" in kind:
+            label, order = t("weekly"), 1
+        else:
+            continue
+        out.append((order, label, min(100.0, max(0.0, pct)), rdt))
+    # 모델별 주간 한도(order 2)는 서버가 resets_at을 null로 주기도 한다.
+    # 주간 사이클과 함께 리셋되므로 주간(order 1)의 리셋 시각을 물려준다.
+    weekly_rdt = next((r[3] for r in out if r[0] == 1 and r[3]), None)
+    if weekly_rdt is not None:
+        out = [(o, l, p, (weekly_rdt if o == 2 and rd is None else rd))
+               for (o, l, p, rd) in out]
+    return out
+
+
+def _rows_from_utilization(data):
+    """레거시 폴백: utilization 필드를 관용적으로 훑는다 (구버전 응답용)."""
     found = []
 
     def walk(obj, hint):
@@ -594,24 +652,20 @@ def _parse_oauth_usage(data):
         if not isinstance(obj, dict):
             return
         if "utilization" in obj:
+            util = obj.get("utilization")
+            # 크레딧/추가사용량이 비활성이면 utilization=null, is_enabled=false로 온다.
+            # null(=미설정)과 0.0(=설정됐으나 0% 사용)은 다르다 — five_hour/seven_day는
+            # 미사용 시 0.0으로 오므로 0% 행을 그대로 보여야 하지만, null은 행 자체를
+            # 만들지 않는다. (안 그러면 크레딧 없는 사용자에게 "Credit 0%"가 뜸)
+            if util is None or obj.get("is_enabled") is False:
+                return
             try:
-                pct = float(obj.get("utilization") or 0)
+                pct = float(util)
             except (TypeError, ValueError):
                 return
-            # utilization은 이미 퍼센트(0~100) 단위로 온다. 예전엔 0~1 소수라고
-            # 가정해 pct<=1.5면 *100 했는데, 실제로는 세션을 조금만 쓴(0~1.5%)
-            # 정상 상태를 100%로 튀게 만드는 버그였다. 스케일 변환하지 않는다.
-            raw = obj.get("resets_at") or obj.get("reset_at") or obj.get("resets")
-            rdt = None
-            if raw is not None:
-                try:
-                    rdt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-                except ValueError:
-                    try:
-                        rdt = datetime.fromtimestamp(float(raw), tz=timezone.utc)
-                    except (TypeError, ValueError):
-                        pass
-            # 항목 안에 model/name이 있으면 라벨 힌트에 포함 (모델별 주간 한도)
+            # utilization은 이미 퍼센트(0~100) 단위. 스케일 변환하지 않는다.
+            rdt = _parse_reset_ts(obj.get("resets_at") or obj.get("reset_at")
+                                  or obj.get("resets"))
             model_hint = str(obj.get("model") or obj.get("name") or
                              obj.get("label") or "")
             label, order = _oauth_label(f"{hint}_{model_hint}".lower())
@@ -621,6 +675,31 @@ def _parse_oauth_usage(data):
                 walk(v, f"{hint}_{k}" if hint else k)
 
     walk(data, "")
+    return found
+
+
+def _parse_oauth_usage(data):
+    """OAuth 응답 → [(label, pct, reset_dt, reset_text)] 최대 PILL_ROWS.
+
+    1순위: 신규 limits 배열(세션/주간/모델별). + extra_usage(크레딧, 활성 시).
+    limits가 없는 구버전 응답이면 레거시 utilization 필드로 폴백.
+    """
+    found = _rows_from_limits(data)
+
+    # 크레딧: extra_usage가 활성이고 값이 있을 때만 (null/비활성이면 행 없음)
+    extra = data.get("extra_usage")
+    if (isinstance(extra, dict) and extra.get("is_enabled")
+            and extra.get("utilization") is not None):
+        try:
+            cpct = float(extra["utilization"])
+            found.append((9, t("credit"), min(100.0, max(0.0, cpct)),
+                          _parse_reset_ts(extra.get("resets_at"))))
+        except (TypeError, ValueError):
+            pass
+
+    if not found:                       # 구버전 응답 폴백
+        found = _rows_from_utilization(data)
+
     found.sort(key=lambda x: x[0])
     # 같은 라벨 중복 제거. (label, pct, reset_dt, reset_text)
     seen, rows = set(), []
