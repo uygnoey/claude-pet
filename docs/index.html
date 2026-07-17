@@ -3,18 +3,112 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claude Pet</title>
-<meta name="description" content="A tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<title>Claude Pet — macOS desktop pet that watches your Claude token usage</title>
+<meta name="description" content="Claude Pet is a free, open-source macOS desktop pet that floats on your screen and watches your Claude token usage — session, weekly, and per-model gauges with reset countdowns.">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+<meta name="author" content="Yeongyu Yang (uygnoey)">
+<meta name="theme-color" content="#d97757">
 <link rel="canonical" href="https://claude-pet.yeongyu.me/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Claude Pet">
-<meta property="og:description" content="A tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<meta property="og:site_name" content="Claude Pet">
+<meta property="og:title" content="Claude Pet — macOS desktop pet that watches your Claude token usage">
+<meta property="og:description" content="A free, open-source macOS desktop pet that floats on your screen and quietly watches your Claude token usage — session, weekly, and per-model gauges.">
 <meta property="og:url" content="https://claude-pet.yeongyu.me/">
 <meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
+<meta property="og:image:width" content="520">
+<meta property="og:image:height" content="472">
+<meta property="og:image:alt" content="Claude Pet mascot with session, weekly, and per-model token usage gauges">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ko_KR">
+<meta property="og:locale:alternate" content="ja_JP">
+<meta property="og:locale:alternate" content="es_ES">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Claude Pet">
-<meta name="twitter:description" content="A tiny desktop pet that floats on your screen and watches your Claude token usage.">
+<meta name="twitter:title" content="Claude Pet — macOS desktop pet that watches your Claude token usage">
+<meta name="twitter:description" content="A free, open-source macOS desktop pet that floats on your screen and quietly watches your Claude token usage.">
 <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://claude-pet.yeongyu.me/#app",
+      "name": "Claude Pet",
+      "description": "A free, open-source macOS desktop pet that floats on your screen and watches your Claude token usage. Shows three always-visible gauges — session (5h), weekly total, and weekly per-model — each with percentage used, remaining tokens, and a reset countdown.",
+      "url": "https://claude-pet.yeongyu.me/",
+      "image": "https://claude-pet.yeongyu.me/assets/preview.png",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "macOS 12.0 or later (Apple Silicon)",
+      "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip",
+      "installUrl": "https://github.com/uygnoey/claude-pet/releases/latest",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "isAccessibleForFree": true,
+      "author": {
+        "@type": "Person",
+        "name": "Yeongyu Yang",
+        "alternateName": "uygnoey",
+        "url": "https://github.com/uygnoey"
+      },
+      "sameAs": ["https://github.com/uygnoey/claude-pet"]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://claude-pet.yeongyu.me/#website",
+      "url": "https://claude-pet.yeongyu.me/",
+      "name": "Claude Pet",
+      "description": "Official website of Claude Pet, a macOS desktop pet that watches your Claude token usage.",
+      "inLanguage": ["en", "ko", "ja", "es"],
+      "about": { "@id": "https://claude-pet.yeongyu.me/#app" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://claude-pet.yeongyu.me/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is Claude Pet free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which platforms does Claude Pet support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Claude Pet runs on macOS 12 or later with Apple Silicon. It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does Claude Pet track my Claude token usage?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Claude Pet affiliated with Anthropic?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Claude Pet include web or desktop chat usage?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -253,6 +347,21 @@
   .honesty li:last-child{border-bottom:none}
   .honesty li::before{content:"◆";color:var(--accent);flex:none}
 
+  /* ---------- faq ---------- */
+  .faq{max-width:720px;margin:0 auto}
+  .faq details{
+    background:var(--card);border:1px solid var(--card-border);border-radius:16px;
+    padding:0 20px;margin-bottom:12px;
+  }
+  .faq summary{
+    cursor:pointer;font-weight:700;font-size:15px;padding:16px 0;
+    list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  }
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+";color:var(--accent);font-size:18px;font-weight:800;flex:none}
+  .faq details[open] summary::after{content:"−"}
+  .faq details p{margin:0 0 16px;color:var(--ink-soft);font-size:14px}
+
   /* ---------- footer ---------- */
   footer{padding:48px 24px 60px;border-top:1px solid var(--card-border);margin-top:20px}
   .footer-inner{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
@@ -321,7 +430,14 @@
         <h2 class="section-title" data-i18n="features.title">Small, alive, never in the way</h2>
         <p class="section-sub" data-i18n="features.sub">Rendered natively on macOS — no window frame, no background, no ghosting.</p>
       </div>
-      <div class="grid" id="feature-grid"></div>
+      <div class="grid" id="feature-grid">
+        <div class="card"><div class="icon">🫧</div><h3>Idle &amp; breathe</h3><p>It sits quietly on your screen, breathing and blinking once every 25 seconds. Never demands attention.</p></div>
+        <div class="card"><div class="icon">👋</div><h3>Waves hello</h3><p>Move your mouse close and it waves back, with a 30-second cooldown.</p></div>
+        <div class="card"><div class="icon">🏃</div><h3>Grab &amp; drag</h3><p>Drag it anywhere and it runs along. Double-click to jump and force-refresh your usage instantly.</p></div>
+        <div class="card"><div class="icon">🚨</div><h3>Spike alerts</h3><p>When token usage spikes, it pulses a warning color and panics — session, model, or weekly.</p></div>
+        <div class="card"><div class="icon">🎉</div><h3>Reset celebration</h3><p>The instant your session resets, it jumps for joy.</p></div>
+        <div class="card"><div class="icon">🔄</div><h3>Auto-updates</h3><p>Right-click → Install new version. Downloads, replaces, and relaunches — done.</p></div>
+      </div>
     </div>
   </section>
 
@@ -372,7 +488,11 @@
         <h2 class="section-title" data-i18n="install.title">Get started in under a minute</h2>
         <p class="section-sub" data-i18n="install.sub">Everything is bundled inside a notarized app, so it opens without any Gatekeeper warning.</p>
       </div>
-      <div class="steps" id="install-steps"></div>
+      <div class="steps" id="install-steps">
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Download ClaudePet.zip</h4><p>Grab the latest build from the GitHub Releases page.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Move it to Applications</h4><p>Unzip, drag ClaudePet.app into Applications, then double-click to launch.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>That's it</h4><p>Works on macOS 12+ with Apple Silicon. No setup — the app checks GitHub for updates on launch.</p></div></div>
+      </div>
       <div class="note-box">
         <span>🔒</span>
         <span data-i18n="install.note">The pet only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.</span>
@@ -390,13 +510,33 @@
     </div>
   </section>
 
+  <section id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="faq.eyebrow">FAQ</div>
+        <h2 class="section-title" data-i18n="faq.title">Frequently asked questions</h2>
+      </div>
+      <div class="faq" id="faq-list">
+        <details><summary>Is Claude Pet free?</summary><p>Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code.</p></details>
+        <details><summary>Which platforms does Claude Pet support?</summary><p>Claude Pet runs on macOS 12 or later with Apple Silicon. It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting.</p></details>
+        <details><summary>How does Claude Pet track my Claude token usage?</summary><p>It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit.</p></details>
+        <details><summary>Is Claude Pet affiliated with Anthropic?</summary><p>No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p></details>
+        <details><summary>Does Claude Pet include web or desktop chat usage?</summary><p>No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate.</p></details>
+      </div>
+    </div>
+  </section>
+
   <section id="honesty">
     <div class="wrap">
       <div class="section-head">
         <div class="section-eyebrow" data-i18n="honesty.eyebrow">Honestly</div>
         <h2 class="section-title" data-i18n="honesty.title">The limits, no spin</h2>
       </div>
-      <ul class="honesty" id="honesty-list"></ul>
+      <ul class="honesty" id="honesty-list">
+        <li>Data comes from Claude Code's local logs only — web/desktop chat usage isn't included, so recalibrate occasionally to stay accurate.</li>
+        <li>Admin API cost belongs to your Console organization and is separate from your subscription limit.</li>
+        <li>The Admin API key is stored in plaintext in ~/.claude_pet.json — use it on a personal machine only.</li>
+      </ul>
     </div>
   </section>
 </main>
@@ -453,6 +593,8 @@ const I18N = {
     "cal.sub": "Token limits are private to Anthropic, so the app can't know them outright. Type the % shown in Claude's Settings → Usage, and it back-solves the rest: limit = current usage ÷ %.",
     "honesty.eyebrow": "Honestly",
     "honesty.title": "The limits, no spin",
+    "faq.eyebrow": "FAQ",
+    "faq.title": "Frequently asked questions",
     "footer.fine": "Claude Pet is an independent project by Yeongyu Yang (uygnoey); the name “Claude Pet” is a mark of its creator.<br>Claude is a trademark of Anthropic PBC.<br>Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.",
     "footer.releases": "Releases",
     features: [
@@ -472,6 +614,13 @@ const I18N = {
       "Data comes from Claude Code's local logs only — web/desktop chat usage isn't included, so recalibrate occasionally to stay accurate.",
       "Admin API cost belongs to your Console organization and is separate from your subscription limit.",
       "The Admin API key is stored in plaintext in ~/.claude_pet.json — use it on a personal machine only."
+    ],
+    faq: [
+      ["Is Claude Pet free?","Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code."],
+      ["Which platforms does Claude Pet support?","Claude Pet runs on macOS 12 or later with Apple Silicon. It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."],
+      ["How does Claude Pet track my Claude token usage?","It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit."],
+      ["Is Claude Pet affiliated with Anthropic?","No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic."],
+      ["Does Claude Pet include web or desktop chat usage?","No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate."]
     ]
   },
   ko: {
@@ -509,6 +658,8 @@ const I18N = {
     "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 앱이 그대로 알 수는 없어요.<br>Claude 앱의 설정 → 사용량에 표시된 %를 입력하면 '한도 = 현재 사용량 ÷ %'로 자동 역산해요.",
     "honesty.eyebrow": "솔직하게 말하면",
     "honesty.title": "숨기지 않는 한계",
+    "faq.eyebrow": "자주 묻는 질문",
+    "faq.title": "궁금한 점들",
     "footer.fine": "Claude Pet은 Yeongyu Yang(uygnoey)이 만든 독립 프로젝트이며, 'Claude Pet'이라는 이름은 제작자의 상표입니다.<br>Claude는 Anthropic PBC의 상표입니다.<br>Claude Pet은 Anthropic과 무관하며, 제휴하거나 공식 지원을 받지 않습니다.",
     "footer.releases": "릴리즈",
     features: [
@@ -528,6 +679,13 @@ const I18N = {
       "데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요.<br>가끔 다시 보정해줘야 정확해요.",
       "Admin API 비용은 Console 조직 기준이라 구독 한도와는 별개예요.",
       "Admin API 키는 ~/.claude_pet.json에 평문으로 저장되니 개인 기기에서만 사용하세요."
+    ],
+    faq: [
+      ["Claude Pet은 무료인가요?","네, 완전히 무료이고 오픈소스예요. GitHub Releases에서 공증된 앱을 받거나 소스 코드로 직접 빌드할 수 있어요."],
+      ["어떤 플랫폼을 지원하나요?","macOS 12 이상, Apple Silicon에서 동작해요. AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
+      ["토큰 사용량은 어떻게 추적하나요?","로컬의 ~/.claude 사용량 로그와 macOS 키체인의 Claude OAuth 토큰만 읽어요. 사진·다운로드·문서 폴더는 절대 건드리지 않고, 사용량 데이터는 Mac 밖으로 나가지 않아요. 정확한 토큰 한도는 Anthropic 비공개 정보라서, Claude 설정 → 사용량에 표시된 %를 한 번 입력하면 앱이 한도를 역산해요."],
+      ["Anthropic과 관련이 있나요?","아니요. Claude Pet은 Yeongyu Yang(uygnoey)이 만든 독립 프로젝트예요. Claude는 Anthropic PBC의 상표이며, Claude Pet은 Anthropic과 제휴하거나 공식 지원을 받지 않아요."],
+      ["웹/데스크톱 채팅 사용량도 포함되나요?","아니요. 데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요. 가끔 다시 보정해주면 게이지가 정확하게 유지돼요."]
     ]
   },
   ja: {
@@ -565,6 +723,8 @@ const I18N = {
     "cal.sub": "トークン上限は Anthropic の非公開情報なので、アプリが直接知ることはできません。Claude アプリの設定 → 使用量に表示される % を入力すれば、「上限 = 現在の使用量 ÷ %」で逆算します。",
     "honesty.eyebrow": "正直に言うと",
     "honesty.title": "隠さない制限事項",
+    "faq.eyebrow": "よくある質問",
+    "faq.title": "よくある質問",
     "footer.fine": "Claude Pet は Yeongyu Yang（uygnoey）による独立プロジェクトであり、「Claude Pet」の名称は制作者に帰属します。<br>Claude は Anthropic PBC の商標です。<br>Claude Pet は Anthropic とは無関係であり、提携や公認も受けていません。",
     "footer.releases": "リリース",
     features: [
@@ -584,6 +744,13 @@ const I18N = {
       "データは Claude Code のローカルログ基準 — Web／デスクトップチャットの使用量は含まれません。ときどき再補正すると正確になります。",
       "Admin API のコストは Console 組織のもので、サブスクリプションの上限とは別物です。",
       "Admin API キーは ~/.claude_pet.json に平文で保存されるため、個人のマシンでのみ使用してください。"
+    ],
+    faq: [
+      ["Claude Pet は無料ですか？","はい。完全に無料でオープンソースです。GitHub Releases から公証済みアプリをダウンロードするか、ソースコードから自分でビルドできます。"],
+      ["対応プラットフォームは？","macOS 12 以降の Apple Silicon で動作します。AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
+      ["トークン使用量はどうやって追跡していますか？","ローカルの ~/.claude 使用ログと macOS キーチェーンの Claude OAuth トークンだけを読み取ります。写真・ダウンロード・書類フォルダには一切触れず、使用データが Mac の外に出ることはありません。正確なトークン上限は Anthropic の非公開情報のため、Claude の設定 → 使用量に表示される % を一度入力すると、アプリが上限を逆算します。"],
+      ["Anthropic と関係がありますか？","いいえ。Claude Pet は Yeongyu Yang（uygnoey）による独立プロジェクトです。Claude は Anthropic PBC の商標であり、Claude Pet は Anthropic と提携も公認もされていません。"],
+      ["Web／デスクトップチャットの使用量も含まれますか？","いいえ。データは Claude Code のローカルログ基準のため、Web／デスクトップチャットの使用量は含まれません。ときどき再補正するとゲージが正確に保たれます。"]
     ]
   },
   es: {
@@ -621,6 +788,8 @@ const I18N = {
     "cal.sub": "Los límites de tokens son privados de Anthropic, así que la app no puede conocerlos directamente. Escribe el % que muestra Claude en Ajustes → Uso, y la app calcula el resto: límite = uso actual ÷ %.",
     "honesty.eyebrow": "Con honestidad",
     "honesty.title": "Los límites, sin adornos",
+    "faq.eyebrow": "Preguntas frecuentes",
+    "faq.title": "Preguntas frecuentes",
     "footer.fine": "Claude Pet es un proyecto independiente de Yeongyu Yang (uygnoey); el nombre «Claude Pet» es una marca de su creador.<br>Claude es una marca registrada de Anthropic PBC.<br>Claude Pet no está afiliado a Anthropic ni cuenta con su respaldo; no existe relación entre ambos.",
     "footer.releases": "Releases",
     features: [
@@ -640,6 +809,13 @@ const I18N = {
       "Los datos vienen solo de los registros locales de Claude Code — el uso del chat web/escritorio no se incluye, así que recalibra de vez en cuando.",
       "El coste de Admin API pertenece a tu organización en Console y es independiente de tu límite de suscripción.",
       "La clave de Admin API se guarda en texto plano en ~/.claude_pet.json — úsala solo en un equipo personal."
+    ],
+    faq: [
+      ["¿Claude Pet es gratis?","Sí. Claude Pet es totalmente gratuito y de código abierto. Puedes descargar la app certificada (notarized) desde GitHub Releases o compilarla tú mismo desde el código fuente."],
+      ["¿Qué plataformas admite Claude Pet?","Funciona en macOS 12 o posterior con Apple Silicon. Se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
+      ["¿Cómo rastrea mi uso de tokens de Claude?","Solo lee los registros locales de uso de ~/.claude y el token OAuth de Claude en el Llavero de macOS. Nunca toca Fotos, Descargas ni Documentos, y tus datos de uso no salen de tu Mac. Como los límites exactos de tokens son privados de Anthropic, calibras una vez escribiendo el % que muestra Claude en Ajustes → Uso y la app calcula tu límite."],
+      ["¿Claude Pet está afiliado a Anthropic?","No. Claude Pet es un proyecto independiente de Yeongyu Yang (uygnoey). Claude es una marca registrada de Anthropic PBC, y Claude Pet no está afiliado a Anthropic ni cuenta con su respaldo."],
+      ["¿Incluye el uso del chat web o de escritorio?","No. Los datos vienen solo de los registros locales de Claude Code, así que el uso del chat web/escritorio no se incluye. Recalibrar de vez en cuando mantiene los medidores precisos."]
     ]
   }
 };
@@ -676,6 +852,10 @@ function renderLists(lang){
   `).join("");
 
   document.getElementById("honesty-list").innerHTML = t.honesty.map(item => `<li>${item}</li>`).join("");
+
+  document.getElementById("faq-list").innerHTML = t.faq.map(([q,a]) => `
+    <details><summary>${q}</summary><p>${a}</p></details>
+  `).join("");
 }
 
 function applyLang(lang){

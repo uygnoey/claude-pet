@@ -1,0 +1,26 @@
+# Claude Pet
+
+> Claude Pet is a free, open-source macOS desktop pet that floats on your screen and watches your Claude (Anthropic) token usage. It shows three always-visible gauges — session (5h), weekly total, and weekly per-model — each with percentage used, remaining tokens, and a reset countdown.
+
+Claude Pet is an independent project by Yeongyu Yang (uygnoey). It is not affiliated with, endorsed by, or otherwise related to Anthropic. "Claude" is a trademark of Anthropic PBC.
+
+## Key facts
+
+- Platform: macOS 12+ on Apple Silicon; rendered natively with AppKit (no window frame, no background, no ghosting).
+- Price: free and open source.
+- Install: download ClaudePet.zip from GitHub Releases, move ClaudePet.app to Applications, and launch. The app is notarized, so it opens without Gatekeeper warnings.
+- Data source: reads only the local `~/.claude` usage logs and the Claude OAuth token in the macOS Keychain. It never touches Photos, Downloads, or Documents, and usage data stays on your Mac.
+- Calibration: exact token limits are private to Anthropic, so you type the percentage shown in Claude's Settings → Usage once, and the app back-solves your limit (limit = current usage ÷ %).
+- Behavior: idles and blinks, waves when your cursor comes near, can be dragged around, jumps on double-click (which also force-refreshes usage), pulses a warning color when token usage spikes, and celebrates when your session resets.
+- Updates: right-click → Install new version; the app downloads, replaces, and relaunches itself.
+- Limitations: data comes from Claude Code's local logs only (web/desktop chat usage is not included); Admin API cost tracking is separate from subscription limits; the optional Admin API key is stored in plaintext in `~/.claude_pet.json`.
+
+## Links
+
+- [Website](https://claude-pet.yeongyu.me/)
+- [GitHub repository](https://github.com/uygnoey/claude-pet)
+- [Latest release download](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip)
+- [README (English)](https://github.com/uygnoey/claude-pet/blob/main/README.md)
+- [README (한국어)](https://github.com/uygnoey/claude-pet/blob/main/README.ko.md)
+- [README (日本語)](https://github.com/uygnoey/claude-pet/blob/main/README.ja.md)
+- [README (Español)](https://github.com/uygnoey/claude-pet/blob/main/README.es.md)
