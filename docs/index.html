@@ -922,6 +922,7 @@ document.addEventListener("keydown", e => {
 /* ---------------- OS/arch-aware download links ----------------
    Apple Silicon → ClaudePet.zip (smaller), Intel Mac → ClaudePet-universal.zip,
    non-Mac → releases page. Detection order: UA-Client-Hints arch (Chromium) →
+   NaN sign-bit probe (pure JS, catches Intel in every browser incl. Safari) →
    WebGL GPU string (Chrome/Firefox) → compressed-texture formats (Safari masks
    the GPU string, but Apple GPUs expose ETC/s3tc_srgb and Intel GPUs don't). */
 const DL = {
@@ -956,6 +957,21 @@ function isMacBrowser(){
   return mac && !ipad;
 }
 
+/* x86 hardware generates fresh NaNs with the sign bit SET (fff8…), ARM with it
+   CLEAR (7ff8…) — see WebAssembly/design#477. JS engines store the raw hardware
+   pattern into typed arrays (verified in JSC and V8), so a runtime 0/0 leaks the
+   CPU architecture. Sign bit set is conclusive x86; clear is ARM or a
+   NaN-canonicalizing engine, so callers must corroborate before trusting it. */
+function nanSaysX86(){
+  if(typeof window.__forceNanX86 === "boolean") return window.__forceNanX86;  // test hook
+  try{
+    const f = new Float64Array(1), u = new Uint8Array(f.buffer);
+    let z = Math.random() * 0;   // runtime +0 so the parser can't fold 0/0 into canonical NaN
+    f[0] = z / z;
+    return u[7] >= 0x80;
+  }catch(e){ return false; }
+}
+
 async function detectDlArch(){
   if(!isMacBrowser()) return "other";
   try{  // Chromium: explicit architecture hint
@@ -965,6 +981,7 @@ async function detectDlArch(){
       if(architecture === "x86") return "intel";
     }
   }catch(e){}
+  if(nanSaysX86()) return "intel";   // pure-JS, browser-independent Intel proof
   try{
     const gl = document.createElement("canvas").getContext("webgl");
     if(gl){
