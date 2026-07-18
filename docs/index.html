@@ -921,8 +921,9 @@ document.addEventListener("keydown", e => {
 
 /* ---------------- OS/arch-aware download links ----------------
    Apple Silicon → ClaudePet.zip (smaller), Intel Mac → ClaudePet-universal.zip,
-   non-Mac → releases page. Safari masks the GPU string on purpose, so when we
-   can't tell we keep the arm64 default and the alt link covers Intel users. */
+   non-Mac → releases page. Detection order: UA-Client-Hints arch (Chromium) →
+   WebGL GPU string (Chrome/Firefox) → compressed-texture formats (Safari masks
+   the GPU string, but Apple GPUs expose ETC/s3tc_srgb and Intel GPUs don't). */
 const DL = {
   arm: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip",
   universal: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.zip",
@@ -964,14 +965,24 @@ async function detectDlArch(){
       if(architecture === "x86") return "intel";
     }
   }catch(e){}
-  try{  // WebGL GPU string (Chrome/Firefox expose the real GPU, Safari masks it)
+  try{
     const gl = document.createElement("canvas").getContext("webgl");
-    const ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
-    const r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : (gl ? gl.getParameter(gl.RENDERER) : ""));
-    if(/Apple M\d/i.test(r)) return "arm";
-    if(/Intel|AMD|Radeon|Iris|NVIDIA|GeForce/i.test(r)) return "intel";
+    if(gl){
+      // WebGL GPU string (Chrome/Firefox expose the real GPU, Safari masks it)
+      const ext = gl.getExtension("WEBGL_debug_renderer_info");
+      const r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+      if(/Apple M\d/i.test(r) || (/Apple/i.test(r) && !/Apple GPU/i.test(r))) return "arm";
+      if(/Intel|AMD|Radeon|Iris|NVIDIA|GeForce/i.test(r)) return "intel";
+      // Safari: GPU string is masked ("Apple GPU" on both archs), but supported
+      // compressed-texture formats differ — Apple Silicon GPUs expose ETC and
+      // s3tc_srgb, Intel-era GPUs under Safari expose neither
+      const exts = gl.getSupportedExtensions() || [];
+      if(exts.indexOf("WEBGL_compressed_texture_etc") !== -1 ||
+         exts.indexOf("WEBGL_compressed_texture_s3tc_srgb") !== -1) return "arm";
+      return "intel";
+    }
   }catch(e){}
-  return "arm";   // unknown Mac (e.g. Safari) — arm64 default, alt link covers Intel
+  return "arm";   // no WebGL at all — arm64 default, alt link covers Intel
 }
 
 detectDlArch().then(a => { dlArch = a; applyDownloadLinks(); });
