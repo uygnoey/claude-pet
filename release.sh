@@ -1,10 +1,15 @@
 #!/bin/zsh
 # 자체포함 ClaudePet.app 릴리즈: py2app 빌드 → Developer ID 서명 → 공증 → staple → zip
 #
-#   ./release.sh          # 전체 (build+sign+notarize)
-#   ./release.sh build    # py2app 빌드만
-#   ./release.sh sign     # Developer ID 서명만
-#   ./release.sh notarize # 공증+staple+zip (사전: notary 프로파일 등록 필요)
+#   ./release.sh           # 전체 (build+sign+notarize, + universal2 python 있으면 유니버설도)
+#   ./release.sh build     # py2app 빌드만 (현재 머신 아키텍처)
+#   ./release.sh sign      # Developer ID 서명만
+#   ./release.sh notarize  # 공증+staple+zip (사전: notary 프로파일 등록 필요)
+#   ./release.sh universal # 유니버설(arm64+x86_64) 빌드+서명+공증 → ClaudePet-universal.zip
+#
+# 유니버설 빌드 사전 준비 (최초 1회):
+#   python.org 공식 macOS 설치본(universal2) 설치 후
+#   /Library/Frameworks/Python.framework/Versions/Current/bin/python3 -m pip install py2app pyobjc
 #
 # 공증 자격증명 최초 1회 등록:
 #   xcrun notarytool store-credentials claudepet-notary \
@@ -12,11 +17,16 @@
 set -e
 cd "$(dirname "$0")"
 PY="${PY:-$HOME/.pyenv/shims/python3}"
+# 유니버설 빌드용 python — python.org 공식 설치본(universal2)이어야 함
+UPY="${UPY:-/Library/Frameworks/Python.framework/Versions/Current/bin/python3}"
 ID="Developer ID Application: Yeongyu Yang (RXGNVSLYF5)"
 ENT="$(pwd)/entitlements.plist"
 APP="dist/ClaudePet.app"
+UDIST="dist-universal"
+UAPP="$UDIST/ClaudePet.app"
 PROFILE="claudepet-notary"
 ZIP="release/ClaudePet.zip"
+UZIP="release/ClaudePet-universal.zip"
 NOTES="RELEASE_NOTES.md"   # 릴리즈 노트 고정 파일 (git 히스토리 노출 대신 이 내용 사용)
 
 build() {
@@ -25,38 +35,90 @@ build() {
   echo "✅ 빌드: $APP ($(du -sh "$APP" | cut -f1))"
 }
 
+# 유니버설(arm64+x86_64) 빌드 — Intel Mac 지원용. 기존 build()와 별개 산출물.
+# pyenv 파이썬은 단일 아키텍처라 못 쓰고, python.org universal2 설치본이 필요.
+build_universal() {
+  if [ ! -x "$UPY" ]; then
+    echo "❌ universal2 python 없음: $UPY"
+    echo "   python.org 공식 설치본 설치 후: $UPY -m pip install py2app pyobjc"
+    return 1
+  fi
+  local real archs
+  real=$("$UPY" -c 'import sys; print(sys.executable)')
+  archs=$(lipo -archs "$real" 2>/dev/null || true)
+  case "$archs" in
+    *x86_64*arm64*|*arm64*x86_64*) ;;
+    *) echo "❌ $UPY 는 universal2가 아님 (archs: ${archs:-알수없음})"
+       echo "   python.org 공식 macOS 설치본(universal2)을 설치하세요"; return 1 ;;
+  esac
+  "$UPY" -c 'import py2app, objc' 2>/dev/null || {
+    echo "❌ py2app/pyobjc 미설치: $UPY -m pip install py2app pyobjc"; return 1; }
+
+  rm -rf build "$UDIST"
+  "$UPY" setup.py py2app --arch universal2 --dist-dir "$UDIST" >/tmp/py2app-universal.log 2>&1 \
+    || { echo "❌ universal py2app 실패:"; tail -25 /tmp/py2app-universal.log; exit 1; }
+  archs=$(lipo -archs "$UAPP/Contents/MacOS/python" 2>/dev/null || true)
+  case "$archs" in
+    *x86_64*arm64*|*arm64*x86_64*) ;;
+    *) echo "❌ 산출물이 유니버설이 아님 (archs: ${archs:-알수없음}) — /tmp/py2app-universal.log 확인"; exit 1 ;;
+  esac
+  echo "✅ 유니버설 빌드: $UAPP ($(du -sh "$UAPP" | cut -f1), archs: $archs)"
+}
+
 sign() {
+  local app="${1:-$APP}"
   # AppleDouble(._*)/.DS_Store/xattr 청소 — framework 루트에 잡파일 있으면
   # Gatekeeper가 "unsealed contents present..."로 거부함
-  find "$APP" \( -name "._*" -o -name ".DS_Store" \) -delete
-  dot_clean "$APP" 2>/dev/null || true
-  xattr -cr "$APP" 2>/dev/null || true
+  find "$app" \( -name "._*" -o -name ".DS_Store" \) -delete
+  dot_clean "$app" 2>/dev/null || true
+  xattr -cr "$app" 2>/dev/null || true
 
-  find "$APP/Contents" \( -name "*.so" -o -name "*.dylib" \) -type f -print0 \
+  find "$app/Contents" \( -name "*.so" -o -name "*.dylib" \) -type f -print0 \
     | while IFS= read -r -d '' f; do
         codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" "$f" 2>/dev/null
       done
-  codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" \
-    "$APP/Contents/Frameworks/Python.framework/Versions/3.13" 2>/dev/null || true
+  # 내장 Python.framework 버전(3.13 등)은 빌드에 쓴 파이썬을 따라감 → 버전 무관하게 서명
+  local fw
+  for fw in "$app"/Contents/Frameworks/Python.framework/Versions/*(N); do
+    [ -d "$fw" ] && [ ! -L "$fw" ] && \
+      codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" "$fw" 2>/dev/null || true
+  done
   for x in python ClaudePet; do
-    [ -f "$APP/Contents/MacOS/$x" ] && \
-      codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" "$APP/Contents/MacOS/$x" 2>/dev/null
+    [ -f "$app/Contents/MacOS/$x" ] && \
+      codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" "$app/Contents/MacOS/$x" 2>/dev/null
   done
   codesign -f --options runtime --timestamp --entitlements "$ENT" \
-    --identifier me.yeongyu.claudepet -s "$ID" "$APP"
-  codesign --verify --deep --strict "$APP" && echo "✅ 서명 검증 통과"
+    --identifier me.yeongyu.claudepet -s "$ID" "$app"
+  codesign --verify --deep --strict "$app" && echo "✅ 서명 검증 통과: $app"
 }
 
 notarize() {
-  mkdir -p release; rm -f "$ZIP"
+  local app="${1:-$APP}" zip="${2:-$ZIP}"
+  mkdir -p release; rm -f "$zip"
   # --norsrc: 리소스포크/xattr을 zip에 넣지 않음 → 압축 해제 시 ._* 재생성 방지
-  /usr/bin/ditto -c -k --norsrc --keepParent "$APP" "$ZIP"
+  /usr/bin/ditto -c -k --norsrc --keepParent "$app" "$zip"
   echo "→ 공증 제출 (Apple 서버, 보통 1~5분)…"
-  xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
-  xcrun stapler staple "$APP"
-  rm -f "$ZIP"; /usr/bin/ditto -c -k --norsrc --keepParent "$APP" "$ZIP"
-  echo "✅ 공증+staple 완료 → $ZIP"
-  spctl -a -vv "$APP" 2>&1 | head -3
+  xcrun notarytool submit "$zip" --keychain-profile "$PROFILE" --wait
+  xcrun stapler staple "$app"
+  rm -f "$zip"; /usr/bin/ditto -c -k --norsrc --keepParent "$app" "$zip"
+  echo "✅ 공증+staple 완료 → $zip"
+  spctl -a -vv "$app" 2>&1 | head -3
+}
+
+# 유니버설 전체 파이프라인 (빌드→서명→공증)
+universal() {
+  build_universal
+  sign "$UAPP"
+  notarize "$UAPP" "$UZIP"
+}
+
+# all/ship 에서: universal2 python 있으면 유니버설도 만들고, 없으면 조용히 건너뜀
+maybe_universal() {
+  if [ -x "$UPY" ]; then
+    universal
+  else
+    echo "⚠️  universal2 python($UPY) 없음 — 유니버설 빌드 건너뜀 (arm64 zip만 배포)"
+  fi
 }
 
 # 현재 버전 (claude_pet.py의 APP_VERSION이 유일한 진실)
@@ -81,24 +143,27 @@ publish() {
   command -v gh >/dev/null 2>&1 || {
     echo "❌ gh CLI 필요: brew install gh && gh auth login (개인 계정으로)"; exit 1; }
   local TAG="v$(cur_version)"
+  local -a files=("$ZIP")
+  [ -f "$UZIP" ] && files+=("$UZIP")        # 유니버설 zip 있으면 같이 업로드
   if gh release view "$TAG" >/dev/null 2>&1; then
-    gh release upload "$TAG" "$ZIP" --clobber
+    gh release upload "$TAG" "${files[@]}" --clobber
     gh release edit "$TAG" --notes-file "$NOTES"   # 노트도 고정본으로 갱신
-    echo "🚀 기존 릴리즈에 업로드: $TAG ← $ZIP"
+    echo "🚀 기존 릴리즈에 업로드: $TAG ← ${files[*]}"
   else
-    gh release create "$TAG" "$ZIP" --title "ClaudePet $TAG" --notes-file "$NOTES"
-    echo "🚀 새 릴리즈 생성: $TAG ← $ZIP"
+    gh release create "$TAG" "${files[@]}" --title "ClaudePet $TAG" --notes-file "$NOTES"
+    echo "🚀 새 릴리즈 생성: $TAG ← ${files[*]}"
   fi
 }
 
 case "${1:-all}" in
-  build)    build ;;
-  sign)     sign ;;
-  notarize) notarize ;;
-  publish)  publish ;;                      # zip을 GitHub Release에 업로드만
-  all)      build; sign; notarize ;;
-  ship)     bump_version "$2"; build; sign; notarize; publish ;;
-  *) echo "사용법: ./release.sh [build|sign|notarize|publish|all|ship [새버전]]"
+  build)     build ;;
+  sign)      sign ;;
+  notarize)  notarize ;;
+  universal) universal ;;                   # 유니버설(arm64+x86_64) 빌드+서명+공증
+  publish)   publish ;;                     # zip을 GitHub Release에 업로드만
+  all)       build; sign; notarize; maybe_universal ;;
+  ship)      bump_version "$2"; build; sign; notarize; maybe_universal; publish ;;
+  *) echo "사용법: ./release.sh [build|sign|notarize|universal|publish|all|ship [새버전]]"
      echo "  예: ./release.sh ship 0.2   # 버전업+빌드+공증+새 릴리즈 생성까지 한 방"
      exit 1 ;;
 esac

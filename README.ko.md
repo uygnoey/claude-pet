@@ -13,9 +13,9 @@ macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
 **Python 설치 불필요** — 앱에 내장돼 있고 **Apple 공증**되어 Gatekeeper 경고 없이 바로 열립니다.
 
-1. [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest)에서 `ClaudePet.zip` 다운로드
+1. [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest)에서 `ClaudePet.zip` 다운로드 — **Intel Mac**은 `ClaudePet-universal.zip`을 받으세요
 2. 압축 해제 → `ClaudePet.app`을 **응용 프로그램** 폴더로 이동 → 더블클릭
-3. macOS 12+ (Apple Silicon)
+3. macOS 12+ (Apple Silicon; Intel은 universal zip 사용)
 
 ### 권한 (첫 실행 시)
 
