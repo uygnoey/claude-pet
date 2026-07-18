@@ -1,6 +1,9 @@
 __pycache__/
 .DS_Store
 ClaudePet.app/
+build/
+dist/
+dist-universal/
 *.zip
 
 # 서명/공증 자격증명 (레포에 넣지 말 것)

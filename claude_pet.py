@@ -885,9 +885,17 @@ def check_github_update():
         tag = (data.get("tag_name") or "").lstrip("vV")
         if not tag or _ver_tuple(tag) <= _ver_tuple(APP_VERSION):
             return None
-        for a in data.get("assets", []):
-            if (a.get("name") or "").lower().endswith(".zip"):
+        zips = [a for a in data.get("assets", [])
+                if (a.get("name") or "").lower().endswith(".zip")]
+        # Intel Mac은 universal zip이 필수, Apple Silicon은 arm64 zip이 더 작음
+        import platform
+        prefer = ("claudepet-universal.zip" if platform.machine() == "x86_64"
+                  else "claudepet.zip")
+        for a in zips:
+            if (a.get("name") or "").lower() == prefer:
                 return (tag, a.get("browser_download_url"))
+        for a in zips:
+            return (tag, a.get("browser_download_url"))
     except Exception:
         pass
     return None
