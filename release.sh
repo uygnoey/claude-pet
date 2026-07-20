@@ -94,13 +94,25 @@ sign() {
   codesign --verify --deep --strict "$app" && echo "✅ 서명 검증 통과: $app"
 }
 
+# 공증 전송 — Apple 서버 TLS/네트워크 일시 오류(-1200 등)에 대비해 재시도
+notary_submit() {
+  local file="$1" i
+  for i in 1 2 3 4 5; do
+    if xcrun notarytool submit "$file" --keychain-profile "$PROFILE" --wait; then
+      return 0
+    fi
+    echo "⚠️  공증 전송 실패 (시도 $i/5) — 20초 후 재시도…"; sleep 20
+  done
+  echo "❌ 공증 5회 연속 실패: $file"; return 1
+}
+
 notarize() {
   local app="${1:-$APP}" zip="${2:-$ZIP}"
   mkdir -p release; rm -f "$zip"
   # --norsrc: 리소스포크/xattr을 zip에 넣지 않음 → 압축 해제 시 ._* 재생성 방지
   /usr/bin/ditto -c -k --norsrc --keepParent "$app" "$zip"
   echo "→ 공증 제출 (Apple 서버, 보통 1~5분)…"
-  xcrun notarytool submit "$zip" --keychain-profile "$PROFILE" --wait
+  notary_submit "$zip"
   xcrun stapler staple "$app"
   rm -f "$zip"; /usr/bin/ditto -c -k --norsrc --keepParent "$app" "$zip"
   echo "✅ 공증+staple 완료 → $zip"
@@ -127,7 +139,7 @@ make_dmg() {
   hdiutil create -volname "ClaudePet" -srcfolder "$stage" -ov -format UDZO "$DMG" >/dev/null
   rm -rf "$stage"
   echo "→ dmg 공증 제출 (Apple 서버, 보통 1~5분)…"
-  xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
+  notary_submit "$DMG"
   xcrun stapler staple "$DMG"
   xcrun stapler validate "$DMG" >/dev/null 2>&1 && echo "✅ dmg 공증+staple 완료 → $DMG ($(du -sh "$DMG" | cut -f1))"
 }
