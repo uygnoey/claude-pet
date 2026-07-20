@@ -6,6 +6,7 @@
 #   ./release.sh sign      # Developer ID 서명만
 #   ./release.sh notarize  # 공증+staple+zip (사전: notary 프로파일 등록 필요)
 #   ./release.sh universal # 유니버설(arm64+x86_64) 빌드+서명+공증 → ClaudePet-universal.zip
+#   ./release.sh dmg       # 수동 설치용 dmg 생성+공증 (앱 빌드/공증 후) → ClaudePet.dmg
 #
 # 유니버설 빌드 사전 준비 (최초 1회):
 #   python.org 공식 macOS 설치본(universal2) 설치 후
@@ -27,6 +28,7 @@ UAPP="$UDIST/ClaudePet.app"
 PROFILE="claudepet-notary"
 ZIP="release/ClaudePet.zip"
 UZIP="release/ClaudePet-universal.zip"
+DMG="release/ClaudePet.dmg"          # 수동 다운로드용(드래그 설치 UX). 자동업데이트는 zip 사용
 NOTES="RELEASE_NOTES.md"   # 릴리즈 노트 고정 파일 (git 히스토리 노출 대신 이 내용 사용)
 
 build() {
@@ -112,6 +114,24 @@ universal() {
   notarize "$UAPP" "$UZIP"
 }
 
+# 수동 다운로드용 DMG (드래그 → Applications). 자동업데이트는 zip이 담당하므로
+# dmg는 새 사용자 설치 UX 전용. 유니버설 앱이 있으면 그걸(Intel+ARM 겸용) 담고,
+# 없으면 arm64 앱을 담는다. 내부 앱은 이미 서명+공증+staple 된 상태 → dmg만 추가 공증.
+make_dmg() {
+  local app="$APP"
+  [ -d "$UAPP" ] && app="$UAPP"       # 유니버설 우선
+  local stage; stage=$(mktemp -d)
+  /usr/bin/ditto "$app" "$stage/ClaudePet.app"
+  ln -s /Applications "$stage/Applications"   # 드래그 설치용 심볼릭
+  mkdir -p release; rm -f "$DMG"
+  hdiutil create -volname "ClaudePet" -srcfolder "$stage" -ov -format UDZO "$DMG" >/dev/null
+  rm -rf "$stage"
+  echo "→ dmg 공증 제출 (Apple 서버, 보통 1~5분)…"
+  xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
+  xcrun stapler staple "$DMG"
+  xcrun stapler validate "$DMG" >/dev/null 2>&1 && echo "✅ dmg 공증+staple 완료 → $DMG ($(du -sh "$DMG" | cut -f1))"
+}
+
 # all/ship 에서: universal2 python 있으면 유니버설도 만들고, 없으면 조용히 건너뜀
 maybe_universal() {
   if [ -x "$UPY" ]; then
@@ -145,6 +165,7 @@ publish() {
   local TAG="v$(cur_version)"
   local -a files=("$ZIP")
   [ -f "$UZIP" ] && files+=("$UZIP")        # 유니버설 zip 있으면 같이 업로드
+  [ -f "$DMG" ]  && files+=("$DMG")         # dmg 있으면 같이 업로드
   if gh release view "$TAG" >/dev/null 2>&1; then
     gh release upload "$TAG" "${files[@]}" --clobber
     gh release edit "$TAG" --notes-file "$NOTES"   # 노트도 고정본으로 갱신
@@ -160,10 +181,11 @@ case "${1:-all}" in
   sign)      sign ;;
   notarize)  notarize ;;
   universal) universal ;;                   # 유니버설(arm64+x86_64) 빌드+서명+공증
-  publish)   publish ;;                     # zip을 GitHub Release에 업로드만
-  all)       build; sign; notarize; maybe_universal ;;
-  ship)      bump_version "$2"; build; sign; notarize; maybe_universal; publish ;;
-  *) echo "사용법: ./release.sh [build|sign|notarize|universal|publish|all|ship [새버전]]"
-     echo "  예: ./release.sh ship 0.2   # 버전업+빌드+공증+새 릴리즈 생성까지 한 방"
+  dmg)       make_dmg ;;                     # 수동 설치용 dmg 생성+공증 (앱 빌드/공증 선행 필요)
+  publish)   publish ;;                     # zip/dmg를 GitHub Release에 업로드만
+  all)       build; sign; notarize; maybe_universal; make_dmg ;;
+  ship)      bump_version "$2"; build; sign; notarize; maybe_universal; make_dmg; publish ;;
+  *) echo "사용법: ./release.sh [build|sign|notarize|universal|dmg|publish|all|ship [새버전]]"
+     echo "  예: ./release.sh ship 0.2   # 버전업+빌드+공증+dmg+새 릴리즈 생성까지 한 방"
      exit 1 ;;
 esac
