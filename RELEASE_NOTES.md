@@ -58,6 +58,10 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
 
 ### 📝 변경 내역 / Changelog
 
+**v0.10**
+- Intel Mac 지원 (유니버설 빌드, `ClaudePet-universal.zip`)
+- DMG 설치 파일 추가 (드래그 설치)
+
 **v0.9**
 - 최상위 모델 게이지 라벨을 서버 표기(예: Fable, Opus) 그대로 표시
 
