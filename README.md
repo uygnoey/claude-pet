@@ -13,9 +13,9 @@ Rendered natively on macOS (AppKit) — no window frame, no background, no ghost
 
 **No Python needed** — it's bundled inside the app, which is **notarized by Apple**, so it opens with no Gatekeeper warning.
 
-1. Download `ClaudePet.zip` from [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest) — on an **Intel Mac**, grab `ClaudePet-universal.zip` instead
+1. Download `ClaudePet.zip` from [**Releases**](https://github.com/uygnoey/claude-pet/releases/latest) — on an **Intel Mac**, grab `ClaudePet-universal.zip` instead (available from v0.10)
 2. Unzip → move `ClaudePet.app` to your **Applications** folder → double-click
-3. macOS 12+ (Apple Silicon; Intel via the universal zip)
+3. macOS 12+ (Apple Silicon; Intel from v0.10 via the universal zip)
 
 ### Permissions (first launch)
 

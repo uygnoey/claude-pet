@@ -38,7 +38,7 @@
       "url": "https://claude-pet.yeongyu.me/",
       "image": "https://claude-pet.yeongyu.me/assets/preview.png",
       "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "macOS 12.0 or later (Apple Silicon & Intel)",
+      "operatingSystem": "macOS 12.0 or later (Apple Silicon; Intel from v0.10)",
       "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip",
       "installUrl": "https://github.com/uygnoey/claude-pet/releases/latest",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -77,7 +77,7 @@
           "name": "Which platforms does Claude Pet support?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."
+            "text": "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."
           }
         },
         {
@@ -410,14 +410,14 @@
 <main>
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow"><span class="dot"></span><span>macOS · Apple Silicon &amp; Intel · <span id="app-version">v0.9</span></span></div>
+      <div class="eyebrow"><span class="dot"></span><span>macOS · <span id="arch-support">Apple Silicon</span> · <span id="app-version">v0.9</span></span></div>
       <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Claude Pet</span><span data-i18n="hero.title.post">, your token-watching desk buddy</span></h1>
       <p class="hero-sub" data-i18n="hero.sub">A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
         <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener" data-i18n="hero.cta.secondary">View source on GitHub</a>
       </div>
-      <div class="dl-alt-row"><a id="dl-alt" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.zip">Intel Mac? Download the universal build</a></div>
+      <div class="dl-alt-row" id="dl-alt-row" style="display:none"><a id="dl-alt" href="https://github.com/uygnoey/claude-pet/releases/latest">Intel Mac? Download the universal build</a></div>
 
       <div class="pet-stage">
         <img id="pet-sprite" src="assets/frames/idle/00.png" alt="Claude Pet mascot" draggable="false">
@@ -495,7 +495,7 @@
       <div class="steps" id="install-steps">
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Download ClaudePet.zip</h4><p>Grab the latest build from the GitHub Releases page.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Move it to Applications</h4><p>Unzip, drag ClaudePet.app into Applications, then double-click to launch.</p></div></div>
-        <div class="step"><div class="step-num"></div><div class="step-body"><h4>That's it</h4><p>Works on macOS 12+ on Apple Silicon and Intel (universal build). No setup — the app checks GitHub for updates on launch.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>That's it</h4><p>Works on macOS 12+ on Apple Silicon and Intel (from v0.10, universal build). No setup — the app checks GitHub for updates on launch.</p></div></div>
       </div>
       <div class="note-box">
         <span>🔒</span>
@@ -522,7 +522,7 @@
       </div>
       <div class="faq" id="faq-list">
         <details><summary>Is Claude Pet free?</summary><p>Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code.</p></details>
-        <details><summary>Which platforms does Claude Pet support?</summary><p>Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting.</p></details>
+        <details><summary>Which platforms does Claude Pet support?</summary><p>Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting.</p></details>
         <details><summary>How does Claude Pet track my Claude token usage?</summary><p>It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit.</p></details>
         <details><summary>Is Claude Pet affiliated with Anthropic?</summary><p>No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p></details>
         <details><summary>Does Claude Pet include web or desktop chat usage?</summary><p>No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate.</p></details>
@@ -572,6 +572,7 @@ const I18N = {
     "hero.cta.alt.intel": "Intel Mac? Download the universal build",
     "hero.cta.alt.arm": "Apple Silicon? Download the smaller Apple Silicon build",
     "hero.cta.alt.other": "Claude Pet is a macOS app — browse all releases",
+    "hero.cta.alt.intelsoon": "Intel Mac support arrives in v0.10 — the current release is Apple Silicon only",
     "hero.pethint": "👋 hover to say hi · click to make it jump",
     "features.eyebrow": "Behavior",
     "features.title": "Small, alive, never in the way",
@@ -615,7 +616,7 @@ const I18N = {
     steps: [
       ["Download ClaudePet.zip","Grab the latest build from the GitHub Releases page."],
       ["Move it to Applications","Unzip, drag ClaudePet.app into Applications, then double-click to launch."],
-      ["That's it","Works on macOS 12+ on Apple Silicon and Intel (universal build). No setup — the app checks GitHub for updates on launch."]
+      ["That's it","Works on macOS 12+ on Apple Silicon and Intel (from v0.10, universal build). No setup — the app checks GitHub for updates on launch."]
     ],
     honesty: [
       "Data comes from Claude Code's local logs only — web/desktop chat usage isn't included, so recalibrate occasionally to stay accurate.",
@@ -624,7 +625,7 @@ const I18N = {
     ],
     faq: [
       ["Is Claude Pet free?","Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code."],
-      ["Which platforms does Claude Pet support?","Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."],
+      ["Which platforms does Claude Pet support?","Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."],
       ["How does Claude Pet track my Claude token usage?","It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit."],
       ["Is Claude Pet affiliated with Anthropic?","No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic."],
       ["Does Claude Pet include web or desktop chat usage?","No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate."]
@@ -640,6 +641,7 @@ const I18N = {
     "hero.cta.alt.intel": "Intel Mac이세요? universal 빌드 다운로드",
     "hero.cta.alt.arm": "Apple Silicon이세요? 더 가벼운 Apple Silicon 빌드 다운로드",
     "hero.cta.alt.other": "Claude Pet은 macOS 전용 앱이에요 — 전체 릴리즈 보기",
+    "hero.cta.alt.intelsoon": "Intel Mac 지원은 v0.10부터예요 — 현재 릴리즈는 Apple Silicon 전용",
     "hero.pethint": "👋 마우스를 가까이 대면 인사해요 · 클릭하면 점프해요",
     "features.eyebrow": "행동 패턴",
     "features.title": "작고, 살아있고, 방해하지 않아요",
@@ -683,7 +685,7 @@ const I18N = {
     steps: [
       ["ClaudePet.zip 다운로드","GitHub Releases 페이지에서 최신 버전을 받아요."],
       ["응용 프로그램 폴더로 이동","압축을 풀고 ClaudePet.app을 응용 프로그램 폴더로 옮긴 뒤 더블클릭하면 실행돼요."],
-      ["끝이에요","macOS 12+ (Apple Silicon · Intel은 universal 빌드)에서 동작해요.<br>별도 설정 없이, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
+      ["끝이에요","macOS 12+ (Apple Silicon · Intel은 v0.10부터 universal 빌드)에서 동작해요.<br>별도 설정 없이, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
     ],
     honesty: [
       "데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요.<br>가끔 다시 보정해줘야 정확해요.",
@@ -692,7 +694,7 @@ const I18N = {
     ],
     faq: [
       ["Claude Pet은 무료인가요?","네, 완전히 무료이고 오픈소스예요. GitHub Releases에서 공증된 앱을 받거나 소스 코드로 직접 빌드할 수 있어요."],
-      ["어떤 플랫폼을 지원하나요?","macOS 12 이상에서 동작해요 (Apple Silicon · Intel은 universal 빌드). AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
+      ["어떤 플랫폼을 지원하나요?","macOS 12 이상에서 동작해요 (Apple Silicon · Intel은 v0.10부터 universal 빌드). AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
       ["토큰 사용량은 어떻게 추적하나요?","로컬의 ~/.claude 사용량 로그와 macOS 키체인의 Claude OAuth 토큰만 읽어요. 사진·다운로드·문서 폴더는 절대 건드리지 않고, 사용량 데이터는 Mac 밖으로 나가지 않아요. 정확한 토큰 한도는 Anthropic 비공개 정보라서, Claude 설정 → 사용량에 표시된 %를 한 번 입력하면 앱이 한도를 역산해요."],
       ["Anthropic과 관련이 있나요?","아니요. Claude Pet은 Yeongyu Yang(uygnoey)이 만든 독립 프로젝트예요. Claude는 Anthropic PBC의 상표이며, Claude Pet은 Anthropic과 제휴하거나 공식 지원을 받지 않아요."],
       ["웹/데스크톱 채팅 사용량도 포함되나요?","아니요. 데이터는 Claude Code 로컬 로그 기준이라 웹/데스크톱 채팅 사용량은 포함되지 않아요. 가끔 다시 보정해주면 게이지가 정확하게 유지돼요."]
@@ -708,6 +710,7 @@ const I18N = {
     "hero.cta.alt.intel": "Intel Mac の方は universal ビルドをダウンロード",
     "hero.cta.alt.arm": "Apple Silicon の方はより軽い Apple Silicon ビルドをダウンロード",
     "hero.cta.alt.other": "Claude Pet は macOS 専用アプリです — リリース一覧を見る",
+    "hero.cta.alt.intelsoon": "Intel Mac 対応は v0.10 から — 現行リリースは Apple Silicon 専用です",
     "hero.pethint": "👋 マウスを近づけると挨拶 · クリックでジャンプ",
     "features.eyebrow": "ふるまい",
     "features.title": "小さくて、生きていて、邪魔しない",
@@ -751,7 +754,7 @@ const I18N = {
     steps: [
       ["ClaudePet.zip をダウンロード","GitHub Releases から最新版を入手します。"],
       ["アプリケーションフォルダへ移動","展開して ClaudePet.app をアプリケーションフォルダに移動し、ダブルクリックで起動します。"],
-      ["これで完了","macOS 12+（Apple Silicon · Intel は universal ビルド）で動作。設定も不要 — 起動時に GitHub で新バージョンを確認します。"]
+      ["これで完了","macOS 12+（Apple Silicon · Intel は v0.10 から universal ビルド）で動作。設定も不要 — 起動時に GitHub で新バージョンを確認します。"]
     ],
     honesty: [
       "データは Claude Code のローカルログ基準 — Web／デスクトップチャットの使用量は含まれません。ときどき再補正すると正確になります。",
@@ -760,7 +763,7 @@ const I18N = {
     ],
     faq: [
       ["Claude Pet は無料ですか？","はい。完全に無料でオープンソースです。GitHub Releases から公証済みアプリをダウンロードするか、ソースコードから自分でビルドできます。"],
-      ["対応プラットフォームは？","macOS 12 以降の Apple Silicon と Intel Mac（universal ビルド）で動作します。AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
+      ["対応プラットフォームは？","macOS 12 以降の Apple Silicon と Intel Mac（v0.10 から、universal ビルド）で動作します。AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
       ["トークン使用量はどうやって追跡していますか？","ローカルの ~/.claude 使用ログと macOS キーチェーンの Claude OAuth トークンだけを読み取ります。写真・ダウンロード・書類フォルダには一切触れず、使用データが Mac の外に出ることはありません。正確なトークン上限は Anthropic の非公開情報のため、Claude の設定 → 使用量に表示される % を一度入力すると、アプリが上限を逆算します。"],
       ["Anthropic と関係がありますか？","いいえ。Claude Pet は Yeongyu Yang（uygnoey）による独立プロジェクトです。Claude は Anthropic PBC の商標であり、Claude Pet は Anthropic と提携も公認もされていません。"],
       ["Web／デスクトップチャットの使用量も含まれますか？","いいえ。データは Claude Code のローカルログ基準のため、Web／デスクトップチャットの使用量は含まれません。ときどき再補正するとゲージが正確に保たれます。"]
@@ -776,6 +779,7 @@ const I18N = {
     "hero.cta.alt.intel": "¿Mac Intel? Descarga la versión universal",
     "hero.cta.alt.arm": "¿Apple Silicon? Descarga la versión más ligera para Apple Silicon",
     "hero.cta.alt.other": "Claude Pet es una app para macOS — ver todas las versiones",
+    "hero.cta.alt.intelsoon": "El soporte para Mac Intel llega en la v0.10 — la versión actual es solo para Apple Silicon",
     "hero.pethint": "👋 pasa el cursor para saludar · haz clic para que salte",
     "features.eyebrow": "Comportamiento",
     "features.title": "Pequeña, viva, nunca estorba",
@@ -819,7 +823,7 @@ const I18N = {
     steps: [
       ["Descarga ClaudePet.zip","Consíguelo desde la página de Releases en GitHub."],
       ["Muévelo a Aplicaciones","Descomprime, arrastra ClaudePet.app a Aplicaciones y haz doble clic para abrirlo."],
-      ["Listo","Funciona en macOS 12+ con Apple Silicon e Intel (versión universal). Sin configuración — la app revisa nuevas versiones en GitHub al abrirse."]
+      ["Listo","Funciona en macOS 12+ con Apple Silicon e Intel (desde v0.10, versión universal). Sin configuración — la app revisa nuevas versiones en GitHub al abrirse."]
     ],
     honesty: [
       "Los datos vienen solo de los registros locales de Claude Code — el uso del chat web/escritorio no se incluye, así que recalibra de vez en cuando.",
@@ -828,7 +832,7 @@ const I18N = {
     ],
     faq: [
       ["¿Claude Pet es gratis?","Sí. Claude Pet es totalmente gratuito y de código abierto. Puedes descargar la app certificada (notarized) desde GitHub Releases o compilarla tú mismo desde el código fuente."],
-      ["¿Qué plataformas admite Claude Pet?","Funciona en macOS 12 o posterior con Apple Silicon e Intel (versión universal). Se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
+      ["¿Qué plataformas admite Claude Pet?","Funciona en macOS 12 o posterior con Apple Silicon e Intel (desde v0.10, versión universal). Se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
       ["¿Cómo rastrea mi uso de tokens de Claude?","Solo lee los registros locales de uso de ~/.claude y el token OAuth de Claude en el Llavero de macOS. Nunca toca Fotos, Descargas ni Documentos, y tus datos de uso no salen de tu Mac. Como los límites exactos de tokens son privados de Anthropic, calibras una vez escribiendo el % que muestra Claude en Ajustes → Uso y la app calcula tu límite."],
       ["¿Claude Pet está afiliado a Anthropic?","No. Claude Pet es un proyecto independiente de Yeongyu Yang (uygnoey). Claude es una marca registrada de Anthropic PBC, y Claude Pet no está afiliado a Anthropic ni cuenta con su respaldo."],
       ["¿Incluye el uso del chat web o de escritorio?","No. Los datos vienen solo de los registros locales de Claude Code, así que el uso del chat web/escritorio no se incluye. Recalibrar de vez en cuando mantiene los medidores precisos."]
@@ -927,7 +931,7 @@ document.addEventListener("keydown", e => {
    the GPU string, but Apple GPUs expose ETC/s3tc_srgb and Intel GPUs don't). */
 const DL = {
   arm: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip",
-  universal: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.zip",
+  universal: null,   // 최신 릴리즈 자산에 ClaudePet-universal.zip이 실제로 있을 때만 채워짐 (v0.10+)
   releases: "https://github.com/uygnoey/claude-pet/releases/latest"
 };
 let dlArch = "arm";
@@ -936,18 +940,24 @@ function applyDownloadLinks(){
   const t = I18N[currentLang];
   const mains = document.querySelectorAll(".dl-main");
   const alt = document.getElementById("dl-alt");
+  const altRow = document.getElementById("dl-alt-row");
+  const showAlt = (href, key) => { altRow.style.display = ""; alt.href = href; alt.innerHTML = t[key]; };
   if(dlArch === "other"){
     mains.forEach(a => a.href = DL.releases);
-    alt.href = DL.releases;
-    alt.innerHTML = t["hero.cta.alt.other"];
+    showAlt(DL.releases, "hero.cta.alt.other");
   }else if(dlArch === "intel"){
-    mains.forEach(a => a.href = DL.universal);
-    alt.href = DL.arm;
-    alt.innerHTML = t["hero.cta.alt.arm"];
+    if(DL.universal){
+      mains.forEach(a => a.href = DL.universal);
+      showAlt(DL.arm, "hero.cta.alt.arm");
+    }else{
+      // 아직 universal zip이 없는 릴리즈 — Intel 방문자에게 arm64 zip을 쥐여주지 않는다
+      mains.forEach(a => a.href = DL.releases);
+      showAlt(DL.releases, "hero.cta.alt.intelsoon");
+    }
   }else{
     mains.forEach(a => a.href = DL.arm);
-    alt.href = DL.universal;
-    alt.innerHTML = t["hero.cta.alt.intel"];
+    if(DL.universal) showAlt(DL.universal, "hero.cta.alt.intel");
+    else altRow.style.display = "none";
   }
 }
 
@@ -1033,15 +1043,26 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e =
   if(!localStorage.getItem("claudepet-theme")) applyTheme(e.matches ? "dark" : "light", false);
 });
 
-/* Always show the latest released version in the hero badge.
-   The download buttons use GitHub's /releases/latest/download/ redirect,
-   which likewise always serves the newest release's ClaudePet.zip. */
+/* Always show the latest released version in the hero badge, and enable the
+   Intel (universal) download only when the latest release actually ships
+   ClaudePet-universal.zip (v0.10+) — otherwise Intel visitors would get a 404,
+   so until then the page presents itself as Apple Silicon-only. */
 fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
   .then(r => r.ok ? r.json() : null)
   .then(rel => {
-    if(rel && rel.tag_name){
+    if(!rel) return;
+    if(rel.tag_name){
       document.getElementById("app-version").textContent = rel.tag_name;
     }
+    (rel.assets || []).forEach(a => {
+      const n = (a.name || "").toLowerCase();
+      if(n === "claudepet-universal.zip") DL.universal = a.browser_download_url;
+      else if(n === "claudepet.zip") DL.arm = a.browser_download_url;
+    });
+    if(DL.universal){
+      document.getElementById("arch-support").textContent = "Apple Silicon & Intel";
+    }
+    applyDownloadLinks();
   })
   .catch(() => {});
 
