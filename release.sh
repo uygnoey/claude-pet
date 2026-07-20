@@ -28,7 +28,8 @@ UAPP="$UDIST/ClaudePet.app"
 PROFILE="claudepet-notary"
 ZIP="release/ClaudePet.zip"
 UZIP="release/ClaudePet-universal.zip"
-DMG="release/ClaudePet.dmg"          # 수동 다운로드용(드래그 설치 UX). 자동업데이트는 zip 사용
+DMG="release/ClaudePet.dmg"           # arm64(Apple Silicon) 수동 설치 dmg. 자동업데이트는 zip 사용
+UDMG="release/ClaudePet-universal.dmg" # 유니버설(Intel+ARM) 수동 설치 dmg
 NOTES="RELEASE_NOTES.md"   # 릴리즈 노트 고정 파일 (git 히스토리 노출 대신 이 내용 사용)
 
 build() {
@@ -126,22 +127,28 @@ universal() {
   notarize "$UAPP" "$UZIP"
 }
 
-# 수동 다운로드용 DMG (드래그 → Applications). 자동업데이트는 zip이 담당하므로
-# dmg는 새 사용자 설치 UX 전용. 유니버설 앱이 있으면 그걸(Intel+ARM 겸용) 담고,
-# 없으면 arm64 앱을 담는다. 내부 앱은 이미 서명+공증+staple 된 상태 → dmg만 추가 공증.
-make_dmg() {
-  local app="$APP"
-  [ -d "$UAPP" ] && app="$UAPP"       # 유니버설 우선
+# 앱 하나를 드래그-설치 dmg로 패키징 + 공증 + staple. $1=app 디렉터리, $2=dmg 경로.
+# 내부 앱은 이미 서명+공증+staple 된 상태 → dmg 컨테이너만 추가 공증.
+one_dmg() {
+  local app="$1" dmg="$2"
+  [ -d "$app" ] || { echo "⚠️  $app 없음 — $dmg 건너뜀"; return 0; }
   local stage; stage=$(mktemp -d)
   /usr/bin/ditto "$app" "$stage/ClaudePet.app"
   ln -s /Applications "$stage/Applications"   # 드래그 설치용 심볼릭
-  mkdir -p release; rm -f "$DMG"
-  hdiutil create -volname "ClaudePet" -srcfolder "$stage" -ov -format UDZO "$DMG" >/dev/null
+  mkdir -p release; rm -f "$dmg"
+  hdiutil create -volname "ClaudePet" -srcfolder "$stage" -ov -format UDZO "$dmg" >/dev/null
   rm -rf "$stage"
-  echo "→ dmg 공증 제출 (Apple 서버, 보통 1~5분)…"
-  notary_submit "$DMG"
-  xcrun stapler staple "$DMG"
-  xcrun stapler validate "$DMG" >/dev/null 2>&1 && echo "✅ dmg 공증+staple 완료 → $DMG ($(du -sh "$DMG" | cut -f1))"
+  echo "→ dmg 공증 제출: $dmg (Apple 서버, 보통 1~5분)…"
+  notary_submit "$dmg"
+  xcrun stapler staple "$dmg"
+  xcrun stapler validate "$dmg" >/dev/null 2>&1 && echo "✅ dmg 완료 → $dmg ($(du -sh "$dmg" | cut -f1))"
+}
+
+# 수동 다운로드용 DMG (드래그 → Applications). 자동업데이트는 zip이 담당.
+# zip과 동일하게 arm64용 + 유니버설(Intel)용 둘 다 만든다.
+make_dmg() {
+  one_dmg "$APP" "$DMG"                        # arm64 (Apple Silicon) — 항상
+  [ -d "$UAPP" ] && one_dmg "$UAPP" "$UDMG"    # 유니버설(Intel+ARM) — universal 빌드 있을 때
 }
 
 # all/ship 에서: universal2 python 있으면 유니버설도 만들고, 없으면 조용히 건너뜀
@@ -177,7 +184,8 @@ publish() {
   local TAG="v$(cur_version)"
   local -a files=("$ZIP")
   [ -f "$UZIP" ] && files+=("$UZIP")        # 유니버설 zip 있으면 같이 업로드
-  [ -f "$DMG" ]  && files+=("$DMG")         # dmg 있으면 같이 업로드
+  [ -f "$DMG" ]  && files+=("$DMG")         # arm64 dmg
+  [ -f "$UDMG" ] && files+=("$UDMG")        # 유니버설 dmg
   if gh release view "$TAG" >/dev/null 2>&1; then
     gh release upload "$TAG" "${files[@]}" --clobber
     gh release edit "$TAG" --notes-file "$NOTES"   # 노트도 고정본으로 갱신

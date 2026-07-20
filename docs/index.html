@@ -39,7 +39,7 @@
       "image": "https://claude-pet.yeongyu.me/assets/preview.png",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "macOS 12.0 or later (Apple Silicon; Intel from v0.10)",
-      "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip",
+      "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg",
       "installUrl": "https://github.com/uygnoey/claude-pet/releases/latest",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "isAccessibleForFree": true,
@@ -402,7 +402,7 @@
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
-      <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="nav.download">Download</a>
+      <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="nav.download">Download</a>
     </div>
   </div>
 </header>
@@ -414,7 +414,7 @@
       <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Claude Pet</span><span data-i18n="hero.title.post">, your token-watching desk buddy</span></h1>
       <p class="hero-sub" data-i18n="hero.sub">A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
+        <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
         <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener" data-i18n="hero.cta.secondary">View source on GitHub</a>
       </div>
       <div class="dl-alt-row" id="dl-alt-row" style="display:none"><a id="dl-alt" href="https://github.com/uygnoey/claude-pet/releases/latest">Intel Mac? Download the universal build</a></div>
@@ -493,8 +493,8 @@
         <p class="section-sub" data-i18n="install.sub">Everything is bundled inside a notarized app, so it opens without any Gatekeeper warning.</p>
       </div>
       <div class="steps" id="install-steps">
-        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Download ClaudePet.zip</h4><p>Grab the latest build from the GitHub Releases page.</p></div></div>
-        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Move it to Applications</h4><p>Unzip, drag ClaudePet.app into Applications, then double-click to launch.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Download ClaudePet.dmg</h4><p>Grab the latest build from the GitHub Releases page.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Drag it to Applications</h4><p>Open the .dmg, drag ClaudePet into the Applications folder, then double-click to launch.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>That's it</h4><p>Works on macOS 12+ on Apple Silicon and Intel (from v0.10, universal build). No setup — the app checks GitHub for updates on launch.</p></div></div>
       </div>
       <div class="note-box">
@@ -614,8 +614,8 @@ const I18N = {
       ["🔄","Auto-updates","Right-click → Install new version. Downloads, replaces, and relaunches — done."]
     ],
     steps: [
-      ["Download ClaudePet.zip","Grab the latest build from the GitHub Releases page."],
-      ["Move it to Applications","Unzip, drag ClaudePet.app into Applications, then double-click to launch."],
+      ["Download ClaudePet.dmg","Grab the latest build from the GitHub Releases page."],
+      ["Drag it to Applications","Open the .dmg, drag ClaudePet into the Applications folder, then double-click to launch."],
       ["That's it","Works on macOS 12+ on Apple Silicon and Intel (from v0.10, universal build). No setup — the app checks GitHub for updates on launch."]
     ],
     honesty: [
@@ -683,8 +683,8 @@ const I18N = {
       ["🔄","자동 업데이트","우클릭 → 새 버전 설치. 다운로드·교체·재실행까지 알아서 끝내줘요."]
     ],
     steps: [
-      ["ClaudePet.zip 다운로드","GitHub Releases 페이지에서 최신 버전을 받아요."],
-      ["응용 프로그램 폴더로 이동","압축을 풀고 ClaudePet.app을 응용 프로그램 폴더로 옮긴 뒤 더블클릭하면 실행돼요."],
+      ["ClaudePet.dmg 다운로드","GitHub Releases 페이지에서 최신 버전을 받아요."],
+      ["응용 프로그램 폴더로 드래그","dmg를 열고 ClaudePet을 응용 프로그램 폴더로 끌어다 놓은 뒤 더블클릭하면 실행돼요."],
       ["끝이에요","macOS 12+ (Apple Silicon · Intel은 v0.10부터 universal 빌드)에서 동작해요.<br>별도 설정 없이, 실행할 때마다 GitHub에서 새 버전을 확인해요."]
     ],
     honesty: [
@@ -752,8 +752,8 @@ const I18N = {
       ["🔄","自動アップデート","右クリック → 新バージョンをインストール。ダウンロード・置き換え・再起動まで全自動。"]
     ],
     steps: [
-      ["ClaudePet.zip をダウンロード","GitHub Releases から最新版を入手します。"],
-      ["アプリケーションフォルダへ移動","展開して ClaudePet.app をアプリケーションフォルダに移動し、ダブルクリックで起動します。"],
+      ["ClaudePet.dmg をダウンロード","GitHub Releases から最新版を入手します。"],
+      ["アプリケーションフォルダへドラッグ","dmg を開いて ClaudePet をアプリケーションフォルダにドラッグし、ダブルクリックで起動します。"],
       ["これで完了","macOS 12+（Apple Silicon · Intel は v0.10 から universal ビルド）で動作。設定も不要 — 起動時に GitHub で新バージョンを確認します。"]
     ],
     honesty: [
@@ -821,8 +821,8 @@ const I18N = {
       ["🔄","Actualizaciones automáticas","Clic derecho → Instalar nueva versión. Descarga, reemplaza y reinicia sola."]
     ],
     steps: [
-      ["Descarga ClaudePet.zip","Consíguelo desde la página de Releases en GitHub."],
-      ["Muévelo a Aplicaciones","Descomprime, arrastra ClaudePet.app a Aplicaciones y haz doble clic para abrirlo."],
+      ["Descarga ClaudePet.dmg","Consíguelo desde la página de Releases en GitHub."],
+      ["Arrástralo a Aplicaciones","Abre el .dmg, arrastra ClaudePet a la carpeta Aplicaciones y haz doble clic para abrirlo."],
       ["Listo","Funciona en macOS 12+ con Apple Silicon e Intel (desde v0.10, versión universal). Sin configuración — la app revisa nuevas versiones en GitHub al abrirse."]
     ],
     honesty: [
@@ -924,14 +924,16 @@ document.addEventListener("keydown", e => {
 });
 
 /* ---------------- OS/arch-aware download links ----------------
-   Apple Silicon → ClaudePet.zip (smaller), Intel Mac → ClaudePet-universal.zip,
-   non-Mac → releases page. Detection order: UA-Client-Hints arch (Chromium) →
+   수동 설치는 dmg로 제공: Apple Silicon → ClaudePet.dmg (smaller),
+   Intel Mac → ClaudePet-universal.dmg, non-Mac → releases page.
+   (앱 자동 업데이트는 여전히 zip을 사용 — 별개.)
+   Detection order: UA-Client-Hints arch (Chromium) →
    NaN sign-bit probe (pure JS, catches Intel in every browser incl. Safari) →
    WebGL GPU string (Chrome/Firefox) → compressed-texture formats (Safari masks
    the GPU string, but Apple GPUs expose ETC/s3tc_srgb and Intel GPUs don't). */
 const DL = {
-  arm: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip",
-  universal: null,   // 최신 릴리즈 자산에 ClaudePet-universal.zip이 실제로 있을 때만 채워짐 (v0.10+)
+  arm: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg",
+  universal: null,   // 최신 릴리즈 자산에 ClaudePet-universal.dmg이 실제로 있을 때만 채워짐 (v0.10+)
   releases: "https://github.com/uygnoey/claude-pet/releases/latest"
 };
 let dlArch = "arm";
@@ -1045,7 +1047,7 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e =
 
 /* Always show the latest released version in the hero badge, and enable the
    Intel (universal) download only when the latest release actually ships
-   ClaudePet-universal.zip (v0.10+) — otherwise Intel visitors would get a 404,
+   ClaudePet-universal.dmg (v0.10+) — otherwise Intel visitors would get a 404,
    so until then the page presents itself as Apple Silicon-only. */
 fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
   .then(r => r.ok ? r.json() : null)
@@ -1056,8 +1058,8 @@ fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
     }
     (rel.assets || []).forEach(a => {
       const n = (a.name || "").toLowerCase();
-      if(n === "claudepet-universal.zip") DL.universal = a.browser_download_url;
-      else if(n === "claudepet.zip") DL.arm = a.browser_download_url;
+      if(n === "claudepet-universal.dmg") DL.universal = a.browser_download_url;
+      else if(n === "claudepet.dmg") DL.arm = a.browser_download_url;
     });
     if(DL.universal){
       document.getElementById("arch-support").textContent = "Apple Silicon & Intel";
