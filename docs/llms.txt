@@ -6,7 +6,7 @@ Claude Pet is an independent project by Yeongyu Yang (uygnoey). It is not affili
 
 ## Key facts
 
-- Platform: macOS 12+ on Apple Silicon; rendered natively with AppKit (no window frame, no background, no ghosting).
+- Platform: macOS 12+ on Apple Silicon and Intel (Intel from v0.10 via the universal build); rendered natively with AppKit (no window frame, no background, no ghosting).
 - Price: free and open source.
 - Install: download ClaudePet.zip from GitHub Releases, move ClaudePet.app to Applications, and launch. The app is notarized, so it opens without Gatekeeper warnings.
 - Data source: reads only the local `~/.claude` usage logs and the Claude OAuth token in the macOS Keychain. It never touches Photos, Downloads, or Documents, and usage data stays on your Mac.
