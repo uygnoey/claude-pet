@@ -58,6 +58,9 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
 
 ### 📝 변경 내역 / Changelog
 
+**v0.13**
+- 정확 모드 키체인 허용 프롬프트를 사용자가 응답할 때까지 기다리도록 개선 (타임아웃 제거)
+
 **v0.12**
 - 새로 설치했을 때 정확 모드용 키체인 허용 프롬프트가 응답하기도 전에 사라지던 문제 수정 (타임아웃 연장 + 승인 전까지 재시도)
 
