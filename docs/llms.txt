@@ -24,3 +24,7 @@ Claude Pet is an independent project by Yeongyu Yang (uygnoey). It is not affili
 - [README (한국어)](https://github.com/uygnoey/claude-pet/blob/main/README.ko.md)
 - [README (日本語)](https://github.com/uygnoey/claude-pet/blob/main/README.ja.md)
 - [README (Español)](https://github.com/uygnoey/claude-pet/blob/main/README.es.md)
+
+## Detailed reference
+
+- [Full product and usage reference](https://claude-pet.yeongyu.me/llms-full.txt)

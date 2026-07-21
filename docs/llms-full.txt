@@ -1,0 +1,69 @@
+# Claude Pet — Full product reference
+
+Canonical website: https://claude-pet.yeongyu.me/
+Source code: https://github.com/uygnoey/claude-pet
+Latest release: https://github.com/uygnoey/claude-pet/releases/latest
+
+## Short answer
+
+Claude Pet is a free, open-source macOS desktop pet and Claude usage monitor. It floats on the desktop and shows Anthropic Claude usage as three gauges: the current 5-hour session, weekly total, and weekly per-model allowance when available. Each gauge includes percentage used and a reset countdown.
+
+## Who it is for
+
+Claude Pet is for macOS users who use Claude Code and want their Claude rate-limit status visible without repeatedly opening Claude's Settings → Usage page. It supports macOS 12 or later, Apple Silicon, and Intel Macs through the universal build.
+
+## How usage tracking works
+
+Claude Pet has two subscription-usage paths:
+
+1. Exact mode uses the OAuth credential already created by Claude Code and stored in macOS Keychain. It requests Anthropic's server-computed usage percentages and reset times from Anthropic's usage service.
+2. Local fallback mode reads Claude Code usage records under ~/.claude. Because Anthropic does not publish each subscriber's token ceiling, users can optionally calibrate the estimate with the percentage displayed in Claude's Settings → Usage.
+
+Exact mode and local fallback should not be described as equivalent. Exact mode shows server-computed percentages. Local fallback is an estimate and does not include Claude web or desktop chat activity that is absent from local Claude Code logs.
+
+## Privacy and permissions
+
+Claude Pet does not upload prompts, transcripts, or source code. For Exact mode, it reads the existing Claude Code OAuth credential from macOS Keychain and contacts Anthropic to request usage percentages. For local fallback, it reads known files under ~/.claude. It does not need access to Photos, Downloads, Documents, Desktop, Music, iCloud, or network volumes in its default configuration.
+
+The optional Admin API mode is separate from Claude subscription limits. It reports Anthropic Console organization cost data. If configured, its Admin API key is stored in plaintext in ~/.claude_pet.json, so it should be used only on a trusted personal machine.
+
+## Main features
+
+- Floating native AppKit pet with no window frame or opaque background
+- 5-hour session usage and reset countdown
+- Weekly total usage and reset countdown
+- Weekly per-model usage when Anthropic returns that category
+- Warning animation when usage rises sharply
+- Celebration animation when a session reset is detected
+- Drag, resize, collapse, and double-click refresh controls
+- Signed and Apple-notarized downloadable application
+- Automatic update check against GitHub Releases
+- English, Korean, Japanese, and Spanish interface text
+
+## Installation
+
+Download the latest ClaudePet.dmg from GitHub Releases, open it, move ClaudePet.app to Applications, and launch it. Intel Mac users should choose the universal build when the release provides separate downloads. No separate Python installation is required for the packaged app.
+
+## Independence and trademarks
+
+Claude Pet is an independent project by Yeongyu Yang (GitHub: uygnoey). It is not affiliated with, endorsed by, or otherwise related to Anthropic PBC. Claude is a trademark of Anthropic PBC.
+
+## Direct answers
+
+Q: Is Claude Pet free?
+A: Yes. It is free and open source.
+
+Q: Is Claude Pet an official Anthropic app?
+A: No. It is an independent open-source project.
+
+Q: Does it show Claude's 5-hour and weekly limits?
+A: Yes. Exact mode shows server-computed percentages and reset times when those categories are available to the logged-in Claude account.
+
+Q: Does it count Claude web and desktop chat usage?
+A: Exact mode shows Anthropic's server-computed account usage. The local-log fallback counts only locally recorded Claude Code activity and therefore cannot include activity missing from those logs.
+
+Q: Does it read source code or prompts?
+A: It does not upload prompts, transcripts, or source code. Its documented data access is limited to Claude usage information, the existing Claude Code credential used for Exact mode, and optional Admin API cost data when explicitly configured.
+
+Q: What is the difference between Claude Pet and a menu-bar usage monitor?
+A: Both can surface rate-limit information. Claude Pet keeps the gauges beside an animated desktop character, while a conventional menu-bar monitor keeps them in the macOS menu bar.

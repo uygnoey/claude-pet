@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Pet — macOS desktop pet that watches your Claude token usage</title>
 <meta name="description" content="Claude Pet is a free, open-source macOS desktop pet that floats on your screen and watches your Claude token usage — session, weekly, and per-model gauges with reset countdowns.">
+<meta name="keywords" content="Claude usage monitor, Claude Code token tracker, Claude rate limit, Claude weekly usage, macOS desktop pet, Claude token usage app">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
 <meta name="author" content="Yeongyu Yang (uygnoey)">
 <meta name="theme-color" content="#d97757">
@@ -38,9 +39,13 @@
       "url": "https://claude-pet.yeongyu.me/",
       "image": "https://claude-pet.yeongyu.me/assets/preview.png",
       "applicationCategory": "UtilitiesApplication",
+      "applicationSubCategory": "AI usage monitor",
       "operatingSystem": "macOS 12.0 or later (Apple Silicon; Intel from v0.10)",
+      "softwareVersion": "0.11",
+      "softwareRequirements": "macOS 12.0 or later and a Claude Code login",
       "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg",
       "installUrl": "https://github.com/uygnoey/claude-pet/releases/latest",
+      "codeRepository": "https://github.com/uygnoey/claude-pet",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" },
       "isAccessibleForFree": true,
       "screenshot": "https://claude-pet.yeongyu.me/assets/preview.png",
@@ -103,7 +108,7 @@
           "name": "How does Claude Pet track my Claude token usage?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit."
+            "text": "Exact mode reads the existing Claude Code OAuth credential from macOS Keychain and requests Anthropic's server-computed usage percentages. If Exact mode is unavailable, Claude Pet can estimate usage from local ~/.claude logs; optional calibration aligns that estimate with Claude's Settings → Usage percentage. The app does not read Photos, Downloads, or Documents."
           }
         },
         {
@@ -119,7 +124,23 @@
           "name": "Does Claude Pet include web or desktop chat usage?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate."
+            "text": "In Exact mode, Claude Pet displays Anthropic's server-computed account usage percentages. In local-log fallback mode, only Claude Code activity recorded under ~/.claude is counted, so Claude web and desktop chat activity is not included in that estimate."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I check Claude's 5-hour and weekly usage limits on a Mac?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Install Claude Pet, launch it, and allow access to the existing Claude Code credential in macOS Keychain. Its floating gauges show the current 5-hour session usage, weekly total usage, per-model weekly usage when available, and the time remaining until each limit resets."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Claude Pet send my prompts or source code anywhere?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Claude Pet does not upload prompts, transcripts, or source code. It reads known Claude usage data locally and, in Exact mode, uses the existing Claude Code OAuth credential only to request usage percentages from Anthropic."
           }
         }
       ]
@@ -541,9 +562,11 @@
       <div class="faq" id="faq-list">
         <details><summary>Is Claude Pet free?</summary><p>Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code.</p></details>
         <details><summary>Which platforms does Claude Pet support?</summary><p>Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting.</p></details>
-        <details><summary>How does Claude Pet track my Claude token usage?</summary><p>It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit.</p></details>
+        <details><summary>How does Claude Pet track my Claude token usage?</summary><p>Exact mode uses your existing Claude Code OAuth credential from macOS Keychain to request Anthropic's server-computed usage percentages. If Exact mode is unavailable, it estimates usage from local <code>~/.claude</code> logs; optional calibration aligns that estimate with Claude's Settings → Usage percentage.</p></details>
         <details><summary>Is Claude Pet affiliated with Anthropic?</summary><p>No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p></details>
-        <details><summary>Does Claude Pet include web or desktop chat usage?</summary><p>No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate.</p></details>
+        <details><summary>Does Claude Pet include web or desktop chat usage?</summary><p>Exact mode displays Anthropic's server-computed account usage. Local-log fallback mode counts only Claude Code activity under <code>~/.claude</code>, so its estimate does not include web or desktop chat activity.</p></details>
+        <details><summary>How can I check Claude's 5-hour and weekly usage limits on a Mac?</summary><p>Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its floating gauges show session, weekly total, per-model usage when available, and reset countdowns.</p></details>
+        <details><summary>Does Claude Pet send my prompts or source code anywhere?</summary><p>No. Claude Pet does not upload prompts, transcripts, or source code. Exact mode contacts Anthropic only to request usage percentages.</p></details>
       </div>
     </div>
   </section>
@@ -615,8 +638,8 @@ const I18N = {
     "install.sub": "Everything is bundled inside a notarized app, so it opens without any Gatekeeper warning.",
     "install.note": "The pet only ever reads <code>~/.claude</code> usage logs and the OAuth token in your Keychain — it never touches Photos, Downloads, or Documents.",
     "cal.eyebrow": "Calibration",
-    "cal.title": "Calibrated to your real limits",
-    "cal.sub": "Token limits are private to Anthropic, so the app can't know them outright. Type the % shown in Claude's Settings → Usage, and it back-solves the rest: limit = current usage ÷ %.",
+    "cal.title": "Exact when available, calibrated when needed",
+    "cal.sub": "Exact mode shows Anthropic's server-computed percentages. If it is unavailable, enter the % from Claude's Settings → Usage to calibrate the local-log estimate.",
     "honesty.eyebrow": "Honestly",
     "honesty.title": "The limits, no spin",
     "faq.eyebrow": "FAQ",
@@ -637,16 +660,18 @@ const I18N = {
       ["That's it","Works on macOS 12+ on Apple Silicon and Intel (from v0.10, universal build). No setup — the app checks GitHub for updates on launch."]
     ],
     honesty: [
-      "Data comes from Claude Code's local logs only — web/desktop chat usage isn't included, so recalibrate occasionally to stay accurate.",
+      "Exact mode uses Anthropic's server-computed account percentages. Local fallback reads Claude Code logs only, so that estimate excludes web/desktop chat activity.",
       "Admin API cost belongs to your Console organization and is separate from your subscription limit.",
       "The Admin API key is stored in plaintext in ~/.claude_pet.json — use it on a personal machine only."
     ],
     faq: [
       ["Is Claude Pet free?","Yes. Claude Pet is completely free and open source. You can download the notarized app from GitHub Releases or build it yourself from the source code."],
       ["Which platforms does Claude Pet support?","Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."],
-      ["How does Claude Pet track my Claude token usage?","It reads only the local ~/.claude usage logs and the Claude OAuth token in your macOS Keychain. It never touches Photos, Downloads, or Documents, and your usage data stays on your Mac. Because exact token limits are private to Anthropic, you calibrate once by typing the percentage shown in Claude's Settings → Usage, and the app back-solves your limit."],
+      ["How does Claude Pet track my Claude token usage?","Exact mode uses your existing Claude Code OAuth credential from macOS Keychain to request Anthropic's server-computed usage percentages. If Exact mode is unavailable, Claude Pet estimates usage from local ~/.claude logs; optional calibration aligns that estimate with Claude's Settings → Usage percentage."],
       ["Is Claude Pet affiliated with Anthropic?","No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic."],
-      ["Does Claude Pet include web or desktop chat usage?","No. The data comes from Claude Code's local logs only, so web and desktop chat usage is not included. Recalibrating occasionally keeps the gauges accurate."]
+      ["Does Claude Pet include web or desktop chat usage?","Exact mode displays Anthropic's server-computed account usage. Local-log fallback counts only Claude Code activity under ~/.claude, so its estimate does not include web or desktop chat activity."],
+      ["How can I check Claude's 5-hour and weekly usage limits on a Mac?","Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its floating gauges show session, weekly total, per-model usage when available, and reset countdowns."],
+      ["Does Claude Pet send my prompts or source code anywhere?","No. Claude Pet does not upload prompts, transcripts, or source code. Exact mode contacts Anthropic only to request usage percentages."]
     ]
   },
   ko: {
@@ -684,8 +709,8 @@ const I18N = {
     "install.sub": "공증(notarized)된 앱이라 Gatekeeper 경고 없이 바로 실행돼요.",
     "install.note": "Claude Pet은 <code>~/.claude</code> 사용량 로그와 키체인의 OAuth 토큰만 읽어요.<br>사진·다운로드·문서 폴더는 절대 건드리지 않아요.",
     "cal.eyebrow": "보정",
-    "cal.title": "당신의 실제 한도에 맞춰 보정",
-    "cal.sub": "토큰 한도는 Anthropic 비공개 정보라 앱이 그대로 알 수는 없어요.<br>Claude 앱의 설정 → 사용량에 표시된 %를 입력하면 '한도 = 현재 사용량 ÷ %'로 자동 역산해요.",
+    "cal.title": "가능하면 정확하게, 필요하면 보정해서",
+    "cal.sub": "정확 모드에서는 Anthropic 서버가 계산한 사용률을 표시해요.<br>정확 모드를 쓸 수 없을 때만 Claude 설정 → 사용량의 %를 입력해 로컬 로그 추정치를 보정해요.",
     "honesty.eyebrow": "솔직하게 말하면",
     "honesty.title": "숨기지 않는 한계",
     "faq.eyebrow": "자주 묻는 질문",
