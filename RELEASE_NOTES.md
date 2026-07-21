@@ -58,6 +58,10 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
 
 ### 📝 변경 내역 / Changelog
 
+**v0.11**
+- 정확 모드(사용량) 인증서 검증 오류 수정 — 유니버설/Intel 빌드에서 정확 모드가 동작하지 않던 문제
+- Apple Silicon 전용 DMG 추가 (Intel용 `ClaudePet-universal.dmg`와 별도)
+
 **v0.10**
 - Intel Mac 지원 (유니버설 빌드, `ClaudePet-universal.zip`)
 - DMG 설치 파일 추가 (드래그 설치)
