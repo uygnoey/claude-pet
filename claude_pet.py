@@ -550,42 +550,61 @@ def fetch_api_cost_month():
 OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
 _oauth_cache = {"t": 0.0, "gauges": None}
-# 토큰은 실행당 1회만 키체인에서 읽어 캐시 — 재조회 시 macOS 허용 프롬프트가
-# 반복되기 때문. 만료(401)로 실패할 때만 force=True로 다시 읽는다.
-_oauth_token_cache = {"read": False, "tok": None}
+# 토큰은 성공 시 메모리에 캐시 — 재조회 시 macOS 허용 프롬프트가 반복되기 때문.
+# 만료(401)로 실패할 때만 force=True로 다시 읽는다.
+_oauth_token_cache = {"read": False, "tok": None, "fails": 0}
+_oauth_token_lock = threading.Lock()
 
 
 def _read_oauth_token(force=False):
     """Claude Code OAuth 토큰: macOS 키체인 → ~/.claude/.credentials.json 순.
 
-    실행당 1회만 실제로 읽어 메모리에 캐시한다. 키체인 비밀값(-w) 접근은
-    macOS 허용 프롬프트를 띄우므로, 3분 주기 폴링마다 재조회하면 계속
-    물어보게 된다. 토큰이 만료돼 API가 401을 주면 force=True로 1회 재조회.
+    키체인 비밀값(-w) 첫 접근은 macOS "허용/항상 허용" 프롬프트를 띄우고,
+    그동안 security가 사용자 응답을 기다리며 블록된다. 사용자가 프롬프트를
+    읽고 누를 시간이 필요하므로 timeout을 넉넉히 준다(예전 5s는 프롬프트가
+    뜨자마자 죽여 새 설치에서 정확 모드가 안 켜졌다).
+
+    성공하면 캐시해 이후 폴링에서 재조회(=프롬프트)를 막는다. 실패하면
+    캐시하지 않고 다음 폴링에 재시도해 "항상 허용"을 누를 기회를 준다.
+    단 반복 실패(거부 등) 시 프롬프트 폭주를 막으려 몇 번 뒤 이 실행에선 포기.
+    락으로 동시에 두 번 이상 물어보지 않게 한다. 401 만료는 force=True.
     """
     if _oauth_token_cache["read"] and not force:
         return _oauth_token_cache["tok"]
-    tok = None
-    if sys.platform == "darwin":
-        try:
-            r = subprocess.run(
-                ["security", "find-generic-password",
-                 "-s", "Claude Code-credentials", "-w"],
-                capture_output=True, text=True, timeout=5)
-            if r.returncode == 0 and r.stdout.strip():
-                data = json.loads(r.stdout.strip())
+    if not _oauth_token_lock.acquire(blocking=False):
+        return _oauth_token_cache["tok"]   # 다른 스레드가 읽는 중(프롬프트 대기)
+    try:
+        if _oauth_token_cache["read"] and not force:
+            return _oauth_token_cache["tok"]
+        tok = None
+        if sys.platform == "darwin":
+            try:
+                r = subprocess.run(
+                    ["security", "find-generic-password",
+                     "-s", "Claude Code-credentials", "-w"],
+                    capture_output=True, text=True, timeout=90)
+                if r.returncode == 0 and r.stdout.strip():
+                    data = json.loads(r.stdout.strip())
+                    tok = (data.get("claudeAiOauth") or {}).get("accessToken")
+            except Exception:
+                tok = None
+        if not tok:
+            try:
+                with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
+                    data = json.load(f)
                 tok = (data.get("claudeAiOauth") or {}).get("accessToken")
-        except Exception:
-            tok = None
-    if not tok:
-        try:
-            with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
-                data = json.load(f)
-            tok = (data.get("claudeAiOauth") or {}).get("accessToken")
-        except Exception:
-            tok = None
-    _oauth_token_cache["read"] = True
-    _oauth_token_cache["tok"] = tok
-    return tok
+            except Exception:
+                tok = None
+        if tok:
+            _oauth_token_cache["read"] = True
+            _oauth_token_cache["tok"] = tok
+        else:
+            _oauth_token_cache["fails"] += 1
+            if _oauth_token_cache["fails"] >= 3:   # 반복 실패 → 이 실행에선 포기
+                _oauth_token_cache["read"] = True
+        return tok
+    finally:
+        _oauth_token_lock.release()
 
 
 def _oauth_label(key):

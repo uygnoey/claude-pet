@@ -58,6 +58,9 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
 
 ### 📝 변경 내역 / Changelog
 
+**v0.12**
+- 새로 설치했을 때 정확 모드용 키체인 허용 프롬프트가 응답하기도 전에 사라지던 문제 수정 (타임아웃 연장 + 승인 전까지 재시도)
+
 **v0.11**
 - 정확 모드(사용량) 인증서 검증 오류 수정 — 유니버설/Intel 빌드에서 정확 모드가 동작하지 않던 문제
 - Apple Silicon 전용 DMG 추가 (Intel용 `ClaudePet-universal.dmg`와 별도)
