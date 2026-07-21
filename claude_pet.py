@@ -26,9 +26,29 @@ import time
 import shutil
 import threading
 import subprocess
+import ssl
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
+
+# HTTPS 인증서 검증 — 빌드에 쓴 파이썬마다 시스템 CA 위치가 달라(특히 python.org
+# universal2 빌드는 CA 번들이 없어) 정확 모드(OAuth)·업데이트 확인 등 모든 HTTPS가
+# CERTIFICATE_VERIFY_FAILED로 죽는다. certifi 번들을 명시적으로 써서 어떤 빌드에서도
+# 검증되도록 전역 오프너를 설치한다(urlopen/urlretrieve 모두 이 컨텍스트를 사용).
+def _install_https_opener():
+    ctx = None
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        try:
+            ctx = ssl.create_default_context()
+        except Exception:
+            return
+    urllib.request.install_opener(
+        urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx)))
+
+_install_https_opener()
 
 # ──────────────────────────── 설정 ────────────────────────────
 def _default_pet_dir():

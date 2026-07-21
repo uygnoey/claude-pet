@@ -25,7 +25,8 @@ setup(
                 "LSUIElement": True,
                 "NSHighResolutionCapable": True,
             },
-            "packages": ["objc"],
+            # certifi: HTTPS 인증서 검증용 CA 번들(특히 CA 없는 python.org 빌드 대비)
+            "packages": ["objc", "certifi"],
             "includes": ["Foundation", "AppKit", "Quartz"],
             # 사용 안 하는 대형 모듈 제외해 용량 축소
             "excludes": ["test", "tkinter", "lib2to3", "pydoc_data",
