@@ -560,9 +560,10 @@ def _read_oauth_token(force=False):
     """Claude Code OAuth 토큰: macOS 키체인 → ~/.claude/.credentials.json 순.
 
     키체인 비밀값(-w) 첫 접근은 macOS "허용/항상 허용" 프롬프트를 띄우고,
-    그동안 security가 사용자 응답을 기다리며 블록된다. 사용자가 프롬프트를
-    읽고 누를 시간이 필요하므로 timeout을 넉넉히 준다(예전 5s는 프롬프트가
-    뜨자마자 죽여 새 설치에서 정확 모드가 안 켜졌다).
+    그동안 security가 사용자 응답을 기다리며 블록된다. 사용자가 언제 누르든
+    받을 수 있도록 timeout을 걸지 않는다(예전 5s는 프롬프트가 뜨자마자 죽여
+    새 설치에서 정확 모드가 안 켜졌다). 아래 non-blocking 락이 이 대기 동안
+    다른 폴링 스레드를 막지 않으므로(즉시 캐시값 반환) UI는 멈추지 않는다.
 
     성공하면 캐시해 이후 폴링에서 재조회(=프롬프트)를 막는다. 실패하면
     캐시하지 않고 다음 폴링에 재시도해 "항상 허용"을 누를 기회를 준다.
@@ -582,7 +583,7 @@ def _read_oauth_token(force=False):
                 r = subprocess.run(
                     ["security", "find-generic-password",
                      "-s", "Claude Code-credentials", "-w"],
-                    capture_output=True, text=True, timeout=90)
+                    capture_output=True, text=True)
                 if r.returncode == 0 and r.stdout.strip():
                     data = json.loads(r.stdout.strip())
                     tok = (data.get("claudeAiOauth") or {}).get("accessToken")
