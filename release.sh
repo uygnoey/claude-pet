@@ -178,6 +178,18 @@ bump_version() {
   echo "🔖 버전 업: v$NEW (커밋+태그+푸시 완료)"
 }
 
+# 릴리즈 본문 생성: 설치 안내(전체) + "변경 내역"은 현재 버전 항목만.
+# (누적 changelog 전체 대신 해당 버전만 노출) → $1에 기록.
+gen_release_notes() {
+  local ver="**v$(cur_version)**"
+  awk -v ver="$ver" '
+    function trim(s){ sub(/[ \t\r]+$/,"",s); return s }
+    !inlog && /^###/ && /변경 내역/ { print; inlog=1; keep=0; next }
+    !inlog { print; next }
+    { if (trim($0) ~ /^\*\*v[0-9]/) keep=(trim($0)==ver)?1:0; if (keep) print }
+  ' "$NOTES" > "$1"
+}
+
 publish() {
   command -v gh >/dev/null 2>&1 || {
     echo "❌ gh CLI 필요: brew install gh && gh auth login (개인 계정으로)"; exit 1; }
@@ -186,14 +198,17 @@ publish() {
   [ -f "$UZIP" ] && files+=("$UZIP")        # 유니버설 zip 있으면 같이 업로드
   [ -f "$DMG" ]  && files+=("$DMG")         # arm64 dmg
   [ -f "$UDMG" ] && files+=("$UDMG")        # 유니버설 dmg
+  local NOTES_TMP; NOTES_TMP=$(mktemp)
+  gen_release_notes "$NOTES_TMP"
   if gh release view "$TAG" >/dev/null 2>&1; then
     gh release upload "$TAG" "${files[@]}" --clobber
-    gh release edit "$TAG" --notes-file "$NOTES"   # 노트도 고정본으로 갱신
+    gh release edit "$TAG" --notes-file "$NOTES_TMP"   # 노트도 고정본으로 갱신(현재 버전만)
     echo "🚀 기존 릴리즈에 업로드: $TAG ← ${files[*]}"
   else
-    gh release create "$TAG" "${files[@]}" --title "ClaudePet $TAG" --notes-file "$NOTES"
+    gh release create "$TAG" "${files[@]}" --title "ClaudePet $TAG" --notes-file "$NOTES_TMP"
     echo "🚀 새 릴리즈 생성: $TAG ← ${files[*]}"
   fi
+  rm -f "$NOTES_TMP"
 }
 
 case "${1:-all}" in
