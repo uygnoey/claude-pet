@@ -556,19 +556,55 @@ _oauth_token_cache = {"read": False, "tok": None, "fails": 0}
 _oauth_token_lock = threading.Lock()
 
 
+def _keychain_token_native():
+    """네이티브 Security API로 'Claude Code-credentials' 키체인 항목을 읽는다.
+
+    접근 주체가 앱(ClaudePet) 자신이라, 아직 허용 안 한 새 머신에서는
+    "ClaudePet이 키체인에 접근하려 합니다" 프롬프트가 확실히 뜬다(사용자가
+    "항상 허용"하면 다음부턴 자동). security CLI를 서브프로세스로 띄우는
+    방식은 하드닝 런타임 하 새 머신에서 프롬프트가 안 뜨는 경우가 있어 이
+    네이티브 경로를 우선한다. service만으로 매칭(account=NULL).
+    반환 (status, token): 0=성공, -25300=항목없음, 그 외=거부/오류.
+    """
+    try:
+        import ctypes
+        Sec = ctypes.CDLL("/System/Library/Frameworks/Security.framework/Security")
+        Sec.SecKeychainFindGenericPassword.argtypes = [
+            ctypes.c_void_p, ctypes.c_uint32, ctypes.c_char_p,
+            ctypes.c_uint32, ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_void_p),
+            ctypes.c_void_p]
+        Sec.SecKeychainFindGenericPassword.restype = ctypes.c_int32
+        Sec.SecKeychainItemFreeContent.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        svc = b"Claude Code-credentials"
+        length = ctypes.c_uint32()
+        data = ctypes.c_void_p()
+        st = Sec.SecKeychainFindGenericPassword(
+            None, len(svc), svc, 0, None,
+            ctypes.byref(length), ctypes.byref(data), None)
+        if st != 0:
+            return st, None
+        try:
+            raw = ctypes.string_at(data.value, length.value)
+        finally:
+            Sec.SecKeychainItemFreeContent(None, data)
+        obj = json.loads(raw.decode("utf-8", "ignore"))
+        return 0, (obj.get("claudeAiOauth") or {}).get("accessToken")
+    except Exception:
+        return -1, None
+
+
 def _read_oauth_token(force=False):
-    """Claude Code OAuth 토큰: macOS 키체인 → ~/.claude/.credentials.json 순.
+    """Claude Code OAuth 토큰: 네이티브 키체인 API → security CLI → 파일 순.
 
-    키체인 비밀값(-w) 첫 접근은 macOS "허용/항상 허용" 프롬프트를 띄우고,
-    그동안 security가 사용자 응답을 기다리며 블록된다. 사용자가 언제 누르든
-    받을 수 있도록 timeout을 걸지 않는다(예전 5s는 프롬프트가 뜨자마자 죽여
-    새 설치에서 정확 모드가 안 켜졌다). 아래 non-blocking 락이 이 대기 동안
-    다른 폴링 스레드를 막지 않으므로(즉시 캐시값 반환) UI는 멈추지 않는다.
+    네이티브 API로 앱이 직접 읽어야 새 머신에서 "ClaudePet이 키체인에
+    접근하려 합니다" 프롬프트가 뜬다(사용자 "항상 허용" 후 자동). 프롬프트가
+    떠서 블록되는 동안 non-blocking 락이 다른 폴링 스레드를 막지 않아 UI는
+    멈추지 않고, timeout을 걸지 않아 사용자가 언제 누르든 받는다.
 
-    성공하면 캐시해 이후 폴링에서 재조회(=프롬프트)를 막는다. 실패하면
-    캐시하지 않고 다음 폴링에 재시도해 "항상 허용"을 누를 기회를 준다.
-    단 반복 실패(거부 등) 시 프롬프트 폭주를 막으려 몇 번 뒤 이 실행에선 포기.
-    락으로 동시에 두 번 이상 물어보지 않게 한다. 401 만료는 force=True.
+    성공하면 캐시해 이후 재조회(=프롬프트)를 막는다. 실패하면 캐시하지 않고
+    다음 폴링에 재시도해 "항상 허용"을 누를 기회를 준다. 단 반복 실패(거부 등)
+    시 프롬프트 폭주를 막으려 몇 번 뒤 이 실행에선 포기. 401 만료는 force=True.
     """
     if _oauth_token_cache["read"] and not force:
         return _oauth_token_cache["tok"]
@@ -579,16 +615,20 @@ def _read_oauth_token(force=False):
             return _oauth_token_cache["tok"]
         tok = None
         if sys.platform == "darwin":
-            try:
-                r = subprocess.run(
-                    ["security", "find-generic-password",
-                     "-s", "Claude Code-credentials", "-w"],
-                    capture_output=True, text=True)
-                if r.returncode == 0 and r.stdout.strip():
-                    data = json.loads(r.stdout.strip())
-                    tok = (data.get("claudeAiOauth") or {}).get("accessToken")
-            except Exception:
-                tok = None
+            st, tok = _keychain_token_native()
+            # 네이티브가 바인딩 오류(-1)거나 항목 못 찾음(-25300)일 때만 CLI 폴백.
+            # 사용자가 명시적으로 거부한 경우엔 CLI로 재프롬프트하지 않는다.
+            if not tok and st in (-1, -25300):
+                try:
+                    r = subprocess.run(
+                        ["security", "find-generic-password",
+                         "-s", "Claude Code-credentials", "-w"],
+                        capture_output=True, text=True)
+                    if r.returncode == 0 and r.stdout.strip():
+                        data = json.loads(r.stdout.strip())
+                        tok = (data.get("claudeAiOauth") or {}).get("accessToken")
+                except Exception:
+                    tok = None
         if not tok:
             try:
                 with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
