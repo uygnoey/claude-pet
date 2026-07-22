@@ -692,6 +692,46 @@ def _keychain_token_native():
         return -1, None
 
 
+NATIVE_WAIT_SEC = 25    # 프롬프트 응답을 이만큼만 기다린다(응답 자체엔 타임아웃 없음)
+_native_state = {"thread": None, "result": None}
+
+
+def _keychain_token_native_bounded(wait=None):
+    """네이티브 키체인 읽기를 데몬 스레드에 맡기고 wait 초만 기다린다.
+
+    왜 필요한가: 네이티브 호출은 프롬프트가 떠 있는 동안 무한 대기한다. 그런데
+    이 앱은 accessory(메뉴바 없는 백그라운드) 앱이라 SecurityAgent 패널이 다른
+    창 뒤에 가려 사용자가 못 볼 수 있다. 그러면 호출 스레드가 _oauth_token_lock을
+    영원히 쥔 채 멈추고, 이후 모든 폴링이 non-blocking acquire 실패로 즉시
+    빠져나가 next_retry조차 세우지 못한다 = 재시도 로직이 통째로 죽는다.
+
+    그래서 기다리는 쪽에만 한도를 둔다. 사용자가 10분 뒤에 '허용'을 눌러도 그
+    스레드는 살아서 결과를 _native_state에 남기고, 다음 폴링이 그걸 주워간다.
+    반환 (status, token). status가 None이면 '아직 응답 대기 중'이라는 뜻이다.
+    """
+    # 기본인자로 박으면 정의 시점에 고정돼 조정이 불가능하다 — 여기서 읽는다.
+    wait = NATIVE_WAIT_SEC if wait is None else wait
+    ns = _native_state
+    th = ns["thread"]
+    if th is None or not th.is_alive():
+        if ns["result"] is not None:        # 지난번 늦게 도착한 결과 수거
+            r, ns["result"] = ns["result"], None
+            return r
+        def work():
+            try:
+                ns["result"] = _keychain_token_native()
+            except Exception:
+                ns["result"] = (-1, None)
+        th = threading.Thread(target=work, daemon=True)
+        ns["thread"] = th
+        th.start()
+    th.join(wait)
+    if th.is_alive():
+        return None, None                  # 프롬프트 응답 대기 중 — 이번엔 넘어간다
+    r, ns["result"] = ns["result"], None
+    return r if r else (-1, None)
+
+
 def _read_oauth_token(force=False):
     """Claude Code OAuth 토큰: 파일 → 네이티브 키체인 API → security CLI 순.
 
@@ -699,7 +739,9 @@ def _read_oauth_token(force=False):
     없으면 네이티브 API로 앱이 직접 읽는데, 이때만 새 머신에서 "ClaudePet이
     키체인에 접근하려 합니다" 프롬프트가 뜬다(사용자 "항상 허용" 후 자동).
     프롬프트로 블록되는 동안 non-blocking 락이 다른 폴링 스레드를 막지 않아
-    UI는 멈추지 않고, 네이티브엔 timeout이 없어 사용자가 언제 누르든 받는다.
+    UI는 멈추지 않는다. 네이티브 호출 자체엔 timeout이 없어 사용자가 언제
+    누르든 받지만(_keychain_token_native_bounded 참고), '기다리는 쪽'은
+    NATIVE_WAIT_SEC 초로 제한해 락이 영영 물리지 않게 한다.
 
     핵심: 네이티브가 실패해도 사용자가 '직접 거부'한 게 아니면 반드시 security
     CLI로 한 번 더 시도한다. -25308/-25315 처럼 프롬프트조차 뜨지 않고 조용히
@@ -718,24 +760,35 @@ def _read_oauth_token(force=False):
         return c["tok"]
     if not force and time.time() < c["next_retry"]:
         return None                        # 재시도 쿨다운 중
+    # 1) 파일 — 무프롬프트. 락 '밖'에서 먼저 본다. 네이티브가 프롬프트 때문에
+    #    락을 쥐고 있어도 이 경로는 막히지 않아야 하기 때문.
+    #    단 force(=401 만료)면 건너뛴다. 만료된 파일 토큰을 계속 집어오면
+    #    401 → force → 같은 파일 → 401 루프에 빠진다.
+    if not force:
+        tok = _token_from_file()
+        _dbg("read_oauth: file tok?", bool(tok))
+        if tok:
+            c["tok"] = tok
+            c["next_retry"] = 0.0
+            return tok
     if not _oauth_token_lock.acquire(blocking=False):
         return c["tok"]                    # 다른 스레드가 읽는 중(프롬프트 대기)
     try:
         if c["tok"] and not force:
             return c["tok"]
         tok = None
-        # 1) 파일 — 무프롬프트. 단 force(=401 만료)면 건너뛴다. 만료된 파일 토큰을
-        #    계속 집어오면 401 → force → 같은 파일 → 401 루프에 빠지기 때문.
-        if not force:
-            tok = _token_from_file()
-            _dbg("read_oauth: file tok?", bool(tok))
-        if not tok and sys.platform == "darwin":
+        if sys.platform == "darwin":
             # 2) 네이티브 — 새 머신에서 권한을 받는 기본 경로. 프롬프트가 앱 이름
             #    (ClaudePet)으로 뜬다. 사용자가 이미 거부했으면 다시 묻지 않는다.
             st = None
             if not c["declined"]:
-                st, tok = _keychain_token_native()
+                st, tok = _keychain_token_native_bounded()
                 _dbg("read_oauth: native st", st, "tok?", bool(tok))
+                if st is None:
+                    # 프롬프트가 떠 있고 아직 응답이 없다. 실패로 처리하면 안 되고
+                    # (거부 아님), CLI로 또 물어서도 안 된다(프롬프트 두 개).
+                    c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY
+                    return None
                 if not tok and st in _SEC_DENIED:
                     c["declined"] = True   # 명시적 거부/취소만 존중
             # 3) CLI 안전망 — 네이티브가 '조용히' 실패한 모든 경우를 구제한다.
