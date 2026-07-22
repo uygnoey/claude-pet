@@ -76,6 +76,17 @@ sign() {
   dot_clean "$app" 2>/dev/null || true
   xattr -cr "$app" 2>/dev/null || true
 
+  # 키체인/TCC 프롬프트가 'Python' 대신 앱 이름으로 뜨게 — 실제 호출 주체가
+  # 번들 Python.framework라, 그 표시 이름(CFBundleName)을 ClaudePet으로 바꾼다.
+  # (서명 전 unsigned 앱에서만 수정 가능 → sign()의 코드서명 직전에 실행.
+  #  plist가 바뀌므로 아래에서 프레임워크를 다시 서명해야 sealed resource가 맞음)
+  local ip
+  while IFS= read -r ip; do
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleName ClaudePet' "$ip" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c 'Add :CFBundleName string ClaudePet' "$ip" 2>/dev/null
+  done < <(find "$app/Contents/Frameworks/Python.framework" \
+             -path "*/Resources/Info.plist" -type f 2>/dev/null)
+
   find "$app/Contents" \( -name "*.so" -o -name "*.dylib" \) -type f -print0 \
     | while IFS= read -r -d '' f; do
         codesign -f --options runtime --timestamp --entitlements "$ENT" -s "$ID" "$f" 2>/dev/null
