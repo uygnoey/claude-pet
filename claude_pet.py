@@ -733,20 +733,23 @@ def _keychain_token_native_bounded(wait=None):
 
 
 def _read_oauth_token(force=False):
-    """Claude Code OAuth 토큰: 파일 → 네이티브 키체인 API → security CLI 순.
+    """Claude Code OAuth 토큰: 파일 → security CLI → 네이티브 키체인 API 순.
 
-    파일(~/.claude/.credentials.json)을 먼저 보는 이유는 무프롬프트라서다. 거기
-    없으면 네이티브 API로 앱이 직접 읽는데, 이때만 새 머신에서 "ClaudePet이
-    키체인에 접근하려 합니다" 프롬프트가 뜬다(사용자 "항상 허용" 후 자동).
-    프롬프트로 블록되는 동안 non-blocking 락이 다른 폴링 스레드를 막지 않아
-    UI는 멈추지 않는다. 네이티브 호출 자체엔 timeout이 없어 사용자가 언제
-    누르든 받지만(_keychain_token_native_bounded 참고), '기다리는 쪽'은
-    NATIVE_WAIT_SEC 초로 제한해 락이 영영 물리지 않게 한다.
+    순서가 핵심이다. 무프롬프트로 성공하는 경로를 먼저 태우고, 프롬프트가
+    필요한 경로를 최후로 미룬다:
 
-    핵심: 네이티브가 실패해도 사용자가 '직접 거부'한 게 아니면 반드시 security
-    CLI로 한 번 더 시도한다. -25308/-25315 처럼 프롬프트조차 뜨지 않고 조용히
-    실패하는 코드가 있는데, 예전엔 이때 폴백이 없어 정확 모드가 영영 안 켜졌다
-    (= "권한 요청이 안 뜬다"는 증상의 정체).
+      1. 파일 ~/.claude/.credentials.json — 있으면 키체인을 아예 안 건드린다.
+      2. security CLI — 이 항목은 Claude Code가 `security` 로 만들기 때문에
+         항목 ACL의 신뢰 앱에 /usr/bin/security 가 있고 파티션이 "apple-tool:"
+         뿐이다. Apple 서명 툴이라 어느 머신에서든 무프롬프트로 통과한다.
+      3. 네이티브 API — 여기서만 "ClaudePet이 키체인에 접근하려 합니다"
+         프롬프트가 뜰 수 있다. Developer ID 서명인 이 앱은 파티션이 안 맞아
+         키체인 암호를 요구받고, UI를 못 띄우면 -25308로 조용히 죽기 때문에
+         1순위로 쓰면 안 된다(예전 버전이 이래서 정확 모드가 안 켜졌다).
+
+    네이티브 호출 자체엔 timeout이 없어 사용자가 언제 누르든 받지만
+    (_keychain_token_native_bounded 참고), '기다리는 쪽'은 NATIVE_WAIT_SEC
+    초로 제한해 락이 영영 물리지 않게 한다.
 
     못 읽으면 '영구 포기'하지 않고 OAUTH_TOKEN_RETRY초 뒤 다시 시도한다 —
     아직 Claude Code 인증 전이거나 키체인 허용 전이어도 나중에 인증/허용하면
@@ -778,25 +781,27 @@ def _read_oauth_token(force=False):
             return c["tok"]
         tok = None
         if sys.platform == "darwin":
-            # 2) 네이티브 — 새 머신에서 권한을 받는 기본 경로. 프롬프트가 앱 이름
-            #    (ClaudePet)으로 뜬다. 사용자가 이미 거부했으면 다시 묻지 않는다.
-            st = None
-            if not c["declined"]:
+            # 2) security CLI — 이게 1순위여야 한다. 이 키체인 항목은 Claude Code가
+            #    `security` 로 만들기 때문에 항목 ACL의 신뢰 앱 목록에 /usr/bin/security
+            #    가 들어 있고, 파티션도 "apple-tool:" 하나뿐이다. 즉 Apple 서명 툴인
+            #    security 는 어느 머신에서든 프롬프트 없이 통과한다(실측 15ms, rc=0).
+            #    반대로 Developer ID로 서명된 ClaudePet 은 파티션(teamid:...)이 안 맞아
+            #    키체인 '암호' 프롬프트를 요구하고, UI를 못 띄우면 -25308로 조용히 죽는다.
+            #    예전엔 네이티브를 앞에 뒀던 탓에, 프롬프트 없이 성공하던 유일한 경로를
+            #    뒤로 밀어내고 프롬프트가 필요한 경로를 먼저 타고 있었다.
+            tok = _token_from_cli()
+            _dbg("read_oauth: cli tok?", bool(tok))
+            # 3) 네이티브 — 최후 수단. CLI가 막힌 환경에서만 쓴다. 여기서만
+            #    "ClaudePet이 키체인에 접근하려 합니다" 프롬프트가 뜰 수 있다.
+            if not tok and not c["declined"]:
                 st, tok = _keychain_token_native_bounded()
                 _dbg("read_oauth: native st", st, "tok?", bool(tok))
                 if st is None:
-                    # 프롬프트가 떠 있고 아직 응답이 없다. 실패로 처리하면 안 되고
-                    # (거부 아님), CLI로 또 물어서도 안 된다(프롬프트 두 개).
+                    # 프롬프트가 떠 있고 아직 응답이 없다. 실패도 거부도 아니다.
                     c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY
                     return None
                 if not tok and st in _SEC_DENIED:
                     c["declined"] = True   # 명시적 거부/취소만 존중
-            # 3) CLI 안전망 — 네이티브가 '조용히' 실패한 모든 경우를 구제한다.
-            #    -25308/-25315 처럼 프롬프트조차 못 뜨는 코드가 여기 해당한다.
-            #    사용자가 직접 거부한 경우에만 건너뛴다(재차 묻지 않기 위해).
-            if not tok and not c["declined"]:
-                tok = _token_from_cli()
-                _dbg("read_oauth: cli tok?", bool(tok))
         # 4) force 로 위가 다 실패했으면 마지막으로 파일이라도 본다.
         if not tok and force:
             tok = _token_from_file()
