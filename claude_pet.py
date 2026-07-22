@@ -77,7 +77,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.15"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.16"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -167,6 +167,15 @@ TR = {
     "menu_settings": "Settings…", "menu_toggle": "Collapse/expand gauges",
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_update": "⬆︎ Install v{v}",
+    "menu_uninstall": "Uninstall completely…",
+    "unin_title": "Uninstall Claude Pet?",
+    "unin_body": ("This deletes the app and all of its settings:\n\n{items}\n\n"
+                  "Your Claude Code login and its data (~/.claude) are NOT touched.\n"
+                  "This cannot be undone."),
+    "unin_ok": "Delete", "unin_cancel": "Cancel",
+    "unin_fail": "Uninstall failed. Drag Claude Pet to the Trash manually.",
+    "unin_devmode": ("Running from source, not an installed app — nothing to "
+                     "uninstall. Settings files were removed."),
     "settings_title": "Claude Pet Settings", "s_data_source": "Data source",
     "s_mode_sub": "Subscription (Claude Code logs)", "s_mode_api": "API (Admin API cost)",
     "s_model_kw": "Model gauge keyword", "s_auto_detect": "(auto = auto-detect)",
@@ -199,6 +208,15 @@ TR = {
     "scanning": "사용량 스캔 중…",
     "menu_settings": "설정…", "menu_toggle": "게이지 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
+    "menu_uninstall": "완전 삭제…",
+    "unin_title": "Claude Pet을 완전히 삭제할까요?",
+    "unin_body": ("앱과 모든 설정을 지웁니다:\n\n{items}\n\n"
+                  "Claude Code 로그인과 데이터(~/.claude)는 건드리지 않습니다.\n"
+                  "되돌릴 수 없습니다."),
+    "unin_ok": "삭제", "unin_cancel": "취소",
+    "unin_fail": "삭제 실패. Claude Pet을 휴지통으로 직접 옮겨주세요.",
+    "unin_devmode": ("설치된 앱이 아니라 소스에서 실행 중이라 지울 앱이 없습니다. "
+                     "설정 파일은 삭제했습니다."),
     "menu_update": "⬆︎ 새 버전 v{v} 설치",
     "settings_title": "Claude Pet 설정", "s_data_source": "데이터 소스",
     "s_mode_sub": "구독 (Claude Code 로그)", "s_mode_api": "API (Admin API 비용)",
@@ -232,6 +250,15 @@ TR = {
     "scanning": "使用量をスキャン中…",
     "menu_settings": "設定…", "menu_toggle": "ゲージの折りたたみ",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
+    "menu_uninstall": "完全に削除…",
+    "unin_title": "Claude Pet を完全に削除しますか？",
+    "unin_body": ("アプリとすべての設定を削除します:\n\n{items}\n\n"
+                  "Claude Code のログインとデータ (~/.claude) には触れません。\n"
+                  "元に戻せません。"),
+    "unin_ok": "削除", "unin_cancel": "キャンセル",
+    "unin_fail": "削除に失敗しました。Claude Pet を手動でゴミ箱に移動してください。",
+    "unin_devmode": ("インストール済みアプリではなくソースから実行中のため、"
+                     "削除するアプリはありません。設定ファイルは削除しました。"),
     "menu_update": "⬆︎ 新バージョン v{v} をインストール",
     "settings_title": "Claude Pet 設定", "s_data_source": "データソース",
     "s_mode_sub": "サブスク (Claude Code ログ)", "s_mode_api": "API (Admin API コスト)",
@@ -265,6 +292,15 @@ TR = {
     "scanning": "Escaneando uso…",
     "menu_settings": "Ajustes…", "menu_toggle": "Contraer/expandir medidores",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
+    "menu_uninstall": "Desinstalar por completo…",
+    "unin_title": "¿Desinstalar Claude Pet?",
+    "unin_body": ("Se eliminarán la app y todos sus ajustes:\n\n{items}\n\n"
+                  "Tu sesión de Claude Code y sus datos (~/.claude) no se tocan.\n"
+                  "Esto no se puede deshacer."),
+    "unin_ok": "Eliminar", "unin_cancel": "Cancelar",
+    "unin_fail": "Error al desinstalar. Arrastra Claude Pet a la Papelera manualmente.",
+    "unin_devmode": ("Se está ejecutando desde el código fuente, no como app "
+                     "instalada. Se eliminaron los archivos de ajustes."),
     "menu_update": "⬆︎ Instalar v{v}",
     "settings_title": "Ajustes de Claude Pet", "s_data_source": "Fuente de datos",
     "s_mode_sub": "Suscripción (registros de Claude Code)", "s_mode_api": "API (coste de Admin API)",
@@ -563,6 +599,51 @@ _oauth_token_lock = threading.Lock()
 _SEC_ITEM_NOT_FOUND = -25300   # 항목 없음 (아직 Claude Code 로그인 전 등)
 _SEC_AUTH_FAILED = -25293      # 사용자가 프롬프트에서 '거부' 클릭
 _SEC_USER_CANCELED = -128      # 사용자가 프롬프트를 닫음(취소)
+# 아래 둘은 "프롬프트를 띄우지 못하고 조용히 실패"하는 코드다. 사용자가 거부한 게
+# 아니므로 반드시 CLI 폴백으로 구제해야 한다. 이걸 거부와 같이 취급해 폴백을
+# 막아버린 게 "새 머신에서 권한 요청이 아예 안 뜨고 정확 모드가 안 되던" 원인.
+_SEC_INTERACTION_NOT_ALLOWED = -25308
+_SEC_INTERACTION_REQUIRED = -25315
+# 사용자가 명시적으로 거부/취소한 경우에만 재프롬프트를 자제한다.
+_SEC_DENIED = (_SEC_AUTH_FAILED, _SEC_USER_CANCELED)
+
+
+def _dbg(*a):
+    """CLAUDE_PET_DEBUG=1 이면 ~/claudepet_debug.log 에 한 줄 기록.
+    새 머신에서 정확 모드가 왜 실패하는지 추측 대신 데이터로 잡기 위한 계측."""
+    if not os.environ.get("CLAUDE_PET_DEBUG"):
+        return
+    try:
+        with open(os.path.expanduser("~/claudepet_debug.log"), "a") as f:
+            f.write("%.3f " % time.time() + " ".join(str(x) for x in a) + "\n")
+    except Exception:
+        pass
+
+
+def _token_from_file():
+    """~/.claude/.credentials.json (일부 설치는 키체인 대신 파일에 저장) — 무프롬프트."""
+    try:
+        with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
+            return (json.load(f).get("claudeAiOauth") or {}).get("accessToken")
+    except Exception:
+        return None
+
+
+def _token_from_cli():
+    """security CLI로 키체인 읽기 — 이미 허용된 머신이면 조용히 성공.
+    네이티브가 프롬프트조차 못 띄우고 실패하는 환경의 안전망이다.
+    앱이 멈추지 않도록 timeout을 둔다(프롬프트가 뜨면 CLI는 그대로 대기하므로)."""
+    try:
+        r = subprocess.run(
+            ["security", "find-generic-password",
+             "-s", "Claude Code-credentials", "-w"],
+            capture_output=True, text=True, timeout=60)
+        if r.returncode == 0 and r.stdout.strip():
+            return (json.loads(r.stdout.strip())
+                    .get("claudeAiOauth") or {}).get("accessToken")
+    except Exception:
+        pass
+    return None
 
 
 def _keychain_token_native():
@@ -585,6 +666,14 @@ def _keychain_token_native():
             ctypes.c_void_p]
         Sec.SecKeychainFindGenericPassword.restype = ctypes.c_int32
         Sec.SecKeychainItemFreeContent.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        # 이 프로세스에서 키체인 UI를 띄우는 걸 명시적으로 허용한다. 기본값은 보통
+        # 허용이지만, 꺼져 있으면 프롬프트 없이 -25308로 조용히 실패한다.
+        try:
+            Sec.SecKeychainSetUserInteractionAllowed.argtypes = [ctypes.c_bool]
+            Sec.SecKeychainSetUserInteractionAllowed.restype = ctypes.c_int32
+            Sec.SecKeychainSetUserInteractionAllowed(True)
+        except Exception:
+            pass
         svc = b"Claude Code-credentials"
         length = ctypes.c_uint32()
         data = ctypes.c_void_p()
@@ -604,19 +693,25 @@ def _keychain_token_native():
 
 
 def _read_oauth_token(force=False):
-    """Claude Code OAuth 토큰: 네이티브 키체인 API → security CLI → 파일 순.
+    """Claude Code OAuth 토큰: 파일 → 네이티브 키체인 API → security CLI 순.
 
-    네이티브 API로 앱이 직접 읽어야 새 머신에서 "ClaudePet이 키체인에
-    접근하려 합니다" 프롬프트가 뜬다(사용자 "항상 허용" 후 자동). 프롬프트가
-    떠서 블록되는 동안 non-blocking 락이 다른 폴링 스레드를 막지 않아 UI는
-    멈추지 않고, timeout을 걸지 않아 사용자가 언제 누르든 받는다.
+    파일(~/.claude/.credentials.json)을 먼저 보는 이유는 무프롬프트라서다. 거기
+    없으면 네이티브 API로 앱이 직접 읽는데, 이때만 새 머신에서 "ClaudePet이
+    키체인에 접근하려 합니다" 프롬프트가 뜬다(사용자 "항상 허용" 후 자동).
+    프롬프트로 블록되는 동안 non-blocking 락이 다른 폴링 스레드를 막지 않아
+    UI는 멈추지 않고, 네이티브엔 timeout이 없어 사용자가 언제 누르든 받는다.
 
-    성공하면 캐시해 이후 재조회(=프롬프트)를 막는다. 못 읽으면 '영구 포기'하지
-    않고 OAUTH_TOKEN_RETRY초 뒤 다시 시도한다 — 새로 설치/업데이트해 아직
-    Claude Code 인증 전이거나(항목 없음) 키체인 허용 전이어도, 나중에
-    인증/허용하면 재시작 없이 정확 모드로 자동 복구된다. 사용자가 프롬프트에서
-    명시적으로 '거부'하면(declined) 그 실행 동안 키체인 재프롬프트는 하지 않되
-    파일 폴백은 계속 시도한다. 401 만료 시엔 force=True로 즉시 재조회.
+    핵심: 네이티브가 실패해도 사용자가 '직접 거부'한 게 아니면 반드시 security
+    CLI로 한 번 더 시도한다. -25308/-25315 처럼 프롬프트조차 뜨지 않고 조용히
+    실패하는 코드가 있는데, 예전엔 이때 폴백이 없어 정확 모드가 영영 안 켜졌다
+    (= "권한 요청이 안 뜬다"는 증상의 정체).
+
+    못 읽으면 '영구 포기'하지 않고 OAUTH_TOKEN_RETRY초 뒤 다시 시도한다 —
+    아직 Claude Code 인증 전이거나 키체인 허용 전이어도 나중에 인증/허용하면
+    재시작 없이 정확 모드로 자동 복구된다. 사용자가 명시적으로 '거부'하면
+    (declined) 그 실행 동안 키체인은 다시 묻지 않는다.
+    401 만료 시엔 force=True — 이땐 만료된 파일 토큰을 다시 집어 무한루프에
+    빠지지 않도록 파일을 건너뛰고 키체인부터 읽는다.
     """
     c = _oauth_token_cache
     if c["tok"] and not force:
@@ -629,34 +724,35 @@ def _read_oauth_token(force=False):
         if c["tok"] and not force:
             return c["tok"]
         tok = None
-        if sys.platform == "darwin" and not c["declined"]:
-            st, tok = _keychain_token_native()
-            if not tok and st in (_SEC_AUTH_FAILED, _SEC_USER_CANCELED):
-                # 사용자가 프롬프트에서 거부/취소 → 이 실행 동안 키체인 재프롬프트 금지
-                c["declined"] = True
-            elif not tok and st in (-1, _SEC_ITEM_NOT_FOUND):
-                # 바인딩 오류(-1)/항목 없음(-25300)일 때만 CLI 폴백 (거부는 아님)
-                try:
-                    r = subprocess.run(
-                        ["security", "find-generic-password",
-                         "-s", "Claude Code-credentials", "-w"],
-                        capture_output=True, text=True)
-                    if r.returncode == 0 and r.stdout.strip():
-                        data = json.loads(r.stdout.strip())
-                        tok = (data.get("claudeAiOauth") or {}).get("accessToken")
-                except Exception:
-                    tok = None
-        if not tok:
-            try:
-                with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
-                    data = json.load(f)
-                tok = (data.get("claudeAiOauth") or {}).get("accessToken")
-            except Exception:
-                tok = None
+        # 1) 파일 — 무프롬프트. 단 force(=401 만료)면 건너뛴다. 만료된 파일 토큰을
+        #    계속 집어오면 401 → force → 같은 파일 → 401 루프에 빠지기 때문.
+        if not force:
+            tok = _token_from_file()
+            _dbg("read_oauth: file tok?", bool(tok))
+        if not tok and sys.platform == "darwin":
+            # 2) 네이티브 — 새 머신에서 권한을 받는 기본 경로. 프롬프트가 앱 이름
+            #    (ClaudePet)으로 뜬다. 사용자가 이미 거부했으면 다시 묻지 않는다.
+            st = None
+            if not c["declined"]:
+                st, tok = _keychain_token_native()
+                _dbg("read_oauth: native st", st, "tok?", bool(tok))
+                if not tok and st in _SEC_DENIED:
+                    c["declined"] = True   # 명시적 거부/취소만 존중
+            # 3) CLI 안전망 — 네이티브가 '조용히' 실패한 모든 경우를 구제한다.
+            #    -25308/-25315 처럼 프롬프트조차 못 뜨는 코드가 여기 해당한다.
+            #    사용자가 직접 거부한 경우에만 건너뛴다(재차 묻지 않기 위해).
+            if not tok and not c["declined"]:
+                tok = _token_from_cli()
+                _dbg("read_oauth: cli tok?", bool(tok))
+        # 4) force 로 위가 다 실패했으면 마지막으로 파일이라도 본다.
+        if not tok and force:
+            tok = _token_from_file()
         if tok:
             c["tok"] = tok
+            c["next_retry"] = 0.0
         else:
             c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY   # 나중에 다시 시도
+        _dbg("read_oauth: final tok?", bool(tok), "declined?", c["declined"])
         return tok
     finally:
         _oauth_token_lock.release()
@@ -1024,6 +1120,80 @@ def install_github_update(zip_url):
         return False
 
 
+# ─────────────────── 클린 삭제(완전 제거) ───────────────────
+# 지우는 건 "ClaudePet이 만든 것"뿐이다. 절대 건드리지 않는 것:
+#   ~/.claude/            Claude Code 본체의 설정·자격증명 (이름이 비슷하지만 남의 것)
+#   키체인 "Claude Code-credentials"  ClaudePet은 읽기만 한다. 지우면 사용자가
+#                                     Claude Code에서 로그아웃돼 버린다.
+# ~/.claude_pet.json 과 ~/.claude/ 는 완전히 다른 경로다. 혼동 금지.
+UNINSTALL_PATHS = (
+    CONFIG_PATH,                                                    # ~/.claude_pet.json
+    "~/claudepet_debug.log",
+    "~/Library/Preferences/me.yeongyu.claudepet.plist",
+    "~/Library/Saved Application State/me.yeongyu.claudepet.savedState",
+    "~/Library/Caches/me.yeongyu.claudepet",
+)
+
+
+def uninstall_targets():
+    """실제로 존재하는 삭제 대상만 추린다(확인창 표시용 겸 삭제용)."""
+    out = []
+    for p in UNINSTALL_PATHS:
+        p = os.path.expanduser(p)
+        if os.path.lexists(p):
+            out.append(p)
+    return out
+
+
+def app_bundle_path():
+    """설치된 ClaudePet.app 번들 경로. 아니면 None.
+
+    소스에서 직접 실행하면(개발 모드) NSBundle은 파이썬 자신의 번들
+    (예: .../Resources/Python.app)을 돌려준다 — '.app으로 끝나는가'만 보면
+    사용자의 파이썬 설치본을 지우는 사고가 난다. 그래서 번들 식별자까지
+    확인한다. 이 검사를 통과하지 못하면 아무것도 지우지 않는다.
+    """
+    try:
+        from Foundation import NSBundle
+        b = NSBundle.mainBundle()
+        p = str(b.bundlePath() or "")
+        bid = str(b.bundleIdentifier() or "")
+    except Exception:
+        return None
+    if bid != "me.yeongyu.claudepet":        # ← 가장 중요한 가드
+        return None
+    if not p.endswith(".app") or os.path.basename(p) != "ClaudePet.app":
+        return None
+    if not os.path.isdir(p) or os.path.islink(p):
+        return None
+    return p
+
+
+def do_uninstall():
+    """설정 파일 삭제 + (설치본이면) 앱 번들 삭제 예약.
+    반환 (앱_삭제_예약됨, 오류메시지). True면 호출자가 즉시 종료해야 한다."""
+    for p in uninstall_targets():
+        try:
+            if os.path.isdir(p) and not os.path.islink(p):
+                shutil.rmtree(p, ignore_errors=True)
+            else:
+                os.remove(p)
+        except Exception:
+            pass
+    app = app_bundle_path()
+    if not app:
+        return False, None      # 개발 모드 — 지울 앱 없음(설정만 지움)
+    import shlex
+    # 실행 중인 자기 번들은 스스로 지울 수 없다. 분리된 셸이 종료를 기다렸다 지운다.
+    # app 은 위 검증(번들ID + 이름 + 실디렉터리)을 통과한 경로만 들어온다.
+    sh = f"sleep 2; /bin/rm -rf {shlex.quote(app)}"
+    try:
+        subprocess.Popen(["/bin/sh", "-c", sh])
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
 # ─────────────────────── 유틸 ───────────────────────
 
 def fmt_tokens(n):
@@ -1122,6 +1292,7 @@ def run_gui():
             NSApplication, NSWindow, NSPanel, NSView, NSColor, NSImage, NSFont,
             NSBezierPath, NSMakeRect, NSMakePoint, NSScreen, NSTimer, NSEvent,
             NSMenu, NSMenuItem, NSTextField, NSSecureTextField, NSPopUpButton,
+            NSAlert,
             NSButton, NSWindowStyleMaskBorderless, NSWindowStyleMaskTitled,
             NSWindowStyleMaskClosable, NSBackingStoreBuffered,
             NSFontAttributeName, NSForegroundColorAttributeName,
@@ -1207,7 +1378,11 @@ def run_gui():
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
-             "hover": False, "update": None}
+             "hover": False, "update": None,
+             # 새로고침 워커(백그라운드 스레드)가 stats/oauth를 갱신한 뒤 세우는 플래그.
+             # AppKit 뷰를 워커에서 직접 건드리면 안 되므로, 메인 스레드인 tick_이
+             # 이 플래그를 보고 다시 그린다(TICK=0.05초 → 최대 50ms 지연).
+             "repaint": False}
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
 
@@ -1546,6 +1721,7 @@ def run_gui():
                                   (t("menu_toggle"), "togglePanel:"),
                                   (t("menu_reset_size"), "resetScale:"),
                                   (None, None),
+                                  (t("menu_uninstall"), "uninstallApp:"),
                                   (t("menu_quit"), "quitApp:")):
                 if title is None:
                     menu.addItem_(NSMenuItem.separatorItem())
@@ -1791,8 +1967,13 @@ def run_gui():
                                 ("cm", "opus", "opus_limit")):
             pct = num(ui[fld], 0)
             used = s[gkey]["used"]
+            # pct는 0 초과 100 이하만 유효. 100을 넘겨 입력하면 한도가 사용량보다
+            # 작아져 게이지가 100%에 박히므로 잘라낸다.
             if pct > 0 and used > 0:
-                cfg[ckey] = max(int(used * 100 / pct), used)
+                cfg[ckey] = int(max(used * 100.0 / min(pct, 100.0), used))
+            # 적용한 값은 비운다 — 창을 X로 닫으면 패널이 재사용되는데, 남아 있던
+            # %가 다음 저장 때 다시 적용돼 한도가 엉뚱하게 덮어써졌다.
+            ui[fld].setStringValue_("")
         apply_config(cfg)
         save_config(cfg)
         _oauth_cache["t"] = 0.0   # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
@@ -1815,6 +1996,35 @@ def run_gui():
 
         def quitApp_(self, sender):
             NSApplication.sharedApplication().terminate_(None)
+
+        def uninstallApp_(self, sender):
+            app = app_bundle_path()
+            items = list(uninstall_targets())
+            if app:
+                items.insert(0, app)
+            home = os.path.expanduser("~")
+            shown = "\n".join(
+                "  • " + (p.replace(home, "~", 1) if p.startswith(home) else p)
+                for p in items) or "  • (없음 / none)"
+            a = NSAlert.alloc().init()
+            a.setMessageText_(t("unin_title"))
+            a.setInformativeText_(t("unin_body", items=shown))
+            # 첫 버튼이 기본값이 되므로 '취소'를 먼저 넣어, 엔터 연타로
+            # 실수로 지워지는 일이 없게 한다.
+            a.addButtonWithTitle_(t("unin_cancel"))
+            a.addButtonWithTitle_(t("unin_ok"))
+            a.setAlertStyle_(2)                      # NSAlertStyleCritical
+            NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+            if a.runModal() != 1001:                 # 1001 = 두 번째 버튼(삭제)
+                return
+            quitting, err = do_uninstall()
+            if quitting:
+                NSApplication.sharedApplication().terminate_(None)
+                return
+            b = NSAlert.alloc().init()
+            b.setMessageText_(t("unin_title"))
+            b.setInformativeText_(t("unin_fail") if err else t("unin_devmode"))
+            b.runModal()
 
         def doUpdate_(self, sender):
             upd = state.get("update")
@@ -1893,26 +2103,38 @@ def run_gui():
 
             if spike_info(state["stats"]):
                 dirty = True
+            # 새로고침 워커가 값을 갱신했으면 반드시 다시 그린다. 이게 없으면
+            # 쉬는 동안(resting) 위 분기들이 dirty를 세우지 않아, 새 사용량이
+            # 들어와도 최대 rest 시간(idle 기준 25초)까지 화면이 멈춰 있었다.
+            # 보정(%) 입력이 "저장해도 반영 안 됨"으로 보이던 원인.
+            if state["repaint"]:
+                state["repaint"] = False
+                dirty = True
             if dirty:
                 view.setNeedsDisplay_(True)
 
         def refresh_(self, timer):
             def work():
-                s = compute_usage()
-                prev = state["stats"]
-                state["stats"] = s
-                state["oauth"] = fetch_exact_usage()   # 정확 모드 (180s 캐시)
-                state["cost"] = fetch_api_cost_today()
-                if RUNTIME["mode"] == "api":
-                    state["cost_month"] = fetch_api_cost_month()
-                if prev and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
-                    set_override("jumping")
-                # 주기적 새 버전 확인 (오래 실행돼도 감지)
-                if not state.get("update") and time.time() - _upd_cache["t"] > UPDATE_CHECK_SEC:
-                    _upd_cache["t"] = time.time()
-                    u = check_github_update()
-                    if u:
-                        state["update"] = u
+                try:
+                    s = compute_usage()
+                    prev = state["stats"]
+                    state["stats"] = s
+                    state["oauth"] = fetch_exact_usage()   # 정확 모드 (180s 캐시)
+                    state["cost"] = fetch_api_cost_today()
+                    if RUNTIME["mode"] == "api":
+                        state["cost_month"] = fetch_api_cost_month()
+                    if prev and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
+                        set_override("jumping")
+                    # 주기적 새 버전 확인 (오래 실행돼도 감지)
+                    if not state.get("update") and time.time() - _upd_cache["t"] > UPDATE_CHECK_SEC:
+                        _upd_cache["t"] = time.time()
+                        u = check_github_update()
+                        if u:
+                            state["update"] = u
+                finally:
+                    # 값이 바뀌었으니 메인 스레드에 다시 그리라고 알린다.
+                    # 중간에 예외가 나도 이미 갱신된 부분은 반영되도록 finally.
+                    state["repaint"] = True
             threading.Thread(target=work, daemon=True).start()
 
     # ── 앱/윈도우 ──
