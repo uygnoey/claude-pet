@@ -549,11 +549,20 @@ def fetch_api_cost_month():
 
 OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
+OAUTH_TOKEN_RETRY = 120   # 토큰 못 읽었을 때 재시도 간격(초)
 _oauth_cache = {"t": 0.0, "gauges": None}
 # 토큰은 성공 시 메모리에 캐시 — 재조회 시 macOS 허용 프롬프트가 반복되기 때문.
 # 만료(401)로 실패할 때만 force=True로 다시 읽는다.
-_oauth_token_cache = {"read": False, "tok": None, "fails": 0}
+# 못 읽으면 "포기"하지 않고 next_retry 이후 다시 시도한다 → 새로 설치/업데이트해
+# 아직 Claude Code 인증 전이거나 키체인 허용 전이어도, 나중에 인증/허용하면
+# 재시작 없이 정확 모드로 자동 복구된다. declined=사용자가 명시적으로 거부.
+_oauth_token_cache = {"tok": None, "next_retry": 0.0, "declined": False}
 _oauth_token_lock = threading.Lock()
+
+# 키체인 API 상태 코드 (Security.framework)
+_SEC_ITEM_NOT_FOUND = -25300   # 항목 없음 (아직 Claude Code 로그인 전 등)
+_SEC_AUTH_FAILED = -25293      # 사용자가 프롬프트에서 '거부' 클릭
+_SEC_USER_CANCELED = -128      # 사용자가 프롬프트를 닫음(취소)
 
 
 def _keychain_token_native():
@@ -602,23 +611,31 @@ def _read_oauth_token(force=False):
     떠서 블록되는 동안 non-blocking 락이 다른 폴링 스레드를 막지 않아 UI는
     멈추지 않고, timeout을 걸지 않아 사용자가 언제 누르든 받는다.
 
-    성공하면 캐시해 이후 재조회(=프롬프트)를 막는다. 실패하면 캐시하지 않고
-    다음 폴링에 재시도해 "항상 허용"을 누를 기회를 준다. 단 반복 실패(거부 등)
-    시 프롬프트 폭주를 막으려 몇 번 뒤 이 실행에선 포기. 401 만료는 force=True.
+    성공하면 캐시해 이후 재조회(=프롬프트)를 막는다. 못 읽으면 '영구 포기'하지
+    않고 OAUTH_TOKEN_RETRY초 뒤 다시 시도한다 — 새로 설치/업데이트해 아직
+    Claude Code 인증 전이거나(항목 없음) 키체인 허용 전이어도, 나중에
+    인증/허용하면 재시작 없이 정확 모드로 자동 복구된다. 사용자가 프롬프트에서
+    명시적으로 '거부'하면(declined) 그 실행 동안 키체인 재프롬프트는 하지 않되
+    파일 폴백은 계속 시도한다. 401 만료 시엔 force=True로 즉시 재조회.
     """
-    if _oauth_token_cache["read"] and not force:
-        return _oauth_token_cache["tok"]
+    c = _oauth_token_cache
+    if c["tok"] and not force:
+        return c["tok"]
+    if not force and time.time() < c["next_retry"]:
+        return None                        # 재시도 쿨다운 중
     if not _oauth_token_lock.acquire(blocking=False):
-        return _oauth_token_cache["tok"]   # 다른 스레드가 읽는 중(프롬프트 대기)
+        return c["tok"]                    # 다른 스레드가 읽는 중(프롬프트 대기)
     try:
-        if _oauth_token_cache["read"] and not force:
-            return _oauth_token_cache["tok"]
+        if c["tok"] and not force:
+            return c["tok"]
         tok = None
-        if sys.platform == "darwin":
+        if sys.platform == "darwin" and not c["declined"]:
             st, tok = _keychain_token_native()
-            # 네이티브가 바인딩 오류(-1)거나 항목 못 찾음(-25300)일 때만 CLI 폴백.
-            # 사용자가 명시적으로 거부한 경우엔 CLI로 재프롬프트하지 않는다.
-            if not tok and st in (-1, -25300):
+            if not tok and st in (_SEC_AUTH_FAILED, _SEC_USER_CANCELED):
+                # 사용자가 프롬프트에서 거부/취소 → 이 실행 동안 키체인 재프롬프트 금지
+                c["declined"] = True
+            elif not tok and st in (-1, _SEC_ITEM_NOT_FOUND):
+                # 바인딩 오류(-1)/항목 없음(-25300)일 때만 CLI 폴백 (거부는 아님)
                 try:
                     r = subprocess.run(
                         ["security", "find-generic-password",
@@ -637,12 +654,9 @@ def _read_oauth_token(force=False):
             except Exception:
                 tok = None
         if tok:
-            _oauth_token_cache["read"] = True
-            _oauth_token_cache["tok"] = tok
+            c["tok"] = tok
         else:
-            _oauth_token_cache["fails"] += 1
-            if _oauth_token_cache["fails"] >= 3:   # 반복 실패 → 이 실행에선 포기
-                _oauth_token_cache["read"] = True
+            c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY   # 나중에 다시 시도
         return tok
     finally:
         _oauth_token_lock.release()
