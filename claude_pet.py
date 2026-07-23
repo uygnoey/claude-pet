@@ -77,7 +77,7 @@ PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.16"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.17"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -164,6 +164,13 @@ TR = {
     "need_admin_key": "Right-click → Settings to enter an Admin API key",
     "need_budget": "Set a monthly budget ($) in Settings to see this gauge",
     "scanning": "Scanning usage…",
+    "onb_install": "Claude Code not installed",
+    "onb_login": "Claude Code — sign-in needed",
+    "menu_install_cc": "⬇︎ Install Claude Code…",
+    "menu_login_cc": "🔑 Sign in to Claude Code…",
+    "term_installing": "▶ Installing Claude Code…",
+    "term_login": "▶ Signing in — a browser will open, please log in.",
+    "term_done": "✅ Done. You can close this window; Claude Pet will show usage shortly.",
     "menu_settings": "Settings…", "menu_toggle": "Collapse/expand gauges",
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_update": "⬆︎ Install v{v}",
@@ -206,6 +213,13 @@ TR = {
     "need_admin_key": "우클릭 → 설정에서 Admin API 키를 입력하세요",
     "need_budget": "설정에서 월 예산($)을 넣으면 게이지가 생겨요",
     "scanning": "사용량 스캔 중…",
+    "onb_install": "Claude Code 미설치",
+    "onb_login": "Claude Code 로그인 필요",
+    "menu_install_cc": "⬇︎ Claude Code 설치…",
+    "menu_login_cc": "🔑 Claude Code 로그인…",
+    "term_installing": "▶ Claude Code를 설치합니다…",
+    "term_login": "▶ 로그인합니다 — 브라우저가 열리면 로그인하세요.",
+    "term_done": "✅ 완료됐습니다. 이 창은 닫아도 되며, 곧 Claude Pet에 사용량이 표시됩니다.",
     "menu_settings": "설정…", "menu_toggle": "게이지 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_uninstall": "완전 삭제…",
@@ -248,6 +262,13 @@ TR = {
     "need_admin_key": "右クリック → 設定で Admin API キーを入力してください",
     "need_budget": "設定で月次予算($)を入れるとゲージが出ます",
     "scanning": "使用量をスキャン中…",
+    "onb_install": "Claude Code 未インストール",
+    "onb_login": "Claude Code ログインが必要",
+    "menu_install_cc": "⬇︎ Claude Code をインストール…",
+    "menu_login_cc": "🔑 Claude Code にログイン…",
+    "term_installing": "▶ Claude Code をインストールします…",
+    "term_login": "▶ ログインします — ブラウザが開いたらログインしてください。",
+    "term_done": "✅ 完了しました。このウィンドウは閉じて構いません。まもなく使用量が表示されます。",
     "menu_settings": "設定…", "menu_toggle": "ゲージの折りたたみ",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_uninstall": "完全に削除…",
@@ -290,6 +311,13 @@ TR = {
     "need_admin_key": "Clic derecho → Ajustes para introducir una clave de Admin API",
     "need_budget": "Pon un presupuesto mensual ($) en Ajustes para ver este medidor",
     "scanning": "Escaneando uso…",
+    "onb_install": "Claude Code no instalado",
+    "onb_login": "Claude Code: inicia sesión",
+    "menu_install_cc": "⬇︎ Instalar Claude Code…",
+    "menu_login_cc": "🔑 Iniciar sesión en Claude Code…",
+    "term_installing": "▶ Instalando Claude Code…",
+    "term_login": "▶ Iniciando sesión — se abrirá el navegador, inicia sesión.",
+    "term_done": "✅ Listo. Puedes cerrar esta ventana; Claude Pet mostrará el uso en breve.",
     "menu_settings": "Ajustes…", "menu_toggle": "Contraer/expandir medidores",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_uninstall": "Desinstalar por completo…",
@@ -1008,12 +1036,86 @@ def _fetch_oauth_usage():
 
 
 def _find_claude_cli():
+    # ~/.local/bin/claude 가 네이티브 설치 기본 위치다. Finder로 띄운 앱은 PATH가
+    # 최소(/usr/bin:/bin 등)라 shutil.which 가 이걸 못 찾으므로 명시적으로 넣는다.
     for p in (shutil.which("claude"),
+              os.path.expanduser("~/.local/bin/claude"),
               os.path.expanduser("~/.claude/local/claude"),
               "/opt/homebrew/bin/claude", "/usr/local/bin/claude"):
         if p and os.path.exists(p):
             return p
     return None
+
+
+def _has_claude_logs():
+    """사용 로그가 하나라도 있으면 True (있으면 로그 추정 모드가 동작하므로 온보딩 불필요)."""
+    for _ in _iter_log_files():
+        return True
+    return False
+
+
+CLAUDE_INSTALL_URL = "https://claude.ai/install.sh"   # Anthropic 공식(홈 디렉터리 설치)
+
+
+def compute_onboard_state(oauth, stats_have_logs):
+    """구독 모드에서 온보딩이 필요한지 판정. 반환: None | 'install' | 'login'.
+
+    - API 모드: Claude Code 불필요 → None.
+    - 이미 쓸 데이터가 있으면(정확 모드 토큰 or 로그) → None.
+    - claude 실행 파일이 없으면 'install', 있으면(로그인만 필요) 'login'.
+    """
+    forced = os.environ.get("CLAUDE_PET_FORCE_ONBOARD")   # 시각 테스트용: install|login
+    if forced in ("install", "login"):
+        return forced
+    if RUNTIME.get("mode") == "api":
+        return None
+    if oauth or stats_have_logs:
+        return None
+    return "login" if _find_claude_cli() else "install"
+
+
+def _run_in_terminal(cmd):
+    """새 Terminal 창에서 cmd(bash)를 실행한다.
+
+    .command 임시 파일을 열어 띄운다. osascript 로 Terminal 을 제어하는 방식은
+    '터미널을 제어하려 합니다' 자동화 권한을 또 물어보므로, 그 프롬프트가 없는
+    파일 열기 방식을 쓴다. Terminal 은 로그인 셸로 열려 ~/.local/bin 이 PATH에
+    들어오므로 방금 설치한 claude 도 바로 잡힌다. 스크립트는 끝나면 자신을 지운다.
+    """
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=".command", prefix="claudepet-")
+    with os.fdopen(fd, "w") as f:
+        f.write("#!/bin/bash\n" + cmd + '\nrm -f -- "$0"\n')
+    os.chmod(path, 0o755)
+    subprocess.Popen(["/usr/bin/open", "-a", "Terminal", path])
+
+
+def start_claude_install():
+    """Claude Code 설치 → 이어서 로그인까지 Terminal 에서 진행."""
+    q = lambda x: json.dumps(x, ensure_ascii=False)  # bash 안전 인용(한글 유지)
+    cmd = (
+        f"echo {q(t('term_installing'))}\n"
+        f"curl -fsSL {CLAUDE_INSTALL_URL} | bash\n"
+        "echo\n"
+        f"echo {q(t('term_login'))}\n"
+        '"$HOME/.local/bin/claude" auth login\n'
+        "echo\n"
+        f"echo {q(t('term_done'))}\n"
+    )
+    _run_in_terminal(cmd)
+
+
+def start_claude_login():
+    """설치돼 있으나 로그인만 필요한 경우."""
+    binp = _find_claude_cli() or os.path.expanduser("~/.local/bin/claude")
+    q = lambda x: json.dumps(x, ensure_ascii=False)
+    cmd = (
+        f"echo {q(t('term_login'))}\n"
+        f"{q(binp)} auth login\n"
+        "echo\n"
+        f"echo {q(t('term_done'))}\n"
+    )
+    _run_in_terminal(cmd)
 
 
 _CLI_LINE = re.compile(
@@ -1437,6 +1539,9 @@ def run_gui():
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
              "hover": False, "update": None,
+             # 구독 모드인데 Claude Code 데이터가 전혀 없을 때: None|'install'|'login'.
+             # refresh 워커가 매 주기 갱신한다(아래 compute_onboard_state).
+             "onboard": None,
              # 새로고침 워커(백그라운드 스레드)가 stats/oauth를 갱신한 뒤 세우는 플래그.
              # AppKit 뷰를 워커에서 직접 건드리면 안 되므로, 메인 스레드인 tick_이
              # 이 플래그를 보고 다시 그린다(TICK=0.05초 → 최대 50ms 지연).
@@ -1593,6 +1698,18 @@ def run_gui():
             hint = astr(t("need_budget"), F_TINY)
             hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry + 2))
 
+    def draw_onboard_pill(gx0, gy0, kind):
+        """Claude Code 미설치/미로그인 안내. 이유 한 줄 + '우클릭' 힌트 한 줄."""
+        reason = t("onb_install") if kind == "install" else t("onb_login")
+        hint = t("menu_install_cc") if kind == "install" else t("menu_login_cc")
+        cy = gy0 + pill_h() / 2
+        r = astr(reason, F_BOLD)         # 이유(굵게) 위, 실행 힌트(작게) 아래
+        rs = r.size()
+        r.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - rs.width) / 2, cy - rs.height - 1))
+        h = astr(hint, F_SUB)
+        hs = h.size()
+        h.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - hs.width) / 2, cy + 3))
+
     def draw_status_line(gx0, gy0):
         """필 하단 한 줄: 왼쪽=모드, 오른쪽=버전 (겹침 없이 깔끔하게)."""
         if RUNTIME["mode"] == "api":
@@ -1674,6 +1791,9 @@ def run_gui():
                     draw_api_pill(gx0, gy0)
                 elif state["oauth"]:
                     draw_exact_pill(gx0, gy0, state["oauth"])  # 정확 모드
+                elif state.get("onboard"):
+                    # stats 는 항상 truthy(0% 딕셔너리)라 stats 분기보다 먼저 와야 한다.
+                    draw_onboard_pill(gx0, gy0, state["onboard"])
                 elif stats:
                     draw_sub_pill(gx0, gy0, stats)
                 else:
@@ -1681,7 +1801,7 @@ def run_gui():
                     ms = m.size()
                     m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
                                                gy0 + (pill_h() - ms.height) / 2))
-                if stats or state["oauth"]:
+                if (stats or state["oauth"]) and not state.get("onboard"):
                     draw_status_line(gx0, gy0)   # 하단: 모드 + 버전
 
             # ── 펫 ──
@@ -1798,6 +1918,16 @@ def run_gui():
             if upd:   # 새 버전 있으면 최상단에 설치 항목
                 top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_update", v=upd[0]), "doUpdate:", "")
+                top.setTarget_(handler)
+                menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
+                menu.insertItem_atIndex_(top, 0)
+            ob = state.get("onboard")
+            if ob:   # Claude Code 없으면 최상단에 설치/로그인 항목
+                title, action = ((t("menu_install_cc"), "installClaude:")
+                                 if ob == "install"
+                                 else (t("menu_login_cc"), "loginClaude:"))
+                top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    title, action, "")
                 top.setTarget_(handler)
                 menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
                 menu.insertItem_atIndex_(top, 0)
@@ -2055,6 +2185,13 @@ def run_gui():
         def quitApp_(self, sender):
             NSApplication.sharedApplication().terminate_(None)
 
+        def installClaude_(self, sender):
+            # Terminal 에서 설치+로그인. 끝나면 다음 refresh 가 자동으로 감지한다.
+            start_claude_install()
+
+        def loginClaude_(self, sender):
+            start_claude_login()
+
         def uninstallApp_(self, sender):
             app = app_bundle_path()
             items = list(uninstall_targets())
@@ -2181,6 +2318,9 @@ def run_gui():
                     state["cost"] = fetch_api_cost_today()
                     if RUNTIME["mode"] == "api":
                         state["cost_month"] = fetch_api_cost_month()
+                    # Claude Code 데이터가 전혀 없으면 온보딩(설치/로그인) 안내.
+                    state["onboard"] = compute_onboard_state(
+                        state["oauth"], _has_claude_logs())
                     if prev and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
                         set_override("jumping")
                     # 주기적 새 버전 확인 (오래 실행돼도 감지)

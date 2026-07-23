@@ -30,6 +30,15 @@ La mascota solo lee **`~/.claude` (registros de uso) y el token OAuth de tu Llav
 - **No aparecen avisos de Fotos / Descargas / Música / Escritorio / Documentos / iCloud / volúmenes de red.** (Antes sí, porque la mascota lanzaba la CLI `claude` como proceso hijo y su escaneo del home se atribuía a la app; esa llamada a la CLI ahora está desactivada por defecto.)
   - Para complementar la fila por modelo (Fable) mediante la CLI, usa `CLAUDE_PET_USE_CLI=1`, pero entonces los avisos de carpetas vuelven.
 
+### Se necesita Claude Code
+
+La mascota es un HUD del **uso de Claude Code**: los datos de uso (registros y token) provienen del propio Claude Code. Por eso el **modo suscripción requiere tener Claude Code instalado.**
+
+- Si Claude Code no está instalado, la mascota muestra **"Claude Code no instalado"** en lugar de los medidores. **Clic derecho → "⬇︎ Instalar Claude Code…"** ejecuta el instalador oficial ([`claude.ai/install.sh`](https://claude.ai/install.sh)) en Terminal y luego inicia sesión.
+- Si está instalado pero sin sesión, **clic derecho → "🔑 Iniciar sesión en Claude Code…"** inicia el acceso.
+- Al terminar, el uso aparece en la siguiente actualización, sin reiniciar.
+- Nota: el **modo API** (clic derecho → Ajustes → clave de Admin API) funciona sin Claude Code.
+
 ### Actualizaciones
 
 Al arrancar, la app comprueba la última versión en GitHub; si hay una nueva, **clic derecho → "⬆︎ Instalar nueva versión"** la descarga, reemplaza y reinicia automáticamente.

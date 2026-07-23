@@ -30,6 +30,15 @@ The pet only reads **`~/.claude` (usage logs) and the OAuth token in your Keycha
 - **No Photos / Downloads / Music / Desktop / Documents / iCloud / Network-volume prompts appear.** (They used to, because the pet spawned the `claude` CLI as a child and its home scan was attributed to the app — that CLI call is now OFF by default.)
   - To supplement the per-model (Fable) row via the CLI, set `CLAUDE_PET_USE_CLI=1` — but then the folder prompts come back.
 
+### Claude Code is required
+
+The pet is a HUD for **Claude Code usage** — the usage data (logs and token) comes from Claude Code itself. So **subscription mode requires Claude Code to be installed.**
+
+- If Claude Code isn't installed, the pet shows **"Claude Code not installed"** instead of gauges. **Right-click → "⬇︎ Install Claude Code…"** runs the official installer ([`claude.ai/install.sh`](https://claude.ai/install.sh)) in Terminal, then signs you in.
+- If it's installed but not logged in, **right-click → "🔑 Sign in to Claude Code…"** starts the login.
+- Once done, usage appears on the next refresh — no restart needed.
+- Note: **API mode** (right-click → Settings → Admin API key) works without Claude Code.
+
 ### Updates
 
 On launch the app checks the latest GitHub release; if a newer version exists, **right-click → "⬆︎ Install new version"** downloads, replaces, and relaunches automatically.
