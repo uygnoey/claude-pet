@@ -58,6 +58,10 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
 
 ### 📝 변경 내역 / Changelog
 
+**v0.18**
+- **펫을 여러 개 두고 골라 쓰기** — 우클릭 → **"펫"** 또는 설정 창 맨 위의 **"펫"** 항목에서 원하는 펫으로 즉시(재시작 없이) 전환됩니다.
+- **원하는 펫을 직접 추가** — `~/.claude_pet/pets/` 아래에 펫 폴더(`pet.json` + `spritesheet.webp`)를 넣으면 메뉴에 자동으로 나타납니다. 우클릭 → **"➕ 펫 추가…"** 를 누르면 그 폴더가 열리고 형식 안내(README)도 함께 만들어집니다.
+
 **v0.17**
 - **Claude Code가 없을 때 앱에서 설치·로그인 안내** — 이 펫은 Claude Code 사용량을 보여주는 도구라 데이터가 Claude Code에서 나옵니다. 이제 Claude Code가 없으면 빈 게이지 대신 **"Claude Code 미설치"** 안내가 뜨고, **우클릭 → "⬇︎ Claude Code 설치…"** 로 공식 설치 → 로그인까지 터미널에서 진행합니다. 설치돼 있는데 로그인만 필요하면 **"🔑 Claude Code 로그인…"**. 끝나면 재시작 없이 자동으로 사용량이 표시됩니다. (API 모드는 종전대로 Claude Code 없이 동작)
 - Finder로 실행된 앱은 PATH가 최소라 `~/.local/bin/claude`(네이티브 설치 위치)를 못 찾던 것 수정.

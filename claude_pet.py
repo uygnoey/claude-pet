@@ -74,10 +74,144 @@ def _default_pet_dir():
 PET_DIR = _default_pet_dir()
 PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크기
 
+# 유저가 직접 펫을 넣는 폴더. 여기 아래에 <이름>/ 폴더를 만들고 그 안에
+#   pet.json + spritesheet.webp
+# 두 파일을 넣으면 우클릭 → 펫 메뉴에 자동으로 나타난다. (앱 업데이트에도 안 지워짐)
+USER_PETS_DIR = os.path.expanduser("~/.claude_pet/pets")
+
+# 상태 목록. idle 은 필수, 나머지는 없으면 idle 로 대체된다.
+_PET_FALLBACK_STATES = ("waiting", "failed", "waving", "running",
+                        "running-left", "running-right", "jumping", "review")
+
+# spritesheet.webp 의 고정 격자 규약. spriteVersionNumber 별로 관리.
+#   시트는 8열 × 11행 격자(각 칸=시트폭/8 × 시트높이/11). 각 상태는 한 행의
+#   0번 칸부터 count 개 프레임을 차지하고, 나머지 칸은 투명하게 비어 있다.
+#   (행 9·10 은 앱이 쓰지 않는 여분 상태 — 무시)
+PET_SHEET_COLS = 8
+PET_SHEET_ROWS = 11
+PET_LAYOUT_V2 = {              # state: (row, frame_count)
+    "idle":          (0, 7),
+    "running-right": (1, 8),
+    "running-left":  (2, 8),
+    "waving":        (3, 4),
+    "jumping":       (4, 5),
+    "failed":        (5, 8),
+    "waiting":       (6, 6),
+    "running":       (7, 6),
+    "review":        (8, 6),
+}
+PET_LAYOUTS = {2: PET_LAYOUT_V2}
+
+
+def _pet_layout(meta):
+    ver = meta.get("spriteVersionNumber") or meta.get("spriteVersion") or 2
+    return PET_LAYOUTS.get(int(ver), PET_LAYOUT_V2)
+
+
+def _pet_json_path(d):
+    return os.path.join(d, "pet.json")
+
+
+def _read_pet_json(d):
+    try:
+        with open(_pet_json_path(d)) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _is_pet_dir(d):
+    """유효한 펫 폴더인지. 신형(pet.json) 또는 구형(idle/ PNG 폴더) 둘 다 인정."""
+    if not os.path.isdir(d):
+        return False
+    if os.path.isfile(_pet_json_path(d)):
+        return True
+    idle = os.path.join(d, "idle")
+    return os.path.isdir(idle) and bool(glob.glob(os.path.join(idle, "*.png")))
+
+
+_PETS_README = """\
+Claude Pet — 펫 추가하는 법 / How to add a pet
+================================================
+
+이 폴더(~/.claude_pet/pets) 안에 펫 이름으로 폴더를 하나 만들고,
+그 안에 아래 두 파일을 넣으면 우클릭 → 펫 메뉴에 자동으로 나타납니다.
+(앱을 재시작할 필요 없이, 메뉴를 다시 열면 바로 보입니다.)
+
+Make a folder named after your pet inside this directory, put these two
+files in it, and it shows up in the right-click → Pet menu automatically.
+
+    pets/
+      dog/
+        pet.json
+        spritesheet.webp
+
+── pet.json ──────────────────────────────────────────────────────
+{
+  "id": "dog",
+  "displayName": "Dog",          // 메뉴에 보일 이름 (없으면 폴더 이름)
+  "description": "...",          // (선택) 설명
+  "spriteVersionNumber": 2,      // 스프라이트 규약 버전
+  "spritesheetPath": "spritesheet.webp"
+}
+
+── spritesheet.webp ──────────────────────────────────────────────
+투명 배경(알파)의 한 장짜리 스프라이트시트. spriteVersionNumber 2 규약:
+· 8열 × 11행 격자 (각 칸 = 시트폭/8 × 시트높이/11, 보통 1536×2288 → 192×208)
+· 각 상태는 한 행의 왼쪽부터 채워지고 남는 칸은 비워 둡니다:
+    행0 idle(7)  행1 running-right(8)  행2 running-left(8)
+    행3 waving(4)  행4 jumping(5)  행5 failed(8)
+    행6 waiting(6)  행7 running(6)  행8 review(6)
+
+Transparent single-image sheet, spriteVersionNumber 2 convention:
+8 cols × 11 rows grid; each state fills a row left-to-right (counts above).
+"""
+
+
+def _write_pets_readme(base):
+    """펫 폴더 포맷 안내를 폴더 안에 남긴다(없을 때만 생성)."""
+    path = os.path.join(base, "README.txt")
+    if os.path.exists(path):
+        return
+    try:
+        with open(path, "w") as f:
+            f.write(_PETS_README)
+    except Exception:
+        pass
+
+
+def discover_pets():
+    """선택 가능한 펫 목록 [{'id','name','dir'}]. 첫 항목이 기본(내장) 펫.
+
+    · 내장 : 앱에 포함된 frames/ (PET_DIR) — 기존 고양이
+    · 사용자: ~/.claude_pet/pets/<이름>/ 아래 각 폴더 (유저가 직접 넣음).
+             예) pets/dog/ 안에 pet.json + spritesheet.webp
+    """
+    pets = []
+    seen = set()
+    if _is_pet_dir(PET_DIR):
+        pets.append({"id": "default", "name": t("pet_default"), "dir": PET_DIR})
+        seen.add("default")
+    try:
+        names = sorted(os.listdir(USER_PETS_DIR))
+    except Exception:
+        names = []
+    for name in names:
+        if name.startswith(".") or name in seen:
+            continue
+        d = os.path.join(USER_PETS_DIR, name)
+        if not _is_pet_dir(d):
+            continue
+        meta = _read_pet_json(d) or {}
+        disp = meta.get("displayName") or meta.get("name") or name
+        pets.append({"id": name, "name": str(disp), "dir": d})
+        seen.add(name)
+    return pets
+
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.17"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.18"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -175,6 +309,8 @@ TR = {
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_update": "⬆︎ Install v{v}",
     "menu_uninstall": "Uninstall completely…",
+    "menu_pets": "Pet", "pet_default": "Cat 🐱",
+    "pet_add": "➕ Add a pet… (open folder)",
     "unin_title": "Uninstall Claude Pet?",
     "unin_body": ("This deletes the app and all of its settings:\n\n{items}\n\n"
                   "Your Claude Code login and its data (~/.claude) are NOT touched.\n"
@@ -196,6 +332,7 @@ TR = {
     "s_sens_normal": "Normal", "s_sens_low": "Low (alert only on heavy use)",
     "s_greet": "Wave when the mouse comes close", "s_admin_key": "Admin API key",
     "s_budget": "API monthly budget ($)", "s_save": "Save", "s_language": "Language",
+    "s_pet": "Pet",
     "r_title": "Claude Pet usage report", "r_exact": "Exact mode (server values)",
     "r_used": "used", "r_left": "left", "r_reset": "reset",
     "r_last_activity": "Last activity", "r_today_cost": "Today API cost",
@@ -223,6 +360,8 @@ TR = {
     "menu_settings": "설정…", "menu_toggle": "게이지 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_uninstall": "완전 삭제…",
+    "menu_pets": "펫", "pet_default": "고양이 🐱",
+    "pet_add": "➕ 펫 추가… (폴더 열기)",
     "unin_title": "Claude Pet을 완전히 삭제할까요?",
     "unin_body": ("앱과 모든 설정을 지웁니다:\n\n{items}\n\n"
                   "Claude Code 로그인과 데이터(~/.claude)는 건드리지 않습니다.\n"
@@ -245,6 +384,7 @@ TR = {
     "s_sens_normal": "보통", "s_sens_low": "둔감 (많이 써야 경보)",
     "s_greet": "마우스가 가까이 오면 인사하기", "s_admin_key": "Admin API 키",
     "s_budget": "API 월 예산 ($)", "s_save": "저장", "s_language": "언어",
+    "s_pet": "펫",
     "r_title": "Claude Pet 사용량 리포트", "r_exact": "정확 모드 (서버 계산 값)",
     "r_used": "사용", "r_left": "남음", "r_reset": "리셋",
     "r_last_activity": "마지막 활동", "r_today_cost": "오늘 API 비용",
@@ -272,6 +412,8 @@ TR = {
     "menu_settings": "設定…", "menu_toggle": "ゲージの折りたたみ",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_uninstall": "完全に削除…",
+    "menu_pets": "ペット", "pet_default": "ネコ 🐱",
+    "pet_add": "➕ ペットを追加…（フォルダを開く）",
     "unin_title": "Claude Pet を完全に削除しますか？",
     "unin_body": ("アプリとすべての設定を削除します:\n\n{items}\n\n"
                   "Claude Code のログインとデータ (~/.claude) には触れません。\n"
@@ -294,6 +436,7 @@ TR = {
     "s_sens_normal": "普通", "s_sens_low": "低 (大量使用時のみ警告)",
     "s_greet": "マウスが近づいたら手を振る", "s_admin_key": "Admin API キー",
     "s_budget": "API 月次予算 ($)", "s_save": "保存", "s_language": "言語",
+    "s_pet": "ペット",
     "r_title": "Claude Pet 使用量レポート", "r_exact": "正確モード（サーバー値）",
     "r_used": "使用", "r_left": "残り", "r_reset": "リセット",
     "r_last_activity": "最終アクティビティ", "r_today_cost": "本日のAPIコスト",
@@ -321,6 +464,8 @@ TR = {
     "menu_settings": "Ajustes…", "menu_toggle": "Contraer/expandir medidores",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_uninstall": "Desinstalar por completo…",
+    "menu_pets": "Mascota", "pet_default": "Gato 🐱",
+    "pet_add": "➕ Añadir mascota… (abrir carpeta)",
     "unin_title": "¿Desinstalar Claude Pet?",
     "unin_body": ("Se eliminarán la app y todos sus ajustes:\n\n{items}\n\n"
                   "Tu sesión de Claude Code y sus datos (~/.claude) no se tocan.\n"
@@ -343,6 +488,7 @@ TR = {
     "s_sens_normal": "Normal", "s_sens_low": "Baja (alerta solo con uso alto)",
     "s_greet": "Saludar cuando el ratón se acerca", "s_admin_key": "Clave de Admin API",
     "s_budget": "Presupuesto mensual de API ($)", "s_save": "Guardar", "s_language": "Idioma",
+    "s_pet": "Mascota",
     "r_title": "Informe de uso de Claude Pet", "r_exact": "Modo exacto (valores del servidor)",
     "r_used": "usado", "r_left": "resta", "r_reset": "reinicio",
     "r_last_activity": "Última actividad", "r_today_cost": "Coste de API hoy",
@@ -1450,7 +1596,8 @@ def run_gui():
     try:
         from AppKit import (
             NSApplication, NSWindow, NSPanel, NSView, NSColor, NSImage, NSFont,
-            NSBezierPath, NSMakeRect, NSMakePoint, NSScreen, NSTimer, NSEvent,
+            NSBezierPath, NSMakeRect, NSMakePoint, NSMakeSize,
+            NSScreen, NSTimer, NSEvent,
             NSMenu, NSMenuItem, NSTextField, NSSecureTextField, NSPopUpButton,
             NSAlert,
             NSButton, NSWindowStyleMaskBorderless, NSWindowStyleMaskTitled,
@@ -1498,30 +1645,96 @@ def run_gui():
     def astr(s, attrs):
         return NSAttributedString.alloc().initWithString_attributes_(s, attrs)
 
-    # ── 스프라이트 로드 ──
-    frames = {}
-    if os.path.isdir(PET_DIR):
-        for st in os.listdir(PET_DIR):
-            sd = os.path.join(PET_DIR, st)
+    # ── 펫 프레임 로더 ──
+    # 두 가지 포맷 지원:
+    #  (신형) 폴더에 pet.json + spritesheet.webp — 유저가 넣는 펫
+    #  (구형) 폴더 아래 상태별 하위폴더(idle/, running/ …)에 PNG — 내장 고양이
+    def _sheet_pixels(sheet):
+        rep = sheet.representations()
+        if rep:
+            return int(rep[0].pixelsWide()), int(rep[0].pixelsHigh())
+        s = sheet.size()
+        return int(s.width), int(s.height)
+
+    def _slice_sheet(sheet, fw, fh, cols, sheet_h, indices):
+        out = []
+        for i in indices:
+            col, row = i % cols, i // cols
+            x = col * fw
+            y = sheet_h - (row + 1) * fh      # 좌상단 기준 → NSImage 좌하단 기준
+            sub = NSImage.alloc().initWithSize_(NSMakeSize(fw, fh))
+            sub.lockFocus()
+            sheet.drawInRect_fromRect_operation_fraction_(
+                NSMakeRect(0, 0, fw, fh), NSMakeRect(x, y, fw, fh),
+                NSCompositingOperationSourceOver, 1.0)
+            sub.unlockFocus()
+            out.append(sub)
+        return out
+
+    def _load_sheet_pet(pet_dir, meta):
+        """pet.json + spritesheet.webp (고정 v2 격자 규약) → 상태별 프레임."""
+        sp = os.path.join(pet_dir,
+                          meta.get("spritesheetPath") or "spritesheet.webp")
+        sheet = NSImage.alloc().initWithContentsOfFile_(sp)
+        if sheet is None:
+            return None
+        sheet_w, sheet_h = _sheet_pixels(sheet)
+        sheet.setSize_(NSMakeSize(sheet_w, sheet_h))
+        cols, rows = PET_SHEET_COLS, PET_SHEET_ROWS
+        fw, fh = sheet_w // cols, sheet_h // rows
+        if fw <= 0 or fh <= 0:
+            return None
+        out = {}
+        for st, (row, count) in _pet_layout(meta).items():
+            idxs = [row * cols + c for c in range(count)]
+            imgs = _slice_sheet(sheet, fw, fh, cols, sheet_h, idxs)
+            if imgs:
+                out[st] = imgs
+        return out or None
+
+    def _load_folder_pet(pet_dir):
+        out = {}
+        for st in os.listdir(pet_dir):
+            sd = os.path.join(pet_dir, st)
             if not os.path.isdir(sd):
                 continue
             imgs = [NSImage.alloc().initWithContentsOfFile_(p)
                     for p in sorted(glob.glob(os.path.join(sd, "*.png")))]
             imgs = [i for i in imgs if i]
             if imgs:
-                frames[st] = imgs
-    if not frames.get("idle"):
+                out[st] = imgs
+        return out or None
+
+    def load_pet_frames(pet_dir):
+        """펫 폴더 → 상태별 프레임 dict. idle 없으면 None."""
+        meta = _read_pet_json(pet_dir)
+        frames_ = (_load_sheet_pet(pet_dir, meta) if meta is not None
+                   else _load_folder_pet(pet_dir))
+        if not frames_ or not frames_.get("idle"):
+            return None
+        for need in _PET_FALLBACK_STATES:
+            frames_.setdefault(need, frames_["idle"])
+        return frames_
+
+    # ── 스프라이트 로드 (설정에 저장된 펫, 없으면 내장 고양이) ──
+    cfg = load_config()
+    pet_list = discover_pets()
+    if not pet_list:
         print(f"스프라이트를 찾지 못했습니다: {PET_DIR}", file=sys.stderr)
         sys.exit(1)
-    for need in ("waiting", "failed", "waving", "running-left",
-                 "running-right", "jumping"):
-        frames.setdefault(need, frames["idle"])
+    sel = next((p for p in pet_list if p["id"] == cfg.get("pet")), None)
+    frames = load_pet_frames(sel["dir"]) if sel else None
+    if frames is None:                       # 저장된 펫이 사라졌거나 깨졌으면 기본으로
+        sel = pet_list[0]
+        frames = load_pet_frames(sel["dir"])
+    if frames is None:
+        print(f"스프라이트를 찾지 못했습니다: {sel['dir']}", file=sys.stderr)
+        sys.exit(1)
 
     sz = frames["idle"][0].size()
     PW0 = int(sz.width // PET_SCALE_DOWN)
     PH0 = int(sz.height // PET_SCALE_DOWN)
 
-    cfg = load_config()
     apply_config(cfg)
     g = {"scale": max(0.3, min(2.0, float(cfg.get("scale", 0.5))))}  # 기본 0.5×
 
@@ -1908,6 +2121,28 @@ def run_gui():
                     title, action, "")
                 mi.setTarget_(handler)
                 menu.addItem_(mi)
+            # 펫 선택 서브메뉴 (우클릭 때마다 폴더를 새로 스캔 → 새로 넣은 펫 즉시 반영)
+            pet_list = discover_pets()
+            if pet_list:
+                cur_pet = cfg.get("pet") or pet_list[0]["id"]
+                sub = NSMenu.alloc().initWithTitle_("Pets")
+                for p in pet_list:
+                    it = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                        p["name"], "selectPet:", "")
+                    it.setTarget_(handler)
+                    it.setRepresentedObject_(p["id"])
+                    if p["id"] == cur_pet:
+                        it.setState_(1)                     # NSControlStateValueOn
+                    sub.addItem_(it)
+                sub.addItem_(NSMenuItem.separatorItem())
+                add_it = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    t("pet_add"), "addPet:", "")
+                add_it.setTarget_(handler)
+                sub.addItem_(add_it)
+                pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    t("menu_pets"), None, "")
+                pet_item.setSubmenu_(sub)
+                menu.insertItem_atIndex_(pet_item, 3)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -1996,13 +2231,46 @@ def run_gui():
         view.setFrame_(NSMakeRect(0, 0, W, H))
         view.setNeedsDisplay_(True)
 
+    # ── 펫 교체 (라이브) ──
+    def set_pet(pet_id):
+        nonlocal PW0, PH0, PW, PH, W, H
+        p = next((x for x in discover_pets() if x["id"] == pet_id), None)
+        if not p:
+            return
+        nf = load_pet_frames(p["dir"])
+        if nf is None:                          # 깨진 펫이면 조용히 무시
+            return
+        frames.clear()
+        frames.update(nf)                       # PetView/Ticker가 참조하는 dict를 제자리 갱신
+        sz2 = frames["idle"][0].size()
+        PW0 = int(sz2.width // PET_SCALE_DOWN)
+        PH0 = int(sz2.height // PET_SCALE_DOWN)
+        fr = win.frame()
+        top = fr.origin.y + fr.size.height      # 상단 고정한 채 크기만 갱신
+        PW, PH, W, H = geom()
+        win.setFrame_display_(NSMakeRect(fr.origin.x, top - H, W, H), True)
+        view.setFrame_(NSMakeRect(0, 0, W, H))
+        state["frame"] = 0                      # 애니메이션 처음부터
+        state["elapsed"] = 0.0
+        view.setNeedsDisplay_(True)
+        cfg["pet"] = pet_id
+        save_config(cfg)
+
+    def open_user_pets_dir():
+        try:
+            os.makedirs(USER_PETS_DIR, exist_ok=True)
+            _write_pets_readme(USER_PETS_DIR)   # 포맷 안내 + 예시 pet.json (없을 때만)
+        except Exception:
+            pass
+        subprocess.Popen(["/usr/bin/open", USER_PETS_DIR])
+
     # ── 설정 창 ──
     def open_settings():
         if ui.get("panel"):
             ui["panel"].makeKeyAndOrderFront_(None)
             NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
             return
-        PWID, PHT = 420, 560
+        PWID, PHT = 420, 596
         panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, PWID, PHT),
             NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
@@ -2029,6 +2297,18 @@ def run_gui():
             return f
 
         y = PHT - 40
+        label(t("s_pet"), 20, y)
+        pet_list_s = discover_pets()
+        pet_ids = [p["id"] for p in pet_list_s]
+        pet_pop = NSPopUpButton.alloc().initWithFrame_pullsDown_(
+            NSMakeRect(180, y - 3, 220, 26), False)
+        pet_pop.addItemsWithTitles_([p["name"] for p in pet_list_s])
+        cur_pet = cfg.get("pet") or (pet_ids[0] if pet_ids else None)
+        if cur_pet in pet_ids:
+            pet_pop.selectItemAtIndex_(pet_ids.index(cur_pet))
+        cv.addSubview_(pet_pop)
+
+        y -= 34
         label(t("s_language"), 20, y)
         lang_pop = NSPopUpButton.alloc().initWithFrame_pullsDown_(
             NSMakeRect(180, y - 3, 160, 26), False)
@@ -2123,7 +2403,8 @@ def run_gui():
                    "op": f_op, "sens": sens, "greet": greet,
                    "key": f_key, "bud": f_bud, "kw": f_kw,
                    "wreset": wreset, "whour": f_wh, "lang": lang_pop,
-                   "cs": f_cs, "cw": f_cw, "cm": f_cm})
+                   "cs": f_cs, "cw": f_cw, "cm": f_cm,
+                   "pet": pet_pop, "pet_ids": pet_ids})
         panel.makeKeyAndOrderFront_(None)
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
 
@@ -2133,6 +2414,12 @@ def run_gui():
                 return float(str(fld.stringValue()).replace(",", "").replace("%", "").strip())
             except ValueError:
                 return default
+        # 펫 선택 반영 (바뀐 경우에만 라이브 교체)
+        pet_ids = ui.get("pet_ids") or []
+        if pet_ids:
+            sel_id = pet_ids[ui["pet"].indexOfSelectedItem()]
+            if sel_id != (cfg.get("pet") or pet_ids[0]):
+                set_pet(sel_id)
         cfg["lang"] = SUPPORTED_LANGS[ui["lang"].indexOfSelectedItem()]
         cfg["mode"] = "api" if ui["mode"].indexOfSelectedItem() == 1 else "sub"
         cfg["model_keyword"] = (str(ui["kw"].stringValue()).strip().lower()
@@ -2181,6 +2468,12 @@ def run_gui():
 
         def resetScale_(self, sender):
             set_scale(0.5)
+
+        def selectPet_(self, sender):
+            set_pet(sender.representedObject())
+
+        def addPet_(self, sender):
+            open_user_pets_dir()
 
         def quitApp_(self, sender):
             NSApplication.sharedApplication().terminate_(None)
