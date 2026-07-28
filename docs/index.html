@@ -339,6 +339,22 @@
   .card h3{margin:0 0 8px;font-size:16.5px;font-weight:700;letter-spacing:-0.01em}
   .card p{margin:0;color:var(--ink-soft);font-size:14px}
 
+  /* ---------- companions ---------- */
+  .pets-lineup{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;max-width:920px;margin:0 auto}
+  .pet-card{
+    width:150px;margin:0;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+    padding:16px 12px 15px;text-align:center;transition:.2s transform,.2s box-shadow;
+  }
+  .pet-card:hover{transform:translateY(-4px);box-shadow:0 16px 30px -18px var(--shadow)}
+  .pet-thumb{height:118px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:12px}
+  .pet-thumb img{max-height:118px;max-width:100%;width:auto;object-fit:contain}
+  .pet-name{font-weight:700;font-size:15px;letter-spacing:-0.01em}
+  .pet-tag{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:2px 9px}
+  .pets-note{max-width:580px;margin:34px auto 0;text-align:center;color:var(--ink-soft);font-size:14.5px;
+    background:var(--accent-soft);border:1px solid var(--card-border);border-radius:14px;padding:14px 18px}
+  @media (max-width:560px){.pet-card{width:132px}}
+
   /* ---------- gauges ---------- */
   .gauge-panel{
     max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--card-border);
@@ -484,6 +500,24 @@
     </div>
   </section>
 
+  <section id="companions">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="section-eyebrow" data-i18n="pets.eyebrow">Companions</div>
+        <h2 class="section-title" data-i18n="pets.title">Pick a companion you love</h2>
+        <p class="section-sub" data-i18n="pets.sub">Cat is built in. Dog, Fox, Scorpion and Elephant ship ready to use — switch anytime from the right-click menu, or drop your own folder into <code>~/.claude_pet/pets</code>.</p>
+      </div>
+      <div class="pets-lineup" id="pets-lineup">
+        <figure class="pet-card"><div class="pet-thumb"><img src="assets/frames/idle/00.png" alt="Cat" loading="lazy"></div><div class="pet-name">Cat</div><div class="pet-tag">Built-in</div></figure>
+        <figure class="pet-card"><div class="pet-thumb"><img src="assets/pets/dog.png" alt="Dog" loading="lazy"></div><div class="pet-name">Dog</div></figure>
+        <figure class="pet-card"><div class="pet-thumb"><img src="assets/pets/fox.png" alt="Fox" loading="lazy"></div><div class="pet-name">Fox</div></figure>
+        <figure class="pet-card"><div class="pet-thumb"><img src="assets/pets/scorpion.png" alt="Scorpion" loading="lazy"></div><div class="pet-name">Scorpion</div></figure>
+        <figure class="pet-card"><div class="pet-thumb"><img src="assets/pets/elephant.png" alt="Elephant" loading="lazy"></div><div class="pet-name">Elephant</div></figure>
+      </div>
+      <div class="pets-note" data-i18n="pets.market">🛍️ A pet marketplace is opening soon — browse and add new companions in a click.</div>
+    </div>
+  </section>
+
   <section id="gauges">
     <div class="wrap">
       <div class="section-head">
@@ -618,6 +652,17 @@ const I18N = {
     "features.eyebrow": "Behavior",
     "features.title": "Small, alive, never in the way",
     "features.sub": "Rendered natively on macOS — no window frame, no background, no ghosting.",
+    "pets.eyebrow": "Companions",
+    "pets.title": "Pick a companion you love",
+    "pets.sub": "Cat is built in. Dog, Fox, Scorpion and Elephant ship ready to use — switch anytime from the right-click menu, or drop your own folder into <code>~/.claude_pet/pets</code>.",
+    "pets.market": "🛍️ A pet marketplace is opening soon — browse and add new companions in a click.",
+    pets: [
+      ["assets/frames/idle/00.png","Cat","Built-in"],
+      ["assets/pets/dog.png","Dog"],
+      ["assets/pets/fox.png","Fox"],
+      ["assets/pets/scorpion.png","Scorpion"],
+      ["assets/pets/elephant.png","Elephant"]
+    ],
     "gauges.eyebrow": "Usage gauges",
     "gauges.title": "Three gauges, always in view",
     "gauges.sub": "Session (5h), weekly total, and weekly per-model — each with %, remaining tokens, and a reset countdown.",
@@ -689,6 +734,17 @@ const I18N = {
     "features.eyebrow": "행동 패턴",
     "features.title": "작고, 살아있고, 방해하지 않아요",
     "features.sub": "macOS 네이티브(AppKit)로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요.",
+    "pets.eyebrow": "펫 선택",
+    "pets.title": "마음에 드는 펫을 골라요",
+    "pets.sub": "고양이는 기본 내장이에요. 강아지·여우·전갈·코끼리도 바로 쓸 수 있게 들어 있어요 — 우클릭 메뉴에서 언제든 바꾸거나, <code>~/.claude_pet/pets</code> 폴더에 나만의 펫을 넣어도 돼요.",
+    "pets.market": "🛍️ 펫 마켓플레이스가 곧 열려요 — 클릭 한 번으로 새 펫을 둘러보고 추가하세요.",
+    pets: [
+      ["assets/frames/idle/00.png","고양이","기본"],
+      ["assets/pets/dog.png","강아지"],
+      ["assets/pets/fox.png","여우"],
+      ["assets/pets/scorpion.png","전갈"],
+      ["assets/pets/elephant.png","코끼리"]
+    ],
     "gauges.eyebrow": "사용량 게이지",
     "gauges.title": "항상 보이는 세 개의 게이지",
     "gauges.sub": "세션(5시간) · 주간 전체 · 주간 모델별 — 각각 %, 남은 토큰, 리셋까지 남은 시간을 보여줘요.",
@@ -758,6 +814,17 @@ const I18N = {
     "features.eyebrow": "ふるまい",
     "features.title": "小さくて、生きていて、邪魔しない",
     "features.sub": "macOS ネイティブ（AppKit）でレンダリング — ウィンドウ枠も背景も残像もありません。",
+    "pets.eyebrow": "コンパニオン",
+    "pets.title": "好きな相棒を選ぼう",
+    "pets.sub": "ネコは標準搭載。イヌ・キツネ・サソリ・ゾウもすぐ使えます — 右クリックメニューでいつでも切り替え、または <code>~/.claude_pet/pets</code> に自分のフォルダを入れてもOK。",
+    "pets.market": "🛍️ ペットマーケットプレイスがまもなくオープン — ワンクリックで新しい相棒を探して追加できます。",
+    pets: [
+      ["assets/frames/idle/00.png","ネコ","標準搭載"],
+      ["assets/pets/dog.png","イヌ"],
+      ["assets/pets/fox.png","キツネ"],
+      ["assets/pets/scorpion.png","サソリ"],
+      ["assets/pets/elephant.png","ゾウ"]
+    ],
     "gauges.eyebrow": "使用量ゲージ",
     "gauges.title": "いつでも見える 3 つのゲージ",
     "gauges.sub": "セッション（5時間）・週間合計・週間モデル別 — それぞれ %、残りトークン、リセットまでの時間を表示します。",
@@ -827,6 +894,17 @@ const I18N = {
     "features.eyebrow": "Comportamiento",
     "features.title": "Pequeña, viva, nunca estorba",
     "features.sub": "Se renderiza de forma nativa en macOS: sin marco de ventana, sin fondo, sin estelas.",
+    "pets.eyebrow": "Compañeros",
+    "pets.title": "Elige el compañero que más te guste",
+    "pets.sub": "El gato viene integrado. Perro, Zorro, Escorpión y Elefante están listos para usar — cámbialos cuando quieras desde el menú del clic derecho, o coloca tu propia carpeta en <code>~/.claude_pet/pets</code>.",
+    "pets.market": "🛍️ Pronto abrirá un marketplace de mascotas — explora y añade nuevos compañeros con un clic.",
+    pets: [
+      ["assets/frames/idle/00.png","Gato","Integrado"],
+      ["assets/pets/dog.png","Perro"],
+      ["assets/pets/fox.png","Zorro"],
+      ["assets/pets/scorpion.png","Escorpión"],
+      ["assets/pets/elephant.png","Elefante"]
+    ],
     "gauges.eyebrow": "Medidores de uso",
     "gauges.title": "Tres medidores, siempre visibles",
     "gauges.sub": "Sesión (5h), total semanal y semanal por modelo — cada uno con %, tokens restantes y cuenta atrás de reinicio.",
@@ -919,6 +997,16 @@ function renderLists(lang){
   document.getElementById("faq-list").innerHTML = t.faq.map(([q,a]) => `
     <details><summary>${q}</summary><p>${a}</p></details>
   `).join("");
+
+  if(t.pets){
+    document.getElementById("pets-lineup").innerHTML = t.pets.map(([img,name,tag]) => `
+      <figure class="pet-card">
+        <div class="pet-thumb"><img src="${img}" alt="${name}" loading="lazy"></div>
+        <div class="pet-name">${name}</div>
+        ${tag ? `<div class="pet-tag">${tag}</div>` : ""}
+      </figure>
+    `).join("");
+  }
 }
 
 function applyLang(lang){

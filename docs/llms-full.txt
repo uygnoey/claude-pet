@@ -36,6 +36,8 @@ The optional Admin API mode is separate from Claude subscription limits. It repo
 - Warning animation when usage rises sharply
 - Celebration animation when a session reset is detected
 - Drag, resize, collapse, and double-click refresh controls
+- Multiple companions: a built-in cat plus ready-to-use dog, fox, scorpion, and elephant pets, switchable from the right-click menu
+- Custom pets: users can add their own by placing a folder (with a pet.json and a sprite sheet) in ~/.claude_pet/pets; a pet marketplace is planned
 - Signed and Apple-notarized downloadable application
 - Automatic update check against GitHub Releases
 - English, Korean, Japanese, and Spanish interface text
@@ -67,3 +69,6 @@ A: It does not upload prompts, transcripts, or source code. Its documented data 
 
 Q: What is the difference between Claude Pet and a menu-bar usage monitor?
 A: Both can surface rate-limit information. Claude Pet keeps the gauges beside an animated desktop character, while a conventional menu-bar monitor keeps them in the macOS menu bar.
+
+Q: Can I change the pet or add my own?
+A: Yes. Claude Pet ships with several companions — a built-in cat plus ready-to-use dog, fox, scorpion, and elephant — that you switch from the right-click menu. You can also add your own by placing a folder with a pet.json and a sprite sheet in ~/.claude_pet/pets. A pet marketplace for browsing and adding new companions is coming soon.

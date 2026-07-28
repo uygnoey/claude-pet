@@ -12,6 +12,7 @@ Claude Pet is an independent project by Yeongyu Yang (uygnoey). It is not affili
 - Data source: reads only the local `~/.claude` usage logs and the Claude OAuth token in the macOS Keychain. It never touches Photos, Downloads, or Documents, and usage data stays on your Mac.
 - Calibration: exact token limits are private to Anthropic, so you type the percentage shown in Claude's Settings → Usage once, and the app back-solves your limit (limit = current usage ÷ %).
 - Behavior: idles and blinks, waves when your cursor comes near, can be dragged around, jumps on double-click (which also force-refreshes usage), pulses a warning color when token usage spikes, and celebrates when your session resets.
+- Companions: ships with several pets — a built-in cat plus ready-to-use dog, fox, scorpion, and elephant. Switch anytime from the right-click menu, or add your own by dropping a folder into `~/.claude_pet/pets`. A pet marketplace is coming soon.
 - Updates: right-click → Install new version; the app downloads, replaces, and relaunches itself.
 - Limitations: data comes from Claude Code's local logs only (web/desktop chat usage is not included); Admin API cost tracking is separate from subscription limits; the optional Admin API key is stored in plaintext in `~/.claude_pet.json`.
 
