@@ -237,7 +237,6 @@
     transition:.2s transform;
   }
   .lang-dd-btn:hover{transform:translateY(-1px)}
-  .lang-globe{font-size:14px;line-height:1}
   .lang-caret{color:var(--ink-soft);font-size:11px;transition:.2s transform}
   .lang-dd.open .lang-caret{transform:rotate(180deg)}
   .lang-dd-menu{
@@ -257,11 +256,10 @@
   .lang-dd-menu li:hover{background:var(--accent-soft)}
   .lang-dd-menu li.active{color:var(--accent);font-weight:700}
   .lang-dd-menu li.active::after{content:"✓";font-size:12px;margin-left:auto}
-  /* Flag emoji don't render on Windows, so the globe stays as a fallback and
-     the script swaps which one is shown after feature-detecting flag support. */
-  .flag{font-size:15px;line-height:1}
-  :root:not(.no-flag-emoji) .lang-globe{display:none}
-  :root.no-flag-emoji .flag{display:none}
+  .flag{
+    width:18px;height:18px;flex:none;border-radius:50%;display:block;
+    box-shadow:0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
+  }
   .btn{
     display:inline-flex;align-items:center;gap:8px;justify-content:center;
     padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;
@@ -499,7 +497,6 @@
       width:38px;height:38px;padding:0;border-radius:50%;
       justify-content:center;gap:0;
     }
-    .lang-globe{font-size:16px}
     .lang-dd-menu{min-width:150px}
     section{padding:52px 18px}
     .sponsor-card{padding:32px 22px 28px}
@@ -520,22 +517,91 @@
 </head>
 <body>
 
+<!-- Round flag icons, drawn inline so they render identically everywhere —
+     Windows ships no flag emoji, which would otherwise show letter pairs. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <clipPath id="fc"><circle cx="16" cy="16" r="16"/></clipPath>
+  </defs>
+  <symbol id="flag-ko" viewBox="0 0 32 32">
+    <g clip-path="url(#fc)">
+      <rect width="32" height="32" fill="#fff"/>
+      <!-- the taegeuk is tilted on the real flag, putting red at the upper left -->
+      <g transform="rotate(-33.69 16 16)">
+        <path d="M9 16a7 7 0 0 1 14 0 3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 0-7 0Z" fill="#cd2e3a"/>
+        <path d="M9 16a7 7 0 0 0 14 0 3.5 3.5 0 0 0-7 0 3.5 3.5 0 0 1-7 0Z" fill="#0047a0"/>
+      </g>
+      <g fill="#000">
+        <g transform="rotate(-45 8.6 8.6)">
+          <rect x="5.4" y="6.5" width="6.4" height="1"/>
+          <rect x="5.4" y="8.1" width="6.4" height="1"/>
+          <rect x="5.4" y="9.7" width="6.4" height="1"/>
+        </g>
+        <g transform="rotate(45 23.4 8.6)">
+          <rect x="20.2" y="6.5" width="2.7" height="1"/><rect x="23.9" y="6.5" width="2.7" height="1"/>
+          <rect x="20.2" y="8.1" width="6.4" height="1"/>
+          <rect x="20.2" y="9.7" width="2.7" height="1"/><rect x="23.9" y="9.7" width="2.7" height="1"/>
+        </g>
+        <g transform="rotate(45 8.6 23.4)">
+          <rect x="5.4" y="21.3" width="6.4" height="1"/>
+          <rect x="5.4" y="22.9" width="2.7" height="1"/><rect x="9.1" y="22.9" width="2.7" height="1"/>
+          <rect x="5.4" y="24.5" width="6.4" height="1"/>
+        </g>
+        <g transform="rotate(-45 23.4 23.4)">
+          <rect x="20.2" y="21.3" width="2.7" height="1"/><rect x="23.9" y="21.3" width="2.7" height="1"/>
+          <rect x="20.2" y="22.9" width="2.7" height="1"/><rect x="23.9" y="22.9" width="2.7" height="1"/>
+          <rect x="20.2" y="24.5" width="2.7" height="1"/><rect x="23.9" y="24.5" width="2.7" height="1"/>
+        </g>
+      </g>
+    </g>
+  </symbol>
+  <symbol id="flag-en" viewBox="0 0 32 32">
+    <g clip-path="url(#fc)">
+      <rect width="32" height="32" fill="#fff"/>
+      <g fill="#b22234">
+        <rect y="0" width="32" height="2.46"/><rect y="4.92" width="32" height="2.46"/>
+        <rect y="9.85" width="32" height="2.46"/><rect y="14.77" width="32" height="2.46"/>
+        <rect y="19.69" width="32" height="2.46"/><rect y="24.62" width="32" height="2.46"/>
+        <rect y="29.54" width="32" height="2.46"/>
+      </g>
+      <rect width="14" height="13.2" fill="#3c3b6e"/>
+      <g fill="#fff">
+        <circle cx="2.8" cy="2.4" r=".85"/><circle cx="7" cy="2.4" r=".85"/><circle cx="11.2" cy="2.4" r=".85"/>
+        <circle cx="4.9" cy="5.1" r=".85"/><circle cx="9.1" cy="5.1" r=".85"/>
+        <circle cx="2.8" cy="7.8" r=".85"/><circle cx="7" cy="7.8" r=".85"/><circle cx="11.2" cy="7.8" r=".85"/>
+        <circle cx="4.9" cy="10.5" r=".85"/><circle cx="9.1" cy="10.5" r=".85"/>
+      </g>
+    </g>
+  </symbol>
+  <symbol id="flag-ja" viewBox="0 0 32 32">
+    <g clip-path="url(#fc)">
+      <rect width="32" height="32" fill="#fff"/>
+      <circle cx="16" cy="16" r="7.5" fill="#bc002d"/>
+    </g>
+  </symbol>
+  <symbol id="flag-es" viewBox="0 0 32 32">
+    <g clip-path="url(#fc)">
+      <rect width="32" height="32" fill="#aa151b"/>
+      <rect y="8" width="32" height="16" fill="#f1bf00"/>
+    </g>
+  </symbol>
+</svg>
+
 <header class="nav">
   <div class="nav-inner">
     <div class="brand"><span class="brand-emoji">🐱</span> <span class="brand-name">Claude Pet</span></div>
     <div class="nav-actions">
       <div class="lang-dd" id="lang-dd">
         <button class="lang-dd-btn" id="lang-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
-          <span class="lang-globe" aria-hidden="true">🌐</span>
-          <span class="flag" id="lang-dd-flag" aria-hidden="true">🇺🇸</span>
+          <svg class="flag" aria-hidden="true"><use id="lang-dd-flag" href="#flag-en"/></svg>
           <span id="lang-dd-label">English</span>
           <span class="lang-caret" aria-hidden="true">▾</span>
         </button>
         <ul class="lang-dd-menu" id="lang-dd-menu" role="listbox">
-          <li role="option" data-lang="ko"><span class="flag" aria-hidden="true">🇰🇷</span>한국어</li>
-          <li role="option" data-lang="en"><span class="flag" aria-hidden="true">🇺🇸</span>English</li>
-          <li role="option" data-lang="ja"><span class="flag" aria-hidden="true">🇯🇵</span>日本語</li>
-          <li role="option" data-lang="es"><span class="flag" aria-hidden="true">🇪🇸</span>Español</li>
+          <li role="option" data-lang="ko"><svg class="flag" aria-hidden="true"><use href="#flag-ko"/></svg>한국어</li>
+          <li role="option" data-lang="en"><svg class="flag" aria-hidden="true"><use href="#flag-en"/></svg>English</li>
+          <li role="option" data-lang="ja"><svg class="flag" aria-hidden="true"><use href="#flag-ja"/></svg>日本語</li>
+          <li role="option" data-lang="es"><svg class="flag" aria-hidden="true"><use href="#flag-es"/></svg>Español</li>
         </ul>
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
@@ -1097,20 +1163,7 @@ const README_BY_LANG = {
 };
 
 /* A flag stands in for the language, not the country — English and Spanish are
-   spoken far beyond the flags shown here. Windows ships no flag glyphs, so a
-   pair of regional-indicator letters would appear instead; detect that and fall
-   back to the globe. */
-const LANG_FLAGS = {ko:"🇰🇷", en:"🇺🇸", ja:"🇯🇵", es:"🇪🇸"};
-
-function supportsFlagEmoji(){
-  const ctx = document.createElement("canvas").getContext("2d");
-  if(!ctx) return false;
-  ctx.font = "24px sans-serif";
-  // when the pair ligates into one flag it is narrower than two separate letters
-  return ctx.measureText("🇰🇷").width < ctx.measureText("🇰").width * 2;
-}
-
-if(!supportsFlagEmoji()) document.documentElement.classList.add("no-flag-emoji");
+   spoken far beyond the flags shown here. */
 
 let currentLang = localStorage.getItem("claudepet-lang") || detectDefaultLang();
 
@@ -1159,7 +1212,7 @@ function applyLang(lang){
   });
   const LANG_LABELS = {ko:"한국어", en:"English", ja:"日本語", es:"Español"};
   document.getElementById("lang-dd-label").textContent = LANG_LABELS[lang];
-  document.getElementById("lang-dd-flag").textContent = LANG_FLAGS[lang];
+  document.getElementById("lang-dd-flag").setAttribute("href", "#flag-" + lang);
   // nav labels collapse to icons on mobile, so keep the accessible names in sync
   document.getElementById("nav-sponsor").setAttribute("aria-label", t["nav.sponsor"]);
   document.getElementById("nav-download").setAttribute("aria-label", t["nav.download"]);
