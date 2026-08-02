@@ -250,13 +250,18 @@
   }
   .lang-dd.open .lang-dd-menu{opacity:1;transform:translateY(0);pointer-events:auto}
   .lang-dd-menu li{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    display:flex;align-items:center;justify-content:flex-start;gap:9px;
     padding:9px 12px;border-radius:10px;font-size:13px;font-weight:600;
     color:var(--ink);cursor:pointer;transition:.15s background;
   }
   .lang-dd-menu li:hover{background:var(--accent-soft)}
   .lang-dd-menu li.active{color:var(--accent);font-weight:700}
-  .lang-dd-menu li.active::after{content:"✓";font-size:12px}
+  .lang-dd-menu li.active::after{content:"✓";font-size:12px;margin-left:auto}
+  /* Flag emoji don't render on Windows, so the globe stays as a fallback and
+     the script swaps which one is shown after feature-detecting flag support. */
+  .flag{font-size:15px;line-height:1}
+  :root:not(.no-flag-emoji) .lang-globe{display:none}
+  :root.no-flag-emoji .flag{display:none}
   .btn{
     display:inline-flex;align-items:center;gap:8px;justify-content:center;
     padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;
@@ -522,14 +527,15 @@
       <div class="lang-dd" id="lang-dd">
         <button class="lang-dd-btn" id="lang-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
           <span class="lang-globe" aria-hidden="true">🌐</span>
+          <span class="flag" id="lang-dd-flag" aria-hidden="true">🇺🇸</span>
           <span id="lang-dd-label">English</span>
           <span class="lang-caret" aria-hidden="true">▾</span>
         </button>
         <ul class="lang-dd-menu" id="lang-dd-menu" role="listbox">
-          <li role="option" data-lang="ko">한국어</li>
-          <li role="option" data-lang="en">English</li>
-          <li role="option" data-lang="ja">日本語</li>
-          <li role="option" data-lang="es">Español</li>
+          <li role="option" data-lang="ko"><span class="flag" aria-hidden="true">🇰🇷</span>한국어</li>
+          <li role="option" data-lang="en"><span class="flag" aria-hidden="true">🇺🇸</span>English</li>
+          <li role="option" data-lang="ja"><span class="flag" aria-hidden="true">🇯🇵</span>日本語</li>
+          <li role="option" data-lang="es"><span class="flag" aria-hidden="true">🇪🇸</span>Español</li>
         </ul>
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
@@ -1090,6 +1096,22 @@ const README_BY_LANG = {
   en: "README.md", ko: "README.ko.md", ja: "README.ja.md", es: "README.es.md"
 };
 
+/* A flag stands in for the language, not the country — English and Spanish are
+   spoken far beyond the flags shown here. Windows ships no flag glyphs, so a
+   pair of regional-indicator letters would appear instead; detect that and fall
+   back to the globe. */
+const LANG_FLAGS = {ko:"🇰🇷", en:"🇺🇸", ja:"🇯🇵", es:"🇪🇸"};
+
+function supportsFlagEmoji(){
+  const ctx = document.createElement("canvas").getContext("2d");
+  if(!ctx) return false;
+  ctx.font = "24px sans-serif";
+  // when the pair ligates into one flag it is narrower than two separate letters
+  return ctx.measureText("🇰🇷").width < ctx.measureText("🇰").width * 2;
+}
+
+if(!supportsFlagEmoji()) document.documentElement.classList.add("no-flag-emoji");
+
 let currentLang = localStorage.getItem("claudepet-lang") || detectDefaultLang();
 
 function renderLists(lang){
@@ -1137,6 +1159,7 @@ function applyLang(lang){
   });
   const LANG_LABELS = {ko:"한국어", en:"English", ja:"日本語", es:"Español"};
   document.getElementById("lang-dd-label").textContent = LANG_LABELS[lang];
+  document.getElementById("lang-dd-flag").textContent = LANG_FLAGS[lang];
   // nav labels collapse to icons on mobile, so keep the accessible names in sync
   document.getElementById("nav-sponsor").setAttribute("aria-label", t["nav.sponsor"]);
   document.getElementById("nav-download").setAttribute("aria-label", t["nav.download"]);
