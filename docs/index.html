@@ -427,6 +427,11 @@
   .footer-links{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;flex:none}
   .footer-links a{color:var(--ink-soft);text-decoration:none}
   .footer-links a:hover{color:var(--accent)}
+
+  /* ---------- ethicalads slot ---------- */
+  .ad-section{padding:8px 24px 0}
+  .ad-section[hidden]{display:none}
+  .ea-wrap{display:flex;justify-content:center}
   .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:none}
   .footer-brand{font-weight:800;margin-bottom:6px}
 
@@ -456,6 +461,7 @@
         </ul>
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+      <a class="btn btn-ghost" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener"><span aria-hidden="true">❤️</span> <span data-i18n="nav.sponsor">Sponsor</span></a>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
       <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="nav.download">Download</a>
     </div>
@@ -618,6 +624,10 @@
       </ul>
     </div>
   </section>
+
+  <section id="ad" class="ad-section" hidden>
+    <div class="wrap"><div id="ea-slot" class="ea-wrap"></div></div>
+  </section>
 </main>
 
 <footer>
@@ -627,6 +637,7 @@
       <p class="footer-fine" data-i18n="footer.fine">Claude Pet is an independent project by Yeongyu Yang (uygnoey);<br>the name “Claude Pet” is a mark of its creator.<br>Claude is a trademark of Anthropic PBC.<br>Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p>
     </div>
     <div class="footer-links">
+      <a href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener" data-i18n="nav.sponsor">Sponsor</a>
       <a href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/uygnoey/claude-pet/releases/latest" target="_blank" rel="noopener" data-i18n="footer.releases">Releases</a>
       <a id="readme-link" href="https://github.com/uygnoey/claude-pet/blob/main/README.md" target="_blank" rel="noopener">README</a>
@@ -639,6 +650,7 @@
 const I18N = {
   en: {
     "nav.download": "Download",
+    "nav.sponsor": "Sponsor",
     "hero.title.pre": "Meet",
     "hero.title.post": ", your token-watching desk buddy",
     "hero.sub": "A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.",
@@ -721,6 +733,7 @@ const I18N = {
   },
   ko: {
     "nav.download": "다운로드",
+    "nav.sponsor": "후원하기",
     "hero.title.pre": "화면 위의 작은 친구,",
     "hero.title.post": "을 소개합니다",
     "hero.sub": "화면에 둥둥 떠서 Claude 토큰 사용량을 지켜보는 작은 데스크톱 펫이에요.",
@@ -801,6 +814,7 @@ const I18N = {
   },
   ja: {
     "nav.download": "ダウンロード",
+    "nav.sponsor": "スポンサー",
     "hero.title.pre": "画面の上の小さな相棒、",
     "hero.title.post": "をご紹介",
     "hero.sub": "画面にふわっと浮かんで、Claude のトークン使用量をそっと見守ってくれる、小さなデスクトップペットです。",
@@ -881,6 +895,7 @@ const I18N = {
   },
   es: {
     "nav.download": "Descargar",
+    "nav.sponsor": "Patrocinar",
     "hero.title.pre": "Conoce a",
     "hero.title.post": ", la mascota que vigila tus tokens",
     "hero.sub": "Una pequeña compañera de escritorio que flota en tu pantalla y vigila en silencio tu uso de tokens de Claude, para que tú no tengas que hacerlo.",
@@ -1198,6 +1213,23 @@ fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
     applyDownloadLinks();
   })
   .catch(() => {});
+
+/* ---------------- EthicalAds ----------------
+   Off until the site is approved as an EthicalAds publisher.
+   Once approved, set the publisher ID below and the ad slot appears. */
+const ETHICALADS_PUBLISHER = "";
+if(ETHICALADS_PUBLISHER){
+  document.getElementById("ad").hidden = false;
+  const ad = document.createElement("div");
+  ad.dataset.eaPublisher = ETHICALADS_PUBLISHER;
+  ad.dataset.eaType = "image";
+  ad.className = "adaptive"; // follows prefers-color-scheme
+  document.getElementById("ea-slot").appendChild(ad);
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = "https://media.ethicalads.io/media/client/ethicalads.min.js";
+  document.head.appendChild(s);
+}
 
 /* ---------------- pet sprite animation ---------------- */
 const FRAMES = {
