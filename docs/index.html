@@ -475,31 +475,40 @@
   .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:none}
   .footer-brand{font-weight:800;margin-bottom:6px}
 
+  .dl-icon{display:none}
+
+  /* On phones the nav becomes a row of icon buttons: labels are dropped and
+     every control collapses to the same circle as the theme toggle. */
   @media (max-width:640px){
     .nav-actions .btn-ghost{display:none}
-    /* tight on phones: keep every control on one line by shedding labels, not buttons */
     .nav-inner{padding:12px 16px;gap:10px}
     .brand{white-space:nowrap;font-size:16px}
-    .nav-actions{gap:7px}
-    .nav-actions .btn-sponsor .sponsor-label{display:none}
-    .nav-actions .btn-sponsor{padding:0 12px}
-    #lang-dd-label{display:none}
-    .lang-dd-btn{padding:0 11px;gap:5px}
-    .nav-actions .btn{padding:0 13px}
+    .nav-actions{gap:8px}
+    .nav-actions .btn{
+      width:38px;height:38px;padding:0;border-radius:50%;
+      font-size:15px;line-height:1;gap:0;
+    }
+    .sponsor-label,.dl-label,#lang-dd-label,.lang-caret{display:none}
+    .dl-icon{display:inline-block}
+    .lang-dd-btn{
+      width:38px;height:38px;padding:0;border-radius:50%;
+      justify-content:center;gap:0;
+    }
+    .lang-globe{font-size:16px}
+    .lang-dd-menu{min-width:150px}
     section{padding:52px 18px}
     .sponsor-card{padding:32px 22px 28px}
   }
-  /* narrow phones: squeeze the sticky nav so Download stays on screen */
   @media (max-width:420px){
-    .nav-inner{padding:12px 12px;gap:8px}
+    .nav-inner{padding:12px 13px;gap:8px}
     .nav-actions{gap:6px}
     .brand{font-size:15px;gap:7px}
     .brand-emoji{font-size:19px}
-    .theme-btn{width:34px;height:34px;font-size:15px}
-    .nav-actions .btn{height:34px;padding:0 11px;font-size:12.5px}
-    .nav-actions .btn-sponsor{padding:0 10px}
-    .lang-dd-btn{height:34px;padding:0 9px}
-    /* the cat alone carries the brand here — the wordmark is the first thing to go */
+    .theme-btn,.nav-actions .btn,.lang-dd-btn{width:34px;height:34px;font-size:14px}
+    .theme-btn{font-size:15px}
+  }
+  /* below this the wordmark stops fitting alongside five controls */
+  @media (max-width:340px){
     .brand-name{display:none}
   }
 </style>
@@ -526,7 +535,7 @@
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
       <a class="btn btn-sponsor" id="nav-sponsor" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener" aria-label="Sponsor"><span class="heart" aria-hidden="true">❤️</span> <span class="sponsor-label" data-i18n="nav.sponsor">Sponsor</span></a>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
-      <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="nav.download">Download</a>
+      <a class="btn btn-primary dl-main" id="nav-download" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" aria-label="Download"><span class="dl-icon" aria-hidden="true">⬇</span><span class="dl-label" data-i18n="nav.download">Download</span></a>
     </div>
   </div>
 </header>
@@ -1128,8 +1137,9 @@ function applyLang(lang){
   });
   const LANG_LABELS = {ko:"한국어", en:"English", ja:"日本語", es:"Español"};
   document.getElementById("lang-dd-label").textContent = LANG_LABELS[lang];
-  // the nav sponsor label collapses to just the heart on mobile, so keep an accessible name
+  // nav labels collapse to icons on mobile, so keep the accessible names in sync
   document.getElementById("nav-sponsor").setAttribute("aria-label", t["nav.sponsor"]);
+  document.getElementById("nav-download").setAttribute("aria-label", t["nav.download"]);
   document.querySelectorAll("#lang-dd-menu li").forEach(li =>
     li.classList.toggle("active", li.dataset.lang === lang));
   document.getElementById("readme-link").href =
