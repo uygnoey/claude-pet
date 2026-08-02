@@ -161,6 +161,8 @@
     --card:#ffffff;
     --card-border:#ecdfd0;
     --shadow:rgba(60,40,20,0.10);
+    --pink:#db61a2;
+    --pink-ink:#b8407f;
     --green:#5f9e6e;
     --purple:#9174c4;
     --orange:#e0954f;
@@ -178,6 +180,8 @@
       --card:#2a2320;
       --card-border:#3d3229;
       --shadow:rgba(0,0,0,0.35);
+      --pink:#f778ba;
+      --pink-ink:#f79ccb;
     }
   }
   :root[data-theme="dark"]{
@@ -191,6 +195,8 @@
     --card:#2a2320;
     --card-border:#3d3229;
     --shadow:rgba(0,0,0,0.35);
+    --pink:#f778ba;
+    --pink-ink:#f79ccb;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -260,6 +266,23 @@
   .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 20px -8px var(--accent)}
   .btn-primary:hover{background:var(--accent-dark)}
   .btn-ghost{background:var(--card);color:var(--ink);border-color:var(--card-border)}
+  .btn-sponsor{
+    background:color-mix(in srgb, var(--pink) 12%, var(--card));
+    color:var(--pink-ink);border-color:color-mix(in srgb, var(--pink) 45%, transparent);
+  }
+  .btn-sponsor:hover{
+    background:color-mix(in srgb, var(--pink) 20%, var(--card));
+    box-shadow:0 8px 20px -10px var(--pink);
+  }
+  .btn-sponsor .heart{animation:heartbeat 2.4s ease-in-out infinite;display:inline-block}
+  @keyframes heartbeat{
+    0%,88%,100%{transform:scale(1)}
+    92%{transform:scale(1.22)}
+    96%{transform:scale(1.08)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .btn-sponsor .heart{animation:none}
+  }
   .nav-actions .btn{height:38px;padding:0 16px;font-size:13px}
   .theme-btn{
     width:38px;height:38px;border-radius:50%;flex:none;
@@ -428,6 +451,23 @@
   .footer-links a{color:var(--ink-soft);text-decoration:none}
   .footer-links a:hover{color:var(--accent)}
 
+  /* ---------- sponsor cta ---------- */
+  .sponsor-card{
+    max-width:620px;margin:0 auto;text-align:center;
+    background:
+      radial-gradient(420px 200px at 50% -20%, color-mix(in srgb, var(--pink) 16%, transparent), transparent 70%),
+      var(--card);
+    border:1px solid color-mix(in srgb, var(--pink) 32%, var(--card-border));
+    border-radius:var(--radius);padding:38px 30px 32px;
+    box-shadow:0 24px 50px -34px var(--shadow);
+  }
+  .sponsor-heart{font-size:36px;line-height:1;margin-bottom:14px;animation:heartbeat 2.4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.sponsor-heart{animation:none}}
+  .sponsor-title{font-size:clamp(21px,3vw,27px);font-weight:800;letter-spacing:-0.02em;margin:0 0 12px}
+  .sponsor-sub{color:var(--ink-soft);font-size:15px;margin:0 auto 24px;max-width:460px}
+  .sponsor-cta{padding:13px 26px;font-size:15px}
+  .sponsor-fine{color:var(--ink-soft);font-size:12.5px;margin:16px 0 0}
+
   /* ---------- ethicalads slot ---------- */
   .ad-section{padding:8px 24px 0}
   .ad-section[hidden]{display:none}
@@ -437,7 +477,30 @@
 
   @media (max-width:640px){
     .nav-actions .btn-ghost{display:none}
+    /* tight on phones: keep every control on one line by shedding labels, not buttons */
+    .nav-inner{padding:12px 16px;gap:10px}
+    .brand{white-space:nowrap;font-size:16px}
+    .nav-actions{gap:7px}
+    .nav-actions .btn-sponsor .sponsor-label{display:none}
+    .nav-actions .btn-sponsor{padding:0 12px}
+    #lang-dd-label{display:none}
+    .lang-dd-btn{padding:0 11px;gap:5px}
+    .nav-actions .btn{padding:0 13px}
     section{padding:52px 18px}
+    .sponsor-card{padding:32px 22px 28px}
+  }
+  /* narrow phones: squeeze the sticky nav so Download stays on screen */
+  @media (max-width:420px){
+    .nav-inner{padding:12px 12px;gap:8px}
+    .nav-actions{gap:6px}
+    .brand{font-size:15px;gap:7px}
+    .brand-emoji{font-size:19px}
+    .theme-btn{width:34px;height:34px;font-size:15px}
+    .nav-actions .btn{height:34px;padding:0 11px;font-size:12.5px}
+    .nav-actions .btn-sponsor{padding:0 10px}
+    .lang-dd-btn{height:34px;padding:0 9px}
+    /* the cat alone carries the brand here — the wordmark is the first thing to go */
+    .brand-name{display:none}
   }
 </style>
 </head>
@@ -445,7 +508,7 @@
 
 <header class="nav">
   <div class="nav-inner">
-    <div class="brand"><span class="brand-emoji">🐱</span> Claude Pet</div>
+    <div class="brand"><span class="brand-emoji">🐱</span> <span class="brand-name">Claude Pet</span></div>
     <div class="nav-actions">
       <div class="lang-dd" id="lang-dd">
         <button class="lang-dd-btn" id="lang-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
@@ -461,7 +524,7 @@
         </ul>
       </div>
       <button class="theme-btn" id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
-      <a class="btn btn-ghost" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener"><span aria-hidden="true">❤️</span> <span data-i18n="nav.sponsor">Sponsor</span></a>
+      <a class="btn btn-sponsor" id="nav-sponsor" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener" aria-label="Sponsor"><span class="heart" aria-hidden="true">❤️</span> <span class="sponsor-label" data-i18n="nav.sponsor">Sponsor</span></a>
       <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener">GitHub</a>
       <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="nav.download">Download</a>
     </div>
@@ -625,6 +688,20 @@
     </div>
   </section>
 
+  <section id="sponsor">
+    <div class="wrap">
+      <div class="sponsor-card">
+        <div class="sponsor-heart" aria-hidden="true">❤️</div>
+        <h2 class="sponsor-title" data-i18n="sponsor.title">Enjoying Claude Pet?</h2>
+        <p class="sponsor-sub" data-i18n="sponsor.sub">It's free and always will be. If it saved you from a surprise rate limit, a small sponsorship keeps the pet fed and the updates coming.</p>
+        <a class="btn btn-sponsor sponsor-cta" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener">
+          <span class="heart" aria-hidden="true">❤️</span> <span data-i18n="sponsor.cta">Sponsor on GitHub</span>
+        </a>
+        <p class="sponsor-fine" data-i18n="sponsor.fine">One-time or monthly — every bit helps.</p>
+      </div>
+    </div>
+  </section>
+
   <section id="ad" class="ad-section" hidden>
     <div class="wrap"><div id="ea-slot" class="ea-wrap"></div></div>
   </section>
@@ -651,6 +728,10 @@ const I18N = {
   en: {
     "nav.download": "Download",
     "nav.sponsor": "Sponsor",
+    "sponsor.title": "Enjoying Claude Pet?",
+    "sponsor.sub": "It's free and always will be. If it saved you from a surprise rate limit, a small sponsorship keeps the pet fed and the updates coming.",
+    "sponsor.cta": "Sponsor on GitHub",
+    "sponsor.fine": "One-time or monthly — every bit helps.",
     "hero.title.pre": "Meet",
     "hero.title.post": ", your token-watching desk buddy",
     "hero.sub": "A tiny desktop companion that floats on your screen and quietly watches your Claude token usage — so you don't have to.",
@@ -734,6 +815,10 @@ const I18N = {
   ko: {
     "nav.download": "다운로드",
     "nav.sponsor": "후원하기",
+    "sponsor.title": "Claude Pet이 마음에 드셨나요?",
+    "sponsor.sub": "지금도 앞으로도 무료예요. 갑작스러운 한도 초과를 막아준 적이 있다면, 작은 후원이 펫의 밥값이 되고 다음 업데이트로 이어져요.",
+    "sponsor.cta": "GitHub에서 후원하기",
+    "sponsor.fine": "한 번만 또는 매달 — 어떤 금액이든 큰 힘이 돼요.",
     "hero.title.pre": "화면 위의 작은 친구,",
     "hero.title.post": "을 소개합니다",
     "hero.sub": "화면에 둥둥 떠서 Claude 토큰 사용량을 지켜보는 작은 데스크톱 펫이에요.",
@@ -815,6 +900,10 @@ const I18N = {
   ja: {
     "nav.download": "ダウンロード",
     "nav.sponsor": "スポンサー",
+    "sponsor.title": "Claude Pet を気に入っていただけましたか？",
+    "sponsor.sub": "今もこれからも無料です。うっかり上限に達するのを防げたなら、少しのスポンサーがペットのごはん代となり、次のアップデートにつながります。",
+    "sponsor.cta": "GitHub でスポンサーする",
+    "sponsor.fine": "一回だけでも毎月でも — どんな金額でも励みになります。",
     "hero.title.pre": "画面の上の小さな相棒、",
     "hero.title.post": "をご紹介",
     "hero.sub": "画面にふわっと浮かんで、Claude のトークン使用量をそっと見守ってくれる、小さなデスクトップペットです。",
@@ -896,6 +985,10 @@ const I18N = {
   es: {
     "nav.download": "Descargar",
     "nav.sponsor": "Patrocinar",
+    "sponsor.title": "¿Te gusta Claude Pet?",
+    "sponsor.sub": "Es gratis y siempre lo será. Si te ha librado de alcanzar el límite por sorpresa, un pequeño patrocinio mantiene a la mascota alimentada y las actualizaciones en marcha.",
+    "sponsor.cta": "Patrocinar en GitHub",
+    "sponsor.fine": "Una vez o cada mes — todo suma.",
     "hero.title.pre": "Conoce a",
     "hero.title.post": ", la mascota que vigila tus tokens",
     "hero.sub": "Una pequeña compañera de escritorio que flota en tu pantalla y vigila en silencio tu uso de tokens de Claude, para que tú no tengas que hacerlo.",
@@ -1035,6 +1128,8 @@ function applyLang(lang){
   });
   const LANG_LABELS = {ko:"한국어", en:"English", ja:"日本語", es:"Español"};
   document.getElementById("lang-dd-label").textContent = LANG_LABELS[lang];
+  // the nav sponsor label collapses to just the heart on mobile, so keep an accessible name
+  document.getElementById("nav-sponsor").setAttribute("aria-label", t["nav.sponsor"]);
   document.querySelectorAll("#lang-dd-menu li").forEach(li =>
     li.classList.toggle("active", li.dataset.lang === lang));
   document.getElementById("readme-link").href =
