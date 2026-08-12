@@ -211,7 +211,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.18"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
+APP_VERSION = "0.19"                 # CFBundleShortVersionString 과 일치 (0.1 beta)
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0}
@@ -545,9 +545,39 @@ def _iter_log_files():
             yield from glob.glob(os.path.join(d, "**", "*.jsonl"), recursive=True)
 
 
+def _weigh_usage(usage):
+    """usage → (total, noncache) 비용 가중 토큰.
+
+    실제 한도는 비용 기준으로 차감되는 것으로 보이므로 API 단가 비율로 가중
+    (입력1/출력5/캐시읽기0.1) → 사용 패턴(캐시 비중)이 바뀌어도 % 보정이 유지됨.
+    캐시 쓰기는 TTL별 단가가 달라(5m 1.25 / 1h 2.0) usage["cache_creation"]
+    세부 값으로 나눠 가중하고, 없으면 구버전 로그로 보고 평면 필드×1.25.
+    """
+    w_in = usage.get("input_tokens", 0) or 0
+    w_out = (usage.get("output_tokens", 0) or 0) * 5.0
+    cw_flat = usage.get("cache_creation_input_tokens", 0) or 0
+    cc = usage.get("cache_creation")
+    if isinstance(cc, dict):
+        cw_5m = cc.get("ephemeral_5m_input_tokens", 0) or 0
+        cw_1h = cc.get("ephemeral_1h_input_tokens", 0) or 0
+        rest = max(0, cw_flat - cw_5m - cw_1h)   # 분류 안 된 나머지는 5m 단가로
+        w_cw = cw_5m * 1.25 + cw_1h * 2.0 + rest * 1.25
+    else:
+        w_cw = cw_flat * 1.25                    # 구버전 로그 호환
+    w_cr = (usage.get("cache_read_input_tokens", 0) or 0) * 0.1
+    noncache = w_in + w_out + w_cw
+    return noncache + w_cr, noncache
+
+
 def parse_usage_entries(since: datetime):
-    """since 이후의 (timestamp, total_tokens, model). 메시지 중복 제거."""
-    entries, seen = [], set()
+    """since 이후의 (timestamp, total_tokens, model, noncache). 메시지 중복 제거.
+
+    Claude Code는 콘텐츠 블록마다 한 줄씩 기록해서 같은
+    (message.id, requestId)가 여러 번 나오는데, 앞줄은 스트리밍 도중의
+    부분 스냅샷이다. 그래서 먼저 온 줄이 아니라 가중 합이 가장 큰 줄
+    (동률이면 더 늦은 timestamp)만 남긴다.
+    """
+    entries, seen = [], {}
     for path in _iter_log_files():
         try:
             if datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc) < since:
@@ -566,29 +596,30 @@ def parse_usage_entries(since: datetime):
                     ts_raw = obj.get("timestamp")
                     if not usage or not ts_raw:
                         continue
-                    key = (msg.get("id"), obj.get("requestId"))
-                    if key != (None, None) and key in seen:
-                        continue
-                    seen.add(key)
                     try:
                         ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
                     except ValueError:
                         continue
+                    # 창 밖 레코드가 중복 키를 먼저 선점하면 창 안의 같은
+                    # 메시지가 통째로 사라지므로 시간 검사를 먼저 한다
                     if ts < since:
                         continue
-                    # 비용 가중 토큰: 실제 한도는 비용 기준으로 차감되는 것으로
-                    # 보이므로 API 단가 비율로 가중 (입력1/출력5/캐시쓰기1.25/캐시읽기0.1)
-                    # → 사용 패턴(캐시 비중)이 바뀌어도 % 보정이 유지됨
-                    w_in = usage.get("input_tokens", 0)
-                    w_out = usage.get("output_tokens", 0) * 5.0
-                    w_cw = usage.get("cache_creation_input_tokens", 0) * 1.25
-                    w_cr = usage.get("cache_read_input_tokens", 0) * 0.1
-                    noncache = w_in + w_out + w_cw
-                    total = noncache + w_cr
-                    if total > 0:
-                        entries.append((ts, total,
-                                        (msg.get("model") or "").lower(),
-                                        noncache))
+                    total, noncache = _weigh_usage(usage)
+                    if total <= 0:
+                        continue
+                    entry = (ts, total, (msg.get("model") or "").lower(), noncache)
+                    key = (msg.get("id"), obj.get("requestId"))
+                    if key == (None, None):   # 키가 없으면 중복 판단 불가 → 그대로 집계
+                        entries.append(entry)
+                        continue
+                    idx = seen.get(key)
+                    if idx is None:
+                        seen[key] = len(entries)
+                        entries.append(entry)
+                    else:
+                        prev = entries[idx]
+                        if (total, ts) > (prev[1], prev[0]):
+                            entries[idx] = entry
         except OSError:
             continue
     entries.sort(key=lambda e: e[0])
@@ -655,11 +686,10 @@ def compute_usage():
             session_tokens = sum(e[1] for e in entries
                                  if block_start <= e[0] < block_end)
 
-    # 주간 리셋: 설정된 요일/시각이 있으면 그 기준, 없으면 롤링 7일
-    if week_start is not None:
-        weekly_reset = week_start + timedelta(days=7)
-    else:
-        weekly_reset = entries[0][0] + timedelta(days=7) if entries else None
+    # 주간 리셋: 설정된 요일/시각이 있으면 그 기준.
+    # 롤링 7일 모드는 창이 매 순간 밀리므로 단일 리셋 시각이 없다 → None
+    weekly_reset = (week_start + timedelta(days=7)
+                    if week_start is not None else None)
 
     # 소비 급증 감지 — "평소보다 갑자기 많이" 쓸 때만.
     # 캐시 읽기 토큰은 제외(항상 커서 오탐 유발)하고,
