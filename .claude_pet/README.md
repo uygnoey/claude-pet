@@ -2,26 +2,63 @@
 
 **English** · [한국어](README.ko.md) · [日本語](README.ja.md) · [Español](README.es.md)
 
-Ready-to-use custom pets for **claude-pet (v0.18)**.
+Ready-to-use custom pets for **claude-pet**.
 Four companions are included: **Dog · Fox · Scorpion · Elephant**.
 
-> ⚠️ **Important — the app does not read this folder directly.**
-> claude-pet loads custom pets from your home directory, `~/.claude_pet/pets/`.
-> The `.claude_pet/pets/` inside this repository is a **distributable example set** that you copy
-> into that home folder — the app never auto-copies or references this repo path.
+> ℹ️ **The app installs these for you — you normally don't have to copy anything.**
+> claude-pet loads custom pets from your home directory, `~/.claude_pet/pets/`. This tree ships
+> inside the app, and **on every launch the app seeds whatever is missing** from your home folder:
+> the four `README*.md` files into `~/.claude_pet/`, and each pet into `~/.claude_pet/pets/<name>/`.
+>
+> The seed is **missing-only and never destructive**. A README that already exists is left alone,
+> and a pet folder that already exists is skipped **whole** — the app does not look inside it, so a
+> pet you edited or replaced is never partially overwritten. Nothing is ever overwritten or deleted.
+> Delete a stock pet folder and the next launch puts it back; edit one and it stays as you left it.
+>
+> On a filesystem where a safe install can't be guaranteed — some network or mounted home folders —
+> the app **skips the pets** rather than risk writing a half-made one. The four `README*.md` files may
+> still arrive, so finding them here does **not** mean the pets did: look in `~/.claude_pet/pets/`, and
+> if it is empty use **case 2** of the manual copy below. On such a filesystem a deleted pet is not
+> restored either, so a copy you make by hand is the only one you have — keep it.
 >
 > Note this is also different from the settings file `~/.claude_pet.json` (a JSON file, not a folder).
 
 ---
 
-## Quick start (install)
+## Manual copy (optional)
+
+The app does this on its own, so you normally don't need this section. Two cases where you might:
+
+**1. Keep a second copy of a pet under your own name** — you already have the stock pets and want an
+editable duplicate beside them:
+
+```bash
+cd ~/.claude_pet
+cp -R pets/dog pets/dog-mine        # a name that does not exist yet
+```
+
+The menu label comes from `displayName` inside `pet.json`, **not** from the folder name. Open
+`pets/dog-mine/pet.json` and change `"displayName": "Dog"` to something of your own — or delete that
+line to fall back to the folder name. Skip this and the menu shows two entries both reading "Dog".
+
+**2. The app declined to install them** (see the note above). Then `~/.claude_pet/pets/` is empty, so
+the source has to be the app bundle:
 
 ```bash
 mkdir -p ~/.claude_pet/pets
-cp -R dog fox scorpion elephant ~/.claude_pet/pets/
+cp -R /Applications/ClaudePet.app/Contents/Resources/.claude_pet/pets/dog ~/.claude_pet/pets/dog
 ```
 
-After copying, **right-click the menu-bar icon → pick a pet** and the new companions appear.
+Running from a checkout instead? The same source is `.claude_pet/pets/dog` in the repository.
+
+> ⚠️ Either way, copy **to a name that does not exist yet**. If the destination already exists,
+> `cp -R` puts the copy *inside* it — you end up with `pets/dog/dog/`, a junk folder within your pet.
+> And copying into `pets/` instead of a named destination overwrites files of the same name, losing
+> your edits. The app's own seeding never touches a pet folder that is already there; don't let a
+> hand-typed command do what it refuses to.
+
+After copying, **right-click the pet itself → pick a pet** and the new companion appears.
+(There is no menu-bar or Dock icon — the pet on screen is the only place the menu lives.)
 The menu re-scans the folder every time it opens, so **no app restart is needed**.
 
 The app's "Open pets folder" menu creates `~/.claude_pet/pets/` if it is missing and drops a

@@ -30,12 +30,14 @@ window with an animated sprite and usage gauges), written in Python against PyOb
 (AppKit/Foundation), and shipped as a self-contained, Developer ID-signed and
 Apple-notarized `.app` bundle built with py2app.
 
-**`claude_pet.py` is essentially the whole app** — about 2,700 lines containing config,
+**`claude_pet.py` is essentially the whole app** — a single module holding config,
 i18n (en/ko/ja/es), log parsing, the usage estimator, OAuth/keychain token reading, the
 Admin API client, the AppKit UI, the settings panel, the updater, and the uninstaller.
 There is no package structure to navigate. Use `grep -n` on symbol names; line numbers
 in any document (including this one) drift as the file changes, so treat every line
-number as approximate and locate code by symbol.
+number as approximate and locate code by symbol. For the same reason this file quotes no
+length for it: any figure written down here is stale by the next change, and a stale one
+invites the reader to reason from it.
 
 ---
 
@@ -45,12 +47,28 @@ number as approximate and locate code by symbol.
 | --- | --- |
 | `claude_pet.py` | The application. Everything below the UI layer lives here too. |
 | `tests/test_log_estimate.py` | Unit tests for the log estimator (`parse_usage_entries`, `compute_usage`). |
-| `build_app.sh` | Fast local build: assembles `ClaudePet.app` from `claude_pet.py` + `frames/`, no signing. `install` / `update` subcommands. |
+| `tests/test_settings_and_install.py` | Counterexample tests for the settings transaction, the bundled-pet seed, and the updater. Most are written to fail against a specific wrong implementation — read the test before changing the code it pins. |
+| `tests/test_updater.py` | Updater contract tests: asset selection, the update preflight, the zip-member scan, and the generated replacement shell script. Tests that need the real macOS tools skip **loudly** (stderr + `skipTest`) so a missing prerequisite cannot read as coverage. |
+| `tests/test_updater_adversarial.py` | Adversarial gates for the updater transaction, deliberately sharing no fixtures with `test_updater.py`. Its header lists the plausible wrong implementations each fixture rules out. |
+| `tests/test_mutation_instruments.py` | Tests the updater tests' *instruments*, not the app: whether the `str.replace` fault injections still find their needles in the generated script. `str.replace` cannot fail, so a reworded script would silently turn those tests into no-ops. |
+| `tests/test_manual_update_transaction.py` | Behavioural gates for `build_app.sh`'s install/update transactions. It never sources or executes the script — it extracts the reviewed function as text, pins it by source hash, and runs the fragment under a temporary directory with shimmed tools. |
+| `tests/test_upload_artifact_gate.py` | Behavioural gates for `release.sh`'s `verify_upload_artifact` — that a missing, corrupt, or unknown-extension artifact fails rather than passing vacuously, and that an upload must contain exactly one `.app` at the root. The script is never sourced or dispatched: only that one function's text is brace-matched out of a copy and sourced as a fragment, which has no `case` to fall through to. `ditto`, `hdiutil`, `mktemp`, `$PY` and the signing tools are replaced by shims ahead of `/usr/bin` on a sandbox `PATH`, with `HOME`/`TMPDIR` under a temp directory and `CDPATH` cleared, so nothing is extracted, mounted, signed or uploaded for real. It pins the reviewed SHA256 of `release.sh`, `verify_release_artifact.py` and `claude_pet.py`, and refuses to run when any of the three has changed. |
+| `tests/test_release_gate.py` | Packaging-gate tests built from real trees on disk rather than substring greps over the build scripts, each written so that deleting the check it targets makes it fail. |
+| `tests/test_release_artifact_preflight.py` | Gates for `verify_release_artifact`'s delegation and its local code-leaf check. Signing and notarization are represented by a fake `validate_update_app`; no signing tool or release shell is invoked. |
+| `tests/test_signing_contract.py` | Live contract tests for the argv handed to the macOS signing tools — they run the real binary against a real bundle, because a mocked `subprocess.run` cannot validate an *argument*. |
+| `tests/test_source_guard.py` | Behavioural tests for the zsh source guards in both scripts. Each script is copied to a temp directory and its bottom dispatch replaced by a marker, so no destructive arm is ever reached. |
+| `tests/test_partial_copy_seeding.py` | Seeding tests for a copy that dies *midway through a file*, a different state from one that never starts. |
+| `tests/test_seeding_identity.py` | Identity-bound cleanup gates for bundled-pet seeding. Both roots are passed explicitly and live under a realpath temp directory; `USER_PET_HOME` and the process `HOME` are never consulted. |
+| `tests/test_v020_boundaries.py` | Upgrade-boundary verification for v0.20. Fail-closed: it refuses to run unless launched with the allow-list environment its header specifies. |
+| `verify_pet_payload.py` | Build gate: checks that the bundled `.claude_pet` payload actually landed in an artifact and matches the repo source byte for byte. It reads the expected file list out of `claude_pet.py`'s `BUNDLED_PET_README` / `BUNDLED_PET_IDS` / `BUNDLED_PET_FILES` via AST rather than importing it, so adding a pet cannot leave a hardcoded count checking the wrong number. Called by `release.sh` (`build`, and per-artifact before upload) and by `build_app.sh`. |
+| `verify_release_artifact.py` | Release gate: inspects the zip/dmg **that will be uploaded**, not a build directory. `scan` checks archive safety before any byte is extracted, `app` checks that the bundle's `Contents/Resources/claude_pet.py` is byte-identical to this checkout's and then hands the bundle to the updater's own preflight, `assets` checks the upload list against the updater's asset-name table. The code-hash check is the one the updater cannot do — it has no original to compare against, and a signature says *who built it*, never *what is inside*: a stale bundle re-signed today passes every other check. It **calls** `claude_pet`'s `_zip_members_are_safe` and `validate_update_app` rather than reimplementing them — which is why its diagnostics carry an `[update]` prefix. |
+| `build_app.sh` | Fast local build: assembles `ClaudePet.app` from `claude_pet.py` + `frames/` + `.claude_pet/`. **It does sign** — `sign_app` uses the Developer ID when one is present, ad-hoc otherwise. `build` / `install` / `update` subcommands; anything else prints usage and exits 1. |
 | `release.sh` | Real release: py2app build → Developer ID sign → notarize → staple → zip/dmg. |
 | `setup.py` | py2app configuration. |
 | `launcher.c` | Tiny Mach-O launcher — the bundle executable must be Mach-O to be code-signable. |
 | `entitlements.plist` | Hardened-runtime entitlements for signing. |
 | `frames/` | Sprite frames for the built-in pet, plus `frames-manifest.json`. |
+| `.claude_pet/` | The pets shipped **inside the app**: four `README*.md` plus `pets/{dog,elephant,fox,scorpion}/{pet.json,spritesheet.webp,preview.png}` — 16 tracked files. `setup.py` ships it as a resource and `build_app.sh` copies it in both `build()` and `update()`, so a code-only refresh does **not** leave the bundled tree stale. Distinct from `~/.claude_pet/`, the user's own directory this one seeds into. |
 | `make_icon.py` | Generates the app icon. |
 | `RELEASE_NOTES.md` | User-facing changelog, in Korean, newest first. Consumed by `release.sh` as the GitHub release body. |
 | `README.md`, `README.ko.md`, `README.ja.md`, `README.es.md` | User docs. |
@@ -142,19 +160,73 @@ this is your cause.
 ### Build
 
 ```sh
+./build_app.sh build      # build ClaudePet.app in the repo. Nothing else.
 ./build_app.sh install    # local build → /Applications → restart. For day-to-day testing.
-./build_app.sh update     # swap claude_pet.py in the installed bundle and restart. Fastest loop.
+./build_app.sh update     # refresh the installed bundle in one transaction, restart.
 ./release.sh build        # py2app build only, unsigned. Safe to run.
 ```
 
-`build_app.sh` is unsigned and local — use it freely for development.
+**`update` is a whole-bundle transaction: either all of it lands, or the installed
+bundle is exactly what it was.** It refreshes four things that have to move together —
+`claude_pet.py`, the bundled `.claude_pet` tree, the `Info.plist` version, and the
+signature — and a bundle carrying some of the four is a state no per-piece rollback
+restores, because each piece is individually where it belongs. So the new bundle is
+assembled and verified beside the installed one and swapped in at the end. **`install` is
+the same kind of transaction**, over the whole bundle rather than those four pieces: the
+existing installation is moved aside rather than deleted, and moved back if anything
+fails.
 
-**[NEVER] run bare `./release.sh`.** With no argument it defaults to `all`
-(`case "${1:-all}"`) and runs build, sign, notarize, universal, and dmg in one
-invocation. **The ban is not about signing** — an authorized release operator may run
-those same actions individually. It is that a combined command destroys the per-step
-recording and stop-on-failure the authorization is conditioned on, so it stays forbidden
-for everyone, operator included. Same ground as `all` and `ship` below.
+Two consequences worth knowing. First, **every step that can reject runs before the pet is
+stopped** — a rejection therefore costs the user nothing, and a failure after that point
+restores the previous bundle and relaunches the pet. (Do not reorder a check to sit after
+`stop_pet`: that is the shape this already had once, where the failure mode was "kill the
+pet, refuse, and end with nothing improved".) Second, if a run is killed between the two
+renames the previous bundle is left under a fixed name next to it, which the following run
+moves back before it cleans anything up. State these as properties; the primitives that
+implement them are an implementation detail and have already changed once.
+
+**Both arms run under the same lock object the in-app updater takes**, and that is the
+only reason a manual transaction and an in-app update cannot swap the same bundle at once.
+They used to be able to: each locked correctly, they just locked different things — the
+script's own destination and repo-tree locks are known only to the script, while the
+updater's lock is a `flock` on `~/Library/Caches/me.yeongyu.claudepet/update-<bundle>.lock`
+(`_acquire_update_lock()`). The shell cannot hold that one: macOS has no `flock(1)`, and
+re-opening it by name is exactly the unchecked open `_acquire_update_lock()` declines to
+do. So Python holds the lock and the shell runs inside it as a child —
+`claude_pet.py --with-update-lock <APP> -- <command>` — which is what `build_app.sh` wraps
+around its internal `__install_txn` / `__update_txn` arms. Two things follow that a change
+here must preserve:
+
+- **There is exactly one lock order, outermost first: update-lock → txn → build.** Code
+  that takes them the other way round deadlocks.
+- **The wrapper owns exit statuses 100 and 101** — another updater holds the lock, and the
+  lock site cannot be trusted, respectively. The inner arms must not use those two values
+  for their own purposes, because nothing downstream could tell the two meanings apart.
+
+**Both scripts take a subcommand, and anything else — including no argument — prints
+usage and exits 1.** `build_app.sh` used to build on an unrecognised or absent argument,
+and `build()` ends in `sign_app`, so a typo reached `codesign`. Do not restore either
+fall-through; see [the sourceability note](#these-scripts-are-entry-points-not-libraries--source-runs-them).
+
+`build_app.sh` signs with whatever identity is available (Developer ID if present, else
+ad-hoc), so "unsigned and local" describes its *artifact's destination*, not its
+mechanism — it is local because it installs to your own machine, not because it skips
+`codesign`.
+
+**[NEVER] run bare `./release.sh`.** **The ban is not about signing** — an authorized
+release operator may run those same actions individually. It is that a combined command
+destroys the per-step recording and stop-on-failure the authorization is conditioned on,
+so it stays forbidden for everyone, operator included. Same ground as `all` and `ship`
+below.
+
+**The bare form no longer defaults to `all`** — with no argument the script now prints
+usage and exits 1, the same as an unrecognized argument (`case "${1:-}"`, with `""|*)`
+sharing the usage branch). It used to default to `all` and run build, sign, notarize,
+universal and dmg from one wordless invocation. **The rule above stands anyway, and the
+default must not be restored**: the prohibition is what keeps the steps separately
+recorded, and a future edit that reinstates `${1:-all}` would silently re-arm a command
+no rule would then forbid. A default that only serves a forbidden path is not a
+convenience.
 
 The subcommands are **not** uniformly forbidden. Four tiers, with full effects and the
 exact conditions under [Release procedure](#release-procedure) step 3:
@@ -163,7 +235,9 @@ exact conditions under [Release procedure](#release-procedure) step 3:
   *the release's* artifact build (step 3) it is still ordinary work by tag, but it sits in
   the execution phase and waits for the gate like everything else there.
 - **`publish`** — **[ASK]**. Writes to the user's GitHub releases via their `gh` auth and
-  performs no signing, so the user can authorize it, per-instance.
+  performs no signing, so the user can authorize it, per-instance. It is not a bare upload:
+  it runs the artifact gate first (see [Release procedure](#release-procedure) step 3) and
+  uploads nothing if any check fails.
 - **`sign`, `notarize`, `universal`, `dmg`** — **[ASK-OP]**. Each
   reaches a `codesign` or notarization step, so all three conditions apply: user
   authorization for this artifact, every §6 gate recorded first, and **[NEVER]** run by an
@@ -175,6 +249,60 @@ exact conditions under [Release procedure](#release-procedure) step 3:
   tag to GitHub *before it builds anything*.
 
 Read step 3 before invoking anything from `release.sh`.
+
+### These scripts are entry points, not libraries — a guard is what keeps `source` inert
+
+The prohibition above governs how the script is **invoked**. It does not cover the other
+way in: loading the file by any mechanism runs the bottom of it, so **without a guard
+`source ./release.sh` would execute the file** and reach the dispatch with no argument.
+Both scripts now carry that guard, so **sourcing today returns before the dispatch and does
+nothing** — that is the current behaviour, and the rest of this section is why it must stay.
+Both scripts also answer a bare or unrecognized argument with usage and exit 1, but that is
+**not** what makes sourcing safe — it is a second line of defence. `release.sh`
+used to read `case "${1:-all}"`, so sourcing it meant `all` — build, sign, notarize,
+universal, dmg — and `build_app.sh`'s `*)` used to run `build()`, which ends in `sign_app`.
+Both of those actually happened. **The guard, not the default, is what makes sourcing
+inert**: a default only helps while the dispatch has nothing dangerous to reach.
+
+**Why it looks safe.** Sourcing reads as "import these functions" — which is exactly what
+a test or a harness wants, and exactly what these files are not. Each **contains
+reusable-looking functions but is not a library**: the functions are at the top, the
+dispatch is at the bottom, and **without the guard, loading the file by any mechanism would
+run that bottom.** `zsh -c 'source ./release.sh; f'` is the natural way to reach one helper
+for a test, and before the guard existed that command would have started a release.
+
+**Both scripts carry the guard** on the line immediately preceding the bottom `case`
+dispatch in each file. **Locate it by that `case` block** — `grep -n ZSH_EVAL_CONTEXT`
+finds it in one step. No line number is quoted here on purpose: line numbers in these
+scripts drift as the files change, and a stale number sends the reader to the wrong
+construct.
+
+```sh
+case "${ZSH_EVAL_CONTEXT}" in *:file*) return 0 ;; esac
+```
+
+**Do not replace this with the bash idiom.** These are `#!/bin/zsh` scripts, and
+`(return 0 2>/dev/null)` — the usual bash sourced-detection — **inverts here**:
+
+| | `ZSH_EVAL_CONTEXT` | `(return 0 2>/dev/null)` | the guard above |
+| --- | --- | --- | --- |
+| executed | `toplevel` | true → "sourced" ✗ | "executed" ✓ |
+| sourced | `cmdarg:file` | true → "sourced" ✓ | "sourced" ✓ |
+
+So the bash idiom reports *sourced* in both contexts, which does not fail loudly — it
+**silently disables the dispatch**, and `./release.sh build` then does nothing while
+looking correctly guarded. Verify any change to this line against real `zsh` in both
+contexts; the obvious fix is the wrong one and it fails quietly.
+
+**To confirm the dispatch is still reachable, pass an unrecognized argument** —
+`./release.sh __guardcheck__` hits the `*)` usage branch and exits 1, exercising the same
+`case` with no build and no signing. Never bare, and not `build` either: `build` is
+ordinary work for development but it is not the cheap way to test a guard.
+
+The general shape, which outlives this file: **anything that dispatches on load can be
+entered without being invoked.** A rule that names forbidden commands protects the
+commands it names. If a third script is added with a `case` at the bottom, it needs this
+guard too.
 
 ---
 
@@ -284,11 +412,29 @@ parses the timestamp and applies `if ts < since: continue` *before* it looks the
 row would claim the key first, and the in-window row for the same message would then be
 dropped as a duplicate — silently deleting real usage from the window.
 
-**4. `cache_creation` nested fields sum to the flat field.** Within one usage object,
-`cache_creation["ephemeral_5m_input_tokens"] + cache_creation["ephemeral_1h_input_tokens"]`
-equals the flat `cache_creation_input_tokens`. `_weigh_usage()` relies on this, and
-defensively weights any unclassified remainder (`flat - 5m - 1h`) at the 5m rate. Older
-logs have no `cache_creation` dict at all; those fall back to the flat field.
+**4. Do not write down any relationship between the nested `cache_creation` fields and the
+flat field. `_weigh_usage()` assumes none.** State it as the contract the code implements,
+which holds for every input without appealing to what the logs have been seen to contain:
+
+- The nested `ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens` are each weighed
+  **independently**, at their own rates. Neither is derived from the flat field.
+- A **positive** difference `flat − 5m − 1h` is weighed as an unclassified remainder at the
+  5m rate.
+- If the nested fields **exceed** the flat field, all of the nested weight is still kept and
+  the remainder contributes **nothing** — it is clamped at zero, never negative.
+
+So no arrangement of the three numbers can lose nested tokens or subtract from the total.
+
+State it as two separate obligations, because writing down any relationship between the
+fields is what makes one of them look removable. **The positive remainder term is
+load-bearing whenever the flat field exceeds the nested fields this code knows about** —
+if a future category is included in the flat field but carries no nested key this code
+recognizes, the remainder is the only thing that still counts it. **The nested fields
+are weighed independently even when they exceed the flat field** — that case adds no
+remainder, and it removes nothing. Neither obligation depends on the two ever agreeing,
+which is why neither can be dropped even if a sample happens to show agreement.
+
+Older logs have no `cache_creation` dict at all; those weigh the flat field as a whole.
 
 **5. Sidechain usage is real billed usage and is always included.** Rows with
 `isSidechain: true`, and the nested `<session-id>/subagents/*.jsonl` files, are counted
@@ -300,6 +446,103 @@ whose mtime predates `since` purely to avoid opening them. It is an optimization
 correctness boundary — **the per-record timestamp check is the real gate.** A file
 touched recently can hold ancient records, so never treat "the file is recent" as
 evidence that its records are in the window.
+
+---
+
+## Seeding the bundled pets
+
+`seed_bundled_pet_assets()` copies the app's own `.claude_pet/` tree into the user's
+`~/.claude_pet/` on every launch, **missing-only**. It runs in `run_gui()` before the first
+`discover_pets()`, so a pet it publishes appears in that same session's menu.
+
+These are correctness-and-safety facts, not permission rules — "wrong" here means a user loses
+data or ends up with a broken pet that no later launch can repair.
+
+**1. Publishing is fail-closed. There is no degraded mode, and adding one is the trap.**
+Files publish with `os.link`, directories with `renameatx_np(..., RENAME_EXCL)` — both refuse,
+in the kernel, when the destination already exists. If a primitive is unavailable the seed
+**reports an error and publishes nothing by that route**. It does not fall back.
+
+**The property, stated so it survives a change of primitive: no *partial* artifact is ever
+published — each README and each pet lands completely or not at all.** That is not the same
+as "nothing is published", and the difference is user-visible: **"fail-closed" is not
+all-or-nothing, because the two kinds fail independently.** Files need hardlinks; directories
+need `RENAME_EXCL`, and those are separate filesystem capabilities. On a filesystem with the
+first and not the second — an NFS-mounted home is the realistic case — **four `README*.md`
+land and zero pets do.**
+
+So anyone writing about this, in a comment or in a release note, must not say "the app
+installs nothing": a user in exactly that state is looking at four new files sitting in
+`~/.claude_pet/` and will conclude the warning is about somebody else. That sentence has
+already shipped once and had to be corrected, and this is not hypothetical caution — it
+reached a frozen release-notes draft, written by the people with the best model of the
+system, because a log line read `4 copied` and nobody asked *which four*. Reproduce the
+state with `mock.patch.object(claude_pet, "_RENAMEATX_NP", None)` before writing anything
+about this case.
+
+The change to refuse, in the shape it will actually arrive — someone reports "seeding doesn't
+work on my NFS home", and this looks like a reasonable portability fix:
+
+```python
+if not os.path.lexists(dst):    # never do this
+    os.rename(stage, dst)       # nor shutil.copytree, nor mkdir-then-populate
+```
+
+It is wrong for two independent reasons, and both have already been shipped and reverted here:
+
+- **Check-then-act destroys the user's data in the window.** Between `lexists` and `rename`,
+  a pet folder created by the user or another instance is silently replaced. A narrower window
+  is not a fix — `renameatx_np` exists precisely because the check cannot be made safe.
+- **Anything that creates the destination before the content is complete enshrines a partial
+  pet.** `mkdir`-then-populate and `O_CREAT|O_EXCL`-then-write both fail here even though each
+  claims the name atomically: a failure mid-write leaves a half-made pet, which invariant 2
+  then protects forever.
+
+The property that generalizes: **stage the complete artifact elsewhere, then publish it with a
+primitive that cannot overwrite.** A pet that fails to appear is recoverable on the next launch;
+one that is silently wrong or half-written is not.
+
+**2. The whole-directory skip is load-bearing, and it is why the source is validated before
+staging.** An existing `~/.claude_pet/pets/<id>` is skipped without being looked inside — that is
+what protects a pet the user edited. The cost is that **anything published once is permanent**:
+`_is_pet_dir()` accepts a directory on the strength of `pet.json` alone, so a pet missing its
+sheet still lists in the menu and fails to load, and every later launch skips it as "already
+there". Only a manual `rm -rf` clears it.
+
+So `_seed_pets()` validates the **source** completely before staging: all three files present as
+regular files (no symlinks), and `_bad_pet_metadata()` satisfied — parseable `pet.json`, `id`
+matching the folder, and `spritesheetPath` exactly `BUNDLED_PET_SHEET`. Any failure means the pet
+is **not staged at all** and the reason lands in `errors`. Read this as one rule rather than a
+list, because the list will keep growing: **if anything about a bundled pet is not exactly as the
+contract specifies, publish nothing and report it.**
+
+**3. No path string survives the safe open.** The destination root is opened once with
+`O_NOFOLLOW|O_DIRECTORY`, and everything after that — creating and opening `pets`, staging,
+copying, publishing, cleanup — is `dir_fd`-relative. This is structural, not defensive:
+
+- **A check is not a substitute for holding the fd — but one of the four `_same_dir()` calls
+  is a gate, and it is not optional.** The call **immediately after the root is opened** is a
+  **fail-closed write gate**: on mismatch it returns then and there and publishes nothing. A
+  mismatch at that instant means the name was swapped as we opened it, so nothing that follows
+  can be said to happen in the directory the user named. The other three — the one after `pets`
+  is opened, and the two after seeding finishes — only append to `report["errors"]` and continue;
+  by then the writes have already landed safely inside fds we hold, and the open question is not
+  *safety* but *whether this is where the user expected it*. The source docstring states this
+  split; do not flatten it back to "diagnostic only", because that phrasing invites the next
+  reader to delete the first call as redundant, and it is carrying an irreversible early return.
+- **What the fd buys you is that no *further* check is needed.** Re-validation added *after* the
+  root gate is defeated by moving the swap one instruction later, which is exactly how this was
+  found — that is why the three later calls report rather than gate.
+- **An absolute path silently overrides `dir_fd`.** Passing a joined path alongside a `dir_fd`
+  produces code that reads as fd-relative and is not. Pass bare component names.
+- `tempfile.mkstemp`/`mkdtemp` and `shutil.copy2` take **no** `dir_fd`, which is why
+  `_copy_into_fd()` stages through a private scratch and writes the destination through
+  `os.open(..., dir_fd=...)`. That rewrite is the work; a conversion that leaves one of these
+  call sites path-based reopens the whole hole while looking finished.
+
+**Never write to `~/.claude_pet/` or `~/.claude_pet.json` from a test or a probe.** The user's
+pets live there alongside the four stock ones. Seeding tests pass `source_root=` and `dest_root=`
+and point both at `tempfile` directories.
 
 ---
 
@@ -323,7 +566,18 @@ The TTL split is only taken when `usage["cache_creation"]` is a dict. Otherwise 
 that a nested dict which does not sum to the flat field cannot silently drop tokens; it
 is clamped at zero, so a nested sum larger than the flat field contributes no negative.
 
-It returns `(total, noncache)` where `noncache` excludes the cache-read term.
+It returns `(total, noncache)` where `noncache` excludes the cache-read term — or **`None`
+when the row's numbers are unusable**. Read the following as examples, **not** as a closed
+list — the guard is "unusable", and enumerating cases here invites someone to implement the
+enumeration instead: a value that is not a real number (a string, or a `bool`, since `True`
+is an `int` in Python), one that is `nan`/`inf`, a negative count, an integer too large to
+convert to a float, or a value that only overflows once it has been multiplied by its
+weight. Claude Code writes these files
+and we only read them, so a malformed row is a case to handle, not an impossibility — one such
+row used to raise `TypeError` out of the multiply and kill the whole aggregation.
+`parse_usage_entries()` skips a `None` row **before** it consults the dedup set, so the bad row
+cannot claim a `(message.id, requestId)` key and delete the good row for the same message.
+An absent field is still `0`, not a skip.
 `noncache` is what spike detection uses — cache reads are large and constant enough that
 including them produced false spike alerts.
 
@@ -659,7 +913,7 @@ is the expected state after an implementation phase and before an authorized rel
 notes are written as part of the work, the bump is not. **Do not "fix" the mismatch by
 bumping `APP_VERSION`** — the mismatch is the signal that step 1 has not been authorized
 yet. To see where things stand, read `APP_VERSION` in `claude_pet.py`, the newest heading
-in `RELEASE_NOTES.md`, and `git tag | tail -1`.
+in `RELEASE_NOTES.md`, and `git tag --sort=-v:refname | head -1`.
 
 1. **Bump `APP_VERSION`** in `claude_pet.py`. It must match `CFBundleShortVersionString`.
    The in-app updater compares this against the latest GitHub release tag of
@@ -686,7 +940,8 @@ in `RELEASE_NOTES.md`, and `git tag | tail -1`.
    **The operational test is the tag and the published releases, not the constant:**
 
    ```sh
-   git tag | tail -1                  # newest tag
+   git tag --sort=-v:refname | head -1   # newest tag — NOT `git tag | tail -1`,
+                                         # which sorts lexically and answers v0.9
    gh release list --limit 5          # what actually exists publicly
    ```
 
@@ -763,7 +1018,8 @@ in `RELEASE_NOTES.md`, and `git tag | tail -1`.
    ./release.sh ship [ver]   # [NEVER]  bump_version; build; sign; notarize;
                              #          maybe_universal; make_dmg; publish
                              #          — the ENTIRE release in one command
-   ./release.sh              # [NEVER]  no argument defaults to `all` (case "${1:-all}")
+   ./release.sh              # [NEVER]  bare form. Prints usage and exits 1 now;
+                             #          it used to default to `all`. Still [NEVER].
    ```
 
    **`[ASK-OP]` means the release-operator gate**: user authorization for this artifact,
@@ -775,6 +1031,31 @@ in `RELEASE_NOTES.md`, and `git tag | tail -1`.
    **`build` and `publish` are the only two that avoid signing**, and they are not
    equivalent: `build` is ordinary local work, `publish` is [ASK] because it writes to the
    user's GitHub releases.
+
+   **`publish` runs the artifact gate before it uploads, and the gate can refuse.** Being
+   authorized to publish is not a prediction that publishing will happen. What it checks,
+   in order (`verify_upload_artifact` and `check_assets`, both in `release.sh`, delegating
+   to `verify_release_artifact.py`):
+
+   - **The upload set is all four files** — `ClaudePet.zip`, `ClaudePet-universal.zip`,
+     `ClaudePet.dmg`, `ClaudePet-universal.dmg` — and their names match the updater's own
+     `UPDATE_ASSET_NAMES` table. A missing file is a refusal, not a silent omission: a
+     release without the universal zip leaves Intel users with nothing to download, and a
+     name that drifts from the updater's table makes every installed copy retry forever
+     without signalling anyone.
+   - **Each file is opened as a file**, not as the build directory it came from — the
+     archive is scanned for unsafe members *before* extraction, must contain exactly one
+     top-level `ClaudePet.app` and no other `.app` anywhere inside, and the bundle inside
+     is then checked for pet payload, code identity, version, architecture, signature,
+     notarization and staple.
+   - **The architecture requirement comes from the artifact's filename, never from this
+     machine.** `-universal` means `arm64,x86_64`, the plain name means `arm64`, and an
+     artifact whose name settles neither is refused rather than measured against
+     `uname -m`. Asking the build machine is how a universal artifact that lost its
+     `x86_64` slice passes on the maintainer's Mac and fails only for Intel users.
+
+   The same asymmetry applies as everywhere else here: the gate refusing costs a rerun,
+   the gate passing something wrong reaches every user the updater serves.
 
    **`all`, `ship`, and bare stay [NEVER] even for the release operator.** They are not
    forbidden because of what they touch — the operator may run those same actions
@@ -831,9 +1112,12 @@ in `RELEASE_NOTES.md`, and `git tag | tail -1`.
      the sequence, not a shortcut through it** — so "I was authorized to do all of these"
      is not authorization to do them this way. See
      [AGENTS.md](AGENTS.md#sequencing-is-part-of-the-authorization).
-   - **Bare `./release.sh` is not a no-op or a usage message.** The dispatch is
-     `case "${1:-all}"`, so omitting the argument runs `all` — build, sign, notarize,
-     universal, dmg. Only an *unrecognized* argument prints usage and exits 1.
+   - **Bare `./release.sh` prints usage and exits 1** — no argument and an unrecognized
+     argument share the same branch (`case "${1:-}"` … `""|*)`). It did **not** always:
+     the dispatch was `case "${1:-all}"`, so omitting the argument ran `all` — build,
+     sign, notarize, universal, dmg — from a command that looked like it did nothing.
+     The `[NEVER]` above is unchanged by the safer default, and **the default must not be
+     put back**; see [Run, test, build](#run-test-build).
 
    Do not treat this list as closed. `release.sh` is the authority on what these do;
    check its `case` statement before running anything from it, and assume an

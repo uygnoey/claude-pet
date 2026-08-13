@@ -15,7 +15,9 @@ setup(
     options={
         "py2app": {
             "iconfile": "release/icon.icns",
-            "resources": ["frames"],
+            # frames: 내장 고양이 스프라이트 / .claude_pet: 동봉 펫 자산 트리
+            # (앱이 시작할 때 ~/.claude_pet 에 없는 것만 채워 넣는다)
+            "resources": ["frames", ".claude_pet"],
             "plist": {
                 "CFBundleName": "ClaudePet",
                 "CFBundleDisplayName": "Claude Pet",

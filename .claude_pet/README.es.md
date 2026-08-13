@@ -2,26 +2,65 @@
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **Español**
 
-Mascotas personalizadas listas para usar con **claude-pet (v0.18)**.
+Mascotas personalizadas listas para usar con **claude-pet**.
 Se incluyen cuatro compañeros: **Dog · Fox · Scorpion · Elephant**.
 
-> ⚠️ **Importante: la app no lee esta carpeta directamente.**
+> ℹ️ **La app las instala por ti: normalmente no tienes que copiar nada.**
 > claude-pet carga las mascotas personalizadas desde tu directorio de inicio, `~/.claude_pet/pets/`.
-> La carpeta `.claude_pet/pets/` de este repositorio es un **conjunto de ejemplo distribuible** que copias
-> a esa carpeta del inicio; la app nunca copia ni referencia automáticamente esta ruta del repositorio.
+> Este árbol se distribuye dentro de la app y **en cada arranque la app copia lo que falte** en tu
+> carpeta de inicio: los cuatro `README*.md` en `~/.claude_pet/` y cada mascota en
+> `~/.claude_pet/pets/<nombre>/`.
+>
+> La copia es **solo de lo que falta y nunca destructiva**. Un README que ya existe se deja intacto y
+> una carpeta de mascota que ya existe se omite **entera** — la app no mira dentro, así que una
+> mascota que hayas editado nunca se sobrescribe a medias. Nada se sobrescribe ni se borra.
+> Si borras una mascota de serie, el siguiente arranque la repone; si editas una, se queda como está.
+>
+> En un sistema de archivos donde no se puede garantizar una instalación segura (algunas carpetas de
+> inicio en red o montadas), la app **se salta las mascotas** en lugar de dejar una a medio hacer. Los
+> cuatro `README*.md` sí pueden aparecer, así que encontrarlos aquí **no** significa que las mascotas
+> hayan llegado: mira en `~/.claude_pet/pets/` y, si está vacía, usa el **caso 2** de la copia manual
+> de abajo. En ese sistema de archivos una mascota borrada tampoco se repone, así que la copia que
+> hagas a mano es la única que tienes: consérvala.
 >
 > Ten en cuenta que esto también es distinto del archivo de configuración `~/.claude_pet.json` (un archivo JSON, no una carpeta).
 
 ---
 
-## Inicio rápido (instalación)
+## Copia manual (opcional)
+
+La app lo hace sola, así que normalmente no necesitas esta sección. Hay dos casos en los que sí:
+
+**1. Quieres una segunda copia de una mascota con un nombre tuyo** — ya tienes las de serie y
+quieres un duplicado editable al lado:
+
+```bash
+cd ~/.claude_pet
+cp -R pets/dog pets/dog-mia         # a un nombre que aún no exista
+```
+
+El nombre del menú sale de `displayName` dentro de `pet.json`, **no** de la carpeta. Abre
+`pets/dog-mia/pet.json` y cambia `"displayName": "Dog"` por el tuyo — o borra esa línea para que use
+el nombre de la carpeta. Si no, el menú muestra dos entradas que ponen «Dog».
+
+**2. La app no pudo instalarlas** (véase la nota de arriba). Entonces `~/.claude_pet/pets/` está
+vacía, así que el origen tiene que ser el paquete de la app:
 
 ```bash
 mkdir -p ~/.claude_pet/pets
-cp -R dog fox scorpion elephant ~/.claude_pet/pets/
+cp -R /Applications/ClaudePet.app/Contents/Resources/.claude_pet/pets/dog ~/.claude_pet/pets/dog
 ```
 
-Después de copiar, **haz clic derecho en el icono de la barra de menús → elige una mascota** y aparecerán los nuevos compañeros.
+¿Ejecutas desde el código fuente? El mismo origen está en `.claude_pet/pets/dog` del repositorio.
+
+> ⚠️ En ambos casos, copia **a un nombre que aún no exista**. Si el destino ya existe, `cp -R` mete
+> la copia *dentro* de él y acabas con `pets/dog/dog/`, una carpeta sobrante dentro de tu mascota. Y
+> copiar dentro de `pets/` sin dar un nombre sobrescribe los archivos que se llamen igual y pierdes
+> tus ediciones. El sembrado de la app nunca toca una carpeta de mascota que ya está; no lo hagas tú
+> a mano.
+
+Después de copiar, **haz clic derecho en la propia mascota → elige una mascota** y aparecerá el nuevo compañero.
+(No hay icono en la barra de menús ni en el Dock: el menú solo está en la mascota que ves en pantalla.)
 El menú vuelve a escanear la carpeta cada vez que se abre, así que **no hace falta reiniciar la app**.
 
 El menú «Abrir carpeta de mascotas» de la app crea `~/.claude_pet/pets/` si no existe y coloca allí

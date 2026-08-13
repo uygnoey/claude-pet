@@ -171,6 +171,95 @@ class ParseUsageEntriesTests(unittest.TestCase):
         self.assertEqual(len(entries), 2)
         self.assertEqual(sum(entry[1] for entry in entries), 150)
 
+    def test_malformed_usage_numbers_skip_only_the_bad_rows(self):
+        malformed = [
+            usage_record(
+                timestamp=BASE,
+                request_id="valid-after-bad-rows",
+                output_tokens="not-a-number",
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=1),
+                request_id="bad-cache",
+                cache_creation_input_tokens=10,
+                cache_creation={"ephemeral_1h_input_tokens": "broken"},
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                request_id="non-finite",
+                input_tokens=float("inf"),
+            ),
+            [],
+            {
+                "timestamp": BASE.isoformat(),
+                "message": "not-an-object",
+            },
+            {
+                "timestamp": BASE.isoformat(),
+                "message": {"id": "bad-usage", "usage": [1, 2, 3]},
+            },
+            {
+                "timestamp": 12345,
+                "message": {"id": "bad-timestamp", "usage": {"input_tokens": 1}},
+            },
+            {
+                "timestamp": BASE.replace(tzinfo=None).isoformat(),
+                "message": {"id": "naive-timestamp", "usage": {"input_tokens": 1}},
+            },
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                request_id="bad-model",
+                model=12345,
+                input_tokens=1,
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                request_id="negative-token-count",
+                input_tokens=-100,
+                output_tokens=100,
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                request_id="weighted-overflow",
+                output_tokens=1e308,
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                request_id="huge-json-integer",
+                output_tokens=10**1000,
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                request_id="bad-cache-shape",
+                cache_creation_input_tokens=1,
+                cache_creation=[{"unexpected": "list"}],
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                message_id=[],
+                request_id="unhashable-message-id",
+                output_tokens=1,
+            ),
+            usage_record(
+                timestamp=BASE + timedelta(seconds=2),
+                message_id="unhashable-request-id",
+                request_id={"bad": "shape"},
+                output_tokens=1,
+            ),
+        ]
+        valid = usage_record(
+            timestamp=BASE + timedelta(seconds=3),
+            request_id="valid-after-bad-rows",
+            output_tokens=20,
+        )
+        self.write_log([*malformed, valid])
+
+        entries = claude_pet.parse_usage_entries(BASE - timedelta(minutes=1))
+
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0][0], BASE + timedelta(seconds=3))
+        self.assertEqual(entries[0][1], 100)
+
     def test_nested_sidechain_agent_usage_is_included(self):
         record = usage_record(
             timestamp=BASE,
