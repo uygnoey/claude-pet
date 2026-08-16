@@ -866,7 +866,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.20"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.21"                 # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0, "busy": False}
@@ -1023,9 +1023,13 @@ TR = {
     "s_greet": "Wave when the mouse comes close", "s_admin_key": "Admin API key",
     "s_budget": "API monthly budget ($)", "s_save": "Save", "s_language": "Language",
     "s_pet": "Pet",
-    "s_limit_note1": "※ These limits apply to log-estimate mode only.",
-    "s_limit_note2": "     In exact mode the gauges come from the server.",
-    "s_limit_note3": "※ If both are filled for a gauge, the % wins over the limit.",
+    "s_limit_note1": "※ Leave a field blank to keep the limit currently in effect.",
+    "s_limit_note2": ("     Exact-mode gauges come from the server; no calibration.\n"
+                      "     Spike detection still uses these estimated limits."),
+    "s_limit_note3": "※ The % wins over an absolute limit.",
+    "s_limit_advanced": "▸ Advanced: enter absolute limits",
+    "s_limit_advanced_button": "Advanced…",
+    "s_limit_current": "now: {value}M",
     "s_g_session": "Session limit", "s_g_weekly": "Weekly limit",
     "s_g_opus": "Model limit",
     "s_err_title": "Settings were not saved",
@@ -1036,6 +1040,10 @@ TR = {
     "s_err_calib_zero": ("{field}: usage is 0 right now, so a limit cannot be "
                          "derived from a %. Clear the field or use the limit "
                          "in M tokens. Nothing was saved."),
+    "s_err_calib_zero_pct": ("{field}: a limit cannot be derived from 0%. If "
+                             "Claude shows 0%, this window has no usage yet — "
+                             "calibrate once some has built up, or clear the "
+                             "field to keep the current limit. Nothing was saved."),
     "s_err_save": "Could not write the settings file. Nothing was changed.",
     "s_err_calib_used": ("{field}: the current usage figure is unusable, so a "
                          "limit cannot be derived from a %. Nothing was saved."),
@@ -1095,9 +1103,13 @@ TR = {
     "s_greet": "마우스가 가까이 오면 인사하기", "s_admin_key": "Admin API 키",
     "s_budget": "API 월 예산 ($)", "s_save": "저장", "s_language": "언어",
     "s_pet": "펫",
-    "s_limit_note1": "※ 아래 한도는 로그 추정 모드에만 적용됩니다.",
-    "s_limit_note2": "     정확 모드 게이지는 서버 값이라 영향을 받지 않습니다.",
-    "s_limit_note3": "※ 같은 항목에 둘 다 넣으면 보정 %가 한도보다 우선합니다.",
+    "s_limit_note1": "※ 비워 두면 지금 적용 중인 한도를 그대로 씁니다.",
+    "s_limit_note2": ("     정확 모드 게이지는 서버 값이라 보정이 필요 없습니다.\n"
+                      "     급증 감지는 이 추정 한도를 그대로 사용합니다."),
+    "s_limit_note3": "※ %가 절대 한도보다 우선합니다.",
+    "s_limit_advanced": "▸ 고급: 절대 한도 직접 입력",
+    "s_limit_advanced_button": "고급…",
+    "s_limit_current": "현재: {value}M",
     "s_g_session": "세션 한도", "s_g_weekly": "주간 한도",
     "s_g_opus": "모델 한도",
     "s_err_title": "설정을 저장하지 못했습니다",
@@ -1106,6 +1118,10 @@ TR = {
     "s_err_calib_zero": ("{field}: 지금 사용량이 0이라 %로 한도를 역산할 수 "
                          "없습니다. 칸을 비우거나 M 토큰 한도로 입력하세요. "
                          "저장하지 않았습니다."),
+    "s_err_calib_zero_pct": ("{field}: 0%로는 한도를 계산할 수 없습니다. Claude "
+                             "앱에 0%로 보인다면 이번 창의 사용량이 아직 없다는 "
+                             "뜻이니, 조금 쓰신 뒤에 보정하거나 칸을 비워 지금 "
+                             "한도를 그대로 두세요. 저장하지 않았습니다."),
     "s_err_save": "설정 파일을 쓰지 못했습니다. 아무것도 바뀌지 않았습니다.",
     "s_err_calib_used": ("{field}: 현재 사용량 값이 이상해서 %로 한도를 역산할 수 "
                          "없습니다. 저장하지 않았습니다."),
@@ -1163,9 +1179,13 @@ TR = {
     "s_greet": "マウスが近づいたら手を振る", "s_admin_key": "Admin API キー",
     "s_budget": "API 月次予算 ($)", "s_save": "保存", "s_language": "言語",
     "s_pet": "ペット",
-    "s_limit_note1": "※ これらの上限はログ推定モードにのみ適用されます。",
-    "s_limit_note2": "     正確モードのゲージはサーバー値なので影響しません。",
-    "s_limit_note3": "※ 同じ項目に両方入れると、補正 % が上限より優先されます。",
+    "s_limit_note1": "※ 空欄にすると、現在適用中の上限をそのまま使います。",
+    "s_limit_note2": ("     正確モードのゲージはサーバー値なので補正は不要です。\n"
+                      "     急増検知はこの推定上限をそのまま使います。"),
+    "s_limit_note3": "※ % が絶対上限より優先されます。",
+    "s_limit_advanced": "▸ 詳細: 絶対上限を直接入力",
+    "s_limit_advanced_button": "詳細…",
+    "s_limit_current": "現在: {value}M",
     "s_g_session": "セッション上限", "s_g_weekly": "週間上限",
     "s_g_opus": "モデル上限",
     "s_err_title": "設定を保存できませんでした",
@@ -1176,6 +1196,11 @@ TR = {
     "s_err_calib_zero": ("{field}: 現在の使用量が 0 のため % から上限を逆算でき"
                          "ません。欄を空にするか、百万トークンで上限を入力して"
                          "ください。保存していません。"),
+    "s_err_calib_zero_pct": ("{field}: 0% からは上限を計算できません。Claude アプリ"
+                             "で 0% と表示されている場合、この期間の使用量がまだ"
+                             "ないという意味です。少し使ってから補正するか、欄を"
+                             "空にして今の上限をそのままにしてください。保存して"
+                             "いません。"),
     "s_err_save": "設定ファイルを書き込めませんでした。何も変更していません。",
     "s_err_calib_used": ("{field}: 現在の使用量の値が不正なため % から上限を逆算"
                          "できません。保存していません。"),
@@ -1235,9 +1260,13 @@ TR = {
     "s_greet": "Saludar cuando el ratón se acerca", "s_admin_key": "Clave de Admin API",
     "s_budget": "Presupuesto mensual de API ($)", "s_save": "Guardar", "s_language": "Idioma",
     "s_pet": "Mascota",
-    "s_limit_note1": "※ Estos límites solo se aplican al modo de estimación.",
-    "s_limit_note2": "     En modo exacto los medidores vienen del servidor.",
-    "s_limit_note3": "※ Si rellenas ambos, el % tiene prioridad sobre el límite.",
+    "s_limit_note1": "※ Deja un campo vacío para conservar el límite vigente.",
+    "s_limit_note2": ("     Modo exacto: medidores del servidor, sin calibrar.\n"
+                      "     La detección de picos sí usa estos límites estimados."),
+    "s_limit_note3": "※ El % manda sobre el límite absoluto.",
+    "s_limit_advanced": "▸ Avanzado: introducir límites absolutos",
+    "s_limit_advanced_button": "Avanzado…",
+    "s_limit_current": "ahora: {value}M",
     "s_g_session": "Límite de sesión", "s_g_weekly": "Límite semanal",
     "s_g_opus": "Límite de modelo",
     "s_err_title": "No se guardó la configuración",
@@ -1248,6 +1277,11 @@ TR = {
     "s_err_calib_zero": ("{field}: el uso actual es 0, así que no se puede "
                          "deducir el límite a partir de un %. Deja el campo "
                          "vacío o usa el límite en M tokens. No se guardó nada."),
+    "s_err_calib_zero_pct": ("{field}: no se puede deducir un límite a partir de "
+                             "0%. Si Claude muestra 0%, esta ventana aún no tiene "
+                             "uso: calibra cuando se haya acumulado algo, o deja "
+                             "el campo vacío para conservar el límite actual. "
+                             "No se guardó nada."),
     "s_err_save": ("No se pudo escribir el archivo de configuración. No se "
                    "cambió nada."),
     "s_err_calib_used": ("{field}: la cifra de uso actual no es válida, así que "
@@ -1475,21 +1509,56 @@ def _finite_decimal(value):
     return d if d.is_finite() else None
 
 
+def _calibration_percent_error(raw):
+    """보정 % 원문 → Decimal, 또는 오류 메시지 **키**(문자열).
+
+    반환형으로 둘을 구분하는 이유는 이 검사가 두 곳에서 쓰이기 때문이다:
+    사용량을 구하기 '전'(plan_settings_save)과 역산 직전(prepare_settings_config).
+    사용량 조회는 남의 로그를 읽는 일이라 실패할 수 있으므로, 사용자가 친 값이
+    이미 틀렸다면 그 전에 돌려보내야 한다 — 안 그러면 '내 입력이 틀렸다' 대신
+    '앱이 사용량을 못 읽었다'는 엉뚱한 메시지가 나간다.
+
+    0 은 범위 오류와 따로 다룬다. 0 은 오타가 아니라 사용자가 Claude 앱에서
+    실제로 본 값일 수 있고, 그때 필요한 안내는 '0~100 을 입력하라'가 아니라
+    '아직 역산할 사용량이 없다'이다.
+    """
+    pct = _to_decimal(raw, allow_percent=True)
+    if pct is None:
+        return "s_err_calib"
+    if pct == 0:
+        return "s_err_calib_zero_pct"
+    if pct < 0 or pct > 100:
+        return "s_err_calib"
+    return pct
+
+
 def prepare_settings_config(base_cfg, direct_by_gauge, calibration_by_gauge,
                             usage_stats):
     """설정 창의 한도 입력을 검증해 (새 설정 dict, 오류 메시지) 를 만든다.
 
-    · 직접 입력(M 토큰): 유한한 양수만. 빈 값·0·음수·nan/inf·문자 → 저장 전체 거부.
-    · 보정(%): 비어 있으면 건너뜀. 채웠으면 0 < pct <= 100 인 유한값만,
-      그리고 해당 게이지의 사용량이 0이면 역산이 불가능하므로 거부.
-    · 같은 게이지에 둘 다 들어오면 보정(%)이 이긴다.
-    거부할 때는 아무것도 적용하지 않은 복사본을 돌려준다(부분 적용 금지).
+    **입력은 게이지마다 독립이고, 셋 다 선택 사항이다.** 일반 사용자는 토큰
+    숫자를 알 수 없다 — Claude 앱에 보이는 것은 %뿐이다. 그래서 한 칸도 채우지
+    않고 저장할 수 있어야 하고, 그때는 기존 한도가 그대로 남아야 한다.
+
+    게이지별 해결 순서:
+    · 보정(%)이 채워졌으면 → 사용량으로 역산한 값이 그 게이지의 한도가 된다.
+    · %가 비고 직접 입력(M 토큰)이 채워졌으면 → 그 값을 쓴다(종전 검증 그대로).
+    · 둘 다 비었으면 → **base_cfg 의 기존 값을 그대로 둔다.** base_cfg 에 그 키가
+      없으면 만들지도 않는다 — 안 건드린 게이지 때문에 없던 override 가 새로
+      생기면, 사용자는 손댄 적 없는 값이 고정돼 버린 것을 알 길이 없다.
+
+    '비었다'와 '틀렸다'는 다르다. 비면 건너뛰지만, 값이 들어왔는데 이상하면
+    저장 전체를 거부한다(부분 적용 금지 — 거부 시 아무것도 적용하지 않은 복사본).
     입력으로 받은 base_cfg 는 절대 건드리지 않는다.
     """
     candidate = dict(base_cfg)
     limits = {}
     for gkey, ckey in GAUGE_LIMIT_KEYS:
-        v = _to_decimal((direct_by_gauge or {}).get(gkey, ""))
+        raw = (direct_by_gauge or {}).get(gkey, "")
+        # 빈 칸 판정은 손대지 않은 원문으로만 한다(아래 % 쪽과 같은 이유).
+        if not str(raw).strip():
+            continue                                   # 비워 두면 기존 한도 유지
+        v = _to_decimal(raw)
         if v is None or v <= 0:
             return dict(base_cfg), t("s_err_limit", field=t("s_g_" + gkey))
         tokens = int((v * (Decimal(10) ** 6)).to_integral_value(rounding="ROUND_HALF_UP"))
@@ -1505,9 +1574,9 @@ def prepare_settings_config(base_cfg, direct_by_gauge, calibration_by_gauge,
         # 문자열이 무엇인지 정하기 전에 글자를 지우면 안 된다.
         if not str(raw).strip():
             continue                                   # 비워 두면 보정 안 함
-        pct = _to_decimal(raw, allow_percent=True)
-        if pct is None or pct <= 0 or pct > 100:
-            return dict(base_cfg), t("s_err_calib", field=t("s_g_" + gkey))
+        pct = _calibration_percent_error(raw)
+        if isinstance(pct, str):
+            return dict(base_cfg), t(pct, field=t("s_g_" + gkey))
         # used 는 사용자가 친 값이 아니라 추정기가 준 값이다. 그래도 nan/inf/문자가
         # 섞여 들어오면 Decimal 변환에서 예외가 터져 저장 경로가 통째로 죽는다 —
         # 사용자 입장에선 '내 입력이 거절됐다'가 아니라 '앱이 고장났다'로 보인다.
@@ -1587,6 +1656,13 @@ def plan_settings_save(base_cfg, form, usage_stats=None, stats_for=None):
     # 저장 전체가 실패할 수 있다. 그 로그는 Claude Code 가 쓰는 남의 파일이다.
     # (try/except 로 감싸는 것으로는 부족하다: 필요도 없는 의존이 그대로 남는다)
     filled = [g for g, _ in GAUGE_LIMIT_KEYS if str(calib.get(g, "")).strip()]
+    # 사용량을 구하기 '전에' 사용자가 친 %부터 본다. 0% 나 범위 밖 값은 사용량이
+    # 무엇이든 역산이 불가능하므로, 남의 로그를 읽어 볼 이유가 없다 — 읽었다가
+    # 실패하면 사용자는 자기 입력이 아니라 앱이 고장난 것으로 읽는다.
+    for gkey in filled:
+        checked = _calibration_percent_error(calib.get(gkey, ""))
+        if isinstance(checked, str):
+            return None, t(checked, field=t("s_g_" + gkey))
     if filled and stats_for is not None:
         try:
             usage_stats = stats_for({k: draft.get(k)
@@ -5711,7 +5787,13 @@ def run_gui():
             ui["panel"].makeKeyAndOrderFront_(None)
             NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
             return
-        PWID, PHT = 420, 656   # 한도 안내 3줄 추가분 포함
+        # 높이 예산: 1366x768 이 최소 지원 화면이고, 메뉴 바(25)와 Dock 을 빼면
+        # 세로로 쓸 수 있는 것은 약 673 이다. 타이틀 바까지 더해도 안전하도록
+        # 내용 높이는 **656 을 넘기지 않는다.**
+        #   656(원래) − 88(옛 절대 한도 3줄, 별도 창으로 이전) + 44(note2 다줄화)
+        #   = 612. 고급 창을 여는 버튼은 note3 와 같은 줄에 얹어 0 을 쓴다.
+        # 세 칸을 이 창에 숨겨 두는 방식은 732 가 되어 저장 버튼이 잘렸다.
+        PWID, PHT = 420, 612   # 한도 안내(다줄 note2) 포함, 절대 한도는 별도 창
         panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, PWID, PHT),
             NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
@@ -5722,16 +5804,34 @@ def run_gui():
         # 안내하는데, 그러려면 반드시 앱을 전환해야 한다. 게다가 LSUIElement 라
         # Dock 아이콘이 없어 사라지면 펫을 우클릭하는 것 말고는 되돌릴 길이 없다.
         panel.setHidesOnDeactivate_(False)
+        # 자식 창과 같은 이유(아래 open_advanced_limits 참조): 창의 수명을
+        # Cocoa 의 '닫으면 release' 에 맡기지 않고 우리가 명시적으로 관리한다.
+        panel.setReleasedWhenClosed_(False)
+        panel.setDelegate_(handler)   # X → windowWillClose_ → 자식 먼저 정리
         panel.center()
         cv = panel.contentView()
 
-        def label(text, x, y, w=150):
-            l = NSTextField.alloc().initWithFrame_(NSMakeRect(x, y, w, 20))
+        def label(text, x, y, w=150, h=20):
+            l = NSTextField.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
             l.setStringValue_(text)
             l.setBezeled_(False)
             l.setDrawsBackground_(False)
             l.setEditable_(False)
             l.setSelectable_(False)
+            if h > 20:
+                # 여러 줄 라벨. NSTextField 는 기본이 한 줄이라, 문자열에 \n 을
+                # 넣어도 그것만으로는 줄이 나뉘지 않고 잘린다 — 셋 다 켜야 한다:
+                #   usesSingleLineMode=False  한 줄 강제 해제
+                #   cell.wraps=True           줄바꿈 허용
+                #   lineBreakMode=0           NSLineBreakByWordWrapping
+                # 마지막 줄을 '…' 로 줄이는 동작도 끈다. 실패를 삼키지 않는 것이
+                # 중요하다: 조용히 넘어가면 '설정한 것처럼 보이는데 잘리는' 상태가
+                # 되고, 그건 지금 고치고 있는 바로 그 버그다.
+                l.setUsesSingleLineMode_(False)
+                c = l.cell()
+                c.setWraps_(True)
+                c.setLineBreakMode_(0)
+                c.setTruncatesLastVisibleLine_(False)
             cv.addSubview_(l)
             return l
 
@@ -5801,28 +5901,47 @@ def run_gui():
         label(t("s_calib_weekly_model"), 20, y)
         f_cm = field(180, y - 2, 60, "")
 
-        # 한도 안내 — (1) 이 한도는 로그 추정 모드 전용, (2) 같은 항목에 %와
-        # 한도를 모두 넣으면 %가 이긴다. 둘 다 조용히 일어나면 "저장했는데 안
-        # 바뀐다"로 보이므로 두 입력 사이에 명시한다.
+        # 한도 안내 세 줄 —
+        #  (1) 비워 두면 지금 적용 중인 한도가 그대로 유지된다.
+        #  (2) 정확 모드에서는 게이지 %가 서버 값이라 보정이 필요 없지만,
+        #      **급증 감지는 어느 모드에서든 이 추정 한도를 쓴다.** 예전 문구는
+        #      "이 한도는 로그 추정 모드 전용"이었는데 그건 사실이 아니다 —
+        #      is_spike() 가 RUNTIME["session_limit"] 로 판단하므로, 정확 모드
+        #      사용자도 한도가 틀리면 급증 알림이 틀린다.
+        #  (3) 같은 항목에 %와 한도를 모두 넣으면 %가 이긴다.
+        # (2)(3) 은 조용히 일어나면 "저장했는데 안 바뀐다"로 보이므로 명시한다.
+        #
+        # note2 는 어느 언어에서도 한 줄에 들어가지 않는다. 380x20 한 줄에 두면
+        # 뒤쪽('급증 감지는 추정 한도를 쓴다')이 잘려 나가는데, 하필 그 잘리는
+        # 부분이 이 안내의 핵심이다. 그래서 문자열에 명시적 \n 을 넣는다.
+        #
+        # 다만 \n 만으로는 부족하다. 명시적 줄바꿈으로 나뉜 '각 줄'도 380px 를
+        # 넘으면 다시 wrap 되므로, 2줄 프레임에 3줄이 들어가면 결국 잘린다.
+        # 폰트 실측 없이 줄당 폭을 장담할 수 없어(여기서 GUI 를 띄울 수 없다)
+        # **3줄 높이(52)로 잡아 한 줄이 한 번 더 접혀도 흡수되게** 한다.
+        # 넘치는 쪽이 아니라 남는 쪽으로 틀리는 편이 낫다.
+        #
+        # 아래 y 간격은 각 라벨의 실제 높이(20/52/20)보다 크게 잡아 서로 겹치지
+        # 않게 한다 — 예전에는 20 높이 라벨을 18 간격으로 쌓아 2px 씩 겹쳤다.
         y -= 30
-        label(t("s_limit_note1"), 20, y, 380)
-        y -= 18
-        label(t("s_limit_note2"), 20, y, 380)
-        y -= 18
-        label(t("s_limit_note3"), 20, y, 380)
+        label(t("s_limit_note1"), 20, y, 380)          # [y, y+20]
+        y -= 56
+        label(t("s_limit_note2"), 20, y, 380, h=52)    # [y, y+52], 위와 4px 간격
+        y -= 24
+        label(t("s_limit_note3"), 20, y, 240)          # [y, y+20], 위와 4px 간격
 
-        # 소수 2자리로 보여 주면 손대지 않은 필드도 저장할 때마다 값이 잘려
-        # (예: 12,345,678 → 12.35M → 12,350,000) 한도가 조금씩 흘러갔다.
-        # 6자리까지 보여 주면 1토큰 단위까지 그대로 왕복한다.
-        y -= 28
-        label(t("s_limit_session"), 20, y)
-        f_ses = field(180, y - 2, 90, fmt_limit_m(RUNTIME["session_limit"]))
-        y -= 30
-        label(t("s_limit_weekly"), 20, y)
-        f_wk = field(180, y - 2, 90, fmt_limit_m(RUNTIME["weekly_limit"]))
-        y -= 30
-        label(t("s_limit_model"), 20, y)
-        f_op = field(180, y - 2, 90, fmt_limit_m(RUNTIME["opus_limit"]))
+        # 절대 토큰 한도는 '고급'이라 **별도 창**으로 뺀다. 세 칸을 이 창에 자리만
+        # 비워 두고 숨기는 방식도 해 봤는데, 그러면 내용 높이가 732 가 되어
+        # 1366x768 화면(메뉴 바·Dock 제외 약 673)에서 저장 버튼과 타이틀이 잘린다.
+        # 여는 버튼은 note3 와 **같은 줄** 오른쪽에 얹어 세로를 한 줄도 쓰지 않는다.
+        adv_btn = NSButton.alloc().initWithFrame_(NSMakeRect(268, y - 3, 132, 24))
+        # 버튼은 짧은 키를 쓴다. 긴 s_limit_advanced 는 자식 창 '제목'으로 남는다 —
+        # 제목 표시줄은 폭이 넉넉하지만 132px 버튼은 그렇지 않다.
+        adv_btn.setTitle_(t("s_limit_advanced_button"))
+        adv_btn.setBezelStyle_(1)      # 위 save_btn 과 같은 상수
+        adv_btn.setTarget_(handler)
+        adv_btn.setAction_("openAdvancedLimits:")
+        cv.addSubview_(adv_btn)
 
         y -= 36
         label(t("s_spike_sens"), 20, y)
@@ -5858,14 +5977,150 @@ def run_gui():
         save_btn.setAction_("saveSettings:")
         cv.addSubview_(save_btn)
 
-        ui.update({"panel": panel, "mode": mode, "ses": f_ses, "wk": f_wk,
-                   "op": f_op, "sens": sens, "greet": greet,
+        # ses/wk/op(절대 한도)는 여기 없다 — 별도 '고급' 창이 생길 때 비로소
+        # ui 에 들어온다. 그래서 그 창을 한 번도 열지 않았으면 adv_value() 가
+        # "" 를 돌려주고, 그건 계약상 '기존 한도 유지'와 정확히 같은 값이다.
+        ui.update({"panel": panel, "mode": mode,
+                   "sens": sens, "greet": greet,
                    "key": f_key, "bud": f_bud, "kw": f_kw,
                    "wreset": wreset, "whour": f_wh, "lang": lang_pop,
                    "cs": f_cs, "cw": f_cw, "cm": f_cm,
                    "pet": pet_pop, "pet_ids": pet_ids})
         panel.makeKeyAndOrderFront_(None)
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+
+    # ── 고급: 절대 한도 창 ──
+    ADV_FIELD_KEYS = ("ses", "wk", "op")
+
+    def adv_value(key):
+        """고급 창의 입력값. **창이 없으면 빈 문자열.**
+
+        이 한 줄이 계약 전체를 떠받친다. 고급 창을 한 번도 열지 않은 사용자는
+        '빈 칸'을 낸 것과 정확히 같아지고, 빈 칸은 prepare_settings_config 에서
+        '기존 한도 유지'다. 창의 존재 여부가 저장 결과에 새 분기를 만들지 않는다.
+        위젯을 미리 잡아 두지 않고 매번 ui 에서 조회하는 이유도 같다 — 창이 죽은
+        뒤 참조만 살아남아 유령 값을 읽는 일이 없어야 한다.
+        """
+        w = ui.get(key)
+        return w.stringValue() if w else ""
+
+    def close_advanced():
+        """고급 창을 떼어 내리고 참조를 지운다. 창과 참조는 반드시 같이 죽는다.
+
+        세 경로에서 불린다: 저장, 본 창 닫힘, 그리고 **고급 창 자체의 X**.
+        마지막 것이 처음 구현에서 빠져 있었다 — addChildWindow_ 는 부모→자식
+        방향만 묶어 주므로, 자식의 X 는 이 함수를 지나지 않았다. 그러면 닫힌
+        창을 가리키는 참조가 남고 adv_value() 가 그 stringValue() 를 읽어
+        저장에 반영한다. 조회 방식만으로는 유령 값을 막지 못한다 — 지워 주는
+        쪽이 있어야 비로소 막힌다.
+
+        재진입 방지: 지금은 orderOut_ 이라 close 알림이 다시 오지 않지만,
+        누군가 close() 로 바꾸면 delegate → 여기 → close() → delegate 가 된다.
+        그 변경이 조용히 무한 재귀가 되지 않도록 깃발로 막아 둔다.
+        """
+        if ui.get("adv_closing"):
+            return
+        ui["adv_closing"] = True
+        try:
+            p = ui.get("adv_panel")
+            if p:
+                parent = ui.get("panel")
+                if parent:
+                    parent.removeChildWindow_(p)
+                p.setDelegate_(None)
+                p.orderOut_(None)
+            ui["adv_panel"] = None
+            for k in ADV_FIELD_KEYS:
+                ui[k] = None
+        finally:
+            ui["adv_closing"] = False
+
+    def close_main_panel():
+        """본 창을 닫는 유일한 경로. 자식을 **먼저** 정리한다.
+
+        순서가 뒤집히면 그 사이 자식이 부모 없이 화면에 남는다. 이 앱은
+        LSUIElement 라 Dock 아이콘이 없어, 그렇게 남은 창은 사용자가 되돌릴
+        방법이 사실상 없다.
+        """
+        close_advanced()
+        p = ui.get("panel")
+        if p:
+            p.setDelegate_(None)
+            p.orderOut_(None)
+        ui["panel"] = None        # 다음에 열 때 새 언어로 재구성
+
+    def open_advanced_limits():
+        if ui.get("adv_panel"):
+            ui["adv_panel"].makeKeyAndOrderFront_(None)
+            return
+        parent = ui.get("panel")
+        if not parent:
+            return                      # 본 창이 없으면 열지 않는다(고아 방지)
+        # 폭 500 은 세 칸(라벨·입력·현재값)이 어느 locale 에서도 잘리지 않는
+        # 최소치다. 380 일 때는 "Weekly limit (M tokens)" 같은 행 라벨과
+        # "now: 98.765432M" 같은 현재값이 함께 잘렸다. 이 창은 본 창과 달리
+        # 세로 예산(612/656)과 무관하므로 가로로 넉넉히 준다.
+        AW, AH = 500, 190
+        ap = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(0, 0, AW, AH),
+            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
+            NSBackingStoreBuffered, False)
+        ap.setTitle_(t("s_limit_advanced"))     # 제목은 긴 키를 그대로 쓴다
+        # 본 창과 같은 이유로 필요하다: 사용자는 %를 확인하러 Claude 앱으로
+        # 전환하는데, 기본값이면 그 순간 창이 사라진다.
+        ap.setHidesOnDeactivate_(False)
+        # X 를 눌러도 객체가 해제되지 않게 한다. initWithContentRect: 로 만든
+        # 창은 기본이 '닫으면 release' 다. windowWillClose_ 자체는 release 보다
+        # **먼저** 오므로 그 안에서 해제된 객체를 만질 일은 없지만, 문제는 그
+        # 뒤다 — ui 딕셔너리와 정리 흐름이 창을 명시적으로 붙잡고 있는 파이썬
+        # 쪽 수명과 Cocoa 쪽 수명이 어긋나면, 이미 해제된 객체를 가리키는
+        # 래퍼가 남는다. 수명을 우리가 명시적으로 관리하려고 끈다.
+        ap.setReleasedWhenClosed_(False)
+        ap.setDelegate_(handler)                # X → windowWillClose_ → 정리
+        acv = ap.contentView()
+
+        def alabel(text, x, yy, w=150, h=20):
+            l = NSTextField.alloc().initWithFrame_(NSMakeRect(x, yy, w, h))
+            l.setStringValue_(text)
+            l.setBezeled_(False)
+            l.setDrawsBackground_(False)
+            l.setEditable_(False)
+            l.setSelectable_(False)
+            acv.addSubview_(l)
+            return l
+
+        def afield(x, yy, w):
+            f = NSTextField.alloc().initWithFrame_(NSMakeRect(x, yy, w, 22))
+            f.setStringValue_("")       # 항상 빈 칸 = 지금 한도 유지
+            acv.addSubview_(f)
+            return f
+
+        yy = AH - 34
+        alabel(t("s_limit_note1"), 16, yy, AW - 32)
+        yy -= 30
+        made = []
+        for key_l, tokens in (("s_limit_session", RUNTIME["session_limit"]),
+                              ("s_limit_weekly", RUNTIME["weekly_limit"]),
+                              ("s_limit_model", RUNTIME["opus_limit"])):
+            # 좌우 여백 16 대칭, 열 사이는 겹치지 않게 띄운다:
+            #   라벨 16..186 | 입력 190..290 | 현재값 300..484 | 우여백 16
+            alabel(t(key_l), 16, yy, 170)
+            made.append(afield(190, yy - 2, 100))
+            # 현재 값은 읽기 전용 라벨로만 보여 준다. 칸에 미리 채우면 '빈 칸이면
+            # 안 건드린다'가 창을 열었는지에 따라 달라지는 조건부 성질이 된다.
+            # 폭 184 는 "now: 98.765432M" 처럼 6자리까지 쓴 값이 들어가는 크기다.
+            alabel(t("s_limit_current", value=fmt_limit_m(tokens)),
+                   300, yy, 184)
+            yy -= 30
+
+        for k, w in zip(ADV_FIELD_KEYS, made):
+            ui[k] = w
+        ui["adv_panel"] = ap
+        # 부모에 매달아 수명을 묶는다 — 본 창을 내리면 이 창도 함께 내려간다.
+        parent.addChildWindow_ordered_(ap, 1)     # NSWindowAbove
+        f = parent.frame()
+        ap.setFrameOrigin_(NSMakePoint(f.origin.x + 30, f.origin.y + 40))
+        ap.makeKeyAndOrderFront_(None)
 
     def settings_error(msg):
         """저장 실패 안내. 패널은 열어 둔 채, 설정/RUNTIME/state 는 그대로 둔다."""
@@ -5901,9 +6156,10 @@ def run_gui():
             "spike_mult": [0.5, 1.0, 2.0][ui["sens"].indexOfSelectedItem()],
             "greet": bool(ui["greet"].state()),
             "admin_key": str(ui["key"].stringValue()).strip(),
-            "session_limit_m": ui["ses"].stringValue(),
-            "weekly_limit_m": ui["wk"].stringValue(),
-            "opus_limit_m": ui["op"].stringValue(),
+            # 고급 창을 안 열었으면 "" → 기존 한도 유지(창 존재가 분기를 만들지 않음)
+            "session_limit_m": adv_value("ses"),
+            "weekly_limit_m": adv_value("wk"),
+            "opus_limit_m": adv_value("op"),
             "session_pct": ui["cs"].stringValue(),
             "weekly_pct": ui["cw"].stringValue(),
             "opus_pct": ui["cm"].stringValue(),
@@ -5939,8 +6195,8 @@ def run_gui():
         commit_refresh_result(state, gen, {"stats": compute_usage()})
         state["repaint"] = True
         _oauth_cache["t"] = 0.0   # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
-        ui["panel"].orderOut_(None)
-        ui["panel"] = None        # 다음에 열 때 새 언어로 재구성
+        # 저장 성공 경로도 같은 정리 함수를 쓴다 — 자식 먼저, 그다음 본 창.
+        close_main_panel()
         ticker.refresh_(None)
         view.setNeedsDisplay_(True)
 
@@ -6015,6 +6271,23 @@ def run_gui():
 
         def saveSettings_(self, sender):
             save_settings()
+
+        def openAdvancedLimits_(self, sender):
+            # 절대 한도(고급) 창을 연다. 이미 열려 있으면 앞으로 가져오기만 한다.
+            open_advanced_limits()
+
+        def windowWillClose_(self, notification):
+            """창의 X 로 닫힐 때. 어느 창인지는 알림의 object() 로 가른다.
+
+            버튼을 거치지 않는 유일한 닫힘 경로라, 여기가 없으면 참조만 살아남아
+            닫힌 창의 값이 저장에 실려 들어간다(고급 창), 또는 자식이 부모 없이
+            남는다(본 창).
+            """
+            w = notification.object()
+            if w is ui.get("adv_panel"):
+                close_advanced()        # 자식만 정리 — 본 창은 그대로 열려 있다
+            elif w is ui.get("panel"):
+                close_main_panel()      # 자식 먼저, 그다음 본 창
 
     # ── 타이머 ──
     class Ticker(NSObject):

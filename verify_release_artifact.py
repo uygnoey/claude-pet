@@ -25,7 +25,7 @@ verify_pet_payload.py 와의 분업:
 
 사용법:
   verify_release_artifact.py scan <artifact.zip|artifact.dmg>
-  verify_release_artifact.py app <app_path> --expect-version 0.20 --arches arm64,x86_64
+  verify_release_artifact.py app <app_path> --expect-version 0.21 --arches arm64,x86_64
   verify_release_artifact.py assets <올릴 파일…>
 """
 import argparse

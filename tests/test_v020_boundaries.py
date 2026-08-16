@@ -6,8 +6,9 @@ the installed bundle; it exercises copies inside a module-owned sandbox.
 
 Ordinary unittest discovery is safe: the current module is imported only after
 HOME/TMPDIR/ZDOTDIR have been redirected, and no real-home, installed-app, or
-PID sentinel is read. The historical live-v0.19 checks are a separate,
-explicitly opted-in class; set CLAUDEPET_RUN_LIVE_V019_BOUNDARIES=1 to run them.
+PID sentinel is read. The installed-v0.20 to checkout-v0.21 updater boundary is
+a separate, explicitly opted-in class; set
+CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1 to run it.
 """
 
 import ast
@@ -16,6 +17,7 @@ import importlib.util
 import io
 import json
 import os
+import plistlib
 import re
 import shutil
 import stat
@@ -30,7 +32,9 @@ from unittest import mock
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALLED_APP = "/Applications/ClaudePet.app"
 INSTALLED_SRC = os.path.join(INSTALLED_APP, "Contents/Resources/claude_pet.py")
-RUN_LIVE_V019 = os.environ.get("CLAUDEPET_RUN_LIVE_V019_BOUNDARIES") == "1"
+RUN_LIVE_V020_TO_V021 = (
+    os.environ.get("CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES") == "1"
+)
 
 
 # ───────────────────────── module-owned sandbox ─────────────────────────
@@ -94,8 +98,8 @@ def setUpModule():
         "LANG": "C",
         "LC_ALL": "C",
     }
-    if RUN_LIVE_V019:
-        env_values["CLAUDEPET_RUN_LIVE_V019_BOUNDARIES"] = "1"
+    if RUN_LIVE_V020_TO_V021:
+        env_values["CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES"] = "1"
     env = mock.patch.dict(os.environ, env_values, clear=True)
     env.start()
     try:
@@ -191,6 +195,10 @@ class FakeCheck:
 class FakePanel:
     def __init__(self):
         self.ordered_out = 0
+        self.delegate = object()
+
+    def setDelegate_(self, value):
+        self.delegate = value
 
     def orderOut_(self, _):
         self.ordered_out += 1
@@ -308,7 +316,6 @@ class B1Settings(SentinelCase):
             ("hour out of range", {"weekly_reset_hour": "25"}),
             ("hour not a number", {"weekly_reset_hour": "eight"}),
             ("negative budget", {"api_budget": "-1"}),
-            ("empty limit", {"session_limit_m": ""}),
             ("zero limit", {"opus_limit_m": "0"}),
             ("limit with percent sign", {"weekly_limit_m": "60%"}),
             ("pct over 100", {"weekly_pct": "150"}),
@@ -339,6 +346,17 @@ class B1Settings(SentinelCase):
                                  "RUNTIME mutated by a rejected save")
                 self.assertEqual(file_identity(self.cfg_path), before_file,
                                  "config file changed on a rejected save")
+        # Blank direct input is not an invalid number: it means preserve the
+        # existing exact-token limit.  Keep this beside the rejected rivals so
+        # the boundary cannot drift back to treating blank as zero or error.
+        cfg = dict(self.base_disk)
+        plan, err = claude_pet.plan_settings_save(
+            cfg, self.form(session_limit_m=""), usage_stats=stats)
+        self.assertIsNone(err)
+        self.assertEqual(
+            plan["updates"]["session_limit"],
+            self.base_disk["session_limit"],
+        )
         # POSITIVE CONTROL — an implementation that refuses everything would pass
         # every subTest above. The same harness with a valid form must go through.
         cfg = dict(self.base_disk)
@@ -430,6 +448,23 @@ class B1Settings(SentinelCase):
             self.assertIsInstance(g.body[-1], ast.Return)
 
     # ── executing save_settings itself (widgets faked): state + panel ──
+    @staticmethod
+    def _install_save_helpers(namespace):
+        # save_settings closes over these run_gui helpers in production.  The
+        # extracted harness must execute the same definitions, in dependency
+        # order, rather than reimplementing their behavior with lambdas.
+        _, run_gui, _ = extract_nested_source(claude_pet.__file__, ["run_gui"])
+        key_assignment = next(
+            node for node in run_gui.body
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "ADV_FIELD_KEYS"))
+        namespace["ADV_FIELD_KEYS"] = ast.literal_eval(key_assignment.value)
+        for name in ("adv_value", "close_advanced", "close_main_panel"):
+            segment, _, _ = extract_nested_source(
+                claude_pet.__file__, ["run_gui", name])
+            exec(compile(segment, claude_pet.__file__, "exec"), namespace)
+
     def _run_save_settings(self, ui_text=None, popups=None):
         seg, _, _ = extract_nested_source(claude_pet.__file__,
                                           ["run_gui", "save_settings"])
@@ -457,6 +492,7 @@ class B1Settings(SentinelCase):
             "settings_error": lambda msg: errors.append(msg),
             "set_pet": lambda pid: harness["set_pet_calls"].append(pid),
         })
+        self._install_save_helpers(ns)
         exec(compile(seg, claude_pet.__file__, "exec"), ns)
         ns["save_settings"]()
         return harness
@@ -522,6 +558,7 @@ class B1Settings(SentinelCase):
         ns.update({"ui": ui, "cfg": cfg, "state": state,
                    "ticker": FakeTicker(), "view": FakeView(),
                    "settings_error": lambda m: None, "set_pet": lambda p: None})
+        self._install_save_helpers(ns)
         exec(compile(mutated, "<mutant>", "exec"), ns)
         ns["save_settings"]()
         # the mutant closes the panel and repaints on a REJECTED save — exactly
@@ -692,266 +729,512 @@ class B2Bundle(SentinelCase):
         self.assertEqual(os.listdir(real), [], "seeded through a symlink")
 
 
-# ═══════════════════════ Boundary 3 — the v0.19 updater ═══════════════════════
+# ═════════════ Boundary 3 — installed v0.20 → checkout v0.21 ═════════════
 
-def load_installed_v019(tmp):
-    """Import a COPY of the installed v0.19 module. Never the original."""
-    import importlib.util
-    copy = os.path.join(tmp, "v019_claude_pet.py")
-    shutil.copy2(INSTALLED_SRC, copy)
-    spec = importlib.util.spec_from_file_location("v019_claude_pet", copy)
+INSTALLED_V020_SOURCE_SHA256 = (
+    "d3d65ccd14b0cc88a31909d8dd14c675654e96979629d0d21d2869fb5d81ea4b"
+)
+V021_ASSET_URL = (
+    "https://github.com/uygnoey/claude-pet/releases/download/v0.21/ClaudePet.zip"
+)
+
+
+def _literal_app_version(source_bytes, filename):
+    tree = ast.parse(source_bytes.decode("utf-8"), filename=filename)
+    values = []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if any(isinstance(target, ast.Name) and target.id == "APP_VERSION"
+               for target in node.targets):
+            values.append(ast.literal_eval(node.value))
+    if len(values) != 1 or not isinstance(values[0], str):
+        raise AssertionError("%s must have one literal APP_VERSION" % filename)
+    return values[0]
+
+
+def _load_installed_v020(tmp, source_bytes):
+    """Import only the SHA-pinned copy written inside the module sandbox."""
+    copy = os.path.join(tmp, "v020_claude_pet.py")
+    with open(copy, "wb") as f:
+        f.write(source_bytes)
+    spec = importlib.util.spec_from_file_location("v020_claude_pet", copy)
+    if spec is None or spec.loader is None:
+        raise AssertionError("could not create installed-v0.20 module spec")
     mod = importlib.util.module_from_spec(spec)
-    sys.modules["v019_claude_pet"] = mod
+    sys.modules["v020_claude_pet"] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
-class FakeNSBundle:
-    path = None
+def _tree_fingerprint(root):
+    """Content + lstat shape, without following a symlink outside ``root``."""
+    rows = []
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        dirnames.sort()
+        filenames.sort()
+        for name in dirnames + filenames:
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, root)
+            st = os.lstat(path)
+            row = [rel, stat.S_IFMT(st.st_mode), stat.S_IMODE(st.st_mode),
+                   st.st_size, st.st_mtime_ns]
+            if stat.S_ISREG(st.st_mode):
+                row.append(sha(path))
+            elif stat.S_ISLNK(st.st_mode):
+                row.append(os.readlink(path))
+            rows.append(row)
+    return hashlib.sha256(json.dumps(rows, separators=(",", ":")).encode()).hexdigest()
 
-    @classmethod
-    def mainBundle(cls):
-        return cls
 
-    @classmethod
-    def bundlePath(cls):
-        return cls.path
-
-
-class FakeFoundation:
-    NSBundle = FakeNSBundle
+def _write_macho_arm64(path):
+    # Thin little-endian Mach-O: magic, CPU_TYPE_ARM64, CPU subtype 0.
+    with open(path, "wb") as f:
+        f.write(b"\xcf\xfa\xed\xfe\x0c\x00\x00\x01\x00\x00\x00\x00")
+    os.chmod(path, 0o755)
 
 
-def make_app(root, name="ClaudePet.app", marker="new", version="0.20",
-             broken=False):
+def _make_update_candidate(root, source_bytes, name="ClaudePet.app", version="0.21",
+                           marker="signed-v021", main_executable=True):
     app = os.path.join(root, name)
-    os.makedirs(os.path.join(app, "Contents", "MacOS"), exist_ok=True)
-    os.makedirs(os.path.join(app, "Contents", "Resources"), exist_ok=True)
-    with open(os.path.join(app, "Contents", "Resources", "marker"), "w") as f:
+    macos = os.path.join(app, "Contents", "MacOS")
+    resources = os.path.join(app, "Contents", "Resources")
+    os.makedirs(macos)
+    os.makedirs(resources)
+    if main_executable:
+        _write_macho_arm64(os.path.join(macos, "ClaudePet"))
+    _write_macho_arm64(os.path.join(macos, "python"))
+    with open(os.path.join(resources, "claude_pet.py"), "wb") as f:
+        f.write(source_bytes)
+    with open(os.path.join(resources, "signature.marker"), "w", encoding="utf-8") as f:
         f.write(marker)
-    if not broken:
-        exe = os.path.join(app, "Contents", "MacOS", "ClaudePet")
-        with open(exe, "w") as f:
-            f.write("#!/bin/sh\nexit 0\n")
-        os.chmod(exe, 0o755)
-    plist = ('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC '
-             '"-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/'
-             'PropertyList-1.0.dtd">\n<plist version="1.0"><dict>'
-             '<key>CFBundleExecutable</key><string>ClaudePet</string>'
-             '<key>CFBundleIdentifier</key>'
-             '<string>sandbox.v020boundary.test</string>'
-             '<key>CFBundleShortVersionString</key><string>%s</string>'
-             '</dict></plist>\n' % version)
-    with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
-        f.write(plist)
+    plist = {
+        "CFBundleExecutable": "ClaudePet",
+        "CFBundleIdentifier": "me.yeongyu.claudepet",
+        "CFBundleShortVersionString": version,
+        "CFBundleVersion": version,
+    }
+    with open(os.path.join(app, "Contents", "Info.plist"), "wb") as f:
+        plistlib.dump(plist, f)
     return app
 
 
-def zip_tree(src_dir, zip_path):
-    with zipfile.ZipFile(zip_path, "w") as z:
+def _zip_tree(src_dir, zip_path):
+    with zipfile.ZipFile(zip_path, "w") as archive:
         for root, dirs, files in os.walk(src_dir):
-            for d in dirs:
-                p = os.path.join(root, d)
-                z.write(p, os.path.relpath(p, src_dir) + "/")
-            for f in files:
-                p = os.path.join(root, f)
-                z.write(p, os.path.relpath(p, src_dir))
+            dirs.sort()
+            files.sort()
+            for name in dirs:
+                path = os.path.join(root, name)
+                archive.write(path, os.path.relpath(path, src_dir) + "/")
+            for name in files:
+                path = os.path.join(root, name)
+                archive.write(path, os.path.relpath(path, src_dir))
     return zip_path
 
 
 @unittest.skipUnless(
-    RUN_LIVE_V019,
-    "live installed-v0.19 boundary requires "
-    "CLAUDEPET_RUN_LIVE_V019_BOUNDARIES=1",
+    RUN_LIVE_V020_TO_V021,
+    "live installed-v0.20 to checkout-v0.21 boundary requires "
+    "CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1",
 )
 class B3Updater(SentinelCase):
-    """Boundary 3 — what the ALREADY-INSTALLED v0.19 updater actually does."""
+    """The released v0.20 updater must gate a v0.21 handoff in a sandbox."""
 
     @classmethod
     def setUpClass(cls):
         if not os.path.isfile(INSTALLED_SRC):
-            raise unittest.SkipTest("no installed v0.19 source at %s" % INSTALLED_SRC)
-        cls.holder = tempfile.mkdtemp(prefix="v019-", dir=_MODULE_STATE["tmp"])
-        cls.v019 = load_installed_v019(cls.holder)
-        import inspect
-        sys.stderr.write("\n[b3] module under test: %s\n" % cls.v019.__file__)
-        sys.stderr.write("[b3] APP_VERSION=%r\n" % cls.v019.APP_VERSION)
-        sys.stderr.write("[b3] install_github_update source:\n%s\n"
-                         % inspect.getsource(cls.v019.install_github_update))
+            raise AssertionError("installed source is missing: %s" % INSTALLED_SRC)
+        with open(INSTALLED_SRC, "rb") as source:
+            installed_bytes = source.read()
+        installed_sha = hashlib.sha256(installed_bytes).hexdigest()
+        if installed_sha != INSTALLED_V020_SOURCE_SHA256:
+            raise AssertionError(
+                "installed source is not the reviewed v0.20: %s" % installed_sha)
+        checkout_path = os.path.join(REPO, "claude_pet.py")
+        with open(checkout_path, "rb") as source:
+            cls.checkout_source_bytes = source.read()
+        cls.checkout_source_sha = hashlib.sha256(
+            cls.checkout_source_bytes).hexdigest()
+        checkout_version = _literal_app_version(
+            cls.checkout_source_bytes, checkout_path)
+        if checkout_version != "0.21":
+            raise AssertionError("checkout APP_VERSION is %r, expected '0.21'"
+                                 % checkout_version)
+        with open(os.path.join(INSTALLED_APP, "Contents", "Info.plist"), "rb") as f:
+            installed_plist = plistlib.load(f)
+        installed_versions = (
+            installed_plist.get("CFBundleShortVersionString"),
+            installed_plist.get("CFBundleVersion"),
+        )
+        if installed_versions != ("0.20", "0.20"):
+            raise AssertionError("installed plist versions are %r"
+                                 % (installed_versions,))
+
+        cls.real_identities = (
+            file_identity(INSTALLED_SRC),
+            file_identity(os.path.join(INSTALLED_APP, "Contents", "Info.plist")),
+            _snap_path(INSTALLED_APP, depth=2),
+        )
+        cls.holder = tempfile.mkdtemp(prefix="v020-to-v021-",
+                                      dir=_MODULE_STATE["tmp"])
+        try:
+            cls.v020 = _load_installed_v020(cls.holder, installed_bytes)
+            if cls.v020.APP_VERSION != "0.20":
+                raise AssertionError("reviewed installed module is not v0.20")
+            cls.v020.UPDATE_LOCK_DIR = os.path.join(
+                SANDBOX_HOME, "Library", "Caches", "v020-boundary-lock")
+            for name in ("CONFIG_PATH", "USER_PET_HOME", "USER_PETS_DIR"):
+                if not getattr(cls.v020, name).startswith(SANDBOX_HOME):
+                    raise AssertionError("installed module path escaped: %s" % name)
+            for path in cls.v020.LOG_DIRS:
+                if not path.startswith(SANDBOX_HOME):
+                    raise AssertionError("installed LOG_DIRS escaped: %s" % path)
+            cls.app_path = os.path.join(cls.holder, "ClaudePet.app")
+            shutil.copytree(INSTALLED_APP, cls.app_path, symlinks=True,
+                            copy_function=shutil.copy2)
+        except Exception:
+            sys.modules.pop("v020_claude_pet", None)
+            shutil.rmtree(cls.holder, ignore_errors=True)
+            raise
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.holder, ignore_errors=True)
-        sys.modules.pop("v019_claude_pet", None)
+        identity_error = None
+        lock_error = None
+        try:
+            after = (
+                file_identity(INSTALLED_SRC),
+                file_identity(os.path.join(
+                    INSTALLED_APP, "Contents", "Info.plist")),
+                _snap_path(INSTALLED_APP, depth=2),
+            )
+            if after != cls.real_identities:
+                identity_error = "live boundary changed the real installed app"
+        finally:
+            # _acquire_update_lock caches a directory fd for the process lifetime.
+            # This imported copy is short-lived, so it must not retain either the
+            # sandbox fd or its deleted path after the class has gone away.
+            with cls.v020._LOCK_ROOT_MUTEX:
+                lock_fd = cls.v020._LOCK_ROOT.get("fd")
+                if lock_fd is not None:
+                    try:
+                        os.close(lock_fd)
+                    except OSError:
+                        pass
+                cls.v020._LOCK_ROOT["fd"] = None
+                cls.v020._LOCK_ROOT["path"] = None
+                if cls.v020._LOCK_ROOT != {"path": None, "fd": None}:
+                    lock_error = "installed module lock-root cache was not cleared"
+            shutil.rmtree(cls.holder, ignore_errors=True)
+            sys.modules.pop("v020_claude_pet", None)
+        if lock_error:
+            raise AssertionError(lock_error)
+        if identity_error:
+            raise AssertionError(identity_error)
 
     def setUp(self):
         super().setUp()
-        self.assertEqual(self.v019.APP_VERSION, "0.19")
-        # the "installed" app this test may destroy: a copy, in the sandbox
-        self.app_path = make_app(self.tmp, marker="old", version="0.19")
-        self.assertTrue(self.app_path.startswith(self.tmp))
+        self.archives = {}
+        self.assertTrue(self.app_path.startswith(_MODULE_STATE["tmp"] + os.sep))
 
-    def _call_install(self, zip_url, app_path=None):
-        """Run v0.19 with real extraction and only the swap Popen captured."""
-        scheduled_swaps = []
+    def _archive(self, label, **candidate):
+        root = os.path.join(self.tmp, "archive-" + label)
+        os.makedirs(root)
+        _make_update_candidate(root, self.checkout_source_bytes, **candidate)
+        path = _zip_tree(root, os.path.join(self.tmp, label + ".zip"))
+        self.archives[V021_ASSET_URL] = path
+        return V021_ASSET_URL
 
-        class P:
-            def __init__(self, args, **kw):
-                scheduled_swaps.append((args, kw))
+    def _malformed_archive(self):
+        path = os.path.join(self.tmp, "malformed.zip")
+        with open(path, "wb") as f:
+            f.write(b"not a zip")
+        self.archives[V021_ASSET_URL] = path
+        return V021_ASSET_URL
+
+    def _call_install(self, url=V021_ASSET_URL, *, asset="ClaudePet.zip",
+                      arches=("arm64",), tamper_stage=False):
+        downloads = []
+        validations = []
+        validation_sources = []
+        signing = []
+        handoffs = []
+        unexpected = []
+        real_subprocess = self.v020.subprocess
+        real_download = self.v020._download_update_zip
+        real_validate = self.v020.validate_update_app
+        real_signing = self.v020._run_signing_tool
+
+        def inside(path):
+            absolute = os.path.abspath(str(path))
+            root = os.path.abspath(_MODULE_STATE["root"])
+            real = os.path.realpath(absolute)
+            real_root = os.path.realpath(root)
+            return ((absolute == root or absolute.startswith(root + os.sep))
+                    and (real == real_root or real.startswith(real_root + os.sep)))
+
+        def download(source_url, destination):
+            downloads.append((str(source_url), str(destination)))
+            source = self.archives.get(str(source_url))
+            if source is None:
+                raise FileNotFoundError(str(source_url))
+            if not inside(source) or not inside(destination):
+                raise AssertionError("download shim escaped the sandbox")
+            shutil.copyfile(source, destination)
+
+        def signing_tool(argv, timeout=60):
+            del timeout
+            argv = list(argv)
+            signing.append(argv)
+            tool = argv[0]
+            if tool == "/usr/bin/lipo":
+                if not inside(argv[-1]):
+                    unexpected.append(("lipo-path", argv))
+                    return (None, "")
+                return (0, "arm64")
+            app = str(argv[-1])
+            if not inside(app):
+                unexpected.append(("signing-path", argv))
+                return (None, "")
+            marker = os.path.join(app, "Contents", "Resources", "signature.marker")
+            if tool == "/usr/bin/codesign":
+                try:
+                    with open(marker, encoding="utf-8") as f:
+                        marker_valid = f.read() == "signed-v021"
+                    embedded = os.path.join(
+                        app, "Contents", "Resources", "claude_pet.py")
+                    source_valid = sha(embedded) == self.checkout_source_sha
+                except OSError:
+                    marker_valid = source_valid = False
+                valid = marker_valid and source_valid
+                return (0, "") if valid else (1, "invalid signature")
+            if tool == "/usr/sbin/spctl":
+                return (0, "origin=Developer ID Application (RXGNVSLYF5)\n")
+            if tool == "/usr/bin/xcrun":
+                return (0, "The validate action worked")
+            unexpected.append(("signing", argv))
+            return (None, "")
+
+        def validate(app_path, expect_version, run=None, expect_arches=None):
+            validations.append((str(app_path), str(expect_version),
+                                tuple(expect_arches or ())))
+            if not inside(app_path):
+                unexpected.append(("validation-path", str(app_path)))
+                return False
+            embedded = os.path.join(
+                str(app_path), "Contents", "Resources", "claude_pet.py")
+            try:
+                embedded_sha = sha(embedded)
+            except OSError:
+                embedded_sha = None
+            validation_sources.append(embedded_sha)
+            return real_validate(app_path, expect_version, run=run,
+                                 expect_arches=expect_arches)
 
         class SubprocessProxy:
-            """Delegate extraction to the real module without patching it globally."""
+            def run(proxy_self, argv, **kwargs):
+                del proxy_self
+                argv = list(argv)
+                if not argv or argv[0] != "/usr/bin/ditto":
+                    unexpected.append(("run", argv))
+                    raise AssertionError("only sandbox ditto is allowed")
+                extracting = argv[1:3] == ["-x", "-k"] and len(argv) == 5
+                copying = len(argv) == 3
+                paths = argv[3:5] if extracting else argv[1:3]
+                if not (extracting or copying):
+                    unexpected.append(("ditto-shape", argv))
+                    raise AssertionError("unreviewed ditto command shape")
+                if len(paths) != 2 or not all(inside(path) for path in paths):
+                    unexpected.append(("ditto-path", argv))
+                    raise AssertionError("ditto escaped the sandbox")
+                result = real_subprocess.run(argv, **kwargs)
+                if tamper_stage and copying:
+                    embedded = os.path.join(argv[2], "Contents", "Resources",
+                                            "claude_pet.py")
+                    with open(embedded, "ab") as f:
+                        f.write(b"\n# TAMPERED-AFTER-FIRST-VALIDATION\n")
+                return result
 
-            Popen = P
+            def Popen(proxy_self, argv, **kwargs):
+                del proxy_self
+                argv = list(argv)
+                if (argv[:2] != ["/bin/sh", "-c"] or len(argv) != 3
+                        or self.app_path not in argv[2]
+                        or INSTALLED_APP in argv[2]):
+                    unexpected.append(("handoff", argv))
+                handoffs.append((argv, dict(kwargs)))
+                return object()
 
-            def __getattr__(self, name):
+            def __getattr__(proxy_self, name):
+                del proxy_self
                 return getattr(real_subprocess, name)
 
-        FakeNSBundle.path = self.app_path if app_path is None else app_path
-        orig_foundation = sys.modules.get("Foundation")
-        real_subprocess = self.v019.subprocess
-        sys.modules["Foundation"] = FakeFoundation
-        self.v019.subprocess = SubprocessProxy()
+        before = _tree_fingerprint(self.app_path)
+        self.v020._download_update_zip = download
+        self.v020._run_signing_tool = signing_tool
+        self.v020.validate_update_app = validate
+        self.v020.subprocess = SubprocessProxy()
         try:
-            rv = self.v019.install_github_update(zip_url)
+            result = self.v020.install_github_update(
+                url, app_path=self.app_path, expect_version="0.21",
+                expect_arches=arches, expect_asset=asset)
         finally:
-            self.v019.subprocess = real_subprocess
-            if orig_foundation is None:
-                sys.modules.pop("Foundation", None)
+            self.v020.subprocess = real_subprocess
+            self.v020.validate_update_app = real_validate
+            self.v020._run_signing_tool = real_signing
+            self.v020._download_update_zip = real_download
+        self.assertEqual(_tree_fingerprint(self.app_path), before,
+                         "captured handoff changed the sandbox installed copy")
+        self.assertEqual(unexpected, [], "harness saw an unapproved tool call")
+        if tamper_stage:
+            self.assertEqual(len(validation_sources), 2)
+            self.assertEqual(validation_sources[0], self.checkout_source_sha)
+            self.assertNotEqual(validation_sources[1], self.checkout_source_sha)
+        else:
+            self.assertTrue(
+                all(value == self.checkout_source_sha
+                    for value in validation_sources),
+                "candidate validation did not inspect the frozen checkout source")
+        return result, downloads, validations, signing, handoffs
+
+    def test_github_choice_binds_v021_tag_asset_and_arch_without_network(self):
+        import platform
+
+        api_url = (
+            "https://api.github.com/repos/uygnoey/claude-pet/releases/latest"
+        )
+        real_urlopen = self.v020.urllib.request.urlopen
+        real_machine = platform.machine
+        absent = object()
+        old_choice = self.v020._upd_cache.get("choice", absent)
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = json.dumps(payload).encode("utf-8")
+
+            def read(self):
+                return self.payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, _type, _value, _traceback):
+                return False
+
+        def check(payload):
+            calls = []
+
+            def urlopen(request, timeout=0):
+                calls.append((request.full_url, timeout))
+                return Response(payload)
+
+            try:
+                with mock.patch.object(
+                        self.v020.urllib.request, "urlopen", side_effect=urlopen), \
+                     mock.patch.object(platform, "machine", return_value="arm64"):
+                    result = self.v020.check_github_update()
+                    choice = self.v020._upd_cache.get("choice")
+            finally:
+                self.assertIs(self.v020.urllib.request.urlopen, real_urlopen)
+                self.assertIs(platform.machine, real_machine)
+            self.assertEqual(calls, [(api_url, 10)])
+            return result, choice
+
+        try:
+            result, choice = check({
+                "tag_name": "v0.21",
+                "assets": [{
+                    "name": "ClaudePet.zip",
+                    "browser_download_url": V021_ASSET_URL,
+                }],
+            })
+            self.assertEqual(result, ("update", "0.21", V021_ASSET_URL))
+            self.assertEqual(choice, {
+                "asset": "claudepet.zip",
+                "arch": "arm64",
+                "url": V021_ASSET_URL,
+                "tag": "0.21",
+            })
+
+            with self.subTest("current release is not offered"):
+                result, choice = check({
+                    "tag_name": "v0.20",
+                    "assets": [{
+                        "name": "ClaudePet.zip",
+                        "browser_download_url": V021_ASSET_URL,
+                    }],
+                })
+                self.assertEqual(result, ("current", None, None))
+                self.assertIsNone(choice)
+
+            with self.subTest("missing canonical asset fails closed"):
+                result, choice = check({
+                    "tag_name": "v0.21",
+                    "assets": [{
+                        "name": "diagnostics.zip",
+                        "browser_download_url": (
+                            "https://github.com/uygnoey/claude-pet/releases/"
+                            "download/v0.21/diagnostics.zip"
+                        ),
+                    }],
+                })
+                self.assertEqual(result, ("failed", None, None))
+                self.assertIsNone(choice)
+        finally:
+            if old_choice is absent:
+                self.v020._upd_cache.pop("choice", None)
             else:
-                sys.modules["Foundation"] = orig_foundation
-        return rv, scheduled_swaps
+                self.v020._upd_cache["choice"] = old_choice
 
-    def _zip_url(self, fixture_name, **app_kwargs):
-        stage = os.path.join(self.tmp, "stage-" + fixture_name)
-        os.makedirs(stage, exist_ok=True)
-        make_app(stage, **app_kwargs)
-        zp = zip_tree(stage, os.path.join(self.tmp, fixture_name + ".zip"))
-        return "file://" + zp, zp
+    def test_well_formed_v021_reaches_one_sandbox_handoff(self):
+        url = self._archive("good")
+        result, downloads, validations, _signing, handoffs = self._call_install(url)
+        self.assertTrue(result)
+        self.assertEqual(len(downloads), 1)
+        self.assertEqual(len(validations), 2,
+                         "extracted and staged apps were not both validated")
+        self.assertEqual([item[1:] for item in validations],
+                         [("0.21", ("arm64",)), ("0.21", ("arm64",))])
+        self.assertNotEqual(validations[0][0], validations[1][0])
+        self.assertEqual(len(handoffs), 1)
+        argv, kwargs = handoffs[0]
+        self.assertEqual(argv[:2], ["/bin/sh", "-c"])
+        self.assertEqual(len(argv), 3)
+        self.assertIn(self.app_path, argv[2])
+        self.assertNotIn(INSTALLED_APP, argv[2])
+        self.assertEqual(len(kwargs.get("pass_fds", ())), 1)
 
-    # ── harness controls first: prove the instrument is live ──
-    def test_control_good_zip_is_accepted(self):
-        url, _ = self._zip_url("good")
-        rv, calls = self._call_install(url)
-        self.assertTrue(rv, "v0.19 rejected a well-formed update (harness broken?)")
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][0][0], "/bin/sh")
-
-    def test_control_non_app_bundle_path_is_refused(self):
-        url, _ = self._zip_url("good2")
-        rv, calls = self._call_install(url, app_path=os.path.join(self.tmp, "notanapp"))
-        self.assertFalse(rv)
-        self.assertEqual(calls, [], "swap was scheduled for a non-.app path")
-
-    # ── what v0.19 refuses ──
-    def test_refusals_happen_before_anything_is_swapped(self):
-        before = _snap_path(self.app_path, depth=3)
-        cases = []
-
-        # (1) archive contains no top-level ClaudePet.app
-        url, _ = self._zip_url("wrongname", name="Something.app")
-        cases.append(("wrong bundle name", url))
-
-        # (2) not a zip at all
-        junk = os.path.join(self.tmp, "junk.zip")
-        with open(junk, "w") as f:
-            f.write("not a zip")
-        cases.append(("corrupt archive", "file://" + junk))
-
-        # (3) the URL does not resolve
-        cases.append(("missing file", "file://" + os.path.join(self.tmp, "nope.zip")))
-
-        for label, url in cases:
+    def test_invalid_candidates_are_refused_before_handoff(self):
+        cases = [
+            ("binding mismatch", lambda: self._archive("binding"),
+             {"arches": ("x86_64",)}, 0),
+            ("malformed archive", self._malformed_archive, {}, 0),
+            ("missing archive", lambda: V021_ASSET_URL, {}, 0),
+            ("wrong bundle name", lambda: self._archive(
+                "wrong-name", name="Something.app"), {}, 0),
+            ("version downgrade", lambda: self._archive(
+                "downgrade", version="0.20"), {}, 1),
+            ("tampered candidate", lambda: self._archive(
+                "tampered", marker="TAMPERED"), {}, 1),
+            ("missing executable", lambda: self._archive(
+                "no-executable", main_executable=False), {}, 1),
+            ("tampered staged copy", lambda: self._archive("stage-tamper"),
+             {"tamper_stage": True}, 2),
+        ]
+        for label, prepare, kwargs, expected_validations in cases:
             with self.subTest(label):
-                rv, calls = self._call_install(url)
-                self.assertFalse(rv, "%s was accepted" % label)
-                self.assertEqual(calls, [], "%s scheduled a swap" % label)
-                self.assertEqual(_snap_path(self.app_path, depth=3), before,
-                                 "%s touched the installed bundle" % label)
-
-    def test_v019_accepts_bundles_it_cannot_validate(self):
-        """These are the ones it does NOT refuse. Recorded as behaviour."""
-        accepted = []
-        for label, kw in (("no executable, no Resources", dict(broken=True)),
-                          ("version downgrade to 0.01", dict(version="0.01")),
-                          ("tampered payload", dict(marker="TAMPERED"))):
-            url, _ = self._zip_url(label.replace(" ", "_").replace(",", ""), **kw)
-            rv, calls = self._call_install(url)
-            accepted.append((label, bool(rv), len(calls)))
-        sys.stderr.write("\n[b3] v0.19 acceptance: %r\n" % (accepted,))
-        for label, rv, n in accepted:
-            self.assertTrue(rv, label)
-            self.assertEqual(n, 1, label)
-
-    def test_v019_swap_script_has_no_verification_or_rollback(self):
-        url, _ = self._zip_url("shape")
-        rv, calls = self._call_install(url)
-        self.assertTrue(rv)
-        script = calls[0][0][2]
-        sys.stderr.write("\n[b3] swap script: %s\n" % script)
-        self.assertIn("rm -rf", script)
-        self.assertIn("/usr/bin/ditto", script)
-        # destructive first, no copy of the old bundle kept anywhere
-        self.assertLess(script.index("rm -rf"), script.index("/usr/bin/ditto"))
-        for token in ("||", "&&", "if ", "cp -R", ".bak", "mv "):
-            self.assertNotIn(token, script,
-                             "unexpected control flow/backup token %r" % token)
-
-    def test_v019_install_destroys_the_old_app_with_no_rollback(self):
-        """Run the captured script verbatim, with a failing launch."""
-        url, _ = self._zip_url("real", marker="new", broken=True)
-        rv, calls = self._call_install(url)
-        self.assertTrue(rv)
-        script = calls[0][0][2]
-
-        # shim `open`/`xattr` (the script calls them unqualified; ditto is
-        # absolute and stays real). `open` exits 1 = the new app fails to launch.
-        binn = os.path.join(self.tmp, "bin")
-        os.makedirs(binn, exist_ok=True)
-        log = os.path.join(self.tmp, "open.log")
-        for name, rc in (("open", 1), ("xattr", 0)):
-            p = os.path.join(binn, name)
-            with open(p, "w") as f:
-                f.write('#!/bin/sh\necho "%s $@" >> %s\nexit %d\n' % (name, log, rc))
-            os.chmod(p, 0o755)
-
-        old_marker = os.path.join(self.app_path, "Contents/Resources/marker")
-        with open(old_marker, encoding="utf-8") as f:
-            self.assertEqual(f.read(), "old")
-        env = {"PATH": binn + ":/usr/bin:/bin", "HOME": os.environ["HOME"],
-               "TMPDIR": os.environ["TMPDIR"], "ZDOTDIR": os.environ["ZDOTDIR"],
-               "CDPATH": ""}
-        out = subprocess.run(["/bin/sh", "-c", script], env=env,
-                             capture_output=True, text=True, timeout=120)
-        sys.stderr.write("[b3] script rc=%d err=%s\n" % (out.returncode, out.stderr))
-
-        # the launch step ran and failed — and nothing reacted to it
-        self.assertTrue(os.path.exists(log), "the shimmed `open` never ran")
-        with open(log, encoding="utf-8") as f:
-            self.assertIn("open ", f.read())
-        # the swap happened: the new (broken) bundle is now installed
-        with open(old_marker, encoding="utf-8") as f:
-            self.assertEqual(f.read(), "new",
-                             "the swap did not happen; this test proves nothing")
-        self.assertFalse(os.path.exists(
-            os.path.join(self.app_path, "Contents/MacOS/ClaudePet")),
-            "the installed app has an executable; the fixture is not broken")
-        # no rollback, and no backup of the old bundle anywhere in the sandbox
-        leftovers = []
-        for root, dirs, files in os.walk(self.tmp):
-            for f in files:
-                p = os.path.join(root, f)
-                if p == old_marker:
-                    continue
-                try:
-                    with open(p, encoding="utf-8") as source:
-                        prefix = source.read(16)
-                    if prefix == "old":
-                        leftovers.append(p)
-                except Exception:
-                    pass
-        self.assertEqual(leftovers, [],
-                         "a copy of the old bundle survived: %r" % leftovers)
+                self.archives.clear()
+                url = prepare()
+                result, downloads, validations, _signing, handoffs = self._call_install(
+                    url, **kwargs)
+                self.assertFalse(result, "%s was accepted" % label)
+                self.assertEqual(handoffs, [], "%s scheduled a handoff" % label)
+                self.assertEqual(len(validations), expected_validations,
+                                 "%s missed its intended rejection seam" % label)
+                if label == "binding mismatch":
+                    self.assertEqual(downloads, [],
+                                     "binding mismatch reached the downloader")
 
 
 if __name__ == "__main__":

@@ -365,13 +365,135 @@ class SettingsConfigTests(unittest.TestCase):
         before = dict(base)
         candidate, error = claude_pet.prepare_settings_config(
             base,
-            direct
-            or {"session": "12.345678", "weekly": "98.765432", "opus": "23.456789"},
-            calibration or {"session": "", "weekly": "", "opus": ""},
-            stats or usage_stats(),
+            (direct if direct is not None else
+             {"session": "12.345678", "weekly": "98.765432", "opus": "23.456789"}),
+            (calibration if calibration is not None else
+             {"session": "", "weekly": "", "opus": ""}),
+            stats if stats is not None else usage_stats(),
         )
         self.assertEqual(base, before, "the validator must not mutate live config")
         return candidate, error
+
+    @staticmethod
+    def _open_settings_ast():
+        tree = ast.parse(inspect.getsource(claude_pet.run_gui))
+        matches = [
+            node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "open_settings"
+        ]
+        if len(matches) != 1:
+            raise AssertionError(
+                f"run_gui defines {len(matches)} open_settings functions, expected one"
+            )
+        return tree, matches[0]
+
+    @staticmethod
+    def _name_assignments(scope):
+        result = {}
+        for node in ast.walk(scope):
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)):
+                result[node.targets[0].id] = node
+        return result
+
+    @classmethod
+    def _boolean_setter_names(cls, scope, setter, value):
+        """Names that an actual setter call sets, including tuple/list loops."""
+        assignments = cls._name_assignments(scope)
+
+        def literal_names(node, resolving=()):
+            if isinstance(node, ast.Name):
+                if node.id in assignments and node.id not in resolving:
+                    return literal_names(
+                        assignments[node.id].value, resolving + (node.id,)
+                    )
+                return {node.id}
+            if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+                result = set()
+                for item in node.elts:
+                    result.update(literal_names(item, resolving))
+                return result
+            return set()
+
+        names = set()
+        for call in (n for n in ast.walk(scope) if isinstance(n, ast.Call)):
+            if (isinstance(call.func, ast.Attribute)
+                    and call.func.attr == setter
+                    and isinstance(call.func.value, ast.Name)
+                    and len(call.args) == 1
+                    and isinstance(call.args[0], ast.Constant)
+                    and call.args[0].value is value):
+                names.add(call.func.value.id)
+        for loop in (n for n in ast.walk(scope) if isinstance(n, ast.For)):
+            if not isinstance(loop.target, ast.Name):
+                continue
+            loop_var = loop.target.id
+            sets_value = any(
+                isinstance(call.func, ast.Attribute)
+                and call.func.attr == setter
+                and isinstance(call.func.value, ast.Name)
+                and call.func.value.id == loop_var
+                and len(call.args) == 1
+                and isinstance(call.args[0], ast.Constant)
+                and call.args[0].value is value
+                for statement in loop.body
+                for call in ast.walk(statement)
+                if isinstance(call, ast.Call)
+            )
+            if sets_value:
+                names.update(literal_names(loop.iter))
+        return names
+
+    @staticmethod
+    def _local_nodes(scope):
+        """Walk executable nodes in one function without entering nested scopes."""
+        def descend(node):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef, ast.Lambda)):
+                return
+            yield node
+            for child in ast.iter_child_nodes(node):
+                yield from descend(child)
+
+        for statement in scope.body:
+            yield from descend(statement)
+
+    @classmethod
+    def _local_name_assignments(cls, scope):
+        result = {}
+        for node in cls._local_nodes(scope):
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)):
+                result[node.targets[0].id] = node
+        return result
+
+    @staticmethod
+    def _translated_keys(scope):
+        return {
+            call.args[0].value
+            for call in (node for node in ast.walk(scope)
+                         if isinstance(node, ast.Call))
+            if (isinstance(call.func, ast.Name) and call.func.id == "t"
+                and call.args and isinstance(call.args[0], ast.Constant)
+                and isinstance(call.args[0].value, str))
+        }
+
+    @classmethod
+    def _advanced_panel_creator(cls, tree, open_settings):
+        candidates = []
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if node is open_settings:
+                continue
+            has_panel = any(
+                isinstance(child, ast.Name) and child.id == "NSPanel"
+                for child in cls._local_nodes(node)
+            )
+            if has_panel and "s_limit_current" in cls._translated_keys(node):
+                candidates.append(node)
+        return candidates
 
     def test_exact_token_limits_survive_an_unchanged_settings_round_trip(self):
         displayed = {
@@ -407,7 +529,6 @@ class SettingsConfigTests(unittest.TestCase):
 
     def test_invalid_direct_limit_rejects_the_whole_candidate(self):
         for invalid in (
-            "",
             "abc",
             "0",
             "-2.5",
@@ -563,6 +684,1020 @@ class SettingsConfigTests(unittest.TestCase):
                 self.assertEqual(values, {})
                 self.assertTrue(error)
 
+    def test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan(self):
+        base = {"mode": "sub", "scale": 0.75, **LIMITS}
+        before = dict(base)
+        stats_for = mock.Mock(side_effect=AssertionError(
+            "blank settings must not scan log usage"
+        ))
+        form = self.valid_settings_form(
+            session_limit_m="", weekly_limit_m="", opus_limit_m="",
+            session_pct="", weekly_pct="", opus_pct="",
+        )
+
+        plan, error = claude_pet.plan_settings_save(
+            base, form, stats_for=stats_for
+        )
+
+        self.assertIsNone(error)
+        self.assertIsNotNone(plan)
+        self.assertEqual(
+            {key: plan["updates"][key] for key in LIMITS}, LIMITS
+        )
+        self.assertEqual(base, before)
+        stats_for.assert_not_called()
+
+        cfg = dict(base)
+        merged = {**cfg, **plan["updates"]}
+        with mock.patch.object(
+            claude_pet, "merge_config_updates", return_value=(True, merged)
+        ):
+            ok, saved = claude_pet.apply_settings_plan(plan, cfg)
+        self.assertTrue(ok)
+        self.assertEqual(saved, merged)
+        self.assertEqual({key: cfg[key] for key in LIMITS}, LIMITS)
+
+    def test_session_percentage_only_backsolves_session_and_preserves_other_limits(self):
+        base = {"mode": "sub", "scale": 0.75, **LIMITS}
+        before = dict(base)
+        stats_for = mock.Mock(return_value=usage_stats(
+            session=2_000_000,
+            weekly=88_888_888,
+            opus=77_777_777,
+        ))
+        form = self.valid_settings_form(
+            session_limit_m="", weekly_limit_m="", opus_limit_m="",
+            session_pct="25", weekly_pct="", opus_pct="",
+        )
+
+        plan, error = claude_pet.plan_settings_save(
+            base, form, stats_for=stats_for
+        )
+
+        self.assertIsNone(error)
+        self.assertIsNotNone(plan)
+        self.assertEqual(plan["updates"]["session_limit"], 8_000_000)
+        self.assertEqual(plan["updates"]["weekly_limit"], LIMITS["weekly_limit"])
+        self.assertEqual(plan["updates"]["opus_limit"], LIMITS["opus_limit"])
+        self.assertEqual(base, before)
+        stats_for.assert_called_once()
+
+    def test_zero_percentage_has_a_distinct_actionable_atomic_rejection(self):
+        base = {"mode": "sub", "scale": 0.75, **LIMITS}
+        cfg = dict(base)
+        before = dict(base)
+        stats_for = mock.Mock(side_effect=AssertionError(
+            "0% is invalid input and must be rejected before a usage scan"
+        ))
+        form = self.valid_settings_form(
+            session_limit_m="", weekly_limit_m="", opus_limit_m="",
+            session_pct="0", weekly_pct="", opus_pct="",
+        )
+
+        with mock.patch.dict(claude_pet.L, {"lang": "en"}):
+            plan, error = claude_pet.plan_settings_save(
+                base, form, stats_for=stats_for
+            )
+            generic_input_error = claude_pet.t(
+                "s_err_calib", field=claude_pet.t("s_g_session")
+            )
+            zero_usage_error = claude_pet.t(
+                "s_err_calib_zero", field=claude_pet.t("s_g_session")
+            )
+
+        self.assertIsNone(plan)
+        self.assertIsInstance(error, str)
+        self.assertIn("0%", error)
+        self.assertIn("Nothing was saved", error)
+        self.assertNotEqual(error, generic_input_error)
+        self.assertNotEqual(error, zero_usage_error)
+        self.assertEqual(base, before)
+        stats_for.assert_not_called()
+
+        merge = mock.Mock(side_effect=AssertionError(
+            "a rejected plan must never reach the config writer"
+        ))
+        with mock.patch.object(claude_pet, "merge_config_updates", merge):
+            ok, merged = claude_pet.apply_settings_plan(plan, cfg)
+        self.assertFalse(ok)
+        self.assertIsNone(merged)
+        self.assertEqual(cfg, before)
+        merge.assert_not_called()
+
+    def test_blank_limit_fields_do_not_override_environment_fallbacks(self):
+        base = {"mode": "sub", "scale": 0.75}
+        before = dict(base)
+        stats_for = mock.Mock(side_effect=AssertionError(
+            "blank settings must not scan log usage"
+        ))
+        form = self.valid_settings_form(
+            session_limit_m="", weekly_limit_m="", opus_limit_m="",
+            session_pct="", weekly_pct="", opus_pct="",
+        )
+
+        plan, error = claude_pet.plan_settings_save(
+            base, form, stats_for=stats_for
+        )
+
+        self.assertIsNone(error)
+        self.assertIsNotNone(plan)
+        for _gauge, config_key in claude_pet.GAUGE_LIMIT_KEYS:
+            self.assertNotIn(
+                config_key, plan["updates"],
+                "a blank field must not turn an environment/default value into "
+                "a persisted config override",
+            )
+        self.assertEqual(base, before)
+        stats_for.assert_not_called()
+
+    def test_percentage_fields_are_primary_and_all_limit_inputs_default_blank(self):
+        tree, open_settings = self._open_settings_ast()
+        assignments = self._local_name_assignments(open_settings)
+        percentage_names = ("f_cs", "f_cw", "f_cm")
+
+        # Calibration is the primary path: each percentage input is created
+        # directly, before the advanced helper is called, and starts blank.
+        for name in percentage_names:
+            self.assertIn(name, assignments, f"settings must create {name}")
+            call = assignments[name].value
+            self.assertIsInstance(call, ast.Call)
+            self.assertIsInstance(call.func, ast.Name)
+            self.assertEqual(call.func.id, "field")
+            self.assertGreaterEqual(len(call.args), 4)
+            self.assertIsInstance(
+                call.args[3], ast.Constant,
+                f"{name} must use a literal blank default",
+            )
+            self.assertEqual(
+                call.args[3].value, "",
+                f"{name} must submit blank until the user explicitly types a value",
+            )
+
+        # The primary panel keeps its old height budget. The longer exact-mode
+        # warning is a real multiline NSTextField, not a clipped one-line label.
+        panel_sizes = []
+        for node in self._local_nodes(open_settings):
+            if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Tuple)
+                    and isinstance(node.value, ast.Tuple)):
+                continue
+            names = [item.id for item in node.targets[0].elts
+                     if isinstance(item, ast.Name)]
+            if names == ["PWID", "PHT"] and len(node.value.elts) == 2:
+                panel_sizes.append(node.value.elts)
+        self.assertEqual(len(panel_sizes), 1)
+        self.assertTrue(all(isinstance(value, ast.Constant)
+                            for value in panel_sizes[0]))
+        main_width, main_height = [value.value for value in panel_sizes[0]]
+        self.assertEqual(main_width, 420)
+        self.assertEqual(
+            main_height, 612,
+            "separate advanced controls must restore the compact main-panel budget",
+        )
+        self.assertLessEqual(main_height, 656)
+
+        for lang in claude_pet.SUPPORTED_LANGS:
+            self.assertIn("\n", claude_pet.TR[lang]["s_limit_note2"], lang)
+        label_helpers = [node for node in ast.walk(open_settings)
+                         if isinstance(node, ast.FunctionDef)
+                         and node.name == "label"]
+        self.assertEqual(len(label_helpers), 1)
+        required_setters = {
+            "setUsesSingleLineMode_": False,
+            "setWraps_": True,
+            "setLineBreakMode_": 0,
+            "setTruncatesLastVisibleLine_": False,
+        }
+        observed_setters = {}
+        for call in (node for node in ast.walk(label_helpers[0])
+                     if isinstance(node, ast.Call)):
+            if (isinstance(call.func, ast.Attribute)
+                    and call.func.attr in required_setters and call.args
+                    and isinstance(call.args[0], ast.Constant)):
+                observed_setters[call.func.attr] = call.args[0].value
+        self.assertEqual(observed_setters, required_setters)
+
+        # Follow only the top-level numeric y cursor. This is enough to prove
+        # that the three notes do not overlap and that the final budget row is
+        # still above the fixed save controls; nested helper bodies are ignored.
+        y = None
+        semantic_rows = {}
+        for statement in open_settings.body:
+            if (isinstance(statement, ast.Assign)
+                    and len(statement.targets) == 1
+                    and isinstance(statement.targets[0], ast.Name)
+                    and statement.targets[0].id == "y"):
+                value = statement.value
+                if (isinstance(value, ast.BinOp)
+                        and isinstance(value.left, ast.Name)
+                        and value.left.id == "PHT"
+                        and isinstance(value.op, ast.Sub)
+                        and isinstance(value.right, ast.Constant)):
+                    y = main_height - value.right.value
+            elif (isinstance(statement, ast.AugAssign)
+                  and isinstance(statement.target, ast.Name)
+                  and statement.target.id == "y"
+                  and isinstance(statement.op, ast.Sub)
+                  and isinstance(statement.value, ast.Constant)):
+                y -= statement.value.value
+            if y is None or isinstance(statement, (ast.FunctionDef, ast.ClassDef)):
+                continue
+            for call in (node for node in ast.walk(statement)
+                         if isinstance(node, ast.Call)):
+                if (isinstance(call.func, ast.Name) and call.func.id == "label"
+                        and call.args and isinstance(call.args[0], ast.Call)
+                        and isinstance(call.args[0].func, ast.Name)
+                        and call.args[0].func.id == "t" and call.args[0].args
+                        and isinstance(call.args[0].args[0], ast.Constant)):
+                    height = next((kw.value.value for kw in call.keywords
+                                   if kw.arg == "h"
+                                   and isinstance(kw.value, ast.Constant)), 20)
+                    semantic_rows[call.args[0].args[0].value] = (y, height, call)
+
+        note1_y, _note1_h, _note1 = semantic_rows["s_limit_note1"]
+        note2_y, note2_h, _note2 = semantic_rows["s_limit_note2"]
+        note3_y, note3_h, note3 = semantic_rows["s_limit_note3"]
+        budget_y, _budget_h, _budget = semantic_rows["s_budget"]
+        self.assertGreaterEqual(note2_h, 52)
+        self.assertLessEqual(note2_y + note2_h, note1_y - 4)
+        self.assertLessEqual(note3_y + note3_h, note2_y - 4)
+        self.assertGreaterEqual(budget_y, 46)
+
+        precedence_words = {
+            "en": ("wins", "priority", "precedence"),
+            "ko": ("우선",),
+            "ja": ("優先",),
+            "es": ("manda", "prioridad", "precedencia"),
+        }
+        for lang in claude_pet.SUPPORTED_LANGS:
+            with self.subTest(copy="note3", lang=lang):
+                note3_copy = claude_pet.TR[lang]["s_limit_note3"]
+                self.assertIn("%", note3_copy)
+                self.assertTrue(any(word in note3_copy.lower()
+                                    for word in precedence_words[lang]))
+                self.assertLessEqual(
+                    len(note3_copy), 40,
+                    f"{lang} precedence note must fit its 240px allocation",
+                )
+        for lang in claude_pet.SUPPORTED_LANGS:
+            with self.subTest(copy="advanced_button", lang=lang):
+                self.assertIn("s_limit_advanced_button", claude_pet.TR[lang])
+                self.assertLessEqual(
+                    len(claude_pet.TR[lang]["s_limit_advanced_button"]), 20,
+                    f"{lang} advanced button title must fit 132px",
+                )
+
+        # One real button shares note3's row and sits to its right.
+        disclosure = {
+            call.func.value.id for call in self._local_nodes(open_settings)
+            if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "setTitle_"
+                and isinstance(call.func.value, ast.Name) and call.args
+                and isinstance(call.args[0], ast.Call)
+                and self._translated_keys(call.args[0]) == {
+                    "s_limit_advanced_button"})
+        }
+        self.assertEqual(len(disclosure), 1)
+        disclosure_assignment = assignments[next(iter(disclosure))]
+        rects = [node for node in ast.walk(disclosure_assignment.value)
+                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                 and node.func.id == "NSMakeRect"]
+        self.assertEqual(len(rects), 1)
+        button_x, button_y, _button_w, button_h = rects[0].args
+        self.assertIsInstance(button_x, ast.Constant)
+        self.assertIsInstance(button_h, ast.Constant)
+        self.assertGreaterEqual(button_x.value, note3.args[1].value + note3.args[3].value)
+        self.assertTrue(
+            isinstance(button_y, ast.Name) and button_y.id == "y"
+            or (isinstance(button_y, ast.BinOp)
+                and isinstance(button_y.left, ast.Name) and button_y.left.id == "y"
+                and isinstance(button_y.right, ast.Constant)
+                and button_y.right.value <= 3)
+        )
+        self.assertLessEqual(button_h.value, 24)
+
+        creators = self._advanced_panel_creator(tree, open_settings)
+        self.assertEqual(
+            len(creators), 1,
+            "absolute inputs must live in one separate advanced NSPanel creator",
+        )
+
+    def test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure(self):
+        tree, open_settings = self._open_settings_ast()
+        assignments = self._local_name_assignments(open_settings)
+        direct_fields = {"f_ses", "f_wk", "f_op"}
+        percentage_fields = {"f_cs", "f_cw", "f_cm"}
+
+        creators = self._advanced_panel_creator(tree, open_settings)
+        self.assertEqual(
+            len(creators), 1,
+            "absolute limit rows must be owned by one separate NSPanel",
+        )
+        advanced = creators[0]
+        advanced_assignments = self._local_name_assignments(advanced)
+        helper_functions = {
+            node.name: node for node in advanced.body
+            if isinstance(node, ast.FunctionDef)
+        }
+        self.assertTrue({"alabel", "afield"} <= helper_functions.keys())
+        afield = helper_functions["afield"]
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "setStringValue_" and call.args
+            and isinstance(call.args[0], ast.Constant) and call.args[0].value == ""
+            for call in ast.walk(afield) if isinstance(call, ast.Call)
+        ), "every newly built advanced input must start blank")
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "setEditable_" and call.args
+            and isinstance(call.args[0], ast.Constant)
+            and call.args[0].value is False
+            for call in ast.walk(helper_functions["alabel"])
+            if isinstance(call, ast.Call)
+        ), "current-limit text must be rendered by a read-only label")
+
+        row_loops = []
+        for loop in (node for node in self._local_nodes(advanced)
+                     if isinstance(node, ast.For) and isinstance(node.iter, ast.Tuple)):
+            rows = []
+            for row in loop.iter.elts:
+                if not (isinstance(row, ast.Tuple) and len(row.elts) == 2
+                        and isinstance(row.elts[0], ast.Constant)
+                        and isinstance(row.elts[1], ast.Subscript)
+                        and isinstance(row.elts[1].value, ast.Name)
+                        and row.elts[1].value.id == "RUNTIME"
+                        and isinstance(row.elts[1].slice, ast.Constant)):
+                    break
+                rows.append((row.elts[0].value, row.elts[1].slice.value))
+            if len(rows) == 3:
+                row_loops.append((loop, rows))
+        self.assertEqual(len(row_loops), 1)
+        row_loop, rows = row_loops[0]
+        self.assertEqual(rows, [
+            ("s_limit_session", "session_limit"),
+            ("s_limit_weekly", "weekly_limit"),
+            ("s_limit_model", "opus_limit"),
+        ])
+        row_source = ast.unparse(row_loop).replace("'", '"')
+        self.assertIn("made.append(afield(", row_source)
+        self.assertIn(
+            'alabel(t("s_limit_current", value=fmt_limit_m(tokens))',
+            row_source,
+        )
+        rendered_limit = claude_pet.fmt_limit_m(98_765_432)
+        self.assertEqual(rendered_limit, "98.765432")
+        self.assertEqual(
+            {
+                lang: claude_pet.TR[lang]["s_limit_current"].format(
+                    value=rendered_limit
+                )
+                for lang in claude_pet.SUPPORTED_LANGS
+            },
+            {
+                "en": "now: 98.765432M",
+                "ko": "현재: 98.765432M",
+                "ja": "現在: 98.765432M",
+                "es": "ahora: 98.765432M",
+            },
+            "the exact-token display must survive in every supported locale",
+        )
+        self.assertFalse(direct_fields & assignments.keys())
+
+        disclosure_receivers = {
+            call.func.value.id for call in self._local_nodes(open_settings)
+            if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "setAction_"
+                and isinstance(call.func.value, ast.Name) and call.args
+                and isinstance(call.args[0], ast.Constant)
+                and call.args[0].value == "openAdvancedLimits:")
+        }
+        self.assertEqual(len(disclosure_receivers), 1)
+        disclosure = next(iter(disclosure_receivers))
+        self.assertIn(disclosure, assignments)
+        self.assertTrue(
+            any(isinstance(node, ast.Name) and node.id == "NSButton"
+                for node in ast.walk(assignments[disclosure].value)),
+            "the advanced disclosure must be a concrete NSButton",
+        )
+        control_calls = [call for call in self._local_nodes(open_settings)
+                         if isinstance(call, ast.Call)
+                         and isinstance(call.func, ast.Attribute)
+                         and isinstance(call.func.value, ast.Name)
+                         and call.func.value.id == disclosure]
+        self.assertTrue(any(call.func.attr == "setTarget_" and call.args
+                            and isinstance(call.args[0], ast.Name)
+                            and call.args[0].id == "handler"
+                            for call in control_calls))
+        selectors = [call.args[0].value for call in control_calls
+                     if call.func.attr == "setAction_" and call.args
+                     and isinstance(call.args[0], ast.Constant)
+                     and isinstance(call.args[0].value, str)]
+        self.assertEqual(len(selectors), 1)
+        handler_name = selectors[0].replace(":", "_")
+        handlers = [node for node in ast.walk(tree)
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == handler_name]
+        self.assertEqual(len(handlers), 1)
+        self.assertTrue(any(
+            isinstance(call.func, ast.Name) and call.func.id == advanced.name
+            for call in self._local_nodes(handlers[0]) if isinstance(call, ast.Call)
+        ), "the selector handler must open the advanced panel")
+
+        def ui_get_key(call):
+            if (isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Attribute)
+                    and isinstance(call.func.value, ast.Name)
+                    and call.func.value.id == "ui" and call.func.attr == "get"
+                    and call.args and isinstance(call.args[0], ast.Constant)):
+                return call.args[0].value
+            return None
+
+        # Find the advanced panel object and its UI key without prescribing
+        # local symbol names.
+        panel_vars = [
+            name for name, assignment in advanced_assignments.items()
+            if any(isinstance(node, ast.Name) and node.id == "NSPanel"
+                   for node in ast.walk(assignment.value))
+        ]
+        self.assertEqual(len(panel_vars), 1)
+        panel_var = panel_vars[0]
+        panel_rects = [
+            node for node in ast.walk(advanced_assignments[panel_var].value)
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "NSMakeRect")
+        ]
+        self.assertEqual(len(panel_rects), 1)
+        self.assertGreaterEqual(len(panel_rects[0].args), 4)
+        constants = {}
+        for node in self._local_nodes(advanced):
+            if isinstance(node, ast.Assign) and len(node.targets) == 1:
+                target = node.targets[0]
+                if isinstance(target, ast.Name) and isinstance(node.value, ast.Constant):
+                    constants[target.id] = node.value.value
+                elif isinstance(target, ast.Tuple) and isinstance(node.value, ast.Tuple):
+                    for target, value in zip(target.elts, node.value.elts):
+                        if isinstance(target, ast.Name) and isinstance(value, ast.Constant):
+                            constants[target.id] = value.value
+
+        def resolve_constant(node):
+            if isinstance(node, ast.Constant):
+                return node.value
+            if isinstance(node, ast.Name):
+                return constants.get(node.id)
+            return None
+
+        def call_dimension(call, helper, position):
+            parameter = helper.args.args[position].arg
+            keyword = next((item.value for item in call.keywords
+                            if item.arg == parameter), None)
+            if keyword is not None:
+                return resolve_constant(keyword)
+            if len(call.args) > position:
+                return resolve_constant(call.args[position])
+            default_index = position - (
+                len(helper.args.args) - len(helper.args.defaults)
+            )
+            if default_index >= 0:
+                return resolve_constant(helper.args.defaults[default_index])
+            return None
+
+        panel_width, panel_height = [
+            resolve_constant(node) for node in panel_rects[0].args[2:4]
+        ]
+        self.assertIsNotNone(panel_width)
+        self.assertIsNotNone(panel_height)
+        loop_calls = [
+            node for node in self._local_nodes(row_loop)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in {"alabel", "afield"}
+        ]
+        row_label_calls = [
+            call for call in loop_calls
+            if (call.func.id == "alabel" and call.args
+                and isinstance(call.args[0], ast.Call)
+                and isinstance(call.args[0].func, ast.Name)
+                and call.args[0].func.id == "t" and call.args[0].args
+                and isinstance(call.args[0].args[0], ast.Name))
+        ]
+        current_label_calls = [
+            call for call in loop_calls
+            if (call.func.id == "alabel" and call.args
+                and self._translated_keys(call.args[0]) == {"s_limit_current"})
+        ]
+        field_calls = [call for call in loop_calls if call.func.id == "afield"]
+        self.assertEqual(len(row_label_calls), 1)
+        self.assertEqual(len(current_label_calls), 1)
+        self.assertEqual(len(field_calls), 1)
+
+        row_label = row_label_calls[0]
+        current_label = current_label_calls[0]
+        input_field = field_calls[0]
+        row_x = call_dimension(row_label, helper_functions["alabel"], 1)
+        row_w = call_dimension(row_label, helper_functions["alabel"], 3)
+        field_x = call_dimension(input_field, helper_functions["afield"], 0)
+        field_w = call_dimension(input_field, helper_functions["afield"], 2)
+        current_x = call_dimension(current_label, helper_functions["alabel"], 1)
+        current_w = call_dimension(current_label, helper_functions["alabel"], 3)
+        dimensions = {
+            "AW": panel_width,
+            "AH": panel_height,
+            "row_x": row_x,
+            "row_w": row_w,
+            "field_x": field_x,
+            "field_w": field_w,
+            "current_x": current_x,
+            "current_w": current_w,
+        }
+        self.assertTrue(
+            all(isinstance(value, (int, float)) for value in dimensions.values()),
+            f"advanced-panel geometry must resolve statically: {dimensions}",
+        )
+        row_gap = field_x - row_x - row_w
+        current_gap = current_x - field_x - field_w
+        right_margin = panel_width - current_x - current_w
+        checks = (
+            (panel_width >= 500, f"AW {panel_width} < 500"),
+            (panel_height <= 220, f"AH {panel_height} > 220"),
+            (row_w >= 170, f"row label width {row_w} < 170"),
+            (current_w >= 180, f"current label width {current_w} < 180"),
+            (12 <= row_x <= 24, f"left margin {row_x} outside 12..24"),
+            (0 <= row_gap <= 24, f"row/input gap {row_gap} outside 0..24"),
+            (field_w >= 80, f"input width {field_w} < 80"),
+            (0 <= current_gap <= 24,
+             f"input/current gap {current_gap} outside 0..24"),
+            (12 <= right_margin <= 48,
+             f"right margin {right_margin} outside 12..48"),
+        )
+        violations = [message for passed, message in checks if not passed]
+        self.assertFalse(
+            violations,
+            "advanced-panel width budget clips exact current limits: "
+            + "; ".join(violations),
+        )
+        panel_keys = {
+            node.targets[0].slice.value
+            for node in ast.walk(advanced)
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Subscript)
+                and isinstance(node.targets[0].value, ast.Name)
+                and node.targets[0].value.id == "ui"
+                and isinstance(node.targets[0].slice, ast.Constant)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == panel_var)
+        }
+        self.assertEqual(len(panel_keys), 1)
+        panel_key = next(iter(panel_keys))
+        panel_calls = [
+            call for call in ast.walk(advanced)
+            if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Name)
+                and call.func.value.id == panel_var)
+        ]
+        self.assertTrue(any(
+            call.func.attr == "setTitle_" and call.args
+            and self._translated_keys(call.args[0]) == {"s_limit_advanced"}
+            for call in panel_calls
+        ), "the auxiliary panel keeps the descriptive advanced title")
+        self.assertTrue(any(
+            call.func.attr == "setHidesOnDeactivate_" and call.args
+            and isinstance(call.args[0], ast.Constant)
+            and call.args[0].value is False for call in panel_calls
+        ))
+        self.assertTrue(any(
+            call.func.attr == "setReleasedWhenClosed_" and call.args
+            and isinstance(call.args[0], ast.Constant)
+            and call.args[0].value is False for call in panel_calls
+        ), "the child must remain alive until its close delegate clears UI refs")
+        self.assertTrue(any(
+            call.func.attr == "setDelegate_" and call.args
+            and isinstance(call.args[0], ast.Name)
+            and call.args[0].id == "handler" for call in panel_calls
+        ))
+
+        existing_assignments = {
+            name for name, assignment in advanced_assignments.items()
+            if ui_get_key(assignment.value) == panel_key
+        }
+        reuse_branches = []
+        for branch in (node for node in self._local_nodes(advanced)
+                       if isinstance(node, ast.If)):
+            tested_names = {node.id for node in ast.walk(branch.test)
+                            if isinstance(node, ast.Name)}
+            inline_lookup = any(
+                ui_get_key(call) == panel_key
+                for call in ast.walk(branch.test) if isinstance(call, ast.Call)
+            )
+            if not (tested_names & existing_assignments or inline_lookup):
+                continue
+            returns = any(isinstance(node, ast.Return)
+                          for statement in branch.body for node in ast.walk(statement))
+            reopens = any(
+                isinstance(call.func, ast.Attribute)
+                and call.func.attr == "makeKeyAndOrderFront_"
+                for statement in branch.body for call in ast.walk(statement)
+                if isinstance(call, ast.Call)
+            )
+            if returns and reopens:
+                reuse_branches.append(branch)
+        self.assertEqual(
+            len(reuse_branches), 1,
+            "an existing advanced panel must be reopened and returned before allocation",
+        )
+        parent_assignments = {
+            name for name, assignment in advanced_assignments.items()
+            if ui_get_key(assignment.value) == "panel"
+        }
+        self.assertEqual(len(parent_assignments), 1)
+        parent_name = next(iter(parent_assignments))
+        self.assertTrue(any(
+            isinstance(branch.test, ast.UnaryOp)
+            and isinstance(branch.test.op, ast.Not)
+            and isinstance(branch.test.operand, ast.Name)
+            and branch.test.operand.id == parent_name
+            and any(isinstance(node, ast.Return)
+                    for statement in branch.body for node in ast.walk(statement))
+            for branch in self._local_nodes(advanced) if isinstance(branch, ast.If)
+        ), "the auxiliary panel must not open without its main parent")
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == parent_name
+            and call.func.attr == "addChildWindow_ordered_"
+            and call.args and isinstance(call.args[0], ast.Name)
+            and call.args[0].id == panel_var
+            for call in self._local_nodes(advanced) if isinstance(call, ast.Call)
+        ), "a rebuilt advanced panel must be attached to the main panel")
+
+        field_key_assignments = [
+            node for node in ast.walk(tree)
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "ADV_FIELD_KEYS"
+                and isinstance(node.value, (ast.Tuple, ast.List)))
+        ]
+        self.assertEqual(len(field_key_assignments), 1)
+        field_keys = tuple(
+            item.value for item in field_key_assignments[0].value.elts
+            if isinstance(item, ast.Constant)
+        )
+        self.assertEqual(field_keys, ("ses", "wk", "op"))
+        publish_loops = []
+        for loop in (node for node in self._local_nodes(advanced)
+                     if isinstance(node, ast.For) and isinstance(node.iter, ast.Call)):
+            if not (isinstance(loop.iter.func, ast.Name)
+                    and loop.iter.func.id == "zip" and len(loop.iter.args) == 2
+                    and isinstance(loop.iter.args[0], ast.Name)
+                    and loop.iter.args[0].id == "ADV_FIELD_KEYS"
+                    and isinstance(loop.iter.args[1], ast.Name)
+                    and loop.iter.args[1].id == "made"):
+                continue
+            if any(
+                isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Subscript)
+                and isinstance(node.targets[0].value, ast.Name)
+                and node.targets[0].value.id == "ui"
+                for statement in loop.body for node in ast.walk(statement)
+            ):
+                publish_loops.append(loop)
+        self.assertEqual(
+            len(publish_loops), 1,
+            "the three freshly built fields must publish to the three UI keys",
+        )
+
+        def cleared_ui_keys(function):
+            cleared = set()
+            for node in self._local_nodes(function):
+                if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                        and isinstance(node.value, ast.Constant)
+                        and node.value.value is None):
+                    continue
+                target = node.targets[0]
+                if (isinstance(target, ast.Subscript)
+                        and isinstance(target.value, ast.Name)
+                        and target.value.id == "ui"
+                    and isinstance(target.slice, ast.Constant)):
+                    cleared.add(target.slice.value)
+            for loop in (node for node in self._local_nodes(function)
+                         if isinstance(node, ast.For)):
+                if not (isinstance(loop.target, ast.Name)
+                        and isinstance(loop.iter, ast.Name)
+                        and loop.iter.id == "ADV_FIELD_KEYS"):
+                    continue
+                if any(
+                    isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.value, ast.Constant)
+                    and node.value.value is None
+                    and isinstance(node.targets[0], ast.Subscript)
+                    and isinstance(node.targets[0].value, ast.Name)
+                    and node.targets[0].value.id == "ui"
+                    and isinstance(node.targets[0].slice, ast.Name)
+                    and node.targets[0].slice.id == loop.target.id
+                    for statement in loop.body for node in ast.walk(statement)
+                ):
+                    cleared.update(field_keys)
+            for call in (node for node in self._local_nodes(function)
+                         if isinstance(node, ast.Call)):
+                if not (isinstance(call.func, ast.Attribute)
+                        and isinstance(call.func.value, ast.Name)
+                        and call.func.value.id == "ui" and call.func.attr == "update"
+                        and call.args and isinstance(call.args[0], ast.Dict)):
+                    continue
+                for key, value in zip(call.args[0].keys, call.args[0].values):
+                    if (isinstance(key, ast.Constant)
+                            and isinstance(value, ast.Constant)
+                            and value.value is None):
+                        cleared.add(key.value)
+            return cleared
+
+        lifecycle = [
+            function for function in ast.walk(tree)
+            if (isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and {panel_key, *field_keys} <= cleared_ui_keys(function)
+                and {"orderOut_", "removeChildWindow_"} <= {
+                    call.func.attr for call in self._local_nodes(function)
+                    if isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Attribute)})
+        ]
+        self.assertEqual(
+            len(lifecycle), 1,
+            "one lifecycle helper must hide the panel and clear panel/field refs",
+        )
+        lifecycle_name = lifecycle[0].name
+        child_cleanup = lifecycle[0]
+        delegate_none_lines = [
+            call.lineno for call in self._local_nodes(child_cleanup)
+            if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "setDelegate_" and call.args
+                and isinstance(call.args[0], ast.Constant)
+                and call.args[0].value is None)
+        ]
+        child_out_lines = [
+            call.lineno for call in self._local_nodes(child_cleanup)
+            if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "orderOut_")
+        ]
+        self.assertTrue(delegate_none_lines and child_out_lines)
+        self.assertLess(min(delegate_none_lines), min(child_out_lines))
+
+        closing_assignments = []
+        for node in self._local_nodes(child_cleanup):
+            if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Subscript)
+                    and isinstance(node.targets[0].value, ast.Name)
+                    and node.targets[0].value.id == "ui"
+                    and isinstance(node.targets[0].slice, ast.Constant)
+                    and node.targets[0].slice.value == "adv_closing"
+                    and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, bool)):
+                continue
+            closing_assignments.append((node.value.value, node.lineno))
+        self.assertIn(True, {value for value, _line in closing_assignments})
+        self.assertIn(False, {value for value, _line in closing_assignments})
+        guard_branches = [
+            branch for branch in self._local_nodes(child_cleanup)
+            if (isinstance(branch, ast.If)
+                and any(ui_get_key(call) == "adv_closing"
+                        for call in ast.walk(branch.test)
+                        if isinstance(call, ast.Call))
+                and any(isinstance(node, ast.Return)
+                        for statement in branch.body
+                        for node in ast.walk(statement)))
+        ]
+        self.assertEqual(len(guard_branches), 1)
+        self.assertLess(
+            min(line for value, line in closing_assignments if value is True),
+            min(delegate_none_lines),
+        )
+        self.assertGreater(
+            max(line for value, line in closing_assignments if value is False),
+            max(child_out_lines),
+        )
+        save_functions = [node for node in ast.walk(tree)
+                          if isinstance(node, ast.FunctionDef)
+                          and node.name == "save_settings"]
+        self.assertEqual(len(save_functions), 1)
+        save = save_functions[0]
+
+        form_assignments = [
+            node for node in self._local_nodes(save)
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "form"
+                and isinstance(node.value, ast.Dict))
+        ]
+        self.assertEqual(len(form_assignments), 1)
+        form_values = {
+            key.value: value
+            for key, value in zip(form_assignments[0].value.keys,
+                                  form_assignments[0].value.values)
+            if isinstance(key, ast.Constant)
+        }
+        direct_form_keys = {
+            "session_limit_m": "ses",
+            "weekly_limit_m": "wk",
+            "opus_limit_m": "op",
+        }
+        value_helper_names = set()
+        for form_key, ui_key in direct_form_keys.items():
+            self.assertIn(form_key, form_values)
+            value = form_values[form_key]
+            self.assertIsInstance(value, ast.Call)
+            self.assertIsInstance(value.func, ast.Name)
+            self.assertEqual(len(value.args), 1)
+            self.assertIsInstance(value.args[0], ast.Constant)
+            self.assertEqual(value.args[0].value, ui_key)
+            value_helper_names.add(value.func.id)
+        self.assertEqual(len(value_helper_names), 1)
+        value_helper_name = next(iter(value_helper_names))
+        value_helpers = [node for node in ast.walk(tree)
+                         if isinstance(node, ast.FunctionDef)
+                         and node.name == value_helper_name]
+        self.assertEqual(len(value_helpers), 1)
+        value_helper = value_helpers[0]
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "ui" and call.func.attr == "get"
+            for call in ast.walk(value_helper) if isinstance(call, ast.Call)
+        ))
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "stringValue"
+            for call in ast.walk(value_helper) if isinstance(call, ast.Call)
+        ))
+        self.assertTrue(any(
+            isinstance(node, ast.Constant) and node.value == ""
+            for returned in (node for node in ast.walk(value_helper)
+                             if isinstance(node, ast.Return))
+            for node in ast.walk(returned)
+        ), "an unopened advanced panel must submit an empty direct value")
+
+        named_local_functions = {
+            node.name: node for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+        }
+
+        def direct_named_calls(scope):
+            return {
+                call.func.id for call in self._local_nodes(scope)
+                if (isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Name)
+                    and call.func.id in named_local_functions)
+            }
+
+        def is_ordered_main_cleanup(scope):
+            direct_calls = [
+                call for call in self._local_nodes(scope)
+                if isinstance(call, ast.Call)
+            ]
+            child_lines = [call.lineno for call in direct_calls
+                           if isinstance(call.func, ast.Name)
+                           and call.func.id == lifecycle_name]
+            delegate_lines = [call.lineno for call in direct_calls
+                              if isinstance(call.func, ast.Attribute)
+                              and call.func.attr == "setDelegate_" and call.args
+                              and isinstance(call.args[0], ast.Constant)
+                              and call.args[0].value is None]
+            out_lines = [call.lineno for call in direct_calls
+                         if isinstance(call.func, ast.Attribute)
+                         and call.func.attr == "orderOut_"]
+            return bool(
+                child_lines and delegate_lines and out_lines
+                and "panel" in cleared_ui_keys(scope)
+                and min(child_lines) < min(delegate_lines) < min(out_lines)
+            )
+
+        main_cleanup_helpers = {
+            name for name, function in named_local_functions.items()
+            if is_ordered_main_cleanup(function)
+        }
+        self.assertEqual(
+            len(main_cleanup_helpers), 1,
+            "one local helper must clean child then main delegate/window/ref",
+        )
+        self.assertTrue(
+            is_ordered_main_cleanup(save)
+            or bool(direct_named_calls(save) & main_cleanup_helpers),
+            "save must use the ordered main cleanup directly or through one helper",
+        )
+        close_handlers = [node for node in ast.walk(tree)
+                          if isinstance(node, ast.FunctionDef)
+                          and node.name == "windowWillClose_"]
+        self.assertEqual(len(close_handlers), 1)
+        close_handler = close_handlers[0]
+
+        def branch_ui_keys(branch):
+            return {
+                ui_get_key(call) for call in ast.walk(branch.test)
+                if isinstance(call, ast.Call) and ui_get_key(call) is not None
+            }
+
+        close_branches = {
+            key: branch
+            for branch in ast.walk(close_handler)
+            if isinstance(branch, ast.If)
+            for key in branch_ui_keys(branch)
+            if key in {panel_key, "panel"}
+        }
+        self.assertEqual(set(close_branches), {panel_key, "panel"})
+        for key, branch in close_branches.items():
+            compared_object = any(
+                (isinstance(call.func, ast.Attribute)
+                 and call.func.attr == "object")
+                for call in ast.walk(branch.test) if isinstance(call, ast.Call)
+            ) or any(
+                isinstance(node, ast.Name) and node.id in {
+                    name for name, assignment in
+                    self._local_name_assignments(close_handler).items()
+                    if any(isinstance(call.func, ast.Attribute)
+                           and call.func.attr == "object"
+                           for call in ast.walk(assignment.value)
+                           if isinstance(call, ast.Call))
+                }
+                for node in ast.walk(branch.test)
+            )
+            self.assertTrue(
+                compared_object,
+                f"windowWillClose_ must distinguish the {key} notification object",
+            )
+            branch_calls = direct_named_calls(branch)
+            if key == panel_key:
+                self.assertIn(
+                    lifecycle_name, branch_calls,
+                    "child X must immediately clear the child and field refs",
+                )
+            else:
+                self.assertTrue(
+                    is_ordered_main_cleanup(branch)
+                    or bool(branch_calls & main_cleanup_helpers),
+                    "main X must use the verified child-first main cleanup",
+                )
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "setDelegate_" and call.args
+            and isinstance(call.args[0], ast.Name)
+            and call.args[0].id == "handler"
+            for call in ast.walk(open_settings) if isinstance(call, ast.Call)
+        ), "the main close button must reach windowWillClose_")
+
+        limit_field_names = direct_fields | percentage_fields | {"f"}
+        for scope in (open_settings, advanced):
+            for call in (node for node in ast.walk(scope)
+                         if isinstance(node, ast.Call)):
+                if not (isinstance(call.func, ast.Attribute)
+                        and call.func.attr == "setEnabled_" and len(call.args) == 1
+                        and isinstance(call.args[0], ast.Constant)
+                        and call.args[0].value is False):
+                    continue
+                receiver = call.func.value
+                self.assertFalse(
+                    isinstance(receiver, ast.Name)
+                    and receiver.id in limit_field_names,
+                    "calibration and advanced limit fields must not be disabled",
+                )
+
+    def test_exact_mode_note_explains_server_calibration_and_estimate_spike_split(self):
+        semantic_needles = {
+            "en": (("exact",), ("server",), ("calibrat",), ("spike",),
+                   ("estimat",), ("limit",)),
+            "ko": (("정확",), ("서버",), ("보정",), ("급증",),
+                   ("추정",), ("한도",)),
+            "ja": (("正確",), ("サーバ",), ("補正",), ("急増",),
+                   ("推定",), ("上限",)),
+            "es": (("exact",), ("servidor",), ("calibr",), ("pico",),
+                   ("estim",), ("límite", "limite")),
+        }
+        for lang, concepts in semantic_needles.items():
+            with self.subTest(lang=lang):
+                note = claude_pet.TR[lang]["s_limit_note2"].lower()
+                for alternatives in concepts:
+                    self.assertTrue(
+                        any(needle.lower() in note for needle in alternatives),
+                        f"{lang} exact-mode note omits {alternatives!r}: {note!r}",
+                    )
+
+    def test_new_usage_settings_locale_keys_exist_in_every_supported_language(self):
+        required = {
+            "s_calib1", "s_calib2", "s_calib_session",
+            "s_calib_weekly_all", "s_calib_weekly_model",
+            "s_limit_session", "s_limit_weekly", "s_limit_model",
+            "s_limit_note1", "s_limit_note2", "s_limit_note3",
+            "s_limit_advanced", "s_limit_advanced_button", "s_limit_current",
+            "s_err_calib_zero_pct",
+        }
+        self.assertEqual(set(claude_pet.SUPPORTED_LANGS), {"en", "ko", "ja", "es"})
+        for lang in claude_pet.SUPPORTED_LANGS:
+            with self.subTest(lang=lang):
+                self.assertEqual(
+                    required - set(claude_pet.TR[lang]), set(),
+                    f"{lang} is missing new settings copy",
+                )
+
     def valid_settings_form(self, **overrides):
         form = {
             "pet": "dog",
@@ -702,14 +1837,64 @@ class SettingsConfigTests(unittest.TestCase):
 
     def test_gui_save_path_uses_the_tested_transaction_and_commits_before_close(self):
         source = inspect.getsource(claude_pet.run_gui)
-        plan_at = source.index("plan_settings_save(cfg, form")
-        apply_at = source.index("apply_settings_plan(plan, cfg")
-        commit_at = source.index("commit_refresh_result(state, gen")
-        close_at = source.index('ui["panel"].orderOut_(None)')
-        self.assertLess(plan_at, apply_at)
-        self.assertLess(apply_at, commit_at)
-        self.assertLess(commit_at, close_at)
-        self.assertIn("panel.setHidesOnDeactivate_(False)", source)
+        tree = ast.parse(source)
+        functions = {
+            node.name: node for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+        }
+        self.assertTrue({"save_settings", "close_main_panel", "close_advanced"}
+                        <= functions.keys())
+
+        def named_call_lines(scope, name):
+            return [
+                call.lineno for call in self._local_nodes(scope)
+                if (isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Name)
+                    and call.func.id == name)
+            ]
+
+        save = functions["save_settings"]
+        save_order = [
+            named_call_lines(save, name)
+            for name in ("plan_settings_save", "apply_settings_plan",
+                         "commit_refresh_result", "close_main_panel")
+        ]
+        self.assertTrue(all(len(lines) == 1 for lines in save_order))
+        self.assertEqual([lines[0] for lines in save_order],
+                         sorted(lines[0] for lines in save_order))
+
+        close_main = functions["close_main_panel"]
+        child_lines = named_call_lines(close_main, "close_advanced")
+        main_out_lines = [
+            call.lineno for call in self._local_nodes(close_main)
+            if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "orderOut_")
+        ]
+        panel_clear_lines = [
+            node.lineno for node in self._local_nodes(close_main)
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Subscript)
+                and isinstance(node.targets[0].value, ast.Name)
+                and node.targets[0].value.id == "ui"
+                and isinstance(node.targets[0].slice, ast.Constant)
+                and node.targets[0].slice.value == "panel"
+                and isinstance(node.value, ast.Constant)
+                and node.value.value is None)
+        ]
+        self.assertTrue(child_lines and main_out_lines and panel_clear_lines)
+        self.assertLess(min(child_lines), min(main_out_lines))
+        self.assertLess(min(main_out_lines), min(panel_clear_lines))
+
+        open_settings = functions["open_settings"]
+        self.assertTrue(any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "setHidesOnDeactivate_" and call.args
+            and isinstance(call.args[0], ast.Constant)
+            and call.args[0].value is False
+            for call in self._local_nodes(open_settings)
+            if isinstance(call, ast.Call)
+        ))
 
 
 def make_pet_source(root):

@@ -796,6 +796,101 @@ output.** The settings panel lets a user type the percentage shown in Claude's o
 Settings → Usage. The app then computes `limit = current_estimated_usage ÷ (pct / 100)`
 and stores that as the user's limit.
 
+**Every limit input is optional, and blank means "keep".** `prepare_settings_config()`
+resolves each of the three gauges independently: a filled `%` back-solves that gauge, an
+empty `%` with a filled M-token field uses that number, and **both blank leaves
+`base_cfg`'s existing key untouched — and creates no key if `base_cfg` has none.** The
+last clause matters: inventing a persisted override for a gauge the user never touched
+would pin a value they cannot see they set. Ordinary users cannot know their token
+limits — Claude's own UI shows only percentages — so requiring the M-token fields (as
+this code once did) made the panel unsaveable for exactly the people it was for.
+
+**"Blank" and "wrong" are different, and only blank is a skip.** A value that is present
+but unusable still rejects the *whole* save, unchanged from before; blankness is decided
+on the untouched raw string, before any character is stripped.
+
+**Two zero cases, two messages.** `0%` typed by the user (`s_err_calib_zero_pct`) is not
+the same as an estimated usage of zero (`s_err_calib_zero`). A user seeing `0%` in Claude
+is being told this window has no usage yet, so the actionable advice is "calibrate later
+or leave it blank" — not "enter a number between 0 and 100". `_calibration_percent_error()`
+runs **before** the usage scan for this reason: a scan reads Claude Code's own logs and
+can fail, and a failure there would report "could not read usage" for what is really a
+rejected input.
+
+**Absolute limits stay reachable but live in a separate window.** The three M-token fields
+are built by `open_advanced_limits()` in an `NSPanel` of their own, opened from a
+button sharing note3's row in the main panel. They start blank and show the current value
+in a read-only label beside them; they are never pre-filled, because pre-filling would make
+"blank means keep" depend on whether the window had been opened, and a conditional
+invariant is worth less than an unconditional one.
+
+**That window is short, not narrow, and the distinction is load-bearing.** It is 500 × 190
+— *wider* than the 420-wide main panel. Only the main panel is fighting for vertical space
+on a 768-tall screen; the child window is bound by neither that budget nor 656, so it can
+take the width its three columns need. Each row is laid out `16..186` label, `190..290`
+input, `300..484` current-value label, leaving symmetric 16 pt margins. An earlier 380-wide
+version truncated both the row labels and the `now: …M` values in every locale, so do not
+"tidy" this back toward the main panel's width.
+
+**The main panel's content height is 612 and must stay ≤ 656.** The minimum supported
+screen is 1366×768, which leaves roughly 673 points once the menu bar and Dock are removed.
+An earlier attempt kept the three fields in the main panel and merely hid them with
+`setHidden_`, reserving their space; that reached 732 and pushed the Save button and title
+bar off a 768-tall screen. Reserving space is not free, and this panel is a fixed-height
+view with hand-placed coordinates, so genuinely collapsing it would mean recomputing every
+widget below.
+
+**A missing window and a blank field are the same input.** `adv_value(key)` returns `""`
+when `ui` has no widget for that key, so never opening the advanced window is byte-identical
+to leaving its fields blank — no extra branch exists anywhere in the save path, and the
+frozen `plan_settings_save` / `prepare_settings_config` contract is untouched. It looks the
+widget up on every read rather than capturing it, so a dead window cannot leave a live
+reference behind feeding ghost values into a save.
+
+**Lifetime is bound in both directions, and one direction is easy to miss.**
+`parent.addChildWindow_ordered_` binds **parent → child** only: ordering the main panel out
+takes the child with it. It does **nothing** for the child's own close button. The first
+implementation had only that half, so clicking the advanced window's X left
+`ui["adv_panel"]` and the three field refs pointing at a closed window — and `adv_value()`
+would read `stringValue()` off it and apply it to the next Save. **Looking the widget up
+on every read does not prevent ghost values by itself; something has to clear the ref.**
+
+So both panels set `setDelegate_(handler)`, and `Handler.windowWillClose_` splits on
+`notification.object()`: the child routes to `close_advanced()`, the main panel to
+`close_main_panel()`. Every teardown path — Save, the main X, the child X — goes through
+those two functions and nowhere else.
+
+- `close_advanced()` runs `removeChildWindow_`, clears the delegate, orders out, and nils
+  `ui["adv_panel"]` plus the three field refs. Reopening therefore always builds a fresh
+  blank child, never revives a closed one — which is what keeps "blank means keep" from
+  depending on a window's history.
+- `close_main_panel()` tears the child down **first**, then the main panel. Reversed, the
+  child can sit on screen without its parent, and this app is `LSUIElement` with no Dock
+  icon, so the user has no way back to it. `open_advanced_limits()` refuses to build
+  anything when there is no main panel for the same reason.
+- Both panels set `setReleasedWhenClosed_(False)`. A window created with
+  `initWithContentRect:` is released on close by default. This is **not** about the
+  delegate receiving a freed object — `windowWillClose:` is delivered *before* the release,
+  so the callback itself is safe. It is about everything after: `ui` and the cleanup
+  functions hold explicit references, and letting Cocoa decide the window's lifetime on
+  close would leave those pointing at a deallocated object. Turning it off keeps object
+  lifetime under the explicit control of the Python teardown flow.
+- `close_advanced()` carries a re-entrancy flag. `orderOut_` posts no close notification
+  today, so nothing recurses — but a later change to `close()` would make delegate →
+  cleanup → close → delegate loop silently, and the flag is what stops that from being
+  discovered at runtime.
+
+**The button and the window title use different strings.** `s_limit_advanced_button`
+(≤ 20 chars) labels the 132 pt button in the main panel; the longer `s_limit_advanced` is
+the child window's title, where the title bar has room. `s_limit_note3` is capped at
+40 chars because it shares its row with that button — it states only that the `%` wins
+over an absolute limit. All three keys exist in en/ko/ja/es.
+
+**Calibration is not useless in exact mode.** The gauge percentages come from the server
+there, but `spike_info()`/`is_spike()` weigh burn against `RUNTIME["session_limit"]`, so a
+badly calibrated limit still produces phantom or missing spike alerts. `s_limit_note2`
+says both halves; do not shorten it to "exact mode ignores these limits".
+
 The consequence: **the stored limit is only meaningful relative to the estimator that
 produced it.** Any change to parsing, deduplication, weighting, or windowing shifts
 `current_estimated_usage`, which invalidates every limit a user has already calibrated —
@@ -920,9 +1015,26 @@ in `RELEASE_NOTES.md`, and `git tag --sort=-v:refname | head -1`.
    `GITHUB_REPO` (`uygnoey/claude-pet`), so a mismatch either suppresses a real update or
    offers a phantom one. This is the commit that makes a change a *release commit* under
    [AGENTS.md §6](AGENTS.md#release-steps-are-separately-authorized).
-2. **Add a section to the top of the changelog in `RELEASE_NOTES.md`**, in Korean,
-   matching the existing style. `release.sh` uses this file as the release body — which
-   is why it is a maintained file rather than generated from git history.
+2. **Add a section to the top of the changelog in `RELEASE_NOTES.md`**, in Korean.
+   `release.sh` uses this file as the release body — which is why it is a maintained file
+   rather than generated from git history.
+
+   **v0.21부터는 아래 형식을 따른다 — 짧고, 사용자 관점이고, 확인 가능한 수치만 쓴다.**
+   v0.20의 길고 중첩된 불릿은 핵심 변경과 사용자 조치를 한눈에 찾기 어렵게 만들었다.
+   그래서 형식을 다음처럼 고정한다:
+
+   - **최상위 불릿은 정확히 3개이고, 중첩 불릿은 쓰지 않는다.** 하위 불릿이 필요해 보이면
+     그것은 사실 두 개의 불릿이거나, 릴리즈 노트가 아니라 문서에 들어갈 내용이다.
+   - **본문 전체가 450 글자 이하**(공백을 하나로 정규화한 기준), 불릿마다 1~2 문장.
+   - **사용자가 할 행동과 그 결과를 쓴다.** 사용자가 해야 할 일이 없으면 없다고 적고,
+     내부에서 어떻게 구현했는지는 서술하지 않는다.
+   - **수치는 릴리즈 커밋 시점의 트리에서 감사할 수 있거나, AGENTS.md §5 기록으로 근거가
+     남아 있을 때만 쓴다.** 둘 다 아니면 그 수치는 빼고, 크기나 빈도를 뭉뚱그린 표현으로
+     바꿔 적지 않는다 — AGENTS.md 는 릴리즈 노트에 그런 정량 표현을 금지한다.
+   - **넣지 않는 것: 해시, 내부 식별자, 소스 경로와 줄 번호, 테스트 이름·개수·매트릭스.**
+     사용자가 행동으로 옮길 수도, 스스로 확인할 수도 없는 것들이다.
+   - 이 형식은 아직 게시되지 않은 맨 위 섹션에만 적용된다. 이미 published 된 섹션은
+     한 글자도 건드리지 않는다.
 
    **[ASK] Do not rewrite or drop a *published* entry.** Once an entry has gone out, this
    file is the only record of what those users received, and editing it rewrites history
