@@ -1,0 +1,7958 @@
+# Quiet companion verification
+
+Current status: **Verifier PASS** on final source SHA-256 `3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c`. Coordinator and Reviewer decisions remain separate.
+
+- **Full suite: 434 passed / 441 discovered, 7 explicit opt-in skips, zero failures/errors.** Grouping key: unittest case ID; file set: `tests/test_*.py`, exact IDs and raw output below. UTC `2026-09-08T09:38:16.301325Z`–`09:43:35.791215Z`, measured at the end; source SHA identical at both bounds.
+- **Focused gates: 51/51 passed**, including actual native menu validation. UTC `09:36:18.985914Z`–`09:36:21.757336Z` on 2026-09-08; file set: `tests/test_companion_motion.py` and AST-selected application definitions. Genuine pre-fix failure outputs are preserved below.
+- **Actual GUI:** default-time approach, six-second watch, return; full → compact → summary → compact → original display; hover, summary expand/collapse, manual drag and screen-edge clamp, menu OFF/ON, settings open/close, and actual OS Reduce Motion ON/OFF were exercised. The two approach runs used source `9d15…`; the final menu fix adds only three comments and one NSMenu setting, and removing those four lines exactly restores the prior SHA. Full motion/crop/summary code is byte-identical. [Actual arrival](quiet-companion-arrival.png) preserves original pixels; its PID/source/UTC are recorded below.
+- **Final native smoke:** 1,315 manually invoked native Ticker callbacks, 0/1,315 visible-bound violations; maximum sprite/model axis residual 0.8747334539777967pt and model step 2.7500000000006315pt. UTC `09:37:40.249029Z`–`09:37:40.553535Z` on 2026-09-08. File set: final application source, test harness, bundled frame PNGs; [raw metadata](quiet-companion-compact-smoke.json), [settled preview](quiet-companion-compact-smoke.png). This isolated synthetic smoke is separate from the actual normal-event-loop observations.
+- **Handoff:** final unwrapped normal GUI PID **58849** is left running with isolated preferences, roam=True and restored sensitivity=1.0. Trace writer is stopped. OS Reduce Motion=False and the pre-existing System Settings Storage view are restored. Installed PID29528 remains untouched. No build, signature, installation, push or release was performed.
+
+The seven skips are existing opt-in installed-version/updater boundary tests and are not passes. Read-only installed signature checks remain part of the suite. Human distraction and usage-calculation accuracy were not inferred from the appearance of the GUI.
+
+## Earlier quiet-motion baseline (source146f)
+
+The following original PASS belongs to SHA `146f4897…`; its artifacts are preserved separately from the final compact refinement.
+
+- Full discovery: **409 passed / 416 discovered**, **7 explicit opt-in skips**, zero failures/errors. Grouping key: unittest case ID; file set: `tests/test_*.py` with exact IDs enumerated in “Final full suite”. UTC window `2026-09-08T05:21:57.416541Z`–`2026-09-08T05:27:13.202346Z`, measured at the end. The source hash was identical at both bounds.
+- New behavior: the final **26 case IDs** pass. Initial feature absence, the pre-existing no-drag config write, and four concrete implementation regressions all have actual failure output preserved below. Final cases were also run against the exact pre-feature source in memory: **26 cases / 42 failing case-or-subtest outcomes, zero errors**; see the timestamped replay record. No production file was changed by Verifier.
+- Fixture discrimination: **5 killed / 5 injected rivals**, with unchanged positive controls passing first; exact UTC bounds, source hash and failing assertions are in “In-memory rival execution”.
+- Native AppKit: **1,379 sampled ticks**, full-window visible-bound violations **0 / 1,379**, extra sprite displacement relative to its native window **0 / 1,378 adjacent pairs**; both screen midpoint crossings occurred. Maximum model step is `2.7500000000006732` points; native origins are quantized, with maximum per-axis model residual `0.8729688998097345` points. UTC window `2026-09-08T05:28:02.071522Z`–`2026-09-08T05:28:02.407979Z`, measured at the end. File set: application source, test harness and bundled frame PNGs; all raw tick samples are in [native metadata](quiet-companion-smoke.json).
+
+[Native settled-pose preview](quiet-companion-smoke.png) shows walking right, watching, and walking left. The gauge container remains visible with synthetic scanning placeholders; this is not a live usage-data or human distraction study. Existing `frames/running-left/00.png` and `01.png` already clip part of the face at their left edge; those assets are unchanged and the preview reproduces them. No app installation or release action was performed.
+
+The seven skips are pre-existing opt-in live updater/installed-version boundary tests; they are not counted as passes. The baseline HOME-wrapper mismatch and first native fractional-origin assumption failure remain in the record as corrected harness assumptions.
+
+Role: independent Verifier `/root/verifier`; production editor: user-designated Claude; Coordinator: `/root`.
+
+Assigned deliverables: `tests/test_companion_motion.py`, this verification document, the quiet-companion-smoke and quiet-companion-compact-smoke PNG/JSON pairs, `quiet-companion-live-trace.jsonl`, `quiet-companion-live-contact.png`, `quiet-companion-arrival.png`, `/tmp/claudepet-actual-ui-20260908-qa.py`, and `/tmp/claudepet-before-compact-20260908.py`. Existing reviewed source hash pins were refreshed only after reading changed source. Every new path was explicitly assigned by Coordinator after an absence check. No production files edited.
+
+Baseline and unit runs use synthetic fixtures and do not launch the installed app; the isolated synthetic native AppKit smoke is described separately below. The later user-requested actual source-GUI run uses normal data workers with isolated preferences, as recorded in its own sections. No signing, notarization submission, installation, push, or publication is performed by this verification. Existing read-only signature validation tests inspect installed bundles.
+
+## Baseline existing suite
+
+Grouping key: unittest case ID. File set: repository `tests/test_*.py` as discovered before the new test deliverable exists. Window start: 2026-09-08T04:39:12.806917+00:00; end: 2026-09-08T04:44:27.462504+00:00; measured: 2026-09-08T04:44:27.462504+00:00.
+
+Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -v` from the repository root. Child environment is an allow-list containing PATH=/usr/bin:/bin:/usr/sbin:/sbin, temporary HOME/TMPDIR/ZDOTDIR, empty CDPATH, LANG=C, LC_ALL=C and PYTHONDONTWRITEBYTECODE=1. Live v020 opt-in absent.
+
+Exit: 1
+
+```text
+test_rolling_week_has_no_single_reset_timestamp (test_log_estimate.ComputeUsageTests.test_rolling_week_has_no_single_reset_timestamp) ... ok
+test_cache_creation_uses_ttl_specific_weights (test_log_estimate.ParseUsageEntriesTests.test_cache_creation_uses_ttl_specific_weights) ... ok
+test_distinct_request_ids_are_counted_separately (test_log_estimate.ParseUsageEntriesTests.test_distinct_request_ids_are_counted_separately) ... ok
+test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot (test_log_estimate.ParseUsageEntriesTests.test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot) ... ok
+test_equal_weight_duplicates_keep_the_later_timestamp (test_log_estimate.ParseUsageEntriesTests.test_equal_weight_duplicates_keep_the_later_timestamp) ... ok
+test_legacy_cache_creation_without_breakdown_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_legacy_cache_creation_without_breakdown_uses_5m_fallback) ... ok
+test_malformed_usage_numbers_skip_only_the_bad_rows (test_log_estimate.ParseUsageEntriesTests.test_malformed_usage_numbers_skip_only_the_bad_rows) ... ok
+test_nested_cache_breakdown_above_flat_total_is_clamped (test_log_estimate.ParseUsageEntriesTests.test_nested_cache_breakdown_above_flat_total_is_clamped) ... ok
+test_nested_sidechain_agent_usage_is_included (test_log_estimate.ParseUsageEntriesTests.test_nested_sidechain_agent_usage_is_included) ... ok
+test_record_before_since_does_not_hide_a_later_snapshot (test_log_estimate.ParseUsageEntriesTests.test_record_before_since_does_not_hide_a_later_snapshot) ... ok
+test_records_without_dedup_keys_are_counted_independently (test_log_estimate.ParseUsageEntriesTests.test_records_without_dedup_keys_are_counted_independently) ... ok
+test_streaming_duplicates_keep_an_interior_maximum (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_an_interior_maximum) ... ok
+test_streaming_duplicates_keep_the_final_usage_snapshot (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_the_final_usage_snapshot) ... ok
+test_unclassified_cache_creation_remainder_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_unclassified_cache_creation_remainder_uses_5m_fallback) ... ok
+test_backup_symlink_and_its_target_are_preserved (test_manual_update_transaction.BackupPreservationTests.test_backup_symlink_and_its_target_are_preserved) ... ok
+test_regular_backup_is_not_deleted_when_installed_app_exists (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_deleted_when_installed_app_exists) ... ok
+test_regular_backup_is_not_renamed_away_when_installed_app_is_absent (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_renamed_away_when_installed_app_is_absent) ... ok
+test_direct_build_cannot_remove_shared_app_while_build_lock_is_held (test_manual_update_transaction.BuildLockCoverageTests.test_direct_build_cannot_remove_shared_app_while_build_lock_is_held) ... ok
+test_install_outer_build_lock_survives_inner_build_and_preflight_consumption (test_manual_update_transaction.BuildLockCoverageTests.test_install_outer_build_lock_survives_inner_build_and_preflight_consumption) ... ok
+test_failed_adhoc_nested_fallback_stops_before_outer_signing (test_manual_update_transaction.NestedSigningFailureTests.test_failed_adhoc_nested_fallback_stops_before_outer_signing) ... ok
+test_local_nested_failure_falls_back_as_a_pair_not_outer_only (test_manual_update_transaction.NestedSigningFailureTests.test_local_nested_failure_falls_back_as_a_pair_not_outer_only) ... ok
+test_failed_publish_restores_and_relaunches_the_old_application (test_manual_update_transaction.RollbackAndInstallTests.test_failed_publish_restores_and_relaunches_the_old_application) ... ok
+test_install_copy_failure_preserves_the_existing_application (test_manual_update_transaction.RollbackAndInstallTests.test_install_copy_failure_preserves_the_existing_application) ... ok
+test_in_app_holder_blocks_public_install_and_update_before_child_mutation (test_manual_update_transaction.SharedUpdateLockTests.test_in_app_holder_blocks_public_install_and_update_before_child_mutation) ... ok
+test_manual_holder_blocks_a_simulated_in_app_acquire (test_manual_update_transaction.SharedUpdateLockTests.test_manual_holder_blocks_a_simulated_in_app_acquire) ... ok
+test_code_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_code_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_info_plist_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_info_plist_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_resources_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_resources_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_both_bundle_version_keys_must_equal_the_source_version (test_manual_update_transaction.StagedPreflightTests.test_both_bundle_version_keys_must_equal_the_source_version) ... ok
+test_executable_must_be_a_regular_nonlink_file (test_manual_update_transaction.StagedPreflightTests.test_executable_must_be_a_regular_nonlink_file) ... ok
+test_staged_application_code_must_match_the_checkout_code_hash (test_manual_update_transaction.StagedPreflightTests.test_staged_application_code_must_match_the_checkout_code_hash) ... ok
+test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes (test_manual_update_transaction.WholeTransactionConcurrencyTests.test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes) ... ok
+test_every_literal_needle_still_occurs_in_the_generated_script (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_every_literal_needle_still_occurs_in_the_generated_script) ... ok
+test_the_generator_produces_something_to_search (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_generator_produces_something_to_search)
+Discrimination: an empty script would make every check below vacuous. ... ok
+test_the_needles_are_not_so_generic_that_they_hit_everywhere (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_needles_are_not_so_generic_that_they_hit_everywhere)
+A needle matching many places replaces more than the test intends. ... ok
+test_generating_a_script_creates_nothing (test_mutation_instruments.LockPathIsolationTests.test_generating_a_script_creates_nothing)
+`_update_lock_path` must be pure: asking is not making. ... ok
+test_the_redirect_actually_took_effect (test_mutation_instruments.LockPathIsolationTests.test_the_redirect_actually_took_effect)
+Otherwise the isolation is theatre and the check above is vacuous. ... ok
+test_dynamic_needle_sites_are_reported_rather_than_silently_skipped (test_mutation_instruments.ScopeIsVisibleTests.test_dynamic_needle_sites_are_reported_rather_than_silently_skipped) ... ok
+test_a_symlink_planted_at_the_staging_name_is_not_written_through (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_a_symlink_planted_at_the_staging_name_is_not_written_through) ... ok
+test_the_plant_is_actually_in_the_way (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_the_plant_is_actually_in_the_way)
+Discrimination: if the fixture missed, the test above proves nothing. ... ok
+test_a_pet_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_that_died_midway_is_repaired_by_the_next_run)
+The failure must not be sticky. ... ok
+test_a_pet_whose_sheet_dies_midway_is_not_published (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_whose_sheet_dies_midway_is_not_published) ... ok
+test_the_first_file_dying_midway_is_handled_the_same_way (test_partial_copy_seeding.PartialPetCopyTests.test_the_first_file_dying_midway_is_handled_the_same_way)
+pet.json is what `_is_pet_dir` keys on, so a truncated one is worst. ... ok
+test_the_other_pets_are_still_seeded_whole (test_partial_copy_seeding.PartialPetCopyTests.test_the_other_pets_are_still_seeded_whole)
+One pet dying must not cost the rest - and must not half-cost them. ... ok
+test_a_readme_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_died_midway_is_repaired_by_the_next_run) ... ok
+test_a_readme_that_dies_midway_is_not_linked_into_place (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_dies_midway_is_not_linked_into_place) ... ok
+test_the_other_readmes_still_land_whole (test_partial_copy_seeding.PartialReadmeCopyTests.test_the_other_readmes_still_land_whole) ... ok
+test_cli_forwards_exact_version_and_ordered_arches_to_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_cli_forwards_exact_version_and_ordered_arches_to_validator) ... ok
+test_code_leaf_must_be_regular_present_and_not_a_symlink (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_code_leaf_must_be_regular_present_and_not_a_symlink) ... ok
+test_exact_checkout_code_leaf_reaches_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_exact_checkout_code_leaf_reaches_validator) ... ok
+test_missing_arches_fails_before_validator_delegation (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_arches_fails_before_validator_delegation) ... ok
+test_missing_file_or_symlink_app_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_file_or_symlink_app_is_rejected_before_validator) ... ok
+test_stale_regular_code_leaf_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_stale_regular_code_leaf_is_rejected_before_validator) ... ok
+test_a_symlinked_member_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_a_symlinked_member_in_both_is_still_reported) ... ok
+test_wrong_sheet_name_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sheet_name_in_both_is_still_reported) ... ok
+test_wrong_sprite_version_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sprite_version_in_both_is_still_reported) ... ok
+test_constants_are_read_without_importing_the_app (test_release_gate.ExpectedSetTests.test_constants_are_read_without_importing_the_app)
+BUNDLED_PET_FILES references BUNDLED_PET_SHEET, so plain literal_eval fails. ... ok
+test_expected_members_are_derived_not_hardcoded (test_release_gate.ExpectedSetTests.test_expected_members_are_derived_not_hardcoded)
+A literal 16 would silently check a subset once a fifth pet ships. ... ok
+test_an_id_disagreeing_with_its_folder_is_refused (test_release_gate.InstallerRefusalsAreMirroredTests.test_an_id_disagreeing_with_its_folder_is_refused)
+The installer refuses this pet; shipping it would certify a dud. ... ok
+test_every_installer_refusal_has_a_gate_counterpart (test_release_gate.InstallerRefusalsAreMirroredTests.test_every_installer_refusal_has_a_gate_counterpart)
+The surface is closed: each rejection below is caught by both. ... ok
+test_a_copy_that_fails_midway_leaves_the_old_payload_intact (test_release_gate.ManualBuildAssetSwapTests.test_a_copy_that_fails_midway_leaves_the_old_payload_intact)
+Different state from a copy that fails at the start. ... ok
+test_a_failing_copy_leaves_the_existing_tree_untouched (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_copy_leaves_the_existing_tree_untouched)
+The assertion a destroy-then-copy implementation cannot pass. ... ok
+test_a_failing_final_move_preserves_the_old_payload (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_final_move_preserves_the_old_payload)
+Fault at the second rename — stage→final. Old payload must survive. ... ok
+test_a_failing_restore_keeps_the_backup_and_says_so (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_restore_keeps_the_backup_and_says_so)
+The case the old code lied about: restore fails, it claimed success. ... ok
+test_assets_are_installed_into_a_fresh_bundle (test_release_gate.ManualBuildAssetSwapTests.test_assets_are_installed_into_a_fresh_bundle) ... ok
+test_no_staging_or_backup_residue_is_left_behind (test_release_gate.ManualBuildAssetSwapTests.test_no_staging_or_backup_residue_is_left_behind) ... ok
+test_recovery_moves_the_crashed_out_backup_itself (test_release_gate.ManualBuildAssetSwapTests.test_recovery_moves_the_crashed_out_backup_itself)
+Recovery must restore *that* directory, not produce a look-alike. ... ok
+test_the_next_ordinary_run_self_heals_and_completes (test_release_gate.ManualBuildAssetSwapTests.test_the_next_ordinary_run_self_heals_and_completes)
+After the crash, an unmutated run recovers and finishes the job. ... ok
+test_a_pristine_payload_passes (test_release_gate.PayloadVerificationTests.test_a_pristine_payload_passes) ... ok
+test_cli_exits_non_zero_and_names_the_member (test_release_gate.PayloadVerificationTests.test_cli_exits_non_zero_and_names_the_member) ... ok
+test_contents_differing_from_source_are_reported (test_release_gate.PayloadVerificationTests.test_contents_differing_from_source_are_reported) ... ok
+test_entirely_absent_payload_is_reported (test_release_gate.PayloadVerificationTests.test_entirely_absent_payload_is_reported) ... ok
+test_member_replaced_by_a_symlink_is_reported (test_release_gate.PayloadVerificationTests.test_member_replaced_by_a_symlink_is_reported) ... ok
+test_missing_member_is_reported (test_release_gate.PayloadVerificationTests.test_missing_member_is_reported) ... ok
+test_missing_readme_is_reported (test_release_gate.PayloadVerificationTests.test_missing_readme_is_reported) ... ok
+test_symlink_anywhere_in_the_subtree_is_reported (test_release_gate.PayloadVerificationTests.test_symlink_anywhere_in_the_subtree_is_reported) ... ok
+test_unexpected_extra_file_is_reported (test_release_gate.PayloadVerificationTests.test_unexpected_extra_file_is_reported) ... ok
+test_wrong_sheet_name_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sheet_name_in_metadata_is_reported) ... ok
+test_wrong_sprite_version_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sprite_version_in_metadata_is_reported) ... ok
+test_a_missing_expected_directory_is_reported (test_release_gate.TreeShapeTests.test_a_missing_expected_directory_is_reported) ... ok
+test_a_symlinked_expected_directory_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_expected_directory_is_refused) ... ok
+test_a_symlinked_payload_root_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_payload_root_is_refused)
+os.walk follows the link and cleanly verifies the wrong tree. ... ok
+test_an_unexpected_empty_directory_is_reported (test_release_gate.TreeShapeTests.test_an_unexpected_empty_directory_is_reported)
+A file-only comparison cannot see a directory with nothing in it. ... ok
+test_both_version_keys_equal_app_version (test_release_gate.WritePlistTests.test_both_version_keys_equal_app_version) ... ok
+test_replacement_at_temporary_pet_folder_survives_cleanup (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_pet_folder_survives_cleanup)
+Cleanup must not follow a replaced staging-folder name. ... ok
+test_replacement_at_temporary_readme_name_is_not_published_or_cleaned (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_readme_name_is_not_published_or_cleaned)
+Publish and cleanup must remain bound to the staged README inode. ... ok
+test_replacement_between_pet_stage_mkdir_and_open_is_not_used (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_between_pet_stage_mkdir_and_open_is_not_used)
+Opening and publishing must stay bound to the mkdir-created stage. ... ok
+test_copy_failure_never_publishes_a_partial_pet_directory (test_settings_and_install.BundledPetSeedTests.test_copy_failure_never_publishes_a_partial_pet_directory) ... ok
+test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored) ... ok
+test_destination_root_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_safe_open_is_not_followed) ... ok
+test_destination_root_symlink_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_symlink_is_not_followed) ... ok
+test_empty_destination_receives_the_full_distributed_tree (test_settings_and_install.BundledPetSeedTests.test_empty_destination_receives_the_full_distributed_tree) ... ok
+test_malformed_or_traversing_pet_metadata_is_never_published (test_settings_and_install.BundledPetSeedTests.test_malformed_or_traversing_pet_metadata_is_never_published) ... ok
+test_missing_atomic_directory_publish_primitive_fails_closed (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_directory_publish_primitive_fails_closed) ... ok
+test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme) ... ok
+test_pet_directory_created_during_publish_is_never_replaced (test_settings_and_install.BundledPetSeedTests.test_pet_directory_created_during_publish_is_never_replaced) ... ok
+test_pet_metadata_must_reference_the_distributed_spritesheet (test_settings_and_install.BundledPetSeedTests.test_pet_metadata_must_reference_the_distributed_spritesheet) ... ok
+test_pet_with_a_missing_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_missing_required_file_is_never_published) ... ok
+test_pet_with_a_symlinked_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_symlinked_required_file_is_never_published) ... ok
+test_pets_directory_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_directory_replaced_after_safe_open_is_not_followed) ... ok
+test_pets_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_readme_created_during_publish_is_preserved (test_settings_and_install.BundledPetSeedTests.test_readme_created_during_publish_is_preserved) ... ok
+test_root_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_root_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_second_seed_is_byte_and_mtime_idempotent (test_settings_and_install.BundledPetSeedTests.test_second_seed_is_byte_and_mtime_idempotent) ... ok
+test_symlinked_source_pet_is_not_copied (test_settings_and_install.BundledPetSeedTests.test_symlinked_source_pet_is_not_copied) ... ok
+test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets (test_settings_and_install.BundledPetSeedTests.test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets) ... ok
+test_apple_silicon_never_falls_back_to_an_unrelated_zip (test_settings_and_install.GithubUpdateTests.test_apple_silicon_never_falls_back_to_an_unrelated_zip) ... ok
+test_download_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_download_failure_removes_the_new_temporary_directory) ... ok
+test_failed_poll_does_not_consume_the_retry_cooldown (test_settings_and_install.GithubUpdateTests.test_failed_poll_does_not_consume_the_retry_cooldown) ... ok
+test_intel_never_falls_back_to_an_arm_only_archive (test_settings_and_install.GithubUpdateTests.test_intel_never_falls_back_to_an_arm_only_archive) ... ok
+test_launch_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_launch_failure_removes_the_new_temporary_directory) ... ok
+test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds (test_settings_and_install.GithubUpdateTests.test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds) ... ok
+test_replace_script_preserves_the_installed_app_when_copy_fails (test_settings_and_install.GithubUpdateTests.test_replace_script_preserves_the_installed_app_when_copy_fails) ... ok
+test_replace_script_rolls_back_when_the_replacement_cannot_launch (test_settings_and_install.GithubUpdateTests.test_replace_script_rolls_back_when_the_replacement_cannot_launch) ... ok
+test_successful_launch_transfers_temp_cleanup_to_the_detached_script (test_settings_and_install.GithubUpdateTests.test_successful_launch_transfers_temp_cleanup_to_the_detached_script) ... ok
+test_update_app_preflight_accepts_the_expected_signed_bundle (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_accepts_the_expected_signed_bundle) ... ok
+test_update_app_preflight_rejects_identity_version_and_signature_failures (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_rejects_identity_version_and_signature_failures) ... ok
+test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member) ... ok
+test_update_check_distinguishes_current_from_network_failure (test_settings_and_install.GithubUpdateTests.test_update_check_distinguishes_current_from_network_failure) ... ok
+test_update_check_returns_the_selected_release_asset (test_settings_and_install.GithubUpdateTests.test_update_check_returns_the_selected_release_asset) ... ok
+test_valid_poll_records_cooldown_and_an_update_becomes_pending (test_settings_and_install.GithubUpdateTests.test_valid_poll_records_cooldown_and_an_update_becomes_pending) ... ok
+test_manual_bundle_versions_are_not_hard_coded (test_settings_and_install.PackagingContractTests.test_manual_bundle_versions_are_not_hard_coded) ... ok
+test_manual_update_refreshes_bundled_pet_resources (test_settings_and_install.PackagingContractTests.test_manual_update_refreshes_bundled_pet_resources) ... ok
+test_readmes_do_not_offer_a_recursive_overwrite_command (test_settings_and_install.PackagingContractTests.test_readmes_do_not_offer_a_recursive_overwrite_command) ... ok
+test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them (test_settings_and_install.PackagingContractTests.test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them) ... ok
+test_generation_check_and_state_update_are_atomic (test_settings_and_install.RefreshGenerationTests.test_generation_check_and_state_update_are_atomic) ... ok
+test_only_the_newest_refresh_generation_can_commit (test_settings_and_install.RefreshGenerationTests.test_only_the_newest_refresh_generation_can_commit) ... ok
+test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure (test_settings_and_install.SettingsConfigTests.test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure) ... ok
+test_atomic_config_write_preserves_old_json_when_replace_fails (test_settings_and_install.SettingsConfigTests.test_atomic_config_write_preserves_old_json_when_replace_fails) ... ok
+test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan (test_settings_and_install.SettingsConfigTests.test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan) ... ok
+test_blank_limit_fields_do_not_override_environment_fallbacks (test_settings_and_install.SettingsConfigTests.test_blank_limit_fields_do_not_override_environment_fallbacks) ... ok
+test_calibration_overrides_only_its_matching_direct_limit (test_settings_and_install.SettingsConfigTests.test_calibration_overrides_only_its_matching_direct_limit) ... ok
+test_calibration_rejects_a_gauge_with_zero_usage (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_gauge_with_zero_usage) ... ok
+test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens) ... ok
+test_calibration_usage_scan_failure_is_a_settings_error (test_settings_and_install.SettingsConfigTests.test_calibration_usage_scan_failure_is_a_settings_error) ... ok
+test_compute_usage_uses_the_supplied_runtime_snapshot (test_settings_and_install.SettingsConfigTests.test_compute_usage_uses_the_supplied_runtime_snapshot) ... ok
+test_direct_only_settings_save_does_not_scan_usage (test_settings_and_install.SettingsConfigTests.test_direct_only_settings_save_does_not_scan_usage) ... ok
+test_exact_mode_note_explains_server_calibration_and_estimate_spike_split (test_settings_and_install.SettingsConfigTests.test_exact_mode_note_explains_server_calibration_and_estimate_spike_split) ... ok
+test_exact_token_limits_survive_an_unchanged_settings_round_trip (test_settings_and_install.SettingsConfigTests.test_exact_token_limits_survive_an_unchanged_settings_round_trip) ... ok
+test_gui_save_path_uses_the_tested_transaction_and_commits_before_close (test_settings_and_install.SettingsConfigTests.test_gui_save_path_uses_the_tested_transaction_and_commits_before_close) ... ok
+test_invalid_calibration_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_calibration_rejects_the_whole_candidate) ... ok
+test_invalid_direct_limit_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_direct_limit_rejects_the_whole_candidate) ... ok
+test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths (test_settings_and_install.SettingsConfigTests.test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths) ... ok
+test_merge_retries_instead_of_losing_a_write_between_read_and_save (test_settings_and_install.SettingsConfigTests.test_merge_retries_instead_of_losing_a_write_between_read_and_save) ... ok
+test_new_usage_settings_locale_keys_exist_in_every_supported_language (test_settings_and_install.SettingsConfigTests.test_new_usage_settings_locale_keys_exist_in_every_supported_language) ... ok
+test_other_numeric_settings_require_finite_in_range_values (test_settings_and_install.SettingsConfigTests.test_other_numeric_settings_require_finite_in_range_values) ... ok
+test_percentage_fields_are_primary_and_all_limit_inputs_default_blank (test_settings_and_install.SettingsConfigTests.test_percentage_fields_are_primary_and_all_limit_inputs_default_blank) ... ok
+test_session_percentage_only_backsolves_session_and_preserves_other_limits (test_settings_and_install.SettingsConfigTests.test_session_percentage_only_backsolves_session_and_preserves_other_limits) ... ok
+test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys (test_settings_and_install.SettingsConfigTests.test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys) ... ok
+test_settings_transaction_rejects_invalid_input_before_any_apply (test_settings_and_install.SettingsConfigTests.test_settings_transaction_rejects_invalid_input_before_any_apply) ... ok
+test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched (test_settings_and_install.SettingsConfigTests.test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched) ... ok
+test_valid_direct_limits_are_stored_as_integer_tokens (test_settings_and_install.SettingsConfigTests.test_valid_direct_limits_are_stored_as_integer_tokens) ... ok
+test_zero_percentage_has_a_distinct_actionable_atomic_rejection (test_settings_and_install.SettingsConfigTests.test_zero_percentage_has_a_distinct_actionable_atomic_rejection) ... ok
+test_requirement_accepts_our_own_signed_app (test_signing_contract.CodesignRequirementContractTests.test_requirement_accepts_our_own_signed_app) ... ok
+test_requirement_is_parsed_as_a_requirement_not_a_filename (test_signing_contract.CodesignRequirementContractTests.test_requirement_is_parsed_as_a_requirement_not_a_filename)
+The exact failure that shipped: codesign reading it as a path. ... ok
+test_requirement_rejects_a_bundle_signed_by_someone_else (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_a_bundle_signed_by_someone_else)
+A requirement that accepted everything would also return 0 here. ... ok
+test_requirement_rejects_another_developer_id_signature (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_another_developer_id_signature)
+Closer case: a real third-party Developer ID, not Apple's own. ... ok
+test_assessment_alone_does_not_identify_the_signer (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_alone_does_not_identify_the_signer)
+Why the team check above matters: spctl accepts other vendors too. ... ok
+test_assessment_reports_notarization_and_our_team_for_our_app (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_reports_notarization_and_our_team_for_our_app) ... ok
+test_stapler_rejects_a_bundle_with_no_stapled_ticket (test_signing_contract.StaplerContractTests.test_stapler_rejects_a_bundle_with_no_stapled_ticket)
+Discrimination: stapler must fail on something unstapled. ... ok
+test_stapler_validates_the_installed_app (test_signing_contract.StaplerContractTests.test_stapler_validates_the_installed_app) ... ok
+test_the_real_installed_app_passes_the_whole_preflight (test_signing_contract.ValidateUpdateAppLiveTests.test_the_real_installed_app_passes_the_whole_preflight)
+End-to-end, unmocked: the path a real update actually takes. ... ok
+test_direct_execution_reaches_dispatch_exactly_once (test_source_guard.SourceGuardTests.test_direct_execution_reaches_dispatch_exactly_once) ... ok
+test_guarded_source_is_inert_and_defines_functions (test_source_guard.SourceGuardTests.test_guarded_source_is_inert_and_defines_functions) ... ok
+test_removing_the_guard_makes_source_reach_dispatch_once (test_source_guard.SourceGuardTests.test_removing_the_guard_makes_source_reach_dispatch_once) ... ok
+test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected) ... ok
+test_framework_style_relative_symlink_inside_the_bundle_is_accepted (test_updater.BundleContainmentTests.test_framework_style_relative_symlink_inside_the_bundle_is_accepted) ... ok
+test_missing_manifest_members_still_only_warn (test_updater.BundleContainmentTests.test_missing_manifest_members_still_only_warn)
+Policy guard: missing assets must not strand users on an old build. ... ok
+test_relative_symlink_escaping_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_relative_symlink_escaping_the_bundle_is_rejected)
+Which rule does the work: the realpath containment one, and only it. ... ok
+test_symlink_in_the_pet_subtree_is_rejected_even_when_contained (test_updater.BundleContainmentTests.test_symlink_in_the_pet_subtree_is_rejected_even_when_contained)
+Ours, and it legitimately contains zero symlinks — so any is a red flag. ... ok
+test_symlinked_ancestor_of_the_pet_subtree_is_rejected (test_updater.BundleContainmentTests.test_symlinked_ancestor_of_the_pet_subtree_is_rejected) ... ok
+test_a_failed_check_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_failed_check_leaves_no_stale_choice_behind) ... ok
+test_a_non_update_result_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_non_update_result_leaves_no_stale_choice_behind) ... ok
+test_poll_still_publishes_the_two_tuple_the_ui_reads (test_updater.CheckGithubUpdateShapeTests.test_poll_still_publishes_the_two_tuple_the_ui_reads) ... ok
+test_update_records_the_chosen_asset_and_arch_in_the_cache (test_updater.CheckGithubUpdateShapeTests.test_update_records_the_chosen_asset_and_arch_in_the_cache)
+Per key, by name — `asset` and `arch` are bound through the ... ok
+test_a_second_install_is_refused_while_the_first_helper_lives (test_updater.ConcurrentInstallTests.test_a_second_install_is_refused_while_the_first_helper_lives)
+The same property at the entry point the app actually calls. ... ok
+test_an_install_is_possible_again_once_the_first_helper_exits (test_updater.ConcurrentInstallTests.test_an_install_is_possible_again_once_the_first_helper_exits)
+Discrimination for the test above: the refusal is not permanent. ... ok
+test_one_install_succeeds_and_schedules_exactly_one_helper (test_updater.ConcurrentInstallTests.test_one_install_succeeds_and_schedules_exactly_one_helper)
+Control: without it, an installer that always refused would pass. ... ok
+test_the_lock_changes_hands_and_is_released_by_the_kernel (test_updater.ConcurrentInstallTests.test_the_lock_changes_hands_and_is_released_by_the_kernel)
+The whole handoff lifecycle, in one fixture. ... ok
+test_patching_the_retired_name_intercepts_nothing_and_reaches_out (test_updater.DownloadSeamInstrumentTests.test_patching_the_retired_name_intercepts_nothing_and_reaches_out)
+The mutant: the fixture style this file used to use, run. ... ok
+test_production_downloads_through_the_name_the_fixtures_patch (test_updater.DownloadSeamInstrumentTests.test_production_downloads_through_the_name_the_fixtures_patch) ... ok
+test_the_guard_lets_loopback_through (test_updater.DownloadSeamInstrumentTests.test_the_guard_lets_loopback_through)
+Negative control: it blocks by destination, not by being a socket. ... ok
+test_the_guard_records_and_refuses_a_direct_request (test_updater.DownloadSeamInstrumentTests.test_the_guard_records_and_refuses_a_direct_request)
+Positive control: the guard fires when nothing is patched at all. ... ok
+test_the_module_under_test_is_the_repository_copy (test_updater.DownloadSeamInstrumentTests.test_the_module_under_test_is_the_repository_copy)
+Everything below reads production source; this says whose. ... ok
+test_the_stand_in_intercepts_the_download (test_updater.DownloadSeamInstrumentTests.test_the_stand_in_intercepts_the_download) ... ok
+test_a_missing_operand_fails_loudly_rather_than_creating_anything (test_updater.ExchangeHelperTests.test_a_missing_operand_fails_loudly_rather_than_creating_anything) ... ok
+test_two_directories_are_exchanged_in_place (test_updater.ExchangeHelperTests.test_two_directories_are_exchanged_in_place) ... ok
+test_wrong_argument_count_is_an_error (test_updater.ExchangeHelperTests.test_wrong_argument_count_is_an_error) ... ok
+test_install_refuses_before_downloading_anything (test_updater.ExpectedVersionRequiredTests.test_install_refuses_before_downloading_anything) ... ok
+test_preflight_rejects_a_missing_or_blank_expectation (test_updater.ExpectedVersionRequiredTests.test_preflight_rejects_a_missing_or_blank_expectation) ... ok
+test_each_rejected_record_is_rejected_for_its_own_reason (test_updater.LaunchRegistrationInstrumentTests.test_each_rejected_record_is_rejected_for_its_own_reason)
+Without this, one over-broad filter would look like a clean pass. ... ok
+test_no_fixture_bundle_of_this_run_claims_the_production_identity (test_updater.LaunchRegistrationInstrumentTests.test_no_fixture_bundle_of_this_run_claims_the_production_identity)
+The assertion itself, run early enough to attribute. ... ok
+test_the_parser_reads_the_real_database (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_reads_the_real_database)
+The synthetic dump above proves nothing about the real format. ... ok
+test_the_parser_selects_by_identifier_and_by_root (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_selects_by_identifier_and_by_root) ... ok
+test_a_child_process_computes_the_lock_path_from_the_fixture_home (test_updater.LockIsolationInstrumentTests.test_a_child_process_computes_the_lock_path_from_the_fixture_home)
+The constant patch does not cross a process boundary; HOME does. ... ok
+test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change (test_updater.LockIsolationInstrumentTests.test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change)
+Mutation-style check of the alarm's own discrimination. ... ok
+test_the_lock_lands_in_the_fixture_cache_not_the_real_one (test_updater.LockIsolationInstrumentTests.test_the_lock_lands_in_the_fixture_cache_not_the_real_one)
+The redirection is load-bearing, not decorative. ... ok
+test_the_real_bundle_contains_the_symlinks_this_guard_is_about (test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about)
+Discrimination: without an internal symlink the guard above is vacuous. ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_the_real_installed_bundle_is_accepted_by_the_preflight (test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight) ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_completed_update_never_leaves_the_install_path_empty (test_updater.ReplaceScriptBehaviourTests.test_a_completed_update_never_leaves_the_install_path_empty)
+There is no instant at which the app is absent from its own path. ... ok
+test_a_launch_that_is_never_acknowledged_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_launch_that_is_never_acknowledged_rolls_back)
+`open` exiting 0 is a dispatch, not a health signal. ... ok
+test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged (test_updater.ReplaceScriptBehaviourTests.test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged)
+The fallback branch must actually be reachable. ... ok
+test_a_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_process_running_before_the_update_never_acknowledges_it)
+The false ACK that matters in practice. ... ok
+test_a_process_that_dies_during_the_settle_delay_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_process_that_dies_during_the_settle_delay_rolls_back)
+A bundle that starts and immediately crashes is not a live app. ... ok
+test_a_python_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_python_process_running_before_the_update_never_acknowledges_it)
+Same contract on the fallback pattern, which is a separate branch. ... ok
+test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one (test_updater.ReplaceScriptBehaviourTests.test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one)
+The nesting hole, made deterministic. ... ok
+test_a_stage_tampered_with_after_ditto_is_never_installed (test_updater.ReplaceScriptBehaviourTests.test_a_stage_tampered_with_after_ditto_is_never_installed)
+The installer's second validation rejects the exact staged copy. ... ok
+test_a_stale_process_cannot_cover_for_one_that_died_during_settle (test_updater.ReplaceScriptBehaviourTests.test_a_stale_process_cannot_cover_for_one_that_died_during_settle)
+The settle check must confirm *that* pid, not re-scan for any match. ... ok
+test_an_acknowledged_launch_completes_the_swap_atomically (test_updater.ReplaceScriptBehaviourTests.test_an_acknowledged_launch_completes_the_swap_atomically)
+The atomic path specifically — the branch every real machine takes. ... ok
+test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement)
+The anchor test: a third-party process mentioning the path. ... ok
+test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack)
+The fallback pattern must not match loosely either. ... ok
+test_atomic_exchange_failure_never_starts_a_move_fallback (test_updater.ReplaceScriptBehaviourTests.test_atomic_exchange_failure_never_starts_a_move_fallback)
+Both exchange helpers fail; exact old APP remains and no backup moves. ... ok
+test_rollback_survives_a_new_bundle_with_a_broken_interpreter (test_updater.ReplaceScriptBehaviourTests.test_rollback_survives_a_new_bundle_with_a_broken_interpreter)
+The only time rollback runs is when the new bundle is bad. ... ok
+test_the_old_app_survives_a_rollback_on_the_atomic_path (test_updater.ReplaceScriptBehaviourTests.test_the_old_app_survives_a_rollback_on_the_atomic_path)
+Old-copy preservation on the exchange path specifically. ... ok
+test_the_swap_fails_closed_without_any_bundled_interpreter (test_updater.ReplaceScriptBehaviourTests.test_the_swap_fails_closed_without_any_bundled_interpreter)
+No atomic helper means no update; APP stays the exact old object. ... ok
+test_a_retained_backup_is_recorded_where_the_user_can_find_it (test_updater.ReplaceScriptTextTests.test_a_retained_backup_is_recorded_where_the_user_can_find_it) ... ok
+test_constructor_refuses_to_invent_missing_caller_identities (test_updater.ReplaceScriptTextTests.test_constructor_refuses_to_invent_missing_caller_identities) ... ok
+test_execution_harness_neutralizes_the_primitive_before_consumers (test_updater.ReplaceScriptTextTests.test_execution_harness_neutralizes_the_primitive_before_consumers) ... ok
+test_forward_replacement_is_atomic_only_and_fails_closed (test_updater.ReplaceScriptTextTests.test_forward_replacement_is_atomic_only_and_fails_closed)
+A failed exchange must not reopen the old two-move install window. ... ok
+test_launch_grammar_is_one_definition_and_two_exact_consumers (test_updater.ReplaceScriptTextTests.test_launch_grammar_is_one_definition_and_two_exact_consumers) ... ok
+test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code (test_updater.ReplaceScriptTextTests.test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code)
+`open` returning 0 means dispatched, not running. ... ok
+test_rollback_never_reaches_for_the_new_bundles_interpreter (test_updater.ReplaceScriptTextTests.test_rollback_never_reaches_for_the_new_bundles_interpreter)
+Recovery must not depend on the thing it is recovering from. ... ok
+test_same_filesystem_is_checked_after_staging_and_before_the_swap (test_updater.ReplaceScriptTextTests.test_same_filesystem_is_checked_after_staging_and_before_the_swap)
+A cross-device swap cannot be atomic, and mv would copy instead. ... ok
+test_script_carries_the_callers_exact_app_and_work_identities (test_updater.ReplaceScriptTextTests.test_script_carries_the_callers_exact_app_and_work_identities) ... ok
+test_script_keeps_the_literal_substrings_other_tests_pin (test_updater.ReplaceScriptTextTests.test_script_keeps_the_literal_substrings_other_tests_pin) ... ok
+test_swap_goes_through_the_bundled_interpreter (test_updater.ReplaceScriptTextTests.test_swap_goes_through_the_bundled_interpreter) ... ok
+test_the_ordering_check_notices_the_device_check_moving (test_updater.ReplaceScriptTextTests.test_the_ordering_check_notices_the_device_check_moving)
+Control: the assertion above must be able to fail. ... ok
+test_the_rollback_check_notices_an_interpreter_from_the_new_bundle (test_updater.ReplaceScriptTextTests.test_the_rollback_check_notices_an_interpreter_from_the_new_bundle)
+Control: substitute the failed bundle's interpreter and it fails. ... ok
+test_a_bundle_whose_executable_lacks_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundle_whose_executable_lacks_this_architecture_is_rejected) ... ok
+test_a_bundled_interpreter_lacking_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundled_interpreter_lacking_this_architecture_is_rejected)
+The helper the swap itself runs — a mismatch breaks the update path. ... ok
+test_a_native_and_a_universal_bundle_are_both_accepted (test_updater.RequiredArchitectureTests.test_a_native_and_a_universal_bundle_are_both_accepted)
+Control: the check must not reject the two shapes we ship. ... ok
+test_the_main_executable_and_info_plist_must_be_regular_files (test_updater.RequiredArchitectureTests.test_the_main_executable_and_info_plist_must_be_regular_files)
+Both are read to decide identity; a symlink decides it elsewhere. ... ok
+test_a_non_https_or_hostless_url_is_never_selected (test_updater.SelectUpdateAssetTests.test_a_non_https_or_hostless_url_is_never_selected) ... ok
+test_apple_silicon_accepts_the_universal_archive_alone (test_updater.SelectUpdateAssetTests.test_apple_silicon_accepts_the_universal_archive_alone) ... ok
+test_apple_silicon_prefers_the_arm_archive (test_updater.SelectUpdateAssetTests.test_apple_silicon_prefers_the_arm_archive) ... ok
+test_case_and_surrounding_whitespace_are_normalized (test_updater.SelectUpdateAssetTests.test_case_and_surrounding_whitespace_are_normalized) ... ok
+test_duplicate_unrelated_names_do_not_block_a_clean_choice (test_updater.SelectUpdateAssetTests.test_duplicate_unrelated_names_do_not_block_a_clean_choice)
+Discrimination: the ambiguity rule is about the *allowed* name only. ... ok
+test_intel_never_takes_the_arm_only_archive (test_updater.SelectUpdateAssetTests.test_intel_never_takes_the_arm_only_archive) ... ok
+test_intel_takes_the_universal_archive (test_updater.SelectUpdateAssetTests.test_intel_takes_the_universal_archive) ... ok
+test_malformed_asset_entries_do_not_raise (test_updater.SelectUpdateAssetTests.test_malformed_asset_entries_do_not_raise) ... ok
+test_names_are_matched_only_against_the_allow_list (test_updater.SelectUpdateAssetTests.test_names_are_matched_only_against_the_allow_list) ... ok
+test_two_assets_normalizing_to_one_allowed_name_are_ambiguous (test_updater.SelectUpdateAssetTests.test_two_assets_normalizing_to_one_allowed_name_are_ambiguous)
+Two candidates for the same slot: we cannot know which is the app. ... ok
+test_unknown_architecture_is_rejected_rather_than_defaulted (test_updater.SelectUpdateAssetTests.test_unknown_architecture_is_rejected_rather_than_defaulted) ... ok
+test_codesign_call_binds_the_exact_expected_team_requirement (test_updater.SigningAuthorityPreflightTests.test_codesign_call_binds_the_exact_expected_team_requirement) ... ok
+test_codesign_failure_rejects_before_gatekeeper_and_ticket (test_updater.SigningAuthorityPreflightTests.test_codesign_failure_rejects_before_gatekeeper_and_ticket) ... ok
+test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_stapler_rejects_an_unstapled_bundle_with_rc_65 (test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_stapler_reports_success_for_our_stapled_bundle (test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_tool_that_cannot_run_fails_closed (test_updater.StaplerPreflightTests.test_a_tool_that_cannot_run_fails_closed) ... ok
+test_an_unstapled_bundle_is_refused (test_updater.StaplerPreflightTests.test_an_unstapled_bundle_is_refused) ... ok
+test_every_preflight_tool_runs_under_a_timeout (test_updater.StaplerPreflightTests.test_every_preflight_tool_runs_under_a_timeout)
+A hung signing tool must not wedge the update thread forever. ... ok
+test_preflight_consults_stapler (test_updater.StaplerPreflightTests.test_preflight_consults_stapler) ... ok
+test_a_traversing_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_a_traversing_member_is_rejected_before_extraction) ... ok
+test_an_absolute_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_absolute_member_is_rejected_before_extraction) ... ok
+test_an_ordinary_archive_still_reaches_extraction (test_updater.ZipMemberScanTests.test_an_ordinary_archive_still_reaches_extraction)
+Guard: the scan must not reject the archive we actually ship. ... ok
+test_an_unreadable_archive_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_unreadable_archive_is_rejected_before_extraction) ... ok
+test_universal_named_arm_only_bundle_is_rejected_via_lipo (test_updater_adversarial.ArchitectureBindingTests.test_universal_named_arm_only_bundle_is_rejected_via_lipo) ... ok
+test_atomic_branch_never_moves_old_stage_to_a_backup_name (test_updater_adversarial.AtomicExchangeRecoveryTests.test_atomic_branch_never_moves_old_stage_to_a_backup_name) ... ok
+test_fault_immediately_after_exchange_restores_or_retains_old_app (test_updater_adversarial.AtomicExchangeRecoveryTests.test_fault_immediately_after_exchange_restores_or_retains_old_app) ... ok
+test_info_plist_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_info_plist_must_be_a_regular_non_symlink) ... ok
+test_main_executable_directory_is_not_a_regular_file (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_directory_is_not_a_regular_file) ... ok
+test_main_executable_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_must_be_a_regular_non_symlink) ... ok
+test_nonexecutable_regular_macho_helper_is_rejected_before_popen (test_updater_adversarial.CriticalMemberTypeTests.test_nonexecutable_regular_macho_helper_is_rejected_before_popen) ... ok
+test_only_a_pid_created_after_launch_can_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_only_a_pid_created_after_launch_can_ack) ... ok
+test_preexisting_macos_and_resources_pids_cannot_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_preexisting_macos_and_resources_pids_cannot_ack) ... ok
+test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists (test_updater_adversarial.LaunchAcknowledgementTests.test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists) ... ok
+test_cleanup_does_not_follow_stage_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_cleanup_does_not_follow_stage_name_substitution) ... ok
+test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap) ... ok
+test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap) ... ok
+test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup)
+Atomic exchange failure must stop before any forward-path move. ... ok
+test_fd_bound_discard_preserves_root_replaced_after_fstat (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fd_bound_discard_preserves_root_replaced_after_fstat)
+The standalone discard must keep using its verified directory fd. ... ok
+test_fifo_lock_leaf_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_leaf_fails_closed_without_blocking) ... ok
+test_fifo_lock_root_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_root_fails_closed_without_blocking) ... ok
+test_helper_binds_installed_app_identity_handed_off_by_python (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_binds_installed_app_identity_handed_off_by_python)
+A rival APP substituted after Popen handoff must never be swapped. ... ok
+test_helper_refuses_stage_replaced_after_handoff_before_exchange (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_refuses_stage_replaced_after_handoff_before_exchange)
+The app installed by exchange must be the exact claimed STAGE. ... ok
+test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival)
+Detached cleanup binds WORKID through the standalone fd helper. ... ok
+test_lock_residue_is_under_complete_uninstall_owned_root (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_residue_is_under_complete_uninstall_owned_root) ... ok
+test_lock_root_symlink_is_refused_without_outside_creation (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_root_symlink_is_refused_without_outside_creation) ... ok
+test_manual_replacement_appid_mismatch_refuses_cross_path_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_manual_replacement_appid_mismatch_refuses_cross_path_swap)
+A manual replacement racing the updater is an APPID mismatch. ... ok
+test_owned_private_lock_root_has_normal_acquire_release_lifecycle (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_owned_private_lock_root_has_normal_acquire_release_lifecycle) ... ok
+test_partial_stage_copy_failure_removes_only_owned_candidate (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_partial_stage_copy_failure_removes_only_owned_candidate) ... ok
+test_preexisting_backup_name_is_never_changed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_backup_name_is_never_changed_or_deleted) ... ok
+test_preexisting_stage_name_collision_never_deletes_the_sentinel (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_stage_name_collision_never_deletes_the_sentinel) ... ok
+test_prehandoff_cleanup_binds_stage_beneath_open_parent (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_prehandoff_cleanup_binds_stage_beneath_open_parent)
+A stage rival inserted after parent-open must not be traversed. ... ok
+test_public_sibling_regular_file_is_never_selected_or_changed (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_public_sibling_regular_file_is_never_selected_or_changed) ... ok
+test_python_failure_cleanup_does_not_follow_work_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_python_failure_cleanup_does_not_follow_work_name_substitution)
+Failure cleanup must delete the claimed WORK, never its pathname. ... ok
+test_replaced_lock_root_cannot_create_a_second_lock_domain (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_replaced_lock_root_cannot_create_a_second_lock_domain)
+One app must not acquire two locks through two same-named roots. ... ok
+test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted)
+Covers the separate mkdir-then-rmdir staging-name race. ... ok
+test_symlink_lock_leaf_fails_closed_without_target_change (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_symlink_lock_leaf_fails_closed_without_target_change) ... ok
+test_world_writable_lock_root_is_refused (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_world_writable_lock_root_is_refused) ... ok
+test_post_ditto_mutation_is_seen_by_full_stage_revalidation (test_updater_adversarial.StagedCopyRevalidationTests.test_post_ditto_mutation_is_seen_by_full_stage_revalidation)
+Valid NEW plus invalid STAGE must not dispatch a replacement. ... ok
+test_background_descendant_cannot_retain_lock_after_return (test_updater_adversarial.UpdateLockCommandWrapperTests.test_background_descendant_cannot_retain_lock_after_return)
+Only the wrapper owns the fd; a surviving grandchild cannot. ... ok
+test_busy_lock_returns_100_without_starting_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_busy_lock_returns_100_without_starting_child) ... ok
+test_child_return_code_is_passed_through_exactly (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_return_code_is_passed_through_exactly) ... ok
+test_child_signal_is_mapped_to_128_plus_signal (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_signal_is_mapped_to_128_plus_signal) ... ok
+test_exec_failure_returns_127_and_releases_lock (test_updater_adversarial.UpdateLockCommandWrapperTests.test_exec_failure_returns_127_and_releases_lock) ... ok
+test_untrusted_lock_root_returns_101_without_outside_write (test_updater_adversarial.UpdateLockCommandWrapperTests.test_untrusted_lock_root_returns_101_without_outside_write) ... ok
+test_usage_errors_return_2_without_lock_or_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_usage_errors_return_2_without_lock_or_child) ... ok
+test_complete_uninstall_waits_for_active_update_transaction (test_updater_adversarial.UpdateLockLifecycleTests.test_complete_uninstall_waits_for_active_update_transaction) ... ok
+test_install_hands_lock_to_child_and_serializes_real_transactions (test_updater_adversarial.UpdateLockLifecycleTests.test_install_hands_lock_to_child_and_serializes_real_transactions)
+Distinguishes early close, missing lock, and parent fd leakage. ... ok
+test_mkdtemp_exception_releases_lock_before_any_io (test_updater_adversarial.UpdateLockLifecycleTests.test_mkdtemp_exception_releases_lock_before_any_io) ... ok
+test_uninstall_popen_failure_preserves_app_and_all_settings (test_updater_adversarial.UpdateLockLifecycleTests.test_uninstall_popen_failure_preserves_app_and_all_settings)
+Preparing the deletion helper must precede every destructive step. ... ok
+test_absolute_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_absolute_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_parent_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_parent_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_a_clean_archive_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_clean_archive_is_accepted)
+The control. Without it every rejection below could be a blanket no. ... ok
+test_a_contained_relative_symlink_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_contained_relative_symlink_is_accepted) ... ok
+test_a_missing_artifact_is_rejected_rather_than_skipped (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_missing_artifact_is_rejected_rather_than_skipped) ... ok
+test_a_symlink_member_escaping_the_archive_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_symlink_member_escaping_the_archive_is_rejected)
+The member kind a name-only scan cannot see. ... ok
+test_a_traversing_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_traversing_member_is_rejected) ... ok
+test_an_absolute_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_an_absolute_member_is_rejected) ... ok
+test_the_symlink_fixture_really_is_a_symlink (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_the_symlink_fixture_really_is_a_symlink)
+Discrimination: if the entry is a plain file, the test above is a lie. ... ok
+test_every_name_the_updater_accepts_is_one_release_builds (test_upload_artifact_gate.AssetNameCouplingTests.test_every_name_the_updater_accepts_is_one_release_builds)
+The other direction, which is a different failure. ... ok
+test_every_zip_release_builds_is_one_the_updater_will_accept (test_upload_artifact_gate.AssetNameCouplingTests.test_every_zip_release_builds_is_one_the_updater_will_accept) ... ok
+test_this_module_reads_the_real_names_rather_than_its_own_copy (test_upload_artifact_gate.AssetNameCouplingTests.test_this_module_reads_the_real_names_rather_than_its_own_copy)
+My own blindness to the same coupling, pinned. ... ok
+test_detach_failure_is_gate_failure_and_retains_the_named_mount (test_upload_artifact_gate.DmgArmTests.test_detach_failure_is_gate_failure_and_retains_the_named_mount) ... ok
+test_dmg_is_detached_after_a_successful_check (test_upload_artifact_gate.DmgArmTests.test_dmg_is_detached_after_a_successful_check) ... ok
+test_dmg_mountpoint_exists_before_attach (test_upload_artifact_gate.DmgArmTests.test_dmg_mountpoint_exists_before_attach)
+The regression this arm was fixed for: attach needs the dir first. ... ok
+test_dmg_that_fails_to_attach_fails_the_gate (test_upload_artifact_gate.DmgArmTests.test_dmg_that_fails_to_attach_fails_the_gate) ... ok
+test_dmg_with_a_wrongly_named_app_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_a_wrongly_named_app_fails_and_still_detaches)
+A rejection must not leave the image mounted. ... ok
+test_dmg_with_two_root_apps_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_two_root_apps_fails_and_still_detaches)
+Now constructible, and the detach path must hold for it too. ... ok
+test_sentinels_would_notice_a_path_that_did_not_exist_before (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_sentinels_would_notice_a_path_that_did_not_exist_before)
+`assertNothingEscaped` must catch CREATION, not only growth. ... ok
+test_the_password_database_ignores_our_HOME (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_the_password_database_ignores_our_HOME)
+The bypass, shown end to end in a shell we ourselves sandboxed. ... FAIL
+test_the_gate_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_gate_fragment_is_self_contained) ... ok
+test_the_publish_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_publish_fragment_is_self_contained) ... ok
+test_this_check_can_actually_detect_a_missing_callee (test_upload_artifact_gate.FragmentCompletenessTests.test_this_check_can_actually_detect_a_missing_callee)
+Discrimination: otherwise a broken regex reports self-contained. ... ok
+test_an_unconfigured_ditto_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_ditto_is_poisoned_rather_than_real)
+Forgetting `setup_ditto` must be loud, not plausible. ... ok
+test_an_unconfigured_hdiutil_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_hdiutil_is_poisoned_rather_than_real) ... ok
+test_mktemp_refuses_to_run_without_a_TMPDIR (test_upload_artifact_gate.HarnessContainmentTests.test_mktemp_refuses_to_run_without_a_TMPDIR)
+The failure mode the shim exists for, exercised directly. ... ok
+test_temporary_allocation_stays_inside_the_sandbox (test_upload_artifact_gate.HarnessContainmentTests.test_temporary_allocation_stays_inside_the_sandbox) ... ok
+test_the_gate_allocates_at_all (test_upload_artifact_gate.HarnessContainmentTests.test_the_gate_allocates_at_all)
+Discrimination: `assertAllocationsWereContained` is vacuous if not. ... ok
+test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage) ... ok
+test_notary_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_notary_failure_quarantines_dmg_and_removes_stage) ... ok
+test_staple_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_staple_failure_quarantines_dmg_and_removes_stage) ... ok
+test_success_runs_create_notary_staple_validate_in_exact_order (test_upload_artifact_gate.OneDmgPackagingTests.test_success_runs_create_notary_staple_validate_in_exact_order) ... ok
+test_validate_failure_text_with_zero_status_is_still_failure (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_failure_text_with_zero_status_is_still_failure) ... ok
+test_validate_nonzero_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_nonzero_quarantines_dmg_and_removes_stage) ... ok
+test_a_later_artifact_failing_stops_every_upload (test_upload_artifact_gate.PublishBehaviourTests.test_a_later_artifact_failing_stops_every_upload)
+The one a first-file-only gate would pass. ... ok
+test_all_artifacts_good_does_reach_gh (test_upload_artifact_gate.PublishBehaviourTests.test_all_artifacts_good_does_reach_gh) ... ok
+test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens) ... ok
+test_assets_subcommand_blocks_a_wrong_four_name_set (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_wrong_four_name_set) ... ok
+test_assets_subcommand_receives_exactly_the_four_release_names (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_receives_exactly_the_four_release_names) ... ok
+test_detach_failure_retains_the_mount_and_blocks_gh (test_upload_artifact_gate.PublishBehaviourTests.test_detach_failure_retains_the_mount_and_blocks_gh) ... ok
+test_every_artifact_is_verified_before_the_first_gh_call (test_upload_artifact_gate.PublishBehaviourTests.test_every_artifact_is_verified_before_the_first_gh_call) ... ok
+test_no_gh_call_when_the_archive_scan_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_archive_scan_fails) ... ok
+test_no_gh_call_when_the_artifact_carries_an_extra_app (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_carries_an_extra_app) ... ok
+test_no_gh_call_when_the_artifact_is_corrupt (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_is_corrupt) ... ok
+test_no_gh_call_when_the_payload_check_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_payload_check_fails) ... ok
+test_publish_stops_at_the_first_bad_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_publish_stops_at_the_first_bad_artifact)
+`|| exit 1`, not a status collected and ignored to the end. ... ok
+test_the_upload_carries_every_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_the_upload_carries_every_artifact)
+A gate that verifies four files and uploads three is still wrong. ... ok
+test_publish_aborts_on_a_failed_verification (test_upload_artifact_gate.PublishWiringTests.test_publish_aborts_on_a_failed_verification) ... ok
+test_publish_verifies_before_it_uploads (test_upload_artifact_gate.PublishWiringTests.test_publish_verifies_before_it_uploads) ... ok
+test_contained_symlink_is_a_positive_control_and_reaches_ditto (test_upload_artifact_gate.RealScannerGateWiringTests.test_contained_symlink_is_a_positive_control_and_reaches_ditto) ... ok
+test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside (test_upload_artifact_gate.RealScannerGateWiringTests.test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside) ... ok
+test_a_second_root_app_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_a_second_root_app_is_rejected)
+Flipped from documenting the gap to requiring it be closed. ... ok
+test_an_app_hidden_inside_the_bundle_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_an_app_hidden_inside_the_bundle_is_rejected)
+The nested scan, which no other case reaches. ... ok
+test_clean_zip_with_one_root_app_passes (test_upload_artifact_gate.VerifyUploadArtifactTests.test_clean_zip_with_one_root_app_passes) ... ok
+test_corrupt_zip_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_corrupt_zip_fails) ... ok
+test_every_artifact_passes_the_exact_current_version_and_arch_contract (test_upload_artifact_gate.VerifyUploadArtifactTests.test_every_artifact_passes_the_exact_current_version_and_arch_contract)
+The defect an all-passing shim hid completely. ... ok
+test_failing_archive_scan_fails_before_extraction (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_archive_scan_fails_before_extraction)
+The scan runs before `ditto`, and order is the whole point. ... ok
+test_failing_bundle_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_bundle_check_fails_the_gate)
+The `app` branch, unreachable until the shim learned subcommands. ... ok
+test_failing_payload_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_payload_check_fails_the_gate) ... ok
+test_missing_artifact_fails_rather_than_passing_unchecked (test_upload_artifact_gate.VerifyUploadArtifactTests.test_missing_artifact_fails_rather_than_passing_unchecked) ... ok
+test_nested_app_is_not_accepted_as_a_root_app (test_upload_artifact_gate.VerifyUploadArtifactTests.test_nested_app_is_not_accepted_as_a_root_app) ... ok
+test_the_plain_archive_pins_arm64_from_the_contract_not_the_host (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_plain_archive_pins_arm64_from_the_contract_not_the_host)
+Asserted against `UPDATE_ASSET_NAMES`, deliberately not `uname -m`. ... ok
+test_the_two_archive_kinds_are_not_given_the_same_arches (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_two_archive_kinds_are_not_given_the_same_arches)
+Discrimination: if both produced one value, one test above is dead. ... ok
+test_the_universal_archive_pins_BOTH_architectures (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_universal_archive_pins_BOTH_architectures)
+Both, exactly - not "at least one", which is the whole point. ... ok
+test_unknown_extension_fails_closed (test_upload_artifact_gate.VerifyUploadArtifactTests.test_unknown_extension_fails_closed) ... ok
+test_zip_with_no_app_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_zip_with_no_app_fails) ... ok
+test_calibration_pct_applies_immediately (test_v020_boundaries.B1Settings.test_calibration_pct_applies_immediately) ... ok
+test_direct_limit_applies_immediately (test_v020_boundaries.B1Settings.test_direct_limit_applies_immediately) ... ok
+test_invalid_input_rejects_whole_save (test_v020_boundaries.B1Settings.test_invalid_input_rejects_whole_save) ... ok
+test_mutant_control_for_the_failure_path (test_v020_boundaries.B1Settings.test_mutant_control_for_the_failure_path)
+MUTANT: strip both `return`s from the rejection paths, so a rejected ... ok
+test_save_settings_failure_keeps_panel_open_and_state_untouched (test_v020_boundaries.B1Settings.test_save_settings_failure_keeps_panel_open_and_state_untouched) ... ok
+test_save_settings_success_updates_state_and_closes_panel (test_v020_boundaries.B1Settings.test_save_settings_success_updates_state_and_closes_panel) ... ok
+test_save_settings_uses_the_seam (test_v020_boundaries.B1Settings.test_save_settings_uses_the_seam) ... ok
+test_saved_limits_survive_restart (test_v020_boundaries.B1Settings.test_saved_limits_survive_restart) ... ok
+test_both_build_paths_declare_the_payload (test_v020_boundaries.B2Bundle.test_both_build_paths_declare_the_payload)
+Source fact, not an artifact: both builders stage .claude_pet. ... [b2] repo-root ClaudePet.app has .claude_pet: False
+[b2] dist/ClaudePet.app has .claude_pet: True
+ok
+test_expected_set_is_derived (test_v020_boundaries.B2Bundle.test_expected_set_is_derived) ... ok
+test_py2app_bundle_carries_every_asset (test_v020_boundaries.B2Bundle.test_py2app_bundle_carries_every_asset) ... ok
+test_seeding_into_empty_dest_creates_everything (test_v020_boundaries.B2Bundle.test_seeding_into_empty_dest_creates_everything)
+POSITIVE CONTROL for the never-clobber tests below. ... ok
+test_seeding_is_idempotent (test_v020_boundaries.B2Bundle.test_seeding_is_idempotent) ... ok
+test_seeding_never_clobbers_edited_files (test_v020_boundaries.B2Bundle.test_seeding_never_clobbers_edited_files) ... ok
+test_seeding_refuses_a_symlinked_dest_root (test_v020_boundaries.B2Bundle.test_seeding_refuses_a_symlinked_dest_root) ... ok
+test_github_choice_binds_v021_tag_asset_and_arch_without_network (test_v020_boundaries.B3Updater.test_github_choice_binds_v021_tag_asset_and_arch_without_network) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_invalid_candidates_are_refused_before_handoff (test_v020_boundaries.B3Updater.test_invalid_candidates_are_refused_before_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_well_formed_v021_reaches_one_sandbox_handoff (test_v020_boundaries.B3Updater.test_well_formed_v021_reaches_one_sandbox_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... ok
+test_claude_has_durable_user_facing_release_note_policy (test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v021_version_and_final_source_pins_propagate (test_v021_release_contract.VersionAndPinContractTests.test_v021_version_and_final_source_pins_propagate) ... ok
+
+======================================================================
+FAIL: test_the_password_database_ignores_our_HOME (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_the_password_database_ignores_our_HOME)
+The bypass, shown end to end in a shell we ourselves sandboxed.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_upload_artifact_gate.py", line 328, in test_the_password_database_ignores_our_HOME
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        pw_home, str(REAL_HOME),
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+        "the password database no longer reports the real home, so the "
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "documented bypass has changed shape - re-examine whether the "
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "environment allow-list is now sufficient on its own")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '/Users/yeongyu' != '/var/folders/dq/w9mxm3513csghc_7h8xg8wj400[45 chars]home'
+- /Users/yeongyu
++ /var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-companion-baseline-25kcnwrc/home
+ : the password database no longer reports the real home, so the documented bypass has changed shape - re-examine whether the environment allow-list is now sufficient on its own
+
+----------------------------------------------------------------------
+Ran 390 tests in 314.013s
+
+FAILED (failures=1, skipped=7)
+
+[instruments] 14 injection site(s) use a computed needle and are NOT checked here:
+  test_updater.py:2018  replace(LAUNCH_DEFINITION, ...)
+  test_updater.py:2019  replace(LAUNCH_PRIMARY, ...)
+  test_updater.py:2020  replace(LAUNCH_RESTORE, ...)
+  test_updater.py:2119  replace(line + '\n', ...)
+  test_updater.py:2344  replace(line, ...)
+  test_updater.py:2347  replace(line, ...)
+  test_updater_adversarial.py:183  replace(assignment, ...)
+  test_updater_adversarial.py:393  replace(launch_call, ...)
+  test_updater_adversarial.py:1010  replace(exchange_boundary, ...)
+  test_updater_adversarial.py:1270  replace(post_exchange, ...)
+  test_updater_adversarial.py:1841  replace(stage_identity_gate, ...)
+  test_updater_adversarial.py:1854  replace(post_exchange, ...)
+  test_updater_adversarial.py:2200  replace(needle, ...)
+  test_updater_adversarial.py:1167  replace(post_exchange, ...)
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: --arches is required (what the artifact claims to support, not what this machine happens to be)
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the bundled claude_pet.py is not this checkout's (53def4313b53… != e26e0f639d20…)
+[update] rejected: bundle identifier does not match
+[update] rejected: CFBundleVersion does not match the release tag
+[update] rejected: CFBundleShortVersionString does not match the release tag
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: signature missing, invalid, or not ours
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: absolute symlink target in bundle
+[update] rejected: bundle path resolves outside the bundle
+[update] rejected: bundled path is a symlink (pets/dog/extra.png)
+[update] rejected: bundled path is a symlink (pets/spare)
+[update] rejected: bundled path is a symlink (EXTRA.md)
+[update] rejected: bundled path is a symlink (.claude_pet)
+[update] rejected: bundled path is a symlink (pets)
+[update] rejected: bundled path is a symlink (pets/dog)
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: unreadable archive (BadZipFile)
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: bundle has no arm64 slice
+[update] rejected: bundle has no arm64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: two assets normalize to 'claudepet.zip'
+[update] rejected: unknown architecture ('aarch64')
+[update] rejected: unknown architecture ('ppc')
+[update] rejected: unknown architecture ('')
+[update] rejected: unknown architecture (None)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: Gatekeeper did not attribute the app to us
+[update] rejected: Gatekeeper reported no origin
+[update] rejected: codesign could not run (OSError)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: codesign could not run (TimeoutExpired)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: spctl could not run (OSError)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: spctl could not run (TimeoutExpired)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: xcrun could not run (OSError)
+[update] rejected: no stapled notarization ticket
+[update] rejected: xcrun could not run (TimeoutExpired)
+[update] rejected: no stapled notarization ticket
+[update] rejected: no stapled notarization ticket
+[update] rejected: archive member escapes the archive root
+[update] rejected: archive member is an absolute path
+[update] rejected: unreadable archive (BadZipFile)
+[update] rejected: bundle has no x86_64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: main executable is not a regular file
+[update] bundled pet assets incomplete (16 paths); seeding will skip them
+[update] rejected: bundled exchange helper (Contents/MacOS/python) is not executable
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+[update] refused: could not claim a staging name
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock path is not a plain file we can own
+[update] refused: the update lock directory is not a private directory we own
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink escapes the archive root
+[update] rejected: archive symlink escapes the archive root
+```
+
+## Baseline invocation correction
+
+The outer temporary HOME caused one existing environment-probe assertion to fail: its module REAL_HOME is derived from Path.home(), while its subprocess intentionally proves that pwd.getpwuid ignores HOME. No assertion was edited. The corrected top-level environment retains the normal HOME; the reviewed shell harness still constructs its own temporary HOME/TMPDIR/ZDOTDIR allow-list and checks sentinels.
+
+Grouping key: unittest case ID. File set: `tests/test_upload_artifact_gate.py`, selected case `test_the_password_database_ignores_our_HOME`. Window start: 2026-09-08T04:45:28.711176+00:00; end: 2026-09-08T04:45:28.968031+00:00; measured: 2026-09-08T04:45:28.968031+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_upload_artifact_gate.py -k test_the_password_database_ignores_our_HOME -v`. Exit: 0.
+
+```text
+test_the_password_database_ignores_our_HOME (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_the_password_database_ignores_our_HOME)
+The bypass, shown end to end in a shell we ourselves sandboxed. ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.051s
+
+OK
+```
+
+## Initial new-feature RED before production edits
+
+Grouping key: unittest case ID (subtests identify flag/time variants). File set: `tests/test_companion_motion.py`, AST-extracted `claude_pet.py`; production SHA-256 `e26e0f639d20486ad36d32b129932f10797ed32d19e03e1632910d4e74dbc09a`. Window start: 2026-09-08T04:53:23.784375+00:00; end: 2026-09-08T04:53:24.312868+00:00; measured: 2026-09-08T04:53:24.312868+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -v`. Exit: 1.
+
+This run observes the missing new public API through actual assertions. Numerical bodies cannot execute until that API exists; later rival/mutation evidence must be reported separately from this initial absent-feature RED.
+
+```text
+test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position) ... FAIL
+test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... FAIL
+test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists) ... FAIL
+test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... FAIL
+test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... FAIL
+test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... FAIL
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... FAIL
+test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... FAIL
+test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... FAIL
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... 
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='enabled') ... FAIL
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='dragging') ... FAIL
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='blocked') ... FAIL
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='busy') ... FAIL
+test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... FAIL
+test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... FAIL
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... FAIL
+test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... FAIL
+test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... FAIL
+test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... FAIL
+test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... FAIL
+
+======================================================================
+FAIL: test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 87, in test_disabled_start_remains_at_current_position
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 76, in test_initial_rest_does_not_move_for_early_activity
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 64, in test_public_pure_motion_contract_exists
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 96, in test_set_home_replaces_both_old_motion_origin_and_manual_home
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 196, in test_approach_max_and_watch_hold_are_geometrically_bounded
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 214, in test_click_without_drag_preserves_manual_home_and_current_position
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 233, in test_cursor_on_outbound_segment_cancels_instead_of_crossing_it
+    r, now = self.depart(radius=50.0)
+             ~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 240, in test_cursor_on_return_segment_also_cancels
+    r, now = self.depart(radius=50.0)
+             ~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 182, in test_disabled_during_return_does_not_snap_to_manual_home
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 170, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 170, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 170, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 170, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in test_eligible_activity_starts_approach_after_the_rest
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 141, in test_fixed_destination_does_not_chase_new_cursor_locations
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 264, in test_invalid_center_bounds_freeze_without_reversed_clamp_jump
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 151, in test_late_tick_caps_distance_without_using_full_elapsed_time
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 253, in test_nonzero_negative_monitor_origin_contains_every_position
+    r = self.make(home=(-1500.0, 300.0))
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 225, in test_real_drag_establishes_a_new_home_and_cancels_old_target
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 157, in test_sleep_gap_freezes_in_place_and_discards_old_journey
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 123, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Roamer', 'ROAM_DEFAULTS', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.409s
+
+FAILED (failures=20)
+```
+
+## Additional cooldown RED
+
+Grouping key: unittest case ID. File set: `tests/test_companion_motion.py`, `claude_pet.py` SHA e26e0f639d20486ad36d32b129932f10797ed32d19e03e1632910d4e74dbc09a. Window start: 2026-09-08T04:54:32.746093+00:00; end: 2026-09-08T04:54:32.886757+00:00; measured: 2026-09-08T04:54:32.886757+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -k test_activity_bursts_respect_approach_cooldown_without_starving_future_visits -v`.
+
+```text
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... FAIL
+
+======================================================================
+FAIL: test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 264, in test_activity_bursts_respect_approach_cooldown_without_starving_future_visits
+    r = self.make(approach_cooldown_s=180.0)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 112, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 37, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'RoamOut', 'Roamer'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+----------------------------------------------------------------------
+Ran 1 test in 0.021s
+
+FAILED (failures=1)
+```
+
+## GUI ownership behavioral RED
+
+Grouping key: unittest case ID. File set: `tests/test_companion_motion.py`, actual AST-extracted `PetView.mouseUp_` from `claude_pet.py` SHA e26e0f639d20486ad36d32b129932f10797ed32d19e03e1632910d4e74dbc09a. Window start: 2026-09-08T04:55:48.791254+00:00; end: 2026-09-08T04:55:49.020815+00:00; measured: 2026-09-08T04:55:49.020815+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -k test_click_during_auto_away_does_not_persist_automatic_xy -v`. The actual method executes on synthetic window/config collaborators; no GUI or user config is opened.
+
+```text
+test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... FAIL
+
+======================================================================
+FAIL: test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 339, in test_click_during_auto_away_does_not_persist_automatic_xy
+    self.assertEqual(writes, [], "an ordinary click persisted the autonomous position")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [{'x': 550.0, 'y': 450.0}] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+{'x': 550.0, 'y': 450.0}
+
+- [{'x': 550.0, 'y': 450.0}]
++ [] : an ordinary click persisted the autonomous position
+
+----------------------------------------------------------------------
+Ran 1 test in 0.021s
+
+FAILED (failures=1)
+```
+
+## Independently derived fixture expectations
+
+The following are specification calculations, not estimates about user behavior. They were written by the Verifier without reading a production implementation of Roamer. Coordinates are synthetic global full-window centers in points, with y increasing upward; bounds are the already-inset allowed-center rectangle. Numerical overrides intentionally separate timing mechanics from default tuning.
+
+| Fixture | Correct | Plausible rival | Rival output |
+| --- | --- | --- | --- |
+| Speed 40 points/s, ordinary 0.1 s tick | 4 points | Ignore dt and move full speed per tick | 40 points |
+| Speed 40, elapsed 1 s, max_dt 0.25 s | 10 points | Use uncapped elapsed time | 40 points |
+| Initial rest 10 s, activity at 9.99 s | no movement | Activity bypasses rest | outward movement |
+| Home (400,300), cursor (1000,300), stop 150, trip cap 360 | endpoint x=760 | Ignore max trip | x=850 |
+| Same trip, cursor moved high above after departure | unchanged trajectory | Retarget every sample | changed y / destination |
+| Current automatic position differs from home; disabled in return | same position | Snap immediately to home | home position |
+| Full-window radius 50, pointer 5 points along next segment | freeze in place | No in-flight keepout | movement despite overlap |
+| No-drag click while actual window origin is (550,450), saved origin (400,300) | zero config writes; saved origin unchanged | Existing unconditional mouseUp write | writes (550,450) |
+| Activity bursts through 420 s, cooldown 180 s | repeated visits separated by at least 180 s | No cooldown / refresh deadline every tick | too-frequent visits / no later visit |
+| Allowed centers (-1700,100) to (-300,1100) | all centers inside those limits | Assume zero-origin monitor | center at or beyond x=0 |
+| Bounds have lower coordinate larger than upper | freeze | Apply reversed min/max clamp | unexpected jump |
+
+Blockers are exercised independently during outbound travel, watching, and homeward travel; testing blockers only at rest would miss a check-at-departure-only implementation. A true manual drag and an ordinary click have separate fixtures so a fix that never updates the manual home cannot pass by doing nothing.
+
+The native rendering experience is not established by pure state or fake AppKit collaborator tests. Any visual review remains a separate result.
+
+A destination-only collision check can also stop the current radius-50 overlap fixture, so that fixture does not yet discriminate destination-only versus swept-segment checks. A separate grazing-chord fixture will be derived once the exact cursor guard is stated: both segment endpoints must lie outside the protected disk while an interior point lies inside it. This gap is explicitly open.
+
+## In-progress implementation probe (not final GREEN)
+
+Grouping key: unittest case ID; file set `tests/test_companion_motion.py`, current `claude_pet.py` SHA 62d37b728123218c9095d376edccb2134c2be46bb31c3a030266b954afdf2778. Window start: 2026-09-08T05:07:21.422862+00:00; end: 2026-09-08T05:07:22.361176+00:00; measured: 2026-09-08T05:07:22.361176+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -v`. Production is still being edited; this run is only early feedback.
+
+```text
+test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (test_companion_motion.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (test_companion_motion.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.712s
+
+OK
+```
+
+## Observed behavioral RED: invalid bounds and long interaction
+
+Grouping key: unittest case ID and blocker subtest. File set `tests/test_companion_motion.py`, current `claude_pet.py` SHA 18c4890ededf34d59085cb2ff6365bc8029282d9c5f4fbfda67a986bd8c965cb. Window start: 2026-09-08T05:08:45.833111+00:00; end: 2026-09-08T05:08:46.094273+00:00; measured: 2026-09-08T05:08:46.094273+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -k test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target -k test_long_interaction_still_gets_full_fresh_rest_after_release -v`. The invalid-bounds hypothesis was proposed independently by Reviewer and reproduced here by Verifier; the long-interaction finding is a Verifier proposal pending non-author reproduction.
+
+```text
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... 
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='enabled') ... FAIL
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='dragging') ... FAIL
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='blocked') ... FAIL
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='busy') ... FAIL
+test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... 
+  test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='enabled') ... FAIL
+  test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='dragging') ... FAIL
+  test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='blocked') ... FAIL
+  test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='busy') ... FAIL
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 342, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    self.assertEqual(out.phase, "rest", "invalid bounds skipped cancellation")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'out' != 'rest'
+- out
++ rest
+ : invalid bounds skipped cancellation
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 342, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    self.assertEqual(out.phase, "rest", "invalid bounds skipped cancellation")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'out' != 'rest'
+- out
++ rest
+ : invalid bounds skipped cancellation
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 342, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    self.assertEqual(out.phase, "rest", "invalid bounds skipped cancellation")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'out' != 'rest'
+- out
++ rest
+ : invalid bounds skipped cancellation
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 342, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    self.assertEqual(out.phase, "rest", "invalid bounds skipped cancellation")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'out' != 'rest'
+- out
++ rest
+ : invalid bounds skipped cancellation
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 202, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    self.assertEqual(tuple(out.pos), before,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                     "long interaction shortened the promised fresh rest")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (410.0, 300.0) != (400.0, 300.0)
+
+First differing element 0:
+410.0
+400.0
+
+- (410.0, 300.0)
+?   ^
+
++ (400.0, 300.0)
+?   ^
+ : long interaction shortened the promised fresh rest
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 202, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    self.assertEqual(tuple(out.pos), before,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                     "long interaction shortened the promised fresh rest")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (410.0, 300.0) != (400.0, 300.0)
+
+First differing element 0:
+410.0
+400.0
+
+- (410.0, 300.0)
+?   ^
+
++ (400.0, 300.0)
+?   ^
+ : long interaction shortened the promised fresh rest
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 202, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    self.assertEqual(tuple(out.pos), before,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                     "long interaction shortened the promised fresh rest")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (410.0, 300.0) != (400.0, 300.0)
+
+First differing element 0:
+410.0
+400.0
+
+- (410.0, 300.0)
+?   ^
+
++ (400.0, 300.0)
+?   ^
+ : long interaction shortened the promised fresh rest
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 202, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    self.assertEqual(tuple(out.pos), before,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+                     "long interaction shortened the promised fresh rest")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (410.0, 300.0) != (400.0, 300.0)
+
+First differing element 0:
+410.0
+400.0
+
+- (410.0, 300.0)
+?   ^
+
++ (400.0, 300.0)
+?   ^
+ : long interaction shortened the promised fresh rest
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.181s
+
+FAILED (failures=8)
+```
+
+The long-interaction finding is now established by independent Reviewer reproduction with a different fixture (see `quiet-companion-review.md`): home (270,230), cursor (950,230), rest 8 s, speed 40, approach cooldown 0, wander disabled; all four blockers held from 8.5 through29 s, then first movement at30.75 to(280,230), earlier than a fresh rest permits. No Developer assertions were used.
+
+The negative-monitor fixture was strengthened after recognizing that its first home (-1500,300) never reached an edge with a 360-point trip: it could not distinguish no-clamp. The revised home is(-450,300), cursor(300,300), with maximum allowed center x=-300. Correct endpoint is-300; ignoring the bound aims at-90. Mutation RED is required before treating the revised fixture as discriminating.
+
+The final cursor safety policy checks the complete remaining leg against the current cursor. Its guard is24 points plus window radius. A new interior-pointer fixture has both leg endpoints more than150 points from the pointer and zero distance to the leg interior, so endpoint-only checking permits the trip while the accepted policy cancels it. This closes the overlap-fixture gap stated earlier; mutation evidence is still recorded separately.
+
+## Adapter geometry behavioral RED
+
+Grouping key: unittest case ID. File set `tests/test_companion_motion.py`, actual AST-extracted GUI adapter functions from `claude_pet.py` SHA 83d41e7f6e38c322863363f37c2c48adfd2f5117d68a42b5edeaa050aa8193c0. Window start: 2026-09-08T05:13:18.355629+00:00; end: 2026-09-08T05:13:18.511206+00:00; measured: 2026-09-08T05:13:18.511206+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -k CompanionAdapterTests -v`. This is execution with synthetic NSWindow/NSScreen collaborators, not a native visual claim.
+
+```text
+test_display_shrink_recovers_full_window_and_cancels_old_trip (test_companion_motion.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... FAIL
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (test_companion_motion.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... FAIL
+
+======================================================================
+FAIL: test_display_shrink_recovers_full_window_and_cancels_old_trip (test_companion_motion.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 458, in test_display_shrink_recovers_full_window_and_cancels_old_trip
+    self.assertLessEqual(frame.origin.x + frame.size.width, 600.0,
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                         "automatic walk continued outside the changed visible display")
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 850.0 not less than or equal to 600.0 : automatic walk continued outside the changed visible display
+
+======================================================================
+FAIL: test_resize_while_away_cancels_motion_and_recomputes_window_radius (test_companion_motion.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 474, in test_resize_while_away_cancels_motion_and_recomputes_window_radius
+    self.assertEqual(scope["roamer"].phase, "rest", "resize left the previous trip active")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'out' != 'rest'
+- out
++ rest
+ : resize left the previous trip active
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.096s
+
+FAILED (failures=2)
+```
+
+## Stable focused suite
+
+Grouping key: unittest case ID; file set `tests/test_companion_motion.py`, `claude_pet.py` SHA 146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f. Window start: 2026-09-08T05:16:50.771578+00:00; end: 2026-09-08T05:16:51.821288+00:00; measured: 2026-09-08T05:16:51.821288+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -p test_companion_motion.py -v`.
+
+```text
+test_display_shrink_recovers_full_window_and_cancels_old_trip (test_companion_motion.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... ok
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (test_companion_motion.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... ok
+test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (test_companion_motion.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (test_companion_motion.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (test_companion_motion.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.974s
+
+OK
+```
+
+## Native AppKit smoke execution
+
+Grouping key: manually invoked native Ticker callback. File set: `tests/test_companion_motion.py`, `claude_pet.py`, bundled `frames/**/*.png`; full sample geometry in `quiet-companion-smoke.json`. Window start: 2026-09-08T05:17:38.822945+00:00; end: 2026-09-08T05:17:39.640097+00:00; measured: 2026-09-08T05:17:39.640097+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke` with fresh temporary HOME/TMPDIR/ZDOTDIR, minimal PATH, empty CDPATH and CLAUDEPET_SMOKE_SANDBOX. Background workers and scheduled timers were suppressed before run_gui; clock and pointer synthetic. Exit: 1.
+
+```text
+{
+  "layout_midpoint": [
+    960.0,
+    543.0
+  ],
+  "synthetic_initial_center": [
+    920.0,
+    503.0
+  ],
+  "native_window_class": "<objective-c class NSWindow at 0x1f0708608>",
+  "native_view_class": "<objective-c class PetView at 0x8a2a7a040>",
+  "runtime_roam_default": true,
+  "defaults": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_roamer_cfg": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_radius": 190.21303845951255,
+  "visible_screen": [
+    0.0,
+    36.0,
+    1920.0,
+    1014.0
+  ],
+  "transitions": [
+    {
+      "t": 52.25,
+      "phase": "out",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "idle"
+    },
+    {
+      "t": 58.800000000000004,
+      "phase": "look",
+      "window": [
+        1102.0,
+        570.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 64.85000000000001,
+      "phase": "home",
+      "window": [
+        1102.0,
+        570.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 71.4,
+      "phase": "rest",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_column_phases": [
+    "out",
+    "look",
+    "home"
+  ],
+  "crossed_horizontal_midpoint": true,
+  "crossed_vertical_midpoint": true,
+  "start_utc": "2026-09-08T05:17:39.051134+00:00",
+  "end_utc": "2026-09-08T05:17:39.610828+00:00",
+  "measured_utc": "2026-09-08T05:17:39.610828+00:00",
+  "source_sha256": "146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f",
+  "grouping_key": "manually invoked native Ticker.tick_ callback",
+  "sampled_ticks": 1428,
+  "synthetic_time_start": 0.05,
+  "synthetic_time_end": 71.4,
+  "max_window_step": 3.605551275463989,
+  "max_sprite_step": 3.605551275463989,
+  "forbidden_calls": [],
+  "suppressed_background_workers": [
+    "work",
+    "_run_update_check"
+  ],
+  "config_writes": []
+}
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 785, in <module>
+    run_native_smoke()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 702, in run_native_smoke
+    raise AssertionError("native sprite moved farther than the per-tick speed budget")
+AssertionError: native sprite moved farther than the per-tick speed budget
+```
+
+## Native-coordinate measurement correction
+
+The first native smoke assertion assumed that NSWindow retains fractional origins. The recorded real NSWindow uses integer origins, while Roamer retains fractional centers. This is a harness expectation error, not an observed layout jump. The source remained frozen. The following exact samples and residual ranges come from that same native run (UTC bounds above); grouping key: adjacent sampled native tick pair; denominator1427 pairs.
+
+```json
+{
+  "worst_before": {
+    "t": 52.35,
+    "phase": "out",
+    "window": [
+      790.0,
+      400.0,
+      268.0,
+      240.0
+    ],
+    "sprite": [
+      796.0,
+      404.0
+    ],
+    "pos": [
+      924.8299957352637,
+      520.630806187718
+    ],
+    "mood": "running-right"
+  },
+  "worst_after": {
+    "t": 52.400000000000006,
+    "phase": "out",
+    "window": [
+      793.0,
+      402.0,
+      268.0,
+      240.0
+    ],
+    "sprite": [
+      799.0,
+      406.0
+    ],
+    "pos": [
+      927.2449936028956,
+      521.9462092815771
+    ],
+    "mood": "running-right"
+  },
+  "max_model_step": 2.7500000000006315,
+  "native_rounding_error_range": [
+    [
+      -0.1201535305096968,
+      0.8747334539775693
+    ],
+    [
+      -0.12226387020336915,
+      0.8730766838800719
+    ]
+  ]
+}
+```
+
+## Native AppKit corrected continuity check
+
+Grouping key: native Ticker callback. Same source files and temporary allow-list as preceding native run. Window start: 2026-09-08T05:19:33.173219+00:00; end: 2026-09-08T05:19:33.963190+00:00; measured: 2026-09-08T05:19:33.963190+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke`. Corrected invariant: sprite displacement equals native window displacement; the floating-point model separately obeys its speed budget. No production code or behavioral assertion was relaxed. Exit: 0.
+
+```text
+{
+  "layout_midpoint": [
+    960.0,
+    543.0
+  ],
+  "synthetic_initial_center": [
+    920.0,
+    503.0
+  ],
+  "native_window_class": "<objective-c class NSWindow at 0x1f0708608>",
+  "native_view_class": "<objective-c class PetView at 0xa3afd9740>",
+  "runtime_roam_default": true,
+  "defaults": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_roamer_cfg": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_radius": 190.21303845951255,
+  "visible_screen": [
+    0.0,
+    36.0,
+    1920.0,
+    1014.0
+  ],
+  "transitions": [
+    {
+      "t": 46.85,
+      "phase": "out",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "idle"
+    },
+    {
+      "t": 53.400000000000006,
+      "phase": "look",
+      "window": [
+        1102.0,
+        570.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 59.400000000000006,
+      "phase": "home",
+      "window": [
+        1102.0,
+        570.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 65.95,
+      "phase": "rest",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_column_phases": [
+    "out",
+    "look",
+    "home"
+  ],
+  "crossed_horizontal_midpoint": true,
+  "crossed_vertical_midpoint": true,
+  "start_utc": "2026-09-08T05:19:33.589533+00:00",
+  "end_utc": "2026-09-08T05:19:33.941150+00:00",
+  "measured_utc": "2026-09-08T05:19:33.941150+00:00",
+  "source_sha256": "146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f",
+  "grouping_key": "manually invoked native Ticker.tick_ callback",
+  "sampled_ticks": 1319,
+  "synthetic_time_start": 0.05,
+  "synthetic_time_end": 65.95,
+  "max_window_step": 3.605551275463989,
+  "max_sprite_step": 3.605551275463989,
+  "max_model_step": 2.7500000000006315,
+  "max_sprite_displacement_beyond_window": 0.0,
+  "forbidden_calls": [],
+  "suppressed_background_workers": [
+    "work",
+    "_run_update_check"
+  ],
+  "config_writes": []
+}
+```
+
+## Executable-harness pin review
+
+Verifier read the complete production diff and compared every existing top-level function/class AST against HEAD. Only `apply_config` and `run_gui` changed; the updater, estimator, seeding, archive-validation and settings transaction bodies are unchanged. `build_app.sh`, `release.sh`, and `verify_release_artifact.py` have no diff. The newly imported math/random/namedtuple and added Roamer API are confined to motion; run_gui adapter uses screen geometry, cursor position and existing UI state. At 2026-09-08T05:21:35.738555+00:00, Verifier refreshed only REVIEWED_APP_SOURCE_SHA256 in `tests/test_manual_update_transaction.py` and `tests/test_upload_artifact_gate.py` to `146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f`. No other gating assertion in existing tests was altered.
+
+## In-memory rival execution
+
+Grouping key: rival implementation paired with its targeted test case. File set: tests/test_companion_motion.py and the frozen-in-memory claude_pet.py snapshot. Source SHA-256: 146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f. Window start: 2026-09-08T05:22:45.469532+00:00; end: 2026-09-08T05:22:45.821562+00:00; measured: 2026-09-08T05:22:45.821562+00:00. Command: `PYTHONDONTWRITEBYTECODE=1 python3 tests/test_companion_motion.py --mutation-check`. Each unchanged positive control ran and passed before its rival. This is fault-injection evidence, separate from the actual pre-fix RED runs.
+
+Rival: uncapped elapsed time; targeted case: `CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time`.
+
+```text
+test_late_tick_caps_distance_without_using_full_elapsed_time (__main__.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... FAIL
+
+======================================================================
+FAIL: test_late_tick_caps_distance_without_using_full_elapsed_time (__main__.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 163, in test_late_tick_caps_distance_without_using_full_elapsed_time
+    self.assertAlmostEqual(math.dist(before, out.pos), 10.0, places=6)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 40.0 != 10.0 within 6 places (30.0 difference)
+
+----------------------------------------------------------------------
+Ran 1 test in 0.024s
+
+FAILED (failures=1)
+```
+
+Rival: endpoint-only cursor safety; targeted case: `CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step`.
+
+```text
+test_pointer_in_interior_of_full_leg_stops_before_next_step (__main__.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... FAIL
+
+======================================================================
+FAIL: test_pointer_in_interior_of_full_leg_stops_before_next_step (__main__.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 271, in test_pointer_in_interior_of_full_leg_stops_before_next_step
+    self.assertEqual(tuple(out.pos), before)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (410.0, 300.0) != (400.0, 300.0)
+
+First differing element 0:
+410.0
+400.0
+
+- (410.0, 300.0)
+?   ^
+
++ (400.0, 300.0)
+?   ^
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.021s
+
+FAILED (failures=1)
+```
+
+Rival: no geometry clamp; targeted case: `CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position`.
+
+```text
+test_nonzero_negative_monitor_origin_contains_every_position (__main__.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... FAIL
+
+======================================================================
+FAIL: test_nonzero_negative_monitor_origin_contains_every_position (__main__.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 294, in test_nonzero_negative_monitor_origin_contains_every_position
+    self.assertLessEqual(out.pos[0], -300.0)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: -290.0 not less than or equal to -300.0
+
+----------------------------------------------------------------------
+Ran 1 test in 0.024s
+
+FAILED (failures=1)
+```
+
+Rival: no approach cooldown; targeted case: `CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits`.
+
+```text
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (__main__.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... FAIL
+
+======================================================================
+FAIL: test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (__main__.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 311, in test_activity_bursts_respect_approach_cooldown_without_starving_future_visits
+    self.assertGreaterEqual(current - previous, 180.0)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 30.0 not greater than or equal to 180.0
+
+----------------------------------------------------------------------
+Ran 1 test in 0.026s
+
+FAILED (failures=1)
+```
+
+Rival: watch never returns home; targeted case: `CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home`.
+
+```text
+test_disabled_during_return_does_not_snap_to_manual_home (__main__.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... FAIL
+
+======================================================================
+FAIL: test_disabled_during_return_does_not_snap_to_manual_home (__main__.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 213, in test_disabled_during_return_does_not_snap_to_manual_home
+    self.assertEqual(out.phase, "home", "trip never entered return phase")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'look' != 'home'
+- look
++ home
+ : trip never entered return phase
+
+----------------------------------------------------------------------
+Ran 1 test in 0.021s
+
+FAILED (failures=1)
+```
+
+## Final full suite
+
+Grouping key: unittest case ID; file set: repository `tests/test_*.py` as enumerated by the case IDs below. Source SHA at start: 146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f; at end: 146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f. Window start: 2026-09-08T05:21:57.416541+00:00; end: 2026-09-08T05:27:13.202346+00:00; measured: 2026-09-08T05:27:13.202346+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -v` from repository root with normal top-level HOME and each reviewed module constructing its own temp-only fixtures/allow-list. Live v020 opt-in absent. PYTHONDONTWRITEBYTECODE=1. Exit: 0.
+
+```text
+test_display_shrink_recovers_full_window_and_cancels_old_trip (test_companion_motion.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... ok
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (test_companion_motion.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... ok
+test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (test_companion_motion.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (test_companion_motion.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (test_companion_motion.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... ok
+test_rolling_week_has_no_single_reset_timestamp (test_log_estimate.ComputeUsageTests.test_rolling_week_has_no_single_reset_timestamp) ... ok
+test_cache_creation_uses_ttl_specific_weights (test_log_estimate.ParseUsageEntriesTests.test_cache_creation_uses_ttl_specific_weights) ... ok
+test_distinct_request_ids_are_counted_separately (test_log_estimate.ParseUsageEntriesTests.test_distinct_request_ids_are_counted_separately) ... ok
+test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot (test_log_estimate.ParseUsageEntriesTests.test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot) ... ok
+test_equal_weight_duplicates_keep_the_later_timestamp (test_log_estimate.ParseUsageEntriesTests.test_equal_weight_duplicates_keep_the_later_timestamp) ... ok
+test_legacy_cache_creation_without_breakdown_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_legacy_cache_creation_without_breakdown_uses_5m_fallback) ... ok
+test_malformed_usage_numbers_skip_only_the_bad_rows (test_log_estimate.ParseUsageEntriesTests.test_malformed_usage_numbers_skip_only_the_bad_rows) ... ok
+test_nested_cache_breakdown_above_flat_total_is_clamped (test_log_estimate.ParseUsageEntriesTests.test_nested_cache_breakdown_above_flat_total_is_clamped) ... ok
+test_nested_sidechain_agent_usage_is_included (test_log_estimate.ParseUsageEntriesTests.test_nested_sidechain_agent_usage_is_included) ... ok
+test_record_before_since_does_not_hide_a_later_snapshot (test_log_estimate.ParseUsageEntriesTests.test_record_before_since_does_not_hide_a_later_snapshot) ... ok
+test_records_without_dedup_keys_are_counted_independently (test_log_estimate.ParseUsageEntriesTests.test_records_without_dedup_keys_are_counted_independently) ... ok
+test_streaming_duplicates_keep_an_interior_maximum (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_an_interior_maximum) ... ok
+test_streaming_duplicates_keep_the_final_usage_snapshot (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_the_final_usage_snapshot) ... ok
+test_unclassified_cache_creation_remainder_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_unclassified_cache_creation_remainder_uses_5m_fallback) ... ok
+test_backup_symlink_and_its_target_are_preserved (test_manual_update_transaction.BackupPreservationTests.test_backup_symlink_and_its_target_are_preserved) ... ok
+test_regular_backup_is_not_deleted_when_installed_app_exists (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_deleted_when_installed_app_exists) ... ok
+test_regular_backup_is_not_renamed_away_when_installed_app_is_absent (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_renamed_away_when_installed_app_is_absent) ... ok
+test_direct_build_cannot_remove_shared_app_while_build_lock_is_held (test_manual_update_transaction.BuildLockCoverageTests.test_direct_build_cannot_remove_shared_app_while_build_lock_is_held) ... ok
+test_install_outer_build_lock_survives_inner_build_and_preflight_consumption (test_manual_update_transaction.BuildLockCoverageTests.test_install_outer_build_lock_survives_inner_build_and_preflight_consumption) ... ok
+test_failed_adhoc_nested_fallback_stops_before_outer_signing (test_manual_update_transaction.NestedSigningFailureTests.test_failed_adhoc_nested_fallback_stops_before_outer_signing) ... ok
+test_local_nested_failure_falls_back_as_a_pair_not_outer_only (test_manual_update_transaction.NestedSigningFailureTests.test_local_nested_failure_falls_back_as_a_pair_not_outer_only) ... ok
+test_failed_publish_restores_and_relaunches_the_old_application (test_manual_update_transaction.RollbackAndInstallTests.test_failed_publish_restores_and_relaunches_the_old_application) ... ok
+test_install_copy_failure_preserves_the_existing_application (test_manual_update_transaction.RollbackAndInstallTests.test_install_copy_failure_preserves_the_existing_application) ... ok
+test_in_app_holder_blocks_public_install_and_update_before_child_mutation (test_manual_update_transaction.SharedUpdateLockTests.test_in_app_holder_blocks_public_install_and_update_before_child_mutation) ... ok
+test_manual_holder_blocks_a_simulated_in_app_acquire (test_manual_update_transaction.SharedUpdateLockTests.test_manual_holder_blocks_a_simulated_in_app_acquire) ... ok
+test_code_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_code_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_info_plist_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_info_plist_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_resources_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_resources_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_both_bundle_version_keys_must_equal_the_source_version (test_manual_update_transaction.StagedPreflightTests.test_both_bundle_version_keys_must_equal_the_source_version) ... ok
+test_executable_must_be_a_regular_nonlink_file (test_manual_update_transaction.StagedPreflightTests.test_executable_must_be_a_regular_nonlink_file) ... ok
+test_staged_application_code_must_match_the_checkout_code_hash (test_manual_update_transaction.StagedPreflightTests.test_staged_application_code_must_match_the_checkout_code_hash) ... ok
+test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes (test_manual_update_transaction.WholeTransactionConcurrencyTests.test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes) ... ok
+test_every_literal_needle_still_occurs_in_the_generated_script (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_every_literal_needle_still_occurs_in_the_generated_script) ... ok
+test_the_generator_produces_something_to_search (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_generator_produces_something_to_search)
+Discrimination: an empty script would make every check below vacuous. ... ok
+test_the_needles_are_not_so_generic_that_they_hit_everywhere (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_needles_are_not_so_generic_that_they_hit_everywhere)
+A needle matching many places replaces more than the test intends. ... ok
+test_generating_a_script_creates_nothing (test_mutation_instruments.LockPathIsolationTests.test_generating_a_script_creates_nothing)
+`_update_lock_path` must be pure: asking is not making. ... ok
+test_the_redirect_actually_took_effect (test_mutation_instruments.LockPathIsolationTests.test_the_redirect_actually_took_effect)
+Otherwise the isolation is theatre and the check above is vacuous. ... ok
+test_dynamic_needle_sites_are_reported_rather_than_silently_skipped (test_mutation_instruments.ScopeIsVisibleTests.test_dynamic_needle_sites_are_reported_rather_than_silently_skipped) ... ok
+test_a_symlink_planted_at_the_staging_name_is_not_written_through (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_a_symlink_planted_at_the_staging_name_is_not_written_through) ... ok
+test_the_plant_is_actually_in_the_way (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_the_plant_is_actually_in_the_way)
+Discrimination: if the fixture missed, the test above proves nothing. ... ok
+test_a_pet_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_that_died_midway_is_repaired_by_the_next_run)
+The failure must not be sticky. ... ok
+test_a_pet_whose_sheet_dies_midway_is_not_published (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_whose_sheet_dies_midway_is_not_published) ... ok
+test_the_first_file_dying_midway_is_handled_the_same_way (test_partial_copy_seeding.PartialPetCopyTests.test_the_first_file_dying_midway_is_handled_the_same_way)
+pet.json is what `_is_pet_dir` keys on, so a truncated one is worst. ... ok
+test_the_other_pets_are_still_seeded_whole (test_partial_copy_seeding.PartialPetCopyTests.test_the_other_pets_are_still_seeded_whole)
+One pet dying must not cost the rest - and must not half-cost them. ... ok
+test_a_readme_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_died_midway_is_repaired_by_the_next_run) ... ok
+test_a_readme_that_dies_midway_is_not_linked_into_place (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_dies_midway_is_not_linked_into_place) ... ok
+test_the_other_readmes_still_land_whole (test_partial_copy_seeding.PartialReadmeCopyTests.test_the_other_readmes_still_land_whole) ... ok
+test_cli_forwards_exact_version_and_ordered_arches_to_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_cli_forwards_exact_version_and_ordered_arches_to_validator) ... ok
+test_code_leaf_must_be_regular_present_and_not_a_symlink (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_code_leaf_must_be_regular_present_and_not_a_symlink) ... ok
+test_exact_checkout_code_leaf_reaches_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_exact_checkout_code_leaf_reaches_validator) ... ok
+test_missing_arches_fails_before_validator_delegation (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_arches_fails_before_validator_delegation) ... ok
+test_missing_file_or_symlink_app_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_file_or_symlink_app_is_rejected_before_validator) ... ok
+test_stale_regular_code_leaf_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_stale_regular_code_leaf_is_rejected_before_validator) ... ok
+test_a_symlinked_member_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_a_symlinked_member_in_both_is_still_reported) ... ok
+test_wrong_sheet_name_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sheet_name_in_both_is_still_reported) ... ok
+test_wrong_sprite_version_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sprite_version_in_both_is_still_reported) ... ok
+test_constants_are_read_without_importing_the_app (test_release_gate.ExpectedSetTests.test_constants_are_read_without_importing_the_app)
+BUNDLED_PET_FILES references BUNDLED_PET_SHEET, so plain literal_eval fails. ... ok
+test_expected_members_are_derived_not_hardcoded (test_release_gate.ExpectedSetTests.test_expected_members_are_derived_not_hardcoded)
+A literal 16 would silently check a subset once a fifth pet ships. ... ok
+test_an_id_disagreeing_with_its_folder_is_refused (test_release_gate.InstallerRefusalsAreMirroredTests.test_an_id_disagreeing_with_its_folder_is_refused)
+The installer refuses this pet; shipping it would certify a dud. ... ok
+test_every_installer_refusal_has_a_gate_counterpart (test_release_gate.InstallerRefusalsAreMirroredTests.test_every_installer_refusal_has_a_gate_counterpart)
+The surface is closed: each rejection below is caught by both. ... ok
+test_a_copy_that_fails_midway_leaves_the_old_payload_intact (test_release_gate.ManualBuildAssetSwapTests.test_a_copy_that_fails_midway_leaves_the_old_payload_intact)
+Different state from a copy that fails at the start. ... ok
+test_a_failing_copy_leaves_the_existing_tree_untouched (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_copy_leaves_the_existing_tree_untouched)
+The assertion a destroy-then-copy implementation cannot pass. ... ok
+test_a_failing_final_move_preserves_the_old_payload (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_final_move_preserves_the_old_payload)
+Fault at the second rename — stage→final. Old payload must survive. ... ok
+test_a_failing_restore_keeps_the_backup_and_says_so (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_restore_keeps_the_backup_and_says_so)
+The case the old code lied about: restore fails, it claimed success. ... ok
+test_assets_are_installed_into_a_fresh_bundle (test_release_gate.ManualBuildAssetSwapTests.test_assets_are_installed_into_a_fresh_bundle) ... ok
+test_no_staging_or_backup_residue_is_left_behind (test_release_gate.ManualBuildAssetSwapTests.test_no_staging_or_backup_residue_is_left_behind) ... ok
+test_recovery_moves_the_crashed_out_backup_itself (test_release_gate.ManualBuildAssetSwapTests.test_recovery_moves_the_crashed_out_backup_itself)
+Recovery must restore *that* directory, not produce a look-alike. ... ok
+test_the_next_ordinary_run_self_heals_and_completes (test_release_gate.ManualBuildAssetSwapTests.test_the_next_ordinary_run_self_heals_and_completes)
+After the crash, an unmutated run recovers and finishes the job. ... ok
+test_a_pristine_payload_passes (test_release_gate.PayloadVerificationTests.test_a_pristine_payload_passes) ... ok
+test_cli_exits_non_zero_and_names_the_member (test_release_gate.PayloadVerificationTests.test_cli_exits_non_zero_and_names_the_member) ... ok
+test_contents_differing_from_source_are_reported (test_release_gate.PayloadVerificationTests.test_contents_differing_from_source_are_reported) ... ok
+test_entirely_absent_payload_is_reported (test_release_gate.PayloadVerificationTests.test_entirely_absent_payload_is_reported) ... ok
+test_member_replaced_by_a_symlink_is_reported (test_release_gate.PayloadVerificationTests.test_member_replaced_by_a_symlink_is_reported) ... ok
+test_missing_member_is_reported (test_release_gate.PayloadVerificationTests.test_missing_member_is_reported) ... ok
+test_missing_readme_is_reported (test_release_gate.PayloadVerificationTests.test_missing_readme_is_reported) ... ok
+test_symlink_anywhere_in_the_subtree_is_reported (test_release_gate.PayloadVerificationTests.test_symlink_anywhere_in_the_subtree_is_reported) ... ok
+test_unexpected_extra_file_is_reported (test_release_gate.PayloadVerificationTests.test_unexpected_extra_file_is_reported) ... ok
+test_wrong_sheet_name_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sheet_name_in_metadata_is_reported) ... ok
+test_wrong_sprite_version_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sprite_version_in_metadata_is_reported) ... ok
+test_a_missing_expected_directory_is_reported (test_release_gate.TreeShapeTests.test_a_missing_expected_directory_is_reported) ... ok
+test_a_symlinked_expected_directory_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_expected_directory_is_refused) ... ok
+test_a_symlinked_payload_root_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_payload_root_is_refused)
+os.walk follows the link and cleanly verifies the wrong tree. ... ok
+test_an_unexpected_empty_directory_is_reported (test_release_gate.TreeShapeTests.test_an_unexpected_empty_directory_is_reported)
+A file-only comparison cannot see a directory with nothing in it. ... ok
+test_both_version_keys_equal_app_version (test_release_gate.WritePlistTests.test_both_version_keys_equal_app_version) ... ok
+test_replacement_at_temporary_pet_folder_survives_cleanup (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_pet_folder_survives_cleanup)
+Cleanup must not follow a replaced staging-folder name. ... ok
+test_replacement_at_temporary_readme_name_is_not_published_or_cleaned (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_readme_name_is_not_published_or_cleaned)
+Publish and cleanup must remain bound to the staged README inode. ... ok
+test_replacement_between_pet_stage_mkdir_and_open_is_not_used (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_between_pet_stage_mkdir_and_open_is_not_used)
+Opening and publishing must stay bound to the mkdir-created stage. ... ok
+test_copy_failure_never_publishes_a_partial_pet_directory (test_settings_and_install.BundledPetSeedTests.test_copy_failure_never_publishes_a_partial_pet_directory) ... ok
+test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored) ... ok
+test_destination_root_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_safe_open_is_not_followed) ... ok
+test_destination_root_symlink_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_symlink_is_not_followed) ... ok
+test_empty_destination_receives_the_full_distributed_tree (test_settings_and_install.BundledPetSeedTests.test_empty_destination_receives_the_full_distributed_tree) ... ok
+test_malformed_or_traversing_pet_metadata_is_never_published (test_settings_and_install.BundledPetSeedTests.test_malformed_or_traversing_pet_metadata_is_never_published) ... ok
+test_missing_atomic_directory_publish_primitive_fails_closed (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_directory_publish_primitive_fails_closed) ... ok
+test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme) ... ok
+test_pet_directory_created_during_publish_is_never_replaced (test_settings_and_install.BundledPetSeedTests.test_pet_directory_created_during_publish_is_never_replaced) ... ok
+test_pet_metadata_must_reference_the_distributed_spritesheet (test_settings_and_install.BundledPetSeedTests.test_pet_metadata_must_reference_the_distributed_spritesheet) ... ok
+test_pet_with_a_missing_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_missing_required_file_is_never_published) ... ok
+test_pet_with_a_symlinked_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_symlinked_required_file_is_never_published) ... ok
+test_pets_directory_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_directory_replaced_after_safe_open_is_not_followed) ... ok
+test_pets_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_readme_created_during_publish_is_preserved (test_settings_and_install.BundledPetSeedTests.test_readme_created_during_publish_is_preserved) ... ok
+test_root_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_root_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_second_seed_is_byte_and_mtime_idempotent (test_settings_and_install.BundledPetSeedTests.test_second_seed_is_byte_and_mtime_idempotent) ... ok
+test_symlinked_source_pet_is_not_copied (test_settings_and_install.BundledPetSeedTests.test_symlinked_source_pet_is_not_copied) ... ok
+test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets (test_settings_and_install.BundledPetSeedTests.test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets) ... ok
+test_apple_silicon_never_falls_back_to_an_unrelated_zip (test_settings_and_install.GithubUpdateTests.test_apple_silicon_never_falls_back_to_an_unrelated_zip) ... ok
+test_download_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_download_failure_removes_the_new_temporary_directory) ... ok
+test_failed_poll_does_not_consume_the_retry_cooldown (test_settings_and_install.GithubUpdateTests.test_failed_poll_does_not_consume_the_retry_cooldown) ... ok
+test_intel_never_falls_back_to_an_arm_only_archive (test_settings_and_install.GithubUpdateTests.test_intel_never_falls_back_to_an_arm_only_archive) ... ok
+test_launch_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_launch_failure_removes_the_new_temporary_directory) ... ok
+test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds (test_settings_and_install.GithubUpdateTests.test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds) ... ok
+test_replace_script_preserves_the_installed_app_when_copy_fails (test_settings_and_install.GithubUpdateTests.test_replace_script_preserves_the_installed_app_when_copy_fails) ... ok
+test_replace_script_rolls_back_when_the_replacement_cannot_launch (test_settings_and_install.GithubUpdateTests.test_replace_script_rolls_back_when_the_replacement_cannot_launch) ... ok
+test_successful_launch_transfers_temp_cleanup_to_the_detached_script (test_settings_and_install.GithubUpdateTests.test_successful_launch_transfers_temp_cleanup_to_the_detached_script) ... ok
+test_update_app_preflight_accepts_the_expected_signed_bundle (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_accepts_the_expected_signed_bundle) ... ok
+test_update_app_preflight_rejects_identity_version_and_signature_failures (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_rejects_identity_version_and_signature_failures) ... ok
+test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member) ... ok
+test_update_check_distinguishes_current_from_network_failure (test_settings_and_install.GithubUpdateTests.test_update_check_distinguishes_current_from_network_failure) ... ok
+test_update_check_returns_the_selected_release_asset (test_settings_and_install.GithubUpdateTests.test_update_check_returns_the_selected_release_asset) ... ok
+test_valid_poll_records_cooldown_and_an_update_becomes_pending (test_settings_and_install.GithubUpdateTests.test_valid_poll_records_cooldown_and_an_update_becomes_pending) ... ok
+test_manual_bundle_versions_are_not_hard_coded (test_settings_and_install.PackagingContractTests.test_manual_bundle_versions_are_not_hard_coded) ... ok
+test_manual_update_refreshes_bundled_pet_resources (test_settings_and_install.PackagingContractTests.test_manual_update_refreshes_bundled_pet_resources) ... ok
+test_readmes_do_not_offer_a_recursive_overwrite_command (test_settings_and_install.PackagingContractTests.test_readmes_do_not_offer_a_recursive_overwrite_command) ... ok
+test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them (test_settings_and_install.PackagingContractTests.test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them) ... ok
+test_generation_check_and_state_update_are_atomic (test_settings_and_install.RefreshGenerationTests.test_generation_check_and_state_update_are_atomic) ... ok
+test_only_the_newest_refresh_generation_can_commit (test_settings_and_install.RefreshGenerationTests.test_only_the_newest_refresh_generation_can_commit) ... ok
+test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure (test_settings_and_install.SettingsConfigTests.test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure) ... ok
+test_atomic_config_write_preserves_old_json_when_replace_fails (test_settings_and_install.SettingsConfigTests.test_atomic_config_write_preserves_old_json_when_replace_fails) ... ok
+test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan (test_settings_and_install.SettingsConfigTests.test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan) ... ok
+test_blank_limit_fields_do_not_override_environment_fallbacks (test_settings_and_install.SettingsConfigTests.test_blank_limit_fields_do_not_override_environment_fallbacks) ... ok
+test_calibration_overrides_only_its_matching_direct_limit (test_settings_and_install.SettingsConfigTests.test_calibration_overrides_only_its_matching_direct_limit) ... ok
+test_calibration_rejects_a_gauge_with_zero_usage (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_gauge_with_zero_usage) ... ok
+test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens) ... ok
+test_calibration_usage_scan_failure_is_a_settings_error (test_settings_and_install.SettingsConfigTests.test_calibration_usage_scan_failure_is_a_settings_error) ... ok
+test_compute_usage_uses_the_supplied_runtime_snapshot (test_settings_and_install.SettingsConfigTests.test_compute_usage_uses_the_supplied_runtime_snapshot) ... ok
+test_direct_only_settings_save_does_not_scan_usage (test_settings_and_install.SettingsConfigTests.test_direct_only_settings_save_does_not_scan_usage) ... ok
+test_exact_mode_note_explains_server_calibration_and_estimate_spike_split (test_settings_and_install.SettingsConfigTests.test_exact_mode_note_explains_server_calibration_and_estimate_spike_split) ... ok
+test_exact_token_limits_survive_an_unchanged_settings_round_trip (test_settings_and_install.SettingsConfigTests.test_exact_token_limits_survive_an_unchanged_settings_round_trip) ... ok
+test_gui_save_path_uses_the_tested_transaction_and_commits_before_close (test_settings_and_install.SettingsConfigTests.test_gui_save_path_uses_the_tested_transaction_and_commits_before_close) ... ok
+test_invalid_calibration_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_calibration_rejects_the_whole_candidate) ... ok
+test_invalid_direct_limit_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_direct_limit_rejects_the_whole_candidate) ... ok
+test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths (test_settings_and_install.SettingsConfigTests.test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths) ... ok
+test_merge_retries_instead_of_losing_a_write_between_read_and_save (test_settings_and_install.SettingsConfigTests.test_merge_retries_instead_of_losing_a_write_between_read_and_save) ... ok
+test_new_usage_settings_locale_keys_exist_in_every_supported_language (test_settings_and_install.SettingsConfigTests.test_new_usage_settings_locale_keys_exist_in_every_supported_language) ... ok
+test_other_numeric_settings_require_finite_in_range_values (test_settings_and_install.SettingsConfigTests.test_other_numeric_settings_require_finite_in_range_values) ... ok
+test_percentage_fields_are_primary_and_all_limit_inputs_default_blank (test_settings_and_install.SettingsConfigTests.test_percentage_fields_are_primary_and_all_limit_inputs_default_blank) ... ok
+test_session_percentage_only_backsolves_session_and_preserves_other_limits (test_settings_and_install.SettingsConfigTests.test_session_percentage_only_backsolves_session_and_preserves_other_limits) ... ok
+test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys (test_settings_and_install.SettingsConfigTests.test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys) ... ok
+test_settings_transaction_rejects_invalid_input_before_any_apply (test_settings_and_install.SettingsConfigTests.test_settings_transaction_rejects_invalid_input_before_any_apply) ... ok
+test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched (test_settings_and_install.SettingsConfigTests.test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched) ... ok
+test_valid_direct_limits_are_stored_as_integer_tokens (test_settings_and_install.SettingsConfigTests.test_valid_direct_limits_are_stored_as_integer_tokens) ... ok
+test_zero_percentage_has_a_distinct_actionable_atomic_rejection (test_settings_and_install.SettingsConfigTests.test_zero_percentage_has_a_distinct_actionable_atomic_rejection) ... ok
+test_requirement_accepts_our_own_signed_app (test_signing_contract.CodesignRequirementContractTests.test_requirement_accepts_our_own_signed_app) ... ok
+test_requirement_is_parsed_as_a_requirement_not_a_filename (test_signing_contract.CodesignRequirementContractTests.test_requirement_is_parsed_as_a_requirement_not_a_filename)
+The exact failure that shipped: codesign reading it as a path. ... ok
+test_requirement_rejects_a_bundle_signed_by_someone_else (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_a_bundle_signed_by_someone_else)
+A requirement that accepted everything would also return 0 here. ... ok
+test_requirement_rejects_another_developer_id_signature (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_another_developer_id_signature)
+Closer case: a real third-party Developer ID, not Apple's own. ... ok
+test_assessment_alone_does_not_identify_the_signer (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_alone_does_not_identify_the_signer)
+Why the team check above matters: spctl accepts other vendors too. ... ok
+test_assessment_reports_notarization_and_our_team_for_our_app (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_reports_notarization_and_our_team_for_our_app) ... ok
+test_stapler_rejects_a_bundle_with_no_stapled_ticket (test_signing_contract.StaplerContractTests.test_stapler_rejects_a_bundle_with_no_stapled_ticket)
+Discrimination: stapler must fail on something unstapled. ... ok
+test_stapler_validates_the_installed_app (test_signing_contract.StaplerContractTests.test_stapler_validates_the_installed_app) ... ok
+test_the_real_installed_app_passes_the_whole_preflight (test_signing_contract.ValidateUpdateAppLiveTests.test_the_real_installed_app_passes_the_whole_preflight)
+End-to-end, unmocked: the path a real update actually takes. ... ok
+test_direct_execution_reaches_dispatch_exactly_once (test_source_guard.SourceGuardTests.test_direct_execution_reaches_dispatch_exactly_once) ... ok
+test_guarded_source_is_inert_and_defines_functions (test_source_guard.SourceGuardTests.test_guarded_source_is_inert_and_defines_functions) ... ok
+test_removing_the_guard_makes_source_reach_dispatch_once (test_source_guard.SourceGuardTests.test_removing_the_guard_makes_source_reach_dispatch_once) ... ok
+test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected) ... ok
+test_framework_style_relative_symlink_inside_the_bundle_is_accepted (test_updater.BundleContainmentTests.test_framework_style_relative_symlink_inside_the_bundle_is_accepted) ... ok
+test_missing_manifest_members_still_only_warn (test_updater.BundleContainmentTests.test_missing_manifest_members_still_only_warn)
+Policy guard: missing assets must not strand users on an old build. ... ok
+test_relative_symlink_escaping_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_relative_symlink_escaping_the_bundle_is_rejected)
+Which rule does the work: the realpath containment one, and only it. ... ok
+test_symlink_in_the_pet_subtree_is_rejected_even_when_contained (test_updater.BundleContainmentTests.test_symlink_in_the_pet_subtree_is_rejected_even_when_contained)
+Ours, and it legitimately contains zero symlinks — so any is a red flag. ... ok
+test_symlinked_ancestor_of_the_pet_subtree_is_rejected (test_updater.BundleContainmentTests.test_symlinked_ancestor_of_the_pet_subtree_is_rejected) ... ok
+test_a_failed_check_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_failed_check_leaves_no_stale_choice_behind) ... ok
+test_a_non_update_result_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_non_update_result_leaves_no_stale_choice_behind) ... ok
+test_poll_still_publishes_the_two_tuple_the_ui_reads (test_updater.CheckGithubUpdateShapeTests.test_poll_still_publishes_the_two_tuple_the_ui_reads) ... ok
+test_update_records_the_chosen_asset_and_arch_in_the_cache (test_updater.CheckGithubUpdateShapeTests.test_update_records_the_chosen_asset_and_arch_in_the_cache)
+Per key, by name — `asset` and `arch` are bound through the ... ok
+test_a_second_install_is_refused_while_the_first_helper_lives (test_updater.ConcurrentInstallTests.test_a_second_install_is_refused_while_the_first_helper_lives)
+The same property at the entry point the app actually calls. ... ok
+test_an_install_is_possible_again_once_the_first_helper_exits (test_updater.ConcurrentInstallTests.test_an_install_is_possible_again_once_the_first_helper_exits)
+Discrimination for the test above: the refusal is not permanent. ... ok
+test_one_install_succeeds_and_schedules_exactly_one_helper (test_updater.ConcurrentInstallTests.test_one_install_succeeds_and_schedules_exactly_one_helper)
+Control: without it, an installer that always refused would pass. ... ok
+test_the_lock_changes_hands_and_is_released_by_the_kernel (test_updater.ConcurrentInstallTests.test_the_lock_changes_hands_and_is_released_by_the_kernel)
+The whole handoff lifecycle, in one fixture. ... ok
+test_patching_the_retired_name_intercepts_nothing_and_reaches_out (test_updater.DownloadSeamInstrumentTests.test_patching_the_retired_name_intercepts_nothing_and_reaches_out)
+The mutant: the fixture style this file used to use, run. ... ok
+test_production_downloads_through_the_name_the_fixtures_patch (test_updater.DownloadSeamInstrumentTests.test_production_downloads_through_the_name_the_fixtures_patch) ... ok
+test_the_guard_lets_loopback_through (test_updater.DownloadSeamInstrumentTests.test_the_guard_lets_loopback_through)
+Negative control: it blocks by destination, not by being a socket. ... ok
+test_the_guard_records_and_refuses_a_direct_request (test_updater.DownloadSeamInstrumentTests.test_the_guard_records_and_refuses_a_direct_request)
+Positive control: the guard fires when nothing is patched at all. ... ok
+test_the_module_under_test_is_the_repository_copy (test_updater.DownloadSeamInstrumentTests.test_the_module_under_test_is_the_repository_copy)
+Everything below reads production source; this says whose. ... ok
+test_the_stand_in_intercepts_the_download (test_updater.DownloadSeamInstrumentTests.test_the_stand_in_intercepts_the_download) ... ok
+test_a_missing_operand_fails_loudly_rather_than_creating_anything (test_updater.ExchangeHelperTests.test_a_missing_operand_fails_loudly_rather_than_creating_anything) ... ok
+test_two_directories_are_exchanged_in_place (test_updater.ExchangeHelperTests.test_two_directories_are_exchanged_in_place) ... ok
+test_wrong_argument_count_is_an_error (test_updater.ExchangeHelperTests.test_wrong_argument_count_is_an_error) ... ok
+test_install_refuses_before_downloading_anything (test_updater.ExpectedVersionRequiredTests.test_install_refuses_before_downloading_anything) ... ok
+test_preflight_rejects_a_missing_or_blank_expectation (test_updater.ExpectedVersionRequiredTests.test_preflight_rejects_a_missing_or_blank_expectation) ... ok
+test_each_rejected_record_is_rejected_for_its_own_reason (test_updater.LaunchRegistrationInstrumentTests.test_each_rejected_record_is_rejected_for_its_own_reason)
+Without this, one over-broad filter would look like a clean pass. ... ok
+test_no_fixture_bundle_of_this_run_claims_the_production_identity (test_updater.LaunchRegistrationInstrumentTests.test_no_fixture_bundle_of_this_run_claims_the_production_identity)
+The assertion itself, run early enough to attribute. ... ok
+test_the_parser_reads_the_real_database (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_reads_the_real_database)
+The synthetic dump above proves nothing about the real format. ... ok
+test_the_parser_selects_by_identifier_and_by_root (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_selects_by_identifier_and_by_root) ... ok
+test_a_child_process_computes_the_lock_path_from_the_fixture_home (test_updater.LockIsolationInstrumentTests.test_a_child_process_computes_the_lock_path_from_the_fixture_home)
+The constant patch does not cross a process boundary; HOME does. ... ok
+test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change (test_updater.LockIsolationInstrumentTests.test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change)
+Mutation-style check of the alarm's own discrimination. ... ok
+test_the_lock_lands_in_the_fixture_cache_not_the_real_one (test_updater.LockIsolationInstrumentTests.test_the_lock_lands_in_the_fixture_cache_not_the_real_one)
+The redirection is load-bearing, not decorative. ... ok
+test_the_real_bundle_contains_the_symlinks_this_guard_is_about (test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about)
+Discrimination: without an internal symlink the guard above is vacuous. ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_the_real_installed_bundle_is_accepted_by_the_preflight (test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight) ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_completed_update_never_leaves_the_install_path_empty (test_updater.ReplaceScriptBehaviourTests.test_a_completed_update_never_leaves_the_install_path_empty)
+There is no instant at which the app is absent from its own path. ... ok
+test_a_launch_that_is_never_acknowledged_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_launch_that_is_never_acknowledged_rolls_back)
+`open` exiting 0 is a dispatch, not a health signal. ... ok
+test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged (test_updater.ReplaceScriptBehaviourTests.test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged)
+The fallback branch must actually be reachable. ... ok
+test_a_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_process_running_before_the_update_never_acknowledges_it)
+The false ACK that matters in practice. ... ok
+test_a_process_that_dies_during_the_settle_delay_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_process_that_dies_during_the_settle_delay_rolls_back)
+A bundle that starts and immediately crashes is not a live app. ... ok
+test_a_python_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_python_process_running_before_the_update_never_acknowledges_it)
+Same contract on the fallback pattern, which is a separate branch. ... ok
+test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one (test_updater.ReplaceScriptBehaviourTests.test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one)
+The nesting hole, made deterministic. ... ok
+test_a_stage_tampered_with_after_ditto_is_never_installed (test_updater.ReplaceScriptBehaviourTests.test_a_stage_tampered_with_after_ditto_is_never_installed)
+The installer's second validation rejects the exact staged copy. ... ok
+test_a_stale_process_cannot_cover_for_one_that_died_during_settle (test_updater.ReplaceScriptBehaviourTests.test_a_stale_process_cannot_cover_for_one_that_died_during_settle)
+The settle check must confirm *that* pid, not re-scan for any match. ... ok
+test_an_acknowledged_launch_completes_the_swap_atomically (test_updater.ReplaceScriptBehaviourTests.test_an_acknowledged_launch_completes_the_swap_atomically)
+The atomic path specifically — the branch every real machine takes. ... ok
+test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement)
+The anchor test: a third-party process mentioning the path. ... ok
+test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack)
+The fallback pattern must not match loosely either. ... ok
+test_atomic_exchange_failure_never_starts_a_move_fallback (test_updater.ReplaceScriptBehaviourTests.test_atomic_exchange_failure_never_starts_a_move_fallback)
+Both exchange helpers fail; exact old APP remains and no backup moves. ... ok
+test_rollback_survives_a_new_bundle_with_a_broken_interpreter (test_updater.ReplaceScriptBehaviourTests.test_rollback_survives_a_new_bundle_with_a_broken_interpreter)
+The only time rollback runs is when the new bundle is bad. ... ok
+test_the_old_app_survives_a_rollback_on_the_atomic_path (test_updater.ReplaceScriptBehaviourTests.test_the_old_app_survives_a_rollback_on_the_atomic_path)
+Old-copy preservation on the exchange path specifically. ... ok
+test_the_swap_fails_closed_without_any_bundled_interpreter (test_updater.ReplaceScriptBehaviourTests.test_the_swap_fails_closed_without_any_bundled_interpreter)
+No atomic helper means no update; APP stays the exact old object. ... ok
+test_a_retained_backup_is_recorded_where_the_user_can_find_it (test_updater.ReplaceScriptTextTests.test_a_retained_backup_is_recorded_where_the_user_can_find_it) ... ok
+test_constructor_refuses_to_invent_missing_caller_identities (test_updater.ReplaceScriptTextTests.test_constructor_refuses_to_invent_missing_caller_identities) ... ok
+test_execution_harness_neutralizes_the_primitive_before_consumers (test_updater.ReplaceScriptTextTests.test_execution_harness_neutralizes_the_primitive_before_consumers) ... ok
+test_forward_replacement_is_atomic_only_and_fails_closed (test_updater.ReplaceScriptTextTests.test_forward_replacement_is_atomic_only_and_fails_closed)
+A failed exchange must not reopen the old two-move install window. ... ok
+test_launch_grammar_is_one_definition_and_two_exact_consumers (test_updater.ReplaceScriptTextTests.test_launch_grammar_is_one_definition_and_two_exact_consumers) ... ok
+test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code (test_updater.ReplaceScriptTextTests.test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code)
+`open` returning 0 means dispatched, not running. ... ok
+test_rollback_never_reaches_for_the_new_bundles_interpreter (test_updater.ReplaceScriptTextTests.test_rollback_never_reaches_for_the_new_bundles_interpreter)
+Recovery must not depend on the thing it is recovering from. ... ok
+test_same_filesystem_is_checked_after_staging_and_before_the_swap (test_updater.ReplaceScriptTextTests.test_same_filesystem_is_checked_after_staging_and_before_the_swap)
+A cross-device swap cannot be atomic, and mv would copy instead. ... ok
+test_script_carries_the_callers_exact_app_and_work_identities (test_updater.ReplaceScriptTextTests.test_script_carries_the_callers_exact_app_and_work_identities) ... ok
+test_script_keeps_the_literal_substrings_other_tests_pin (test_updater.ReplaceScriptTextTests.test_script_keeps_the_literal_substrings_other_tests_pin) ... ok
+test_swap_goes_through_the_bundled_interpreter (test_updater.ReplaceScriptTextTests.test_swap_goes_through_the_bundled_interpreter) ... ok
+test_the_ordering_check_notices_the_device_check_moving (test_updater.ReplaceScriptTextTests.test_the_ordering_check_notices_the_device_check_moving)
+Control: the assertion above must be able to fail. ... ok
+test_the_rollback_check_notices_an_interpreter_from_the_new_bundle (test_updater.ReplaceScriptTextTests.test_the_rollback_check_notices_an_interpreter_from_the_new_bundle)
+Control: substitute the failed bundle's interpreter and it fails. ... ok
+test_a_bundle_whose_executable_lacks_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundle_whose_executable_lacks_this_architecture_is_rejected) ... ok
+test_a_bundled_interpreter_lacking_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundled_interpreter_lacking_this_architecture_is_rejected)
+The helper the swap itself runs — a mismatch breaks the update path. ... ok
+test_a_native_and_a_universal_bundle_are_both_accepted (test_updater.RequiredArchitectureTests.test_a_native_and_a_universal_bundle_are_both_accepted)
+Control: the check must not reject the two shapes we ship. ... ok
+test_the_main_executable_and_info_plist_must_be_regular_files (test_updater.RequiredArchitectureTests.test_the_main_executable_and_info_plist_must_be_regular_files)
+Both are read to decide identity; a symlink decides it elsewhere. ... ok
+test_a_non_https_or_hostless_url_is_never_selected (test_updater.SelectUpdateAssetTests.test_a_non_https_or_hostless_url_is_never_selected) ... ok
+test_apple_silicon_accepts_the_universal_archive_alone (test_updater.SelectUpdateAssetTests.test_apple_silicon_accepts_the_universal_archive_alone) ... ok
+test_apple_silicon_prefers_the_arm_archive (test_updater.SelectUpdateAssetTests.test_apple_silicon_prefers_the_arm_archive) ... ok
+test_case_and_surrounding_whitespace_are_normalized (test_updater.SelectUpdateAssetTests.test_case_and_surrounding_whitespace_are_normalized) ... ok
+test_duplicate_unrelated_names_do_not_block_a_clean_choice (test_updater.SelectUpdateAssetTests.test_duplicate_unrelated_names_do_not_block_a_clean_choice)
+Discrimination: the ambiguity rule is about the *allowed* name only. ... ok
+test_intel_never_takes_the_arm_only_archive (test_updater.SelectUpdateAssetTests.test_intel_never_takes_the_arm_only_archive) ... ok
+test_intel_takes_the_universal_archive (test_updater.SelectUpdateAssetTests.test_intel_takes_the_universal_archive) ... ok
+test_malformed_asset_entries_do_not_raise (test_updater.SelectUpdateAssetTests.test_malformed_asset_entries_do_not_raise) ... ok
+test_names_are_matched_only_against_the_allow_list (test_updater.SelectUpdateAssetTests.test_names_are_matched_only_against_the_allow_list) ... ok
+test_two_assets_normalizing_to_one_allowed_name_are_ambiguous (test_updater.SelectUpdateAssetTests.test_two_assets_normalizing_to_one_allowed_name_are_ambiguous)
+Two candidates for the same slot: we cannot know which is the app. ... ok
+test_unknown_architecture_is_rejected_rather_than_defaulted (test_updater.SelectUpdateAssetTests.test_unknown_architecture_is_rejected_rather_than_defaulted) ... ok
+test_codesign_call_binds_the_exact_expected_team_requirement (test_updater.SigningAuthorityPreflightTests.test_codesign_call_binds_the_exact_expected_team_requirement) ... ok
+test_codesign_failure_rejects_before_gatekeeper_and_ticket (test_updater.SigningAuthorityPreflightTests.test_codesign_failure_rejects_before_gatekeeper_and_ticket) ... ok
+test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_stapler_rejects_an_unstapled_bundle_with_rc_65 (test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_stapler_reports_success_for_our_stapled_bundle (test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_tool_that_cannot_run_fails_closed (test_updater.StaplerPreflightTests.test_a_tool_that_cannot_run_fails_closed) ... ok
+test_an_unstapled_bundle_is_refused (test_updater.StaplerPreflightTests.test_an_unstapled_bundle_is_refused) ... ok
+test_every_preflight_tool_runs_under_a_timeout (test_updater.StaplerPreflightTests.test_every_preflight_tool_runs_under_a_timeout)
+A hung signing tool must not wedge the update thread forever. ... ok
+test_preflight_consults_stapler (test_updater.StaplerPreflightTests.test_preflight_consults_stapler) ... ok
+test_a_traversing_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_a_traversing_member_is_rejected_before_extraction) ... ok
+test_an_absolute_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_absolute_member_is_rejected_before_extraction) ... ok
+test_an_ordinary_archive_still_reaches_extraction (test_updater.ZipMemberScanTests.test_an_ordinary_archive_still_reaches_extraction)
+Guard: the scan must not reject the archive we actually ship. ... ok
+test_an_unreadable_archive_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_unreadable_archive_is_rejected_before_extraction) ... ok
+test_universal_named_arm_only_bundle_is_rejected_via_lipo (test_updater_adversarial.ArchitectureBindingTests.test_universal_named_arm_only_bundle_is_rejected_via_lipo) ... ok
+test_atomic_branch_never_moves_old_stage_to_a_backup_name (test_updater_adversarial.AtomicExchangeRecoveryTests.test_atomic_branch_never_moves_old_stage_to_a_backup_name) ... ok
+test_fault_immediately_after_exchange_restores_or_retains_old_app (test_updater_adversarial.AtomicExchangeRecoveryTests.test_fault_immediately_after_exchange_restores_or_retains_old_app) ... ok
+test_info_plist_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_info_plist_must_be_a_regular_non_symlink) ... ok
+test_main_executable_directory_is_not_a_regular_file (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_directory_is_not_a_regular_file) ... ok
+test_main_executable_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_must_be_a_regular_non_symlink) ... ok
+test_nonexecutable_regular_macho_helper_is_rejected_before_popen (test_updater_adversarial.CriticalMemberTypeTests.test_nonexecutable_regular_macho_helper_is_rejected_before_popen) ... ok
+test_only_a_pid_created_after_launch_can_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_only_a_pid_created_after_launch_can_ack) ... ok
+test_preexisting_macos_and_resources_pids_cannot_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_preexisting_macos_and_resources_pids_cannot_ack) ... ok
+test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists (test_updater_adversarial.LaunchAcknowledgementTests.test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists) ... ok
+test_cleanup_does_not_follow_stage_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_cleanup_does_not_follow_stage_name_substitution) ... ok
+test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap) ... ok
+test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap) ... ok
+test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup)
+Atomic exchange failure must stop before any forward-path move. ... ok
+test_fd_bound_discard_preserves_root_replaced_after_fstat (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fd_bound_discard_preserves_root_replaced_after_fstat)
+The standalone discard must keep using its verified directory fd. ... ok
+test_fifo_lock_leaf_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_leaf_fails_closed_without_blocking) ... ok
+test_fifo_lock_root_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_root_fails_closed_without_blocking) ... ok
+test_helper_binds_installed_app_identity_handed_off_by_python (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_binds_installed_app_identity_handed_off_by_python)
+A rival APP substituted after Popen handoff must never be swapped. ... ok
+test_helper_refuses_stage_replaced_after_handoff_before_exchange (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_refuses_stage_replaced_after_handoff_before_exchange)
+The app installed by exchange must be the exact claimed STAGE. ... ok
+test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival)
+Detached cleanup binds WORKID through the standalone fd helper. ... ok
+test_lock_residue_is_under_complete_uninstall_owned_root (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_residue_is_under_complete_uninstall_owned_root) ... ok
+test_lock_root_symlink_is_refused_without_outside_creation (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_root_symlink_is_refused_without_outside_creation) ... ok
+test_manual_replacement_appid_mismatch_refuses_cross_path_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_manual_replacement_appid_mismatch_refuses_cross_path_swap)
+A manual replacement racing the updater is an APPID mismatch. ... ok
+test_owned_private_lock_root_has_normal_acquire_release_lifecycle (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_owned_private_lock_root_has_normal_acquire_release_lifecycle) ... ok
+test_partial_stage_copy_failure_removes_only_owned_candidate (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_partial_stage_copy_failure_removes_only_owned_candidate) ... ok
+test_preexisting_backup_name_is_never_changed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_backup_name_is_never_changed_or_deleted) ... ok
+test_preexisting_stage_name_collision_never_deletes_the_sentinel (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_stage_name_collision_never_deletes_the_sentinel) ... ok
+test_prehandoff_cleanup_binds_stage_beneath_open_parent (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_prehandoff_cleanup_binds_stage_beneath_open_parent)
+A stage rival inserted after parent-open must not be traversed. ... ok
+test_public_sibling_regular_file_is_never_selected_or_changed (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_public_sibling_regular_file_is_never_selected_or_changed) ... ok
+test_python_failure_cleanup_does_not_follow_work_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_python_failure_cleanup_does_not_follow_work_name_substitution)
+Failure cleanup must delete the claimed WORK, never its pathname. ... ok
+test_replaced_lock_root_cannot_create_a_second_lock_domain (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_replaced_lock_root_cannot_create_a_second_lock_domain)
+One app must not acquire two locks through two same-named roots. ... ok
+test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted)
+Covers the separate mkdir-then-rmdir staging-name race. ... ok
+test_symlink_lock_leaf_fails_closed_without_target_change (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_symlink_lock_leaf_fails_closed_without_target_change) ... ok
+test_world_writable_lock_root_is_refused (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_world_writable_lock_root_is_refused) ... ok
+test_post_ditto_mutation_is_seen_by_full_stage_revalidation (test_updater_adversarial.StagedCopyRevalidationTests.test_post_ditto_mutation_is_seen_by_full_stage_revalidation)
+Valid NEW plus invalid STAGE must not dispatch a replacement. ... ok
+test_background_descendant_cannot_retain_lock_after_return (test_updater_adversarial.UpdateLockCommandWrapperTests.test_background_descendant_cannot_retain_lock_after_return)
+Only the wrapper owns the fd; a surviving grandchild cannot. ... ok
+test_busy_lock_returns_100_without_starting_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_busy_lock_returns_100_without_starting_child) ... ok
+test_child_return_code_is_passed_through_exactly (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_return_code_is_passed_through_exactly) ... ok
+test_child_signal_is_mapped_to_128_plus_signal (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_signal_is_mapped_to_128_plus_signal) ... ok
+test_exec_failure_returns_127_and_releases_lock (test_updater_adversarial.UpdateLockCommandWrapperTests.test_exec_failure_returns_127_and_releases_lock) ... ok
+test_untrusted_lock_root_returns_101_without_outside_write (test_updater_adversarial.UpdateLockCommandWrapperTests.test_untrusted_lock_root_returns_101_without_outside_write) ... ok
+test_usage_errors_return_2_without_lock_or_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_usage_errors_return_2_without_lock_or_child) ... ok
+test_complete_uninstall_waits_for_active_update_transaction (test_updater_adversarial.UpdateLockLifecycleTests.test_complete_uninstall_waits_for_active_update_transaction) ... ok
+test_install_hands_lock_to_child_and_serializes_real_transactions (test_updater_adversarial.UpdateLockLifecycleTests.test_install_hands_lock_to_child_and_serializes_real_transactions)
+Distinguishes early close, missing lock, and parent fd leakage. ... ok
+test_mkdtemp_exception_releases_lock_before_any_io (test_updater_adversarial.UpdateLockLifecycleTests.test_mkdtemp_exception_releases_lock_before_any_io) ... ok
+test_uninstall_popen_failure_preserves_app_and_all_settings (test_updater_adversarial.UpdateLockLifecycleTests.test_uninstall_popen_failure_preserves_app_and_all_settings)
+Preparing the deletion helper must precede every destructive step. ... ok
+test_absolute_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_absolute_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_parent_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_parent_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_a_clean_archive_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_clean_archive_is_accepted)
+The control. Without it every rejection below could be a blanket no. ... ok
+test_a_contained_relative_symlink_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_contained_relative_symlink_is_accepted) ... ok
+test_a_missing_artifact_is_rejected_rather_than_skipped (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_missing_artifact_is_rejected_rather_than_skipped) ... ok
+test_a_symlink_member_escaping_the_archive_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_symlink_member_escaping_the_archive_is_rejected)
+The member kind a name-only scan cannot see. ... ok
+test_a_traversing_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_traversing_member_is_rejected) ... ok
+test_an_absolute_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_an_absolute_member_is_rejected) ... ok
+test_the_symlink_fixture_really_is_a_symlink (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_the_symlink_fixture_really_is_a_symlink)
+Discrimination: if the entry is a plain file, the test above is a lie. ... ok
+test_every_name_the_updater_accepts_is_one_release_builds (test_upload_artifact_gate.AssetNameCouplingTests.test_every_name_the_updater_accepts_is_one_release_builds)
+The other direction, which is a different failure. ... ok
+test_every_zip_release_builds_is_one_the_updater_will_accept (test_upload_artifact_gate.AssetNameCouplingTests.test_every_zip_release_builds_is_one_the_updater_will_accept) ... ok
+test_this_module_reads_the_real_names_rather_than_its_own_copy (test_upload_artifact_gate.AssetNameCouplingTests.test_this_module_reads_the_real_names_rather_than_its_own_copy)
+My own blindness to the same coupling, pinned. ... ok
+test_detach_failure_is_gate_failure_and_retains_the_named_mount (test_upload_artifact_gate.DmgArmTests.test_detach_failure_is_gate_failure_and_retains_the_named_mount) ... ok
+test_dmg_is_detached_after_a_successful_check (test_upload_artifact_gate.DmgArmTests.test_dmg_is_detached_after_a_successful_check) ... ok
+test_dmg_mountpoint_exists_before_attach (test_upload_artifact_gate.DmgArmTests.test_dmg_mountpoint_exists_before_attach)
+The regression this arm was fixed for: attach needs the dir first. ... ok
+test_dmg_that_fails_to_attach_fails_the_gate (test_upload_artifact_gate.DmgArmTests.test_dmg_that_fails_to_attach_fails_the_gate) ... ok
+test_dmg_with_a_wrongly_named_app_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_a_wrongly_named_app_fails_and_still_detaches)
+A rejection must not leave the image mounted. ... ok
+test_dmg_with_two_root_apps_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_two_root_apps_fails_and_still_detaches)
+Now constructible, and the detach path must hold for it too. ... ok
+test_sentinels_would_notice_a_path_that_did_not_exist_before (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_sentinels_would_notice_a_path_that_did_not_exist_before)
+`assertNothingEscaped` must catch CREATION, not only growth. ... ok
+test_the_password_database_ignores_our_HOME (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_the_password_database_ignores_our_HOME)
+The bypass, shown end to end in a shell we ourselves sandboxed. ... ok
+test_the_gate_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_gate_fragment_is_self_contained) ... ok
+test_the_publish_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_publish_fragment_is_self_contained) ... ok
+test_this_check_can_actually_detect_a_missing_callee (test_upload_artifact_gate.FragmentCompletenessTests.test_this_check_can_actually_detect_a_missing_callee)
+Discrimination: otherwise a broken regex reports self-contained. ... ok
+test_an_unconfigured_ditto_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_ditto_is_poisoned_rather_than_real)
+Forgetting `setup_ditto` must be loud, not plausible. ... ok
+test_an_unconfigured_hdiutil_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_hdiutil_is_poisoned_rather_than_real) ... ok
+test_mktemp_refuses_to_run_without_a_TMPDIR (test_upload_artifact_gate.HarnessContainmentTests.test_mktemp_refuses_to_run_without_a_TMPDIR)
+The failure mode the shim exists for, exercised directly. ... ok
+test_temporary_allocation_stays_inside_the_sandbox (test_upload_artifact_gate.HarnessContainmentTests.test_temporary_allocation_stays_inside_the_sandbox) ... ok
+test_the_gate_allocates_at_all (test_upload_artifact_gate.HarnessContainmentTests.test_the_gate_allocates_at_all)
+Discrimination: `assertAllocationsWereContained` is vacuous if not. ... ok
+test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage) ... ok
+test_notary_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_notary_failure_quarantines_dmg_and_removes_stage) ... ok
+test_staple_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_staple_failure_quarantines_dmg_and_removes_stage) ... ok
+test_success_runs_create_notary_staple_validate_in_exact_order (test_upload_artifact_gate.OneDmgPackagingTests.test_success_runs_create_notary_staple_validate_in_exact_order) ... ok
+test_validate_failure_text_with_zero_status_is_still_failure (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_failure_text_with_zero_status_is_still_failure) ... ok
+test_validate_nonzero_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_nonzero_quarantines_dmg_and_removes_stage) ... ok
+test_a_later_artifact_failing_stops_every_upload (test_upload_artifact_gate.PublishBehaviourTests.test_a_later_artifact_failing_stops_every_upload)
+The one a first-file-only gate would pass. ... ok
+test_all_artifacts_good_does_reach_gh (test_upload_artifact_gate.PublishBehaviourTests.test_all_artifacts_good_does_reach_gh) ... ok
+test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens) ... ok
+test_assets_subcommand_blocks_a_wrong_four_name_set (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_wrong_four_name_set) ... ok
+test_assets_subcommand_receives_exactly_the_four_release_names (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_receives_exactly_the_four_release_names) ... ok
+test_detach_failure_retains_the_mount_and_blocks_gh (test_upload_artifact_gate.PublishBehaviourTests.test_detach_failure_retains_the_mount_and_blocks_gh) ... ok
+test_every_artifact_is_verified_before_the_first_gh_call (test_upload_artifact_gate.PublishBehaviourTests.test_every_artifact_is_verified_before_the_first_gh_call) ... ok
+test_no_gh_call_when_the_archive_scan_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_archive_scan_fails) ... ok
+test_no_gh_call_when_the_artifact_carries_an_extra_app (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_carries_an_extra_app) ... ok
+test_no_gh_call_when_the_artifact_is_corrupt (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_is_corrupt) ... ok
+test_no_gh_call_when_the_payload_check_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_payload_check_fails) ... ok
+test_publish_stops_at_the_first_bad_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_publish_stops_at_the_first_bad_artifact)
+`|| exit 1`, not a status collected and ignored to the end. ... ok
+test_the_upload_carries_every_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_the_upload_carries_every_artifact)
+A gate that verifies four files and uploads three is still wrong. ... ok
+test_publish_aborts_on_a_failed_verification (test_upload_artifact_gate.PublishWiringTests.test_publish_aborts_on_a_failed_verification) ... ok
+test_publish_verifies_before_it_uploads (test_upload_artifact_gate.PublishWiringTests.test_publish_verifies_before_it_uploads) ... ok
+test_contained_symlink_is_a_positive_control_and_reaches_ditto (test_upload_artifact_gate.RealScannerGateWiringTests.test_contained_symlink_is_a_positive_control_and_reaches_ditto) ... ok
+test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside (test_upload_artifact_gate.RealScannerGateWiringTests.test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside) ... ok
+test_a_second_root_app_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_a_second_root_app_is_rejected)
+Flipped from documenting the gap to requiring it be closed. ... ok
+test_an_app_hidden_inside_the_bundle_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_an_app_hidden_inside_the_bundle_is_rejected)
+The nested scan, which no other case reaches. ... ok
+test_clean_zip_with_one_root_app_passes (test_upload_artifact_gate.VerifyUploadArtifactTests.test_clean_zip_with_one_root_app_passes) ... ok
+test_corrupt_zip_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_corrupt_zip_fails) ... ok
+test_every_artifact_passes_the_exact_current_version_and_arch_contract (test_upload_artifact_gate.VerifyUploadArtifactTests.test_every_artifact_passes_the_exact_current_version_and_arch_contract)
+The defect an all-passing shim hid completely. ... ok
+test_failing_archive_scan_fails_before_extraction (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_archive_scan_fails_before_extraction)
+The scan runs before `ditto`, and order is the whole point. ... ok
+test_failing_bundle_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_bundle_check_fails_the_gate)
+The `app` branch, unreachable until the shim learned subcommands. ... ok
+test_failing_payload_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_payload_check_fails_the_gate) ... ok
+test_missing_artifact_fails_rather_than_passing_unchecked (test_upload_artifact_gate.VerifyUploadArtifactTests.test_missing_artifact_fails_rather_than_passing_unchecked) ... ok
+test_nested_app_is_not_accepted_as_a_root_app (test_upload_artifact_gate.VerifyUploadArtifactTests.test_nested_app_is_not_accepted_as_a_root_app) ... ok
+test_the_plain_archive_pins_arm64_from_the_contract_not_the_host (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_plain_archive_pins_arm64_from_the_contract_not_the_host)
+Asserted against `UPDATE_ASSET_NAMES`, deliberately not `uname -m`. ... ok
+test_the_two_archive_kinds_are_not_given_the_same_arches (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_two_archive_kinds_are_not_given_the_same_arches)
+Discrimination: if both produced one value, one test above is dead. ... ok
+test_the_universal_archive_pins_BOTH_architectures (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_universal_archive_pins_BOTH_architectures)
+Both, exactly - not "at least one", which is the whole point. ... ok
+test_unknown_extension_fails_closed (test_upload_artifact_gate.VerifyUploadArtifactTests.test_unknown_extension_fails_closed) ... ok
+test_zip_with_no_app_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_zip_with_no_app_fails) ... ok
+test_calibration_pct_applies_immediately (test_v020_boundaries.B1Settings.test_calibration_pct_applies_immediately) ... ok
+test_direct_limit_applies_immediately (test_v020_boundaries.B1Settings.test_direct_limit_applies_immediately) ... ok
+test_invalid_input_rejects_whole_save (test_v020_boundaries.B1Settings.test_invalid_input_rejects_whole_save) ... ok
+test_mutant_control_for_the_failure_path (test_v020_boundaries.B1Settings.test_mutant_control_for_the_failure_path)
+MUTANT: strip both `return`s from the rejection paths, so a rejected ... ok
+test_save_settings_failure_keeps_panel_open_and_state_untouched (test_v020_boundaries.B1Settings.test_save_settings_failure_keeps_panel_open_and_state_untouched) ... ok
+test_save_settings_success_updates_state_and_closes_panel (test_v020_boundaries.B1Settings.test_save_settings_success_updates_state_and_closes_panel) ... ok
+test_save_settings_uses_the_seam (test_v020_boundaries.B1Settings.test_save_settings_uses_the_seam) ... ok
+test_saved_limits_survive_restart (test_v020_boundaries.B1Settings.test_saved_limits_survive_restart) ... ok
+test_both_build_paths_declare_the_payload (test_v020_boundaries.B2Bundle.test_both_build_paths_declare_the_payload)
+Source fact, not an artifact: both builders stage .claude_pet. ... [b2] repo-root ClaudePet.app has .claude_pet: False
+[b2] dist/ClaudePet.app has .claude_pet: True
+ok
+test_expected_set_is_derived (test_v020_boundaries.B2Bundle.test_expected_set_is_derived) ... ok
+test_py2app_bundle_carries_every_asset (test_v020_boundaries.B2Bundle.test_py2app_bundle_carries_every_asset) ... ok
+test_seeding_into_empty_dest_creates_everything (test_v020_boundaries.B2Bundle.test_seeding_into_empty_dest_creates_everything)
+POSITIVE CONTROL for the never-clobber tests below. ... ok
+test_seeding_is_idempotent (test_v020_boundaries.B2Bundle.test_seeding_is_idempotent) ... ok
+test_seeding_never_clobbers_edited_files (test_v020_boundaries.B2Bundle.test_seeding_never_clobbers_edited_files) ... ok
+test_seeding_refuses_a_symlinked_dest_root (test_v020_boundaries.B2Bundle.test_seeding_refuses_a_symlinked_dest_root) ... ok
+test_github_choice_binds_v021_tag_asset_and_arch_without_network (test_v020_boundaries.B3Updater.test_github_choice_binds_v021_tag_asset_and_arch_without_network) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_invalid_candidates_are_refused_before_handoff (test_v020_boundaries.B3Updater.test_invalid_candidates_are_refused_before_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_well_formed_v021_reaches_one_sandbox_handoff (test_v020_boundaries.B3Updater.test_well_formed_v021_reaches_one_sandbox_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... ok
+test_claude_has_durable_user_facing_release_note_policy (test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v021_version_and_final_source_pins_propagate (test_v021_release_contract.VersionAndPinContractTests.test_v021_version_and_final_source_pins_propagate) ... ok
+
+----------------------------------------------------------------------
+Ran 416 tests in 315.287s
+
+OK (skipped=7)
+
+[instruments] 14 injection site(s) use a computed needle and are NOT checked here:
+  test_updater.py:2018  replace(LAUNCH_DEFINITION, ...)
+  test_updater.py:2019  replace(LAUNCH_PRIMARY, ...)
+  test_updater.py:2020  replace(LAUNCH_RESTORE, ...)
+  test_updater.py:2119  replace(line + '\n', ...)
+  test_updater.py:2344  replace(line, ...)
+  test_updater.py:2347  replace(line, ...)
+  test_updater_adversarial.py:183  replace(assignment, ...)
+  test_updater_adversarial.py:393  replace(launch_call, ...)
+  test_updater_adversarial.py:1010  replace(exchange_boundary, ...)
+  test_updater_adversarial.py:1270  replace(post_exchange, ...)
+  test_updater_adversarial.py:1841  replace(stage_identity_gate, ...)
+  test_updater_adversarial.py:1854  replace(post_exchange, ...)
+  test_updater_adversarial.py:2200  replace(needle, ...)
+  test_updater_adversarial.py:1167  replace(post_exchange, ...)
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: --arches is required (what the artifact claims to support, not what this machine happens to be)
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the bundled claude_pet.py is not this checkout's (53def4313b53… != 146f4897acde…)
+[update] rejected: bundle identifier does not match
+[update] rejected: CFBundleVersion does not match the release tag
+[update] rejected: CFBundleShortVersionString does not match the release tag
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: signature missing, invalid, or not ours
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: absolute symlink target in bundle
+[update] rejected: bundle path resolves outside the bundle
+[update] rejected: bundled path is a symlink (pets/dog/extra.png)
+[update] rejected: bundled path is a symlink (pets/spare)
+[update] rejected: bundled path is a symlink (EXTRA.md)
+[update] rejected: bundled path is a symlink (.claude_pet)
+[update] rejected: bundled path is a symlink (pets)
+[update] rejected: bundled path is a symlink (pets/dog)
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: unreadable archive (BadZipFile)
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: bundle has no arm64 slice
+[update] rejected: bundle has no arm64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: two assets normalize to 'claudepet.zip'
+[update] rejected: unknown architecture ('aarch64')
+[update] rejected: unknown architecture ('ppc')
+[update] rejected: unknown architecture ('')
+[update] rejected: unknown architecture (None)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: Gatekeeper did not attribute the app to us
+[update] rejected: Gatekeeper reported no origin
+[update] rejected: codesign could not run (OSError)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: codesign could not run (TimeoutExpired)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: spctl could not run (OSError)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: spctl could not run (TimeoutExpired)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: xcrun could not run (OSError)
+[update] rejected: no stapled notarization ticket
+[update] rejected: xcrun could not run (TimeoutExpired)
+[update] rejected: no stapled notarization ticket
+[update] rejected: no stapled notarization ticket
+[update] rejected: archive member escapes the archive root
+[update] rejected: archive member is an absolute path
+[update] rejected: unreadable archive (BadZipFile)
+[update] rejected: bundle has no x86_64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: main executable is not a regular file
+[update] bundled pet assets incomplete (16 paths); seeding will skip them
+[update] rejected: bundled exchange helper (Contents/MacOS/python) is not executable
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+[update] refused: could not claim a staging name
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock path is not a plain file we can own
+[update] refused: the update lock directory is not a private directory we own
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink escapes the archive root
+[update] rejected: archive symlink escapes the archive root
+```
+
+## Final native AppKit smoke and settled-pose captures
+
+Grouping key: native Ticker callback. File set `tests/test_companion_motion.py`, frozen `claude_pet.py` and bundled `frames/**/*.png`. Window start: 2026-09-08T05:28:01.680477+00:00; end: 2026-09-08T05:28:02.430342+00:00; measured: 2026-09-08T05:28:02.430342+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke` in the same fresh temporary HOME/TMPDIR/ZDOTDIR allow-list. Captures wait until the displayed mood matches each phase (walking right, watching, walking left). The gauge container is rendered; disabled synthetic workers leave scanning placeholders, so this does not verify live usage values. Added native/model residual <=1 point per axis and full-window visible bounds checks alongside exact sprite/window displacement equality and model speed limit. Only the opt-in native harness changed after the full suite; ordinary unittest gating assertions were unchanged. Exit: 0.
+
+```text
+{
+  "layout_midpoint": [
+    960.0,
+    543.0
+  ],
+  "synthetic_initial_center": [
+    920.0,
+    503.0
+  ],
+  "native_window_class": "<objective-c class NSWindow at 0x1f0708608>",
+  "native_view_class": "<objective-c class PetView at 0xbc8fd9710>",
+  "runtime_roam_default": true,
+  "defaults": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_roamer_cfg": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_radius": 190.21303845951255,
+  "visible_screen": [
+    0.0,
+    36.0,
+    1920.0,
+    1014.0
+  ],
+  "transitions": [
+    {
+      "t": 49.85,
+      "phase": "out",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "idle"
+    },
+    {
+      "t": 56.400000000000006,
+      "phase": "look",
+      "window": [
+        1105.0,
+        565.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1111.0,
+        569.0
+      ],
+      "pos": [
+        1238.9524671391796,
+        684.9410785451877
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 62.400000000000006,
+      "phase": "home",
+      "window": [
+        1105.0,
+        565.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1111.0,
+        569.0
+      ],
+      "pos": [
+        1238.9524671391796,
+        684.9410785451877
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 68.95,
+      "phase": "rest",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_states": [
+    {
+      "t": 49.900000000000006,
+      "phase": "out",
+      "window": [
+        788.0,
+        399.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        794.0,
+        403.0
+      ],
+      "pos": [
+        922.4364424573134,
+        519.275244349998
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 56.45,
+      "phase": "look",
+      "window": [
+        1105.0,
+        565.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1111.0,
+        569.0
+      ],
+      "pos": [
+        1238.9524671391796,
+        684.9410785451877
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 62.45,
+      "phase": "home",
+      "window": [
+        1102.0,
+        563.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        1108.0,
+        567.0
+      ],
+      "pos": [
+        1236.5160246818666,
+        683.6658341951897
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_column_phases": [
+    "out",
+    "look",
+    "home"
+  ],
+  "crossed_horizontal_midpoint": true,
+  "crossed_vertical_midpoint": true,
+  "max_native_model_axis_residual": 0.8729688998097345,
+  "native_visible_bounds_violations": 0,
+  "start_utc": "2026-09-08T05:28:02.071522+00:00",
+  "end_utc": "2026-09-08T05:28:02.407979+00:00",
+  "measured_utc": "2026-09-08T05:28:02.407979+00:00",
+  "source_sha256": "146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f",
+  "grouping_key": "manually invoked native Ticker.tick_ callback",
+  "sampled_ticks": 1379,
+  "synthetic_time_start": 0.05,
+  "synthetic_time_end": 68.95,
+  "max_window_step": 3.605551275463989,
+  "max_sprite_step": 3.605551275463989,
+  "max_model_step": 2.7500000000006732,
+  "max_sprite_displacement_beyond_window": 0.0,
+  "forbidden_calls": [],
+  "suppressed_background_workers": [
+    "work",
+    "_run_update_check"
+  ],
+  "config_writes": []
+}
+```
+
+## Complete pre-feature source replay for final test cases
+
+Grouping key: final unittest case ID/subtest. File set: final `tests/test_companion_motion.py` and exact `git show 45a03c41b1e2fd3403ce52958a58956e12546086:claude_pet.py` bytes (SHA e26e0f639d20486ad36d32b129932f10797ed32d19e03e1632910d4e74dbc09a) substituted in memory for the test loader SOURCE. Window start: 2026-09-08T05:30:26.246624+00:00; end: 2026-09-08T05:30:27.184138+00:00; measured: 2026-09-08T05:30:27.184138+00:00. No working-tree production file was edited. This recovers actual RED observation for cases added after the initial public-API absence run. These failures prove missing pre-feature API/behavior; numerical rival discrimination is the separate five-rival execution above.
+
+```text
+test_display_shrink_recovers_full_window_and_cancels_old_trip (companion_red_replay.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... FAIL
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (companion_red_replay.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... FAIL
+test_disabled_start_remains_at_current_position (companion_red_replay.CompanionApiTests.test_disabled_start_remains_at_current_position) ... FAIL
+test_initial_rest_does_not_move_for_early_activity (companion_red_replay.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... FAIL
+test_public_pure_motion_contract_exists (companion_red_replay.CompanionApiTests.test_public_pure_motion_contract_exists) ... FAIL
+test_set_home_replaces_both_old_motion_origin_and_manual_home (companion_red_replay.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... FAIL
+test_click_during_auto_away_does_not_persist_automatic_xy (companion_red_replay.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... FAIL
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (companion_red_replay.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... FAIL
+test_approach_max_and_watch_hold_are_geometrically_bounded (companion_red_replay.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... FAIL
+test_click_without_drag_preserves_manual_home_and_current_position (companion_red_replay.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... FAIL
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (companion_red_replay.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... FAIL
+test_cursor_on_return_segment_also_cancels (companion_red_replay.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... FAIL
+test_disabled_during_return_does_not_snap_to_manual_home (companion_red_replay.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... FAIL
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... 
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='enabled') ... FAIL
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='dragging') ... FAIL
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='blocked') ... FAIL
+  test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='busy') ... FAIL
+test_eligible_activity_starts_approach_after_the_rest (companion_red_replay.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... FAIL
+test_fixed_destination_does_not_chase_new_cursor_locations (companion_red_replay.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... FAIL
+test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... 
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='enabled') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='dragging') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='blocked') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='busy') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='enabled') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='dragging') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='blocked') ... FAIL
+  test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='busy') ... FAIL
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... 
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='enabled') ... FAIL
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='dragging') ... FAIL
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='blocked') ... FAIL
+  test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='busy') ... FAIL
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (companion_red_replay.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... FAIL
+test_late_tick_caps_distance_without_using_full_elapsed_time (companion_red_replay.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... FAIL
+test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... 
+  test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='enabled') ... FAIL
+  test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='dragging') ... FAIL
+  test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='blocked') ... FAIL
+  test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='busy') ... FAIL
+test_nonzero_negative_monitor_origin_contains_every_position (companion_red_replay.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... FAIL
+test_pointer_in_interior_of_full_leg_stops_before_next_step (companion_red_replay.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... FAIL
+test_real_drag_establishes_a_new_home_and_cancels_old_target (companion_red_replay.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... FAIL
+test_sleep_gap_freezes_in_place_and_discards_old_journey (companion_red_replay.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... FAIL
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (companion_red_replay.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... FAIL
+
+======================================================================
+FAIL: test_display_shrink_recovers_full_window_and_cancels_old_trip (companion_red_replay.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 451, in test_display_shrink_recovers_full_window_and_cancels_old_trip
+    world, scope = self.setup_adapter()
+                   ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 415, in setup_adapter
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_resize_while_away_cancels_motion_and_recomputes_window_radius (companion_red_replay.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 468, in test_resize_while_away_cancels_motion_and_recomputes_window_radius
+    world, scope = self.setup_adapter()
+                   ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 415, in setup_adapter
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_disabled_start_remains_at_current_position (companion_red_replay.CompanionApiTests.test_disabled_start_remains_at_current_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 96, in test_disabled_start_remains_at_current_position
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_initial_rest_does_not_move_for_early_activity (companion_red_replay.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 85, in test_initial_rest_does_not_move_for_early_activity
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_public_pure_motion_contract_exists (companion_red_replay.CompanionApiTests.test_public_pure_motion_contract_exists)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 73, in test_public_pure_motion_contract_exists
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_set_home_replaces_both_old_motion_origin_and_manual_home (companion_red_replay.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 105, in test_set_home_replaces_both_old_motion_origin_and_manual_home
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_click_during_auto_away_does_not_persist_automatic_xy (companion_red_replay.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 501, in test_click_during_auto_away_does_not_persist_automatic_xy
+    self.assertEqual(writes, [], "an ordinary click persisted the autonomous position")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [{'x': 550.0, 'y': 450.0}] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+{'x': 550.0, 'y': 450.0}
+
+- [{'x': 550.0, 'y': 450.0}]
++ [] : an ordinary click persisted the autonomous position
+
+======================================================================
+FAIL: test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (companion_red_replay.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 299, in test_activity_bursts_respect_approach_cooldown_without_starving_future_visits
+    r = self.make(approach_cooldown_s=180.0)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_approach_max_and_watch_hold_are_geometrically_bounded (companion_red_replay.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 221, in test_approach_max_and_watch_hold_are_geometrically_bounded
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_click_without_drag_preserves_manual_home_and_current_position (companion_red_replay.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 239, in test_click_without_drag_preserves_manual_home_and_current_position
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (companion_red_replay.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 258, in test_cursor_on_outbound_segment_cancels_instead_of_crossing_it
+    r, now = self.depart(radius=50.0)
+             ~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_cursor_on_return_segment_also_cancels (companion_red_replay.CompanionMotionTests.test_cursor_on_return_segment_also_cancels)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 275, in test_cursor_on_return_segment_also_cancels
+    r, now = self.depart(radius=50.0)
+             ~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_disabled_during_return_does_not_snap_to_manual_home (companion_red_replay.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 207, in test_disabled_during_return_does_not_snap_to_manual_home
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 179, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 179, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 179, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (companion_red_replay.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) (flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 179, in test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_eligible_activity_starts_approach_after_the_rest (companion_red_replay.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 141, in test_eligible_activity_starts_approach_after_the_rest
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_fixed_destination_does_not_chase_new_cursor_locations (companion_red_replay.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 150, in test_fixed_destination_does_not_chase_new_cursor_locations
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='look', flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_hold_on_every_trip_phase_freezes_look_and_return_too (companion_red_replay.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) (phase='home', flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 338, in test_hold_on_every_trip_phase_freezes_look_and_return_too
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 357, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 357, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 357, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (companion_red_replay.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) (flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 357, in test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_invalid_center_bounds_freeze_without_reversed_clamp_jump (companion_red_replay.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 369, in test_invalid_center_bounds_freeze_without_reversed_clamp_jump
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_late_tick_caps_distance_without_using_full_elapsed_time (companion_red_replay.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 160, in test_late_tick_caps_distance_without_using_full_elapsed_time
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='enabled')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 194, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='dragging')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 194, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='blocked')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 194, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_long_interaction_still_gets_full_fresh_rest_after_release (companion_red_replay.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) (flag='busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 194, in test_long_interaction_still_gets_full_fresh_rest_after_release
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_nonzero_negative_monitor_origin_contains_every_position (companion_red_replay.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 288, in test_nonzero_negative_monitor_origin_contains_every_position
+    r = self.make(home=(-450.0, 300.0))
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_pointer_in_interior_of_full_leg_stops_before_next_step (companion_red_replay.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 265, in test_pointer_in_interior_of_full_leg_stops_before_next_step
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_real_drag_establishes_a_new_home_and_cancels_old_target (companion_red_replay.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 250, in test_real_drag_establishes_a_new_home_and_cancels_old_target
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_sleep_gap_freezes_in_place_and_discards_old_journey (companion_red_replay.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 166, in test_sleep_gap_freezes_in_place_and_discards_old_journey
+    r, now = self.depart()
+             ~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 132, in depart
+    r = self.make(**overrides)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+======================================================================
+FAIL: test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (companion_red_replay.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 314, in test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown
+    r = self.make(wander_cooldown_s=300.0, wander_radius=160.0)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 121, in make
+    api = pure_api(self)
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ROAM_DEFAULTS', 'Roamer', 'RoamOut'} is not false : quiet companion API missing: ROAM_DEFAULTS, RoamOut, Roamer
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.777s
+
+FAILED (failures=42)
+```
+
+Final evidence files: `tests/test_companion_motion.py`, this record, `quiet-companion-smoke.png`, `quiet-companion-smoke.json`; existing test diffs are only the two reviewed app SHA pins. Native helper-only capture adjustments after full discovery were followed by a successful focused run of the unchanged 26 ordinary unittest cases. `git diff --check` passed; application source remained frozen.
+
+
+## Actual development GUI run requested by the user (2026-09-08)
+
+This later run is distinct from the synthetic native smoke above. The Verifier directly
+launched the working source's normal `run_gui()` with its normal NSTimer event loop,
+real monotonic clock, actual cursor input, default motion timing, and normal data workers.
+The launcher assigned only `claude_pet.CONFIG_PATH` to a temporary config containing
+`{"x": 520.0, "y": 350.0, "roam": true, "greet": true}` before calling `run_gui()`.
+It did not change movement state, replace callbacks, or advance a fake clock.
+The development process reported PID **31369** (unified exec session **23764**), config
+`/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-live-ui-oo_b3vxs/config.json`.
+The previously running installed app, PID **29528** at
+`/Applications/ClaudePet.app/Contents/MacOS/ClaudePet`, was neither stopped nor replaced.
+The source SHA remains
+`146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f`.
+
+Observed result: the real development window (native ID **1372**, Python) rendered the
+cat and live usage gauges. Orca `get-app-state --app pid:31369 --json` captured a
+536 x 480-pixel image at scale 2, with a visible 268 x 240-point window. Two inspected
+snapshots, at **2026-09-08T06:31:44.485Z** and **2026-09-08T06:36:52.862Z**, both
+reported window origin **(520, 460)** in the UI tool's top-left coordinates. These are
+2 matching snapshots out of 2 inspected at those times, not continuous motion sampling.
+No approach, watch, or return cycle was established by this actual UI run.
+
+The first screenshot inspected at 06:30:56.272Z and later captures are tool-owned
+expiring files, including:
+
+- `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/59042dcf-707a-4d71-910f-6490ae7fdb5e-screenshot.png`
+- `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/f020d360-44bf-4c6f-b48b-0b5d10761858-screenshot.png`
+- `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/881d0891-58bc-410e-9b3a-f18a57690ae7-screenshot.png`
+
+Actual input testing was blocked by the available UI tools. The attempted right-click
+at window-local (58, 178), including the guide's single `--restore-window` retry,
+returned this actual error and did not establish a successful input:
+
+```text
+window_not_focused: coordinate click aborted because target pid 31369 window 1372
+is no longer the focused topmost recipient (current: no focused window); bring the
+target window forward, run get-app-state again, and retry
+```
+
+The alternate native CUA tool's inventory succeeded, but both exact-path app selection
+and a later `getApp("Python")` call remained pending until the Coordinator interrupted
+them. The latter supplied `timeout_ms: 30000`, yet the tool result reported interruption
+after 149.3 seconds. No successful CUA app selection or click was returned. Further
+tool exploration was stopped at the Coordinator's request. **Context-menu toggle,
+settings, drag, hover suppression, and the real-time motion cycle remain unverified
+in this actual user-requested GUI session.** Earlier unit and synthetic native evidence
+must not be presented as successful actual input testing.
+
+The Verifier issued no terminate or quit action for either app. The last inspected `ps`
+output showed both PIDs alive; the development GUI is left running for the user to see.
+This is a launch/render result with an input-tool limitation, not an end-to-end UI PASS.
+
+
+### Actual default-timing wander confirmed on resumed UI verification
+
+The user subsequently requested completion of all actual UI checks. From
+2026-09-08T07:53:10.734466Z through 07:54:40.722507Z, a 2-second read-only
+Orca window series contained 46/46 samples at origin (118,772). This narrowly
+establishes absence of a sampled displacement during that interval; it does not
+identify the old process's inhibition condition. Its isolated config had changed to
+x=118/y=68 at 06:42:17.315459Z, although the Verifier had not delivered a successful
+input. The actor was not established, so that earlier change is not an automated
+motion result.
+
+For diagnosis, the Coordinator assigned `/tmp/claudepet-actual-ui-20260908-qa.py`,
+`docs-design/quiet-companion-live-trace.jsonl`, and
+`docs-design/quiet-companion-live-contact.png` as new Verifier deliverables after
+confirming their absence. Only the Verifier's development PID31369 was stopped;
+installed PID29528 was preserved. The helper launched the same `run_gui()` as
+PID71387 with the same temporary config, normal real clock/event loop and workers,
+and unchanged ROAM_DEFAULTS. It wraps `Roamer.step` to call the original function
+once with its actual arguments, record its returned state, and return that same
+result. It does not advance time, supply fake cursor data, alter decisions, or
+invoke UI callbacks. `run_gui()` itself applies its loaded config at source line5559.
+The source SHA is unchanged. A maximum-rate half-second trace records motion state
+and suppression flags, with extra samples when those states change; no user corpus
+contents or credentials are written to the trace.
+
+**The normal default-timing wander cycle was observed:**
+
+| UTC on 2026-09-08 | Actual original step result | Window center (global y-up) |
+| --- | --- | --- |
+| 07:56:59.098376 | out / wander / running-right | (252,218) |
+| 07:57:00.348357 | look / wander pause | (294.8593642640554,166.50403989952065) |
+| 07:57:02.398442 | home / running-left | (294.8593642640554,166.50403989952065) |
+| 07:57:03.648412 | rest / returned | (252,218) |
+
+This is one observed 66.99820155637873-point outbound leg followed by a return to
+the same home, with a roughly2-second wander pause. It is **not** the 6-second
+activity-triggered watch behavior, which still requires actual activity input.
+The native UI tool independently captured window origins (118,742), (160,794), and
+(118,742) before, during the wander pause, and after return. The contact sheet
+preserves those three screenshots' original 536x480 pixels and labels their capture
+times; it is not an animation and does not by itself measure frame-level speed.
+See [actual GUI contact sheet](quiet-companion-live-contact.png).
+
+Measured 07:57:53.144642Z against the trace's exact sample window
+07:55:35.716511Z–07:57:53.049282Z: 0 of267 recorded model positions violated their
+contemporaneous allowed-center rectangles (unit=recorded original step result).
+The trace at rest demonstrated enabled=true and dragging/blocked/busy=false;
+hover, ReduceMotion, settings, menu, and spike flags were false. Original timer
+callbacks continued normally. The temporary persisted x/y remained118/68 after
+this automatic trip. These observations establish this one runtime cycle, not a
+universal guarantee over all future inputs. Actual input-dependent checks remain
+pending the separately requested OS-input authorization after both UI tool routes
+failed.
+
+
+Native snapshot provenance for that cycle (Orca `get-app-state --app pid:71387
+--json`, window1389, coordinates in window-system top-left points):
+
+| Capture UTC | Native origin | Tool-owned original screenshot |
+| --- | --- | --- |
+| 2026-09-08T07:55:45.592Z | (118,742) | `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/9e2a1572-e770-4ce0-913c-208357a88ae7-screenshot.png` |
+| 2026-09-08T07:57:02.142Z | (160,794) | `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/30417c8d-e97b-43ae-bcd4-0d4aa12a8d97-screenshot.png` |
+| 2026-09-08T07:57:15.139Z | (118,742) | `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/7b32f259-543f-4f88-8f95-68617baac5f0-screenshot.png` |
+
+Contact-sheet assembly used the already available pyenv Python/Pillow interpreter.
+A byte comparison of each pasted 536x480 RGBA block against its original source
+confirmed3/3 unchanged pixel blocks; only captions and padding were added. The
+Verifier visually inspected the resulting1736x630 PNG.
+
+
+### Compact travel / arrival summary: independent pre-implementation derivation
+
+The later user requirement is that travel stop carrying the large gauge panel.
+The Coordinator selected a small arrival usage summary, with the existing expand
+control able to show the full panel. The following specification is derived before
+new production edits and before receiving the Developer's API proposal:
+
+- Every `out` or `home` phase renders a compact sprite-sized native window,
+  including the departure planning tick where `moved` is false.
+- An approach arrival uses a small summary for its existing6-second watch interval;
+  an in-place approach arrival does the same without requiring prior displacement.
+  Wander pauses remain compact.
+- On return or interruption, the view restores the user's previous manual panel
+  choice. Automatic presentation does not persist a replacement manual preference.
+- Changing presentation preserves the sprite's global anchor and ongoing logical
+  route. It must not call a manual-home reset or start a fresh journey just because
+  the panel geometry changed. The visible native window shrinks with the content,
+  leaving no transparent full-panel input rectangle around a compact sprite.
+- Each new native rectangle stays reachable/inside its validated desktop envelope;
+  expansion also respects pointer clearance. Manual dragging persists a coherent
+  home with the restored manual presentation. Negative monitor origins and a fixed
+  automatic orientation are valid inputs.
+- Usage summary distinguishes unavailable data from zero, preserves the active
+  usage mode and locale, and does not fabricate a numeric summary for unknown data.
+
+Plausible rivals to distinguish are: hide only the drawing with unchanged native
+window size; switch mode only when `moved=True`; classify all `look` phases as the
+same; reset manual home/route during auto resize; preserve native window center
+instead of sprite anchor; recompute orientation at a screen midpoint; overwrite
+manual preference with automatic fold; let mouse-up layout restoration change the
+expand-button hit test; treat unknown usage as zero; use subscription summary in API
+mode; and expand a panel beyond the safe envelope or across the pointer.
+
+Independent geometry algebra uses global-y-up sprite top-left A and flipped-local
+sprite offset (px,py), so native origin is `(Ax-px, Ay-H+py)`. For a deliberately
+asymmetric fixture chosen independently of product dimensions, A=(-980,860),
+sprite80x60, full300x220, compact116x68, summary188x112, leftpx=6,
+rightpx=W-86, toppy=2, bottompy=H-62. For left/top, origins are(-986,642),
+(-986,794),(-986,750); for right/top,(-1194,642),(-1010,794),(-1082,750).
+Left/bottom origins all(-986,798); right/bottom origins(-1194,798),
+(-1010,798),(-1082,798). Keeping the full-window center instead yields compact
+sprite drifts of92horizontal and76vertical points, visibly different from zero.
+The Reviewer separately derived the same fixture without reading test expected values.
+
+The exact pre-compact source was preserved at
+`/tmp/claudepet-before-compact-20260908.py` with SHA256
+`146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f`.
+Actual new behavioral RED will be recorded against this source after the public API
+is agreed. No RED is claimed merely because these requirements are written down.
+
+
+### Observed compact API RED before implementation
+
+Command: `python3 tests/test_companion_motion.py CompanionPresentationTests -v`. Source SHA256 146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f. Start 2026-09-08T08:36:32.622608+00:00; end/measured 2026-09-08T08:36:33.220327+00:00. File set: claude_pet.py and tests/test_companion_motion.py. This is an API-absence RED; numeric presentation expectations have not yet executed and are not claimed as behavioral RED.
+
+```text
+test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) ... 
+  test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=False, away=False) ... FAIL
+  test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=False, away=True) ... FAIL
+  test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=True, away=False) ... FAIL
+  test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=True, away=True) ... FAIL
+test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) ... 
+  test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=False, phase='out', kind='approach') ... FAIL
+  test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=False, phase='out', kind='wander') ... FAIL
+  test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=False, phase='home', kind=None) ... FAIL
+  test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=True, phase='out', kind='approach') ... FAIL
+  test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=True, phase='out', kind='wander') ... FAIL
+  test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=True, phase='home', kind=None) ... FAIL
+test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) ... 
+  test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'interrupted': True}, preference=False) ... FAIL
+  test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'interrupted': True}, preference=True) ... FAIL
+  test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'enabled': False}, preference=False) ... FAIL
+  test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'enabled': False}, preference=True) ... FAIL
+test_hover_stop_away_keeps_summary_available_for_expansion (__main__.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion) ... FAIL
+test_interruption_has_priority_over_same_call_arrival (__main__.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival) ... FAIL
+test_manual_toggle_and_reset_restore_ordinary_preference_behavior (__main__.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior) ... FAIL
+test_summary_keeps_first_two_source_labels_and_values_in_order (__main__.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order) ... FAIL
+test_summary_onboarding_and_estimates_preserve_data_meaning (__main__.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning) ... FAIL
+test_summary_unknown_zero_and_api_mode_are_distinct (__main__.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct) ... FAIL
+test_wander_pause_stays_folded_and_return_restores_manual_choice (__main__.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice) ... FAIL
+
+======================================================================
+FAIL: test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=False, away=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 432, in test_approach_summary_expansion_does_not_replace_manual_preference
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=False, away=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 432, in test_approach_summary_expansion_does_not_replace_manual_preference
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=True, away=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 432, in test_approach_summary_expansion_does_not_replace_manual_preference
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) (preference=True, away=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 432, in test_approach_summary_expansion_does_not_replace_manual_preference
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=False, phase='out', kind='approach')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 424, in test_departure_and_return_fold_even_before_any_displacement
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=False, phase='out', kind='wander')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 424, in test_departure_and_return_fold_even_before_any_displacement
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=False, phase='home', kind=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 424, in test_departure_and_return_fold_even_before_any_displacement
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=True, phase='out', kind='approach')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 424, in test_departure_and_return_fold_even_before_any_displacement
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=True, phase='out', kind='wander')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 424, in test_departure_and_return_fold_even_before_any_displacement
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) (preference=True, phase='home', kind=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 424, in test_departure_and_return_fold_even_before_any_displacement
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'interrupted': True}, preference=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 468, in test_explicit_interruption_or_disable_clears_summary_and_expansion
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'interrupted': True}, preference=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 468, in test_explicit_interruption_or_disable_clears_summary_and_expansion
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'enabled': False}, preference=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 468, in test_explicit_interruption_or_disable_clears_summary_and_expansion
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) (flags={'enabled': False}, preference=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 468, in test_explicit_interruption_or_disable_clears_summary_and_expansion
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_hover_stop_away_keeps_summary_available_for_expansion (__main__.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 457, in test_hover_stop_away_keeps_summary_available_for_expansion
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_interruption_has_priority_over_same_call_arrival (__main__.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 478, in test_interruption_has_priority_over_same_call_arrival
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_manual_toggle_and_reset_restore_ordinary_preference_behavior (__main__.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 485, in test_manual_toggle_and_reset_restore_ordinary_preference_behavior
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+======================================================================
+FAIL: test_summary_keeps_first_two_source_labels_and_values_in_order (__main__.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 515, in test_summary_keeps_first_two_source_labels_and_values_in_order
+    self.assertEqual(self.summary(oauth=rows),
+                     ~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 495, in summary
+    fn = pure_api(self, {"roam_summary"})["roam_summary"]
+         ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_summary'} is not false : quiet companion API missing: roam_summary
+
+======================================================================
+FAIL: test_summary_onboarding_and_estimates_preserve_data_meaning (__main__.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 519, in test_summary_onboarding_and_estimates_preserve_data_meaning
+    self.assertEqual(self.summary(onboard="install"), ("status", "onb_install"))
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 495, in summary
+    fn = pure_api(self, {"roam_summary"})["roam_summary"]
+         ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_summary'} is not false : quiet companion API missing: roam_summary
+
+======================================================================
+FAIL: test_summary_unknown_zero_and_api_mode_are_distinct (__main__.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 502, in test_summary_unknown_zero_and_api_mode_are_distinct
+    self.assertEqual(self.summary(), ("status", "scanning"))
+                     ~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 495, in summary
+    fn = pure_api(self, {"roam_summary"})["roam_summary"]
+         ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_summary'} is not false : quiet companion API missing: roam_summary
+
+======================================================================
+FAIL: test_wander_pause_stays_folded_and_return_restores_manual_choice (__main__.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 447, in test_wander_pause_stays_folded_and_return_restores_manual_choice
+    d = self.display()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 416, in display
+    return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'RoamDisplay'} is not false : quiet companion API missing: RoamDisplay
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.454s
+
+FAILED (failures=21)
+```
+
+
+### Observed native compact behavior RED
+
+Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke --compact-presentation-gate` with child HOME/TMPDIR/ZDOTDIR/CLAUDEPET_SMOKE_SANDBOX=/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-compact-red-7bjznfj_. Start 2026-09-08T08:38:10.906073+00:00; end/measured 2026-09-08T08:38:11.386014+00:00. Source SHA256 146f4897acded4c2188bdccdf6ddf42485006fbbb9736d8f48a1ec39abdaca4f. This is a real NSWindow with synthetic time/cursor and workers suppressed, separate from the ongoing actual UI run. The new behavioral gate requires both native frame dimensions to shrink during travel, including the departure planning tick; merely hiding drawing cannot satisfy it. The failing run closed only its own window and did not overwrite earlier smoke artifacts.
+
+```text
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 929, in <module>
+    run_native_smoke()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 805, in run_native_smoke
+    app_module.run_gui()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/claude_pet.py", line 6897, in run_gui
+    AppHelper.runEventLoop()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 735, in loop
+    raise AssertionError(
+        f"travel kept native frame {actual_size}; expected both dimensions "
+        f"smaller than expanded {initial_native_size} on phase {roamer.phase}")
+AssertionError: travel kept native frame (268.0, 240.0); expected both dimensions smaller than expanded (268.0, 270.0) on phase out
+```
+
+
+### Partial implementation: exact-label, in-place hover, and geometry RED
+
+Command: `python3 tests/test_companion_motion.py CompanionPresentationTests CompanionCropGeometryTests -v`. Source SHA256 e8bc7fb98e6c548f4eed0cc629f38b650b0d818ccbff77e862e7cb8440c4d0bb. Start 2026-09-08T08:42:03.469392+00:00; end/measured 2026-09-08T08:42:04.640399+00:00. These results distinguish already-implemented presentation behavior assertions from still-absent geometry API. The hover fixture first proves normal6-second in-place watch expiry restores full, then independently requires an earlier hover stop to preserve summary for expansion.
+
+```text
+test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) ... ok
+test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) ... ok
+test_exact_summary_filters_only_first_two_rows_without_replacement (__main__.CompanionPresentationTests.test_exact_summary_filters_only_first_two_rows_without_replacement) ... FAIL
+test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) ... ok
+test_hover_stop_away_keeps_summary_available_for_expansion (__main__.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion) ... ok
+test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (__main__.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) ... 
+  test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (__main__.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) (hover_stop=True) ... FAIL
+test_interruption_has_priority_over_same_call_arrival (__main__.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival) ... ok
+test_manual_toggle_and_reset_restore_ordinary_preference_behavior (__main__.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior) ... ok
+test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) ... 
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='None') ... FAIL
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='True') ... FAIL
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='False') ... FAIL
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='-1.0') ... FAIL
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='nan') ... FAIL
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='inf') ... FAIL
+  test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid="'32'") ... FAIL
+test_summary_keeps_first_two_source_labels_and_values_in_order (__main__.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order) ... FAIL
+test_summary_onboarding_and_estimates_preserve_data_meaning (__main__.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning) ... FAIL
+test_summary_unknown_zero_and_api_mode_are_distinct (__main__.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct) ... ok
+test_wander_pause_stays_folded_and_return_restores_manual_choice (__main__.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice) ... ok
+test_all_orientations_preserve_sprite_anchor_and_logical_home (__main__.CompanionCropGeometryTests.test_all_orientations_preserve_sprite_anchor_and_logical_home) ... FAIL
+test_native_compact_size_includes_button_but_not_full_panel_hitbox (__main__.CompanionCropGeometryTests.test_native_compact_size_includes_button_but_not_full_panel_hitbox) ... FAIL
+test_summary_text_width_is_bounded_and_origin_uses_same_side (__main__.CompanionCropGeometryTests.test_summary_text_width_is_bounded_and_origin_uses_same_side) ... FAIL
+test_uncropped_window_logical_center_remains_native_center (__main__.CompanionCropGeometryTests.test_uncropped_window_logical_center_remains_native_center) ... FAIL
+
+======================================================================
+FAIL: test_exact_summary_filters_only_first_two_rows_without_replacement (__main__.CompanionPresentationTests.test_exact_summary_filters_only_first_two_rows_without_replacement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 563, in test_exact_summary_filters_only_first_two_rows_without_replacement
+    self.assertEqual(self.summary(oauth=rows), ("exact", [("週間", 41.0)]))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('週間', 41.0)]) != ('exact', [('週間', 41.0)])
+
+First differing element 0:
+'pct'
+'exact'
+
+- ('pct', [('週間', 41.0)])
+?   ^
+
++ ('exact', [('週間', 41.0)])
+?   ^^^
+
+
+======================================================================
+FAIL: test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (__main__.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) (hover_stop=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 483, in test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry
+    self.assertEqual(d.mode(out.phase, True),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "summary" if hover_stop else "full",
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "in-place hover cleared the arrival summary before expansion")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'full' != 'summary'
+- full
++ summary
+ : in-place hover cleared the arrival summary before expansion
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='None')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='True')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='False')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='-1.0')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='nan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) (invalid="'32'")
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 553, in test_summary_invalid_values_are_not_reported_as_zero
+    self.assertEqual(self.summary(stats={"session": {"pct": invalid},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 23.75}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("weekly", 23.75)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('weekly', 23.75)]) != ('estimate', [('weekly', 23.75)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('weekly', 23.75)])
+?   ^^
+
++ ('estimate', [('weekly', 23.75)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_summary_keeps_first_two_source_labels_and_values_in_order (__main__.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 538, in test_summary_keeps_first_two_source_labels_and_values_in_order
+    self.assertEqual(self.summary(oauth=rows),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("exact", [("Current session", 17.25), ("週間", 63.5)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('Current session', 17.25), ('週間', 63.5)]) != ('exact', [('Current session', 17.25), ('週間', 63.5)])
+
+First differing element 0:
+'pct'
+'exact'
+
+- ('pct', [('Current session', 17.25), ('週間', 63.5)])
+?   ^
+
++ ('exact', [('Current session', 17.25), ('週間', 63.5)])
+?   ^^^
+
+
+======================================================================
+FAIL: test_summary_onboarding_and_estimates_preserve_data_meaning (__main__.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 544, in test_summary_onboarding_and_estimates_preserve_data_meaning
+    self.assertEqual(self.summary(stats={"session": {"pct": 0.0},
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         "weekly": {"pct": 67.5}}),
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("estimate", [("session", 0.0), ("weekly", 67.5)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('session', 0.0), ('weekly', 67.5)]) != ('estimate', [('session', 0.0), ('weekly', 67.5)])
+
+First differing element 0:
+'pct'
+'estimate'
+
+- ('pct', [('session', 0.0), ('weekly', 67.5)])
+?   ^^
+
++ ('estimate', [('session', 0.0), ('weekly', 67.5)])
+?   ^^ +++++
+
+
+======================================================================
+FAIL: test_all_orientations_preserve_sprite_anchor_and_logical_home (__main__.CompanionCropGeometryTests.test_all_orientations_preserve_sprite_anchor_and_logical_home)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 572, in test_all_orientations_preserve_sprite_anchor_and_logical_home
+    api = self.api()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 569, in api
+    return pure_api(self, {"roam_frame", "roam_logical_center", "roam_pill_rect"})
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_logical_center', 'roam_frame', 'roam_pill_rect'} is not false : quiet companion API missing: roam_frame, roam_logical_center, roam_pill_rect
+
+======================================================================
+FAIL: test_native_compact_size_includes_button_but_not_full_panel_hitbox (__main__.CompanionCropGeometryTests.test_native_compact_size_includes_button_but_not_full_panel_hitbox)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 610, in test_native_compact_size_includes_button_but_not_full_panel_hitbox
+    api = self.api()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 569, in api
+    return pure_api(self, {"roam_frame", "roam_logical_center", "roam_pill_rect"})
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_logical_center', 'roam_frame', 'roam_pill_rect'} is not false : quiet companion API missing: roam_frame, roam_logical_center, roam_pill_rect
+
+======================================================================
+FAIL: test_summary_text_width_is_bounded_and_origin_uses_same_side (__main__.CompanionCropGeometryTests.test_summary_text_width_is_bounded_and_origin_uses_same_side)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 618, in test_summary_text_width_is_bounded_and_origin_uses_same_side
+    api = self.api()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 569, in api
+    return pure_api(self, {"roam_frame", "roam_logical_center", "roam_pill_rect"})
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_logical_center', 'roam_frame', 'roam_pill_rect'} is not false : quiet companion API missing: roam_frame, roam_logical_center, roam_pill_rect
+
+======================================================================
+FAIL: test_uncropped_window_logical_center_remains_native_center (__main__.CompanionCropGeometryTests.test_uncropped_window_logical_center_remains_native_center)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 632, in test_uncropped_window_logical_center_remains_native_center
+    api = self.api()
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 569, in api
+    return pure_api(self, {"roam_frame", "roam_logical_center", "roam_pill_rect"})
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 39, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_logical_center', 'roam_frame', 'roam_pill_rect'} is not false : quiet companion API missing: roam_frame, roam_logical_center, roam_pill_rect
+
+----------------------------------------------------------------------
+Ran 17 tests in 1.023s
+
+FAILED (failures=15)
+```
+
+
+### Native compact RED with settled full-size reference
+
+The first native RED compared against launch-time full height270 before the existing row-count update. Its unchanged width268 already refuted actual compaction, but the fixture now records the settled rest frame240 high before departure, so both dimensions have the relevant reference. This corrects the measurement reference, not the requirement. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke --compact-presentation-gate`, child HOME/TMPDIR/ZDOTDIR/CLAUDEPET_SMOKE_SANDBOX=/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-compact-red-l_jlslfi. Start 2026-09-08T08:42:57.907203+00:00; end/measured 2026-09-08T08:42:58.320184+00:00. Source SHA256 e8bc7fb98e6c548f4eed0cc629f38b650b0d818ccbff77e862e7cb8440c4d0bb (pure display helpers added; GUI crop adapter still absent).
+
+```text
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 1049, in <module>
+    run_native_smoke()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 925, in run_native_smoke
+    app_module.run_gui()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/claude_pet.py", line 7000, in run_gui
+    AppHelper.runEventLoop()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 855, in loop
+    raise AssertionError(
+        f"travel kept native frame {actual_size}; expected both dimensions "
+        f"smaller than expanded {initial_native_size} on phase {roamer.phase}")
+AssertionError: travel kept native frame (268.0, 240.0); expected both dimensions smaller than expanded (268.0, 240.0) on phase out
+```
+
+
+### Translation-key collision and completion-cause boundary RED
+
+The Coordinator added Roamer.settled and note(...,settled=...) to distinguish natural completion from hover/ordinary-click stops. The existing hover expected mode is unchanged; its fixture now supplies that agreed cause input. Command: `python3 tests/test_companion_motion.py CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion -v`. Source e8bc7fb98e6c548f4eed0cc629f38b650b0d818ccbff77e862e7cb8440c4d0bb. Start 2026-09-08T08:45:53.104709+00:00; end/measured 2026-09-08T08:45:53.283571+00:00.
+
+```text
+test_server_label_matching_translation_key_remains_an_exact_label (__main__.CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label) ... FAIL
+test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion (__main__.CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion) ... FAIL
+
+======================================================================
+FAIL: test_server_label_matching_translation_key_remains_an_exact_label (__main__.CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 589, in test_server_label_matching_translation_key_remains_an_exact_label
+    self.assertEqual(self.summary(oauth=[("session", 18.25, None)]),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     ("exact", [("session", 18.25)]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('pct', [('session', 18.25)]) != ('exact', [('session', 18.25)])
+
+First differing element 0:
+'pct'
+'exact'
+
+- ('pct', [('session', 18.25)])
+?   ^
+
++ ('exact', [('session', 18.25)])
+?   ^^^
+
+
+======================================================================
+FAIL: test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion (__main__.CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 491, in test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion
+    self.assertTrue(hasattr(r, "settled"), "motion completion cause is not exposed")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : motion completion cause is not exposed
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.047s
+
+FAILED (failures=2)
+```
+
+
+### Actual OS-input checks after explicit user authorization
+
+The user explicitly approved CGEvent mouse input for this test after the CUA
+selection failures. `CGPreflightPostEventAccess()` returned true. Events were
+posted to actual observed desktop coordinates; no application callback was invoked
+as a substitute. Orca and native AX reads supplied current menu/window positions.
+The running GUI in this section is **PID71387, loaded source146f4897… at launch**;
+the later disk sourcee8bc7fb… is a separate partial compact implementation and was
+not loaded into this process.
+
+- Actual right-click opened the native context menu (08:26:30.837Z snapshot),
+  including Settings, fold/expand, and roaming toggle. Orca's subsequent click
+  still failed its focus check, so actual CGEvent clicks were used thereafter.
+- An initial screenshot-coordinate click selected fold/expand rather than roaming;
+  its outcome was inspected, and further menu clicks used the exact AX-observed
+  menu-item rectangles. This was an input-target correction, not a successful
+  roaming-toggle claim for that first click.
+- Roaming OFF was confirmed at08:28:34.384204Z by enabled=false and isolated
+  configroam=false. A real drag from desktop(58,916) to(600,700) moved native origin
+  (0,738) to(542,522); at08:29:07.485417Z logical home/position were(676,438), and
+  persisted logical originx542/y318 matched the manual placement.
+- Settings opened as native window1410,420x640 at(750,124), with editable controls
+  and Korean labels. At08:29:55.969893Z settings_open/busy were true. The observed
+  native close button was clicked, and the settings window disappeared from the
+  window inventory at08:30:22Z. No credential values were copied into the report.
+- Roaming ON was subsequently confirmed by isolated configroam=true and original
+  step enabled=true at08:32:30.788026Z. Mouse hover and active settings were
+  independently distinguishable from enabled state in the runtime trace.
+- Normal live usage produced spike=true/busy=true with a failed animation, so
+  arrival testing initially remained suppressed as designed. At08:44:09.219000Z,
+  the existing Settings UI changed only the test instance's sensitivity from
+  Normal1.0 to Dull2.0 and saved it. The normal refresh then yielded spike=false.
+  Motion timing remained at the defaults. This temporary sensitivity remains in
+  force for the continuous test and is to be restored to1.0 during final cleanup.
+
+Actual far-cursor activity alternated desktop positions(1400,450)/(1430,450)
+approximately every1.2seconds. The original normal event loop sampled that actual
+OS cursor. The observed default-timing approach cycle was:
+
+| UTC on2026-09-08 | Original step phase | Logical window center |
+| --- | --- | --- |
+| 08:45:53.253107 | out / approach | (676,438) |
+| 08:45:59.802368 | look / approach | (1024.866936927049,526.836143090177) |
+| 08:46:05.853905 | home | (1022.2098183700936,526.1595293462308) |
+| 08:46:12.352602 | rest | (676,438) |
+
+The observed watch interval was6.051537seconds between the recorded look and home
+transitions. Native snapshots independently captured walking, watching, returning,
+and the original native origin(542,522) after return. Their metadata and original
+paths are `ui_snapshot` records in quiet-companion-live-trace.jsonl. The Verifier
+inspected the walking image showing the running pose. Manual panel folding still
+left a native268x240 window during this trip, demonstrating the large transparent
+input rectangle that the new crop requirement must remove. This old-source cycle
+verifies the existing movement/input path; the new compact/summary flow must be
+repeated against the final frozen new source before an overall completion claim.
+
+
+### Frozen compact native run
+
+Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke --compact-presentation-gate`, child HOME/TMPDIR/ZDOTDIR/CLAUDEPET_SMOKE_SANDBOX=/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-compact-native-ehti7lam. Start 2026-09-08T08:59:09.224257+00:00; end/measured 2026-09-08T08:59:09.739857+00:00. Source SHA256 3ffcde044008a262aa9afde2cfc92506f38b8bccddb5511413cc94eb8ac34208. Cropping legitimately changes native origin/size while the sprite remains anchored. The updated gate compares actual inverse-crop logical center to motion position, and global sprite offset to that model across all modes (1pt observed native quantization tolerance), plus unchanged model speed and visible bounds. This replaces the obsolete equal-window/sprite-displacement assumption. Captured frame blocks keep their relative native dimensions.
+
+```text
+{
+  "layout_midpoint": [
+    960.0,
+    543.0
+  ],
+  "synthetic_initial_center": [
+    920.0,
+    503.0
+  ],
+  "native_window_class": "<objective-c class NSWindow at 0x1f0708608>",
+  "native_view_class": "<objective-c class PetView at 0xaf8c998f0>",
+  "runtime_roam_default": true,
+  "defaults": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_roamer_cfg": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_radius": 190.21303845951255,
+  "visible_screen": [
+    0.0,
+    36.0,
+    1920.0,
+    1014.0
+  ],
+  "transitions": [
+    {
+      "t": 84.75,
+      "phase": "out",
+      "window": [
+        790.0,
+        400.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "logical_center": [
+        920.0,
+        518.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "idle"
+    },
+    {
+      "t": 91.30000000000001,
+      "phase": "look",
+      "window": [
+        1104.0,
+        572.0,
+        130.0,
+        140.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "logical_center": [
+        1236.0,
+        690.0
+      ],
+      "mode": "summary",
+      "crop": [
+        2,
+        98,
+        130,
+        140
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 97.30000000000001,
+      "phase": "home",
+      "window": [
+        1106.0,
+        572.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "logical_center": [
+        1236.0,
+        690.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 103.85000000000001,
+      "phase": "rest",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "logical_center": [
+        920.0,
+        518.0
+      ],
+      "mode": "full",
+      "crop": [
+        0,
+        0,
+        268.0,
+        240.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_states": [
+    {
+      "t": 84.80000000000001,
+      "phase": "out",
+      "window": [
+        792.0,
+        401.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        794.0,
+        403.0
+      ],
+      "logical_center": [
+        922.0,
+        519.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        922.4149978676323,
+        519.3154030938593
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 91.35000000000001,
+      "phase": "look",
+      "window": [
+        1104.0,
+        572.0,
+        130.0,
+        140.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "logical_center": [
+        1236.0,
+        690.0
+      ],
+      "mode": "summary",
+      "crop": [
+        2,
+        98,
+        130,
+        140
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 97.35000000000001,
+      "phase": "home",
+      "window": [
+        1103.0,
+        571.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        1105.0,
+        573.0
+      ],
+      "logical_center": [
+        1233.0,
+        689.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        1233.7301775314397,
+        688.882820102231
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_column_phases": [
+    "out",
+    "look",
+    "home"
+  ],
+  "crossed_horizontal_midpoint": true,
+  "crossed_vertical_midpoint": true,
+  "max_native_model_axis_residual": 0.8747334539739313,
+  "max_sprite_anchor_axis_residual": 0.8747334539739313,
+  "native_visible_bounds_violations": 0,
+  "start_utc": "2026-09-08T08:59:09.405593+00:00",
+  "end_utc": "2026-09-08T08:59:09.715368+00:00",
+  "measured_utc": "2026-09-08T08:59:09.715368+00:00",
+  "source_sha256": "3ffcde044008a262aa9afde2cfc92506f38b8bccddb5511413cc94eb8ac34208",
+  "grouping_key": "manually invoked native Ticker.tick_ callback",
+  "sampled_ticks": 2077,
+  "synthetic_time_start": 0.05,
+  "synthetic_time_end": 103.85000000000001,
+  "max_window_step": 6.708203932499369,
+  "max_sprite_step": 3.605551275463989,
+  "max_model_step": 2.7500000000006315,
+  "max_sprite_displacement_beyond_model": 0.9005000937109834,
+  "forbidden_calls": [],
+  "suppressed_background_workers": [
+    "work",
+    "_run_update_check"
+  ],
+  "config_writes": []
+}
+```
+
+### Compact adapter regression RED before second fix
+
+Source SHA256 `3ffcde044008a262aa9afde2cfc92506f38b8bccddb5511413cc94eb8ac34208`; UTC 2026-09-08T09:08:20.410631+00:00–2026-09-08T09:08:20.858265+00:00. Command: `python3 tests/test_companion_motion.py CompanionCompactRegressionTests -v`.
+
+```text
+test_actual_summary_draw_keeps_long_text_inside_pill_padding (__main__.CompanionCompactRegressionTests.test_actual_summary_draw_keeps_long_text_inside_pill_padding) ... FAIL
+test_actual_summary_formatter_distinguishes_estimate_from_exact (__main__.CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact) ... FAIL
+test_crop_change_during_drag_preserves_actual_manual_displacement (__main__.CompanionCompactRegressionTests.test_crop_change_during_drag_preserves_actual_manual_displacement) ... FAIL
+test_fit_contract_uses_measured_longest_prefix_and_tiny_width (__main__.CompanionCompactRegressionTests.test_fit_contract_uses_measured_longest_prefix_and_tiny_width) ... FAIL
+test_folded_drop_clamps_logical_envelope_before_save_and_restore (__main__.CompanionCompactRegressionTests.test_folded_drop_clamps_logical_envelope_before_save_and_restore) ... FAIL
+
+======================================================================
+FAIL: test_actual_summary_draw_keeps_long_text_inside_pill_padding (__main__.CompanionCompactRegressionTests.test_actual_summary_draw_keeps_long_text_inside_pill_padding)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 836, in test_actual_summary_draw_keeps_long_text_inside_pill_padding
+    self.assertGreaterEqual(draws[0][1], 17, "summary text overflows the pill's left padding")
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: -109.0 not greater than or equal to 17 : summary text overflows the pill's left padding
+
+======================================================================
+FAIL: test_actual_summary_formatter_distinguishes_estimate_from_exact (__main__.CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 814, in test_actual_summary_formatter_distinguishes_estimate_from_exact
+    self.assertEqual(scope["roam_summary_text"]()[0], "세션 ≈42% · 주간 ≈17%")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '세션 42% · 주간 17%' != '세션 ≈42% · 주간 ≈17%'
+- 세션 42% · 주간 17%
++ 세션 ≈42% · 주간 ≈17%
+?    +         +
+
+
+======================================================================
+FAIL: test_crop_change_during_drag_preserves_actual_manual_displacement (__main__.CompanionCompactRegressionTests.test_crop_change_during_drag_preserves_actual_manual_displacement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 784, in test_crop_change_during_drag_preserves_actual_manual_displacement
+    self.assertEqual(s["window_center"](), (457, 331),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "presentation restoration discarded the user's actual drag delta")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (420.0, 350.0) != (457, 331)
+
+First differing element 0:
+420.0
+457
+
+- (420.0, 350.0)
++ (457, 331) : presentation restoration discarded the user's actual drag delta
+
+======================================================================
+FAIL: test_fit_contract_uses_measured_longest_prefix_and_tiny_width (__main__.CompanionCompactRegressionTests.test_fit_contract_uses_measured_longest_prefix_and_tiny_width)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 840, in test_fit_contract_uses_measured_longest_prefix_and_tiny_width
+    api = pure_api(self, {"roam_fit_text", "roam_summary_line", "SUMMARY_APPROX"})
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 40, in pure_api
+    test.assertFalse(required - definitions.keys(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "quiet companion API missing: " + ", ".join(sorted(required - definitions.keys())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'roam_summary_line', 'roam_fit_text', 'SUMMARY_APPROX'} is not false : quiet companion API missing: SUMMARY_APPROX, roam_fit_text, roam_summary_line
+
+======================================================================
+FAIL: test_folded_drop_clamps_logical_envelope_before_save_and_restore (__main__.CompanionCompactRegressionTests.test_folded_drop_clamps_logical_envelope_before_save_and_restore)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 797, in test_folded_drop_clamps_logical_envelope_before_save_and_restore
+    self.assertEqual(world["writes"], [{"x": 0.0, "y": 240.0}],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "folded drag persisted a full window outside the visible display")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [{'x': -177, 'y': 240}] != [{'x': 0.0, 'y': 240.0}]
+
+First differing element 0:
+{'x': -177, 'y': 240}
+{'x': 0.0, 'y': 240.0}
+
+- [{'x': -177, 'y': 240}]
+?        ^^^^
+
++ [{'x': 0.0, 'y': 240.0}]
+?        ^^^          ++
+ : folded drag persisted a full window outside the visible display
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.290s
+
+FAILED (failures=5)
+```
+
+The additional compact fixtures discriminate stale model-position replacement (expected actual logical center 457,331; rival420,350), actual-frame-only clamp (expected saved virtual x0; rival−177), unmarked estimate text, and centering unbounded text (left−109 versus minimum17). The draw fixture uses deterministic unequal character widths and executes the real draw adapter; it is not a native-font measurement. Fit-function prefix fixture uses W10/i2/ellipsis5: original width24, budget23 gives Wi… width17; WiW… width27 must be rejected. New pure API absence is recorded separately from these four observed behavioral failures.
+
+An actual CGEvent drag at 09:03:40.845362–09:03:42.702666Z on PID3899 (loaded3ffc) reported7.2801pt mismatch against a pre-input screenshot. Motion continued between screenshot and mouseDown, so this measurement is inconclusive and does not establish the drag defect. The deterministic actual-adapter fixture above is the established regression.
+
+### Final compact focused suite
+
+Source SHA256 `9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99`; UTC 2026-09-08T09:15:51.537795+00:00–2026-09-08T09:15:54.285723+00:00. Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py -v`.
+
+```text
+test_display_shrink_recovers_full_window_and_cancels_old_trip (__main__.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... ok
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (__main__.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... ok
+test_disabled_start_remains_at_current_position (__main__.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (__main__.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (__main__.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (__main__.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_actual_summary_draw_keeps_long_text_inside_pill_padding (__main__.CompanionCompactRegressionTests.test_actual_summary_draw_keeps_long_text_inside_pill_padding) ... ok
+test_actual_summary_formatter_distinguishes_estimate_from_exact (__main__.CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact) ... ok
+test_crop_change_during_drag_preserves_actual_manual_displacement (__main__.CompanionCompactRegressionTests.test_crop_change_during_drag_preserves_actual_manual_displacement) ... ok
+test_fit_contract_uses_measured_longest_prefix_and_tiny_width (__main__.CompanionCompactRegressionTests.test_fit_contract_uses_measured_longest_prefix_and_tiny_width) ... ok
+test_folded_drop_clamps_logical_envelope_before_save_and_restore (__main__.CompanionCompactRegressionTests.test_folded_drop_clamps_logical_envelope_before_save_and_restore) ... ok
+test_all_orientations_preserve_sprite_anchor_and_logical_home (__main__.CompanionCropGeometryTests.test_all_orientations_preserve_sprite_anchor_and_logical_home) ... ok
+test_native_compact_size_includes_button_but_not_full_panel_hitbox (__main__.CompanionCropGeometryTests.test_native_compact_size_includes_button_but_not_full_panel_hitbox) ... ok
+test_summary_text_width_is_bounded_and_origin_uses_same_side (__main__.CompanionCropGeometryTests.test_summary_text_width_is_bounded_and_origin_uses_same_side) ... ok
+test_uncropped_window_logical_center_remains_native_center (__main__.CompanionCropGeometryTests.test_uncropped_window_logical_center_remains_native_center) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (__main__.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (__main__.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (__main__.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (__main__.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (__main__.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (__main__.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (__main__.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (__main__.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (__main__.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (__main__.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (__main__.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (__main__.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (__main__.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (__main__.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_long_interaction_still_gets_full_fresh_rest_after_release (__main__.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (__main__.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (__main__.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (__main__.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (__main__.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (__main__.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... ok
+test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) ... ok
+test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) ... ok
+test_exact_summary_filters_only_first_two_rows_without_replacement (__main__.CompanionPresentationTests.test_exact_summary_filters_only_first_two_rows_without_replacement) ... ok
+test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) ... ok
+test_hover_stop_away_keeps_summary_available_for_expansion (__main__.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion) ... ok
+test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (__main__.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) ... ok
+test_interruption_has_priority_over_same_call_arrival (__main__.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival) ... ok
+test_manual_toggle_and_reset_restore_ordinary_preference_behavior (__main__.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior) ... ok
+test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion (__main__.CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion) ... ok
+test_server_label_matching_translation_key_remains_an_exact_label (__main__.CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label) ... ok
+test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) ... ok
+test_summary_keeps_first_two_source_labels_and_values_in_order (__main__.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order) ... ok
+test_summary_onboarding_and_estimates_preserve_data_meaning (__main__.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning) ... ok
+test_summary_unknown_zero_and_api_mode_are_distinct (__main__.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct) ... ok
+test_wander_pause_stays_folded_and_return_restores_manual_choice (__main__.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice) ... ok
+
+----------------------------------------------------------------------
+Ran 50 tests in 2.614s
+
+OK
+```
+
+### Final compact native smoke
+
+Command: `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke --compact-presentation-gate`; isolated HOME/TMPDIR/ZDOTDIR/CLAUDEPET_SMOKE_SANDBOX=/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-compact-native-4zplu3nv; source SHA256 9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99; UTC 2026-09-08T09:16:11.470908+00:00–2026-09-08T09:16:11.892484+00:00.
+
+```text
+{
+  "layout_midpoint": [
+    960.0,
+    543.0
+  ],
+  "synthetic_initial_center": [
+    920.0,
+    503.0
+  ],
+  "native_window_class": "<objective-c class NSWindow at 0x1f0708608>",
+  "native_view_class": "<objective-c class PetView at 0x76ec9e0a0>",
+  "runtime_roam_default": true,
+  "defaults": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_roamer_cfg": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_radius": 190.21303845951255,
+  "visible_screen": [
+    0.0,
+    36.0,
+    1920.0,
+    1014.0
+  ],
+  "transitions": [
+    {
+      "t": 65.7,
+      "phase": "out",
+      "window": [
+        790.0,
+        400.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "logical_center": [
+        920.0,
+        518.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "idle"
+    },
+    {
+      "t": 72.25,
+      "phase": "look",
+      "window": [
+        1107.0,
+        567.0,
+        130.0,
+        140.0
+      ],
+      "sprite": [
+        1111.0,
+        569.0
+      ],
+      "logical_center": [
+        1239.0,
+        685.0
+      ],
+      "mode": "summary",
+      "crop": [
+        2,
+        98,
+        130,
+        140
+      ],
+      "pos": [
+        1238.9524671391796,
+        684.9410785451877
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 78.25,
+      "phase": "home",
+      "window": [
+        1109.0,
+        567.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        1111.0,
+        569.0
+      ],
+      "logical_center": [
+        1239.0,
+        685.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        1238.9524671391796,
+        684.9410785451877
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 84.80000000000001,
+      "phase": "rest",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "logical_center": [
+        920.0,
+        518.0
+      ],
+      "mode": "full",
+      "crop": [
+        0,
+        0,
+        268.0,
+        240.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_states": [
+    {
+      "t": 65.75,
+      "phase": "out",
+      "window": [
+        792.0,
+        401.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        794.0,
+        403.0
+      ],
+      "logical_center": [
+        922.0,
+        519.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        922.4364424573131,
+        519.2752443499979
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 72.3,
+      "phase": "look",
+      "window": [
+        1107.0,
+        567.0,
+        130.0,
+        140.0
+      ],
+      "sprite": [
+        1111.0,
+        569.0
+      ],
+      "logical_center": [
+        1239.0,
+        685.0
+      ],
+      "mode": "summary",
+      "crop": [
+        2,
+        98,
+        130,
+        140
+      ],
+      "pos": [
+        1238.9524671391796,
+        684.9410785451877
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 78.30000000000001,
+      "phase": "home",
+      "window": [
+        1106.0,
+        565.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        1108.0,
+        567.0
+      ],
+      "logical_center": [
+        1236.0,
+        683.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        1236.516024681866,
+        683.6658341951894
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_column_phases": [
+    "out",
+    "look",
+    "home"
+  ],
+  "crossed_horizontal_midpoint": true,
+  "crossed_vertical_midpoint": true,
+  "max_native_model_axis_residual": 0.8729688998084839,
+  "max_sprite_anchor_axis_residual": 0.8729688998084839,
+  "native_visible_bounds_violations": 0,
+  "start_utc": "2026-09-08T09:16:11.602897+00:00",
+  "end_utc": "2026-09-08T09:16:11.867407+00:00",
+  "measured_utc": "2026-09-08T09:16:11.867407+00:00",
+  "source_sha256": "9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99",
+  "grouping_key": "manually invoked native Ticker.tick_ callback",
+  "sampled_ticks": 1696,
+  "synthetic_time_start": 0.05,
+  "synthetic_time_end": 84.80000000000001,
+  "max_window_step": 6.708203932499369,
+  "max_sprite_step": 3.605551275463989,
+  "max_model_step": 2.7500000000006732,
+  "max_sprite_displacement_beyond_model": 1.1502441859804844,
+  "forbidden_calls": [],
+  "suppressed_background_workers": [
+    "work",
+    "_run_update_check"
+  ],
+  "config_writes": []
+}
+```
+
+At 2026-09-08T09:17:53.287402+00:00, after Reviewer source approval and independent AST comparison, Verifier refreshed only the two reviewed app source SHA pins to 9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99. Existing baseline146 functions changed only Roamer/run_gui; updater, estimator, seeding and transaction bodies are identical. Build/release/artifact-validator files have no diff. Final compact-smoke.json/png now contain9d15 results; prior3ffc raw output remains embedded above, while baseline146 smoke files are preserved.
+
+### Final compact full suite
+
+Grouping key unittest case ID; file set tests/test_*.py enumerated below. Command `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -v`; normal top-level HOME, per-module temporary fixtures, PYTHONDONTWRITEBYTECODE=1, live boundary opt-in absent. UTC 2026-09-08T09:17:53.374563+00:00–2026-09-08T09:23:08.579184+00:00; start SHA 9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99; end SHA 9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99; exit 0.
+
+```text
+
+[instruments] 14 injection site(s) use a computed needle and are NOT checked here:
+  test_updater.py:2018  replace(LAUNCH_DEFINITION, ...)
+  test_updater.py:2019  replace(LAUNCH_PRIMARY, ...)
+  test_updater.py:2020  replace(LAUNCH_RESTORE, ...)
+  test_updater.py:2119  replace(line + '\n', ...)
+  test_updater.py:2344  replace(line, ...)
+  test_updater.py:2347  replace(line, ...)
+  test_updater_adversarial.py:183  replace(assignment, ...)
+  test_updater_adversarial.py:393  replace(launch_call, ...)
+  test_updater_adversarial.py:1010  replace(exchange_boundary, ...)
+  test_updater_adversarial.py:1270  replace(post_exchange, ...)
+  test_updater_adversarial.py:1841  replace(stage_identity_gate, ...)
+  test_updater_adversarial.py:1854  replace(post_exchange, ...)
+  test_updater_adversarial.py:2200  replace(needle, ...)
+  test_updater_adversarial.py:1167  replace(post_exchange, ...)
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: --arches is required (what the artifact claims to support, not what this machine happens to be)
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the bundled claude_pet.py is not this checkout's (53def4313b53… != 9d15b8790a4b…)
+[update] rejected: bundle identifier does not match
+[update] rejected: CFBundleVersion does not match the release tag
+[update] rejected: CFBundleShortVersionString does not match the release tag
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: signature missing, invalid, or not ours
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: absolute symlink target in bundle
+[update] rejected: bundle path resolves outside the bundle
+[update] rejected: bundled path is a symlink (pets/dog/extra.png)
+[update] rejected: bundled path is a symlink (pets/spare)
+[update] rejected: bundled path is a symlink (EXTRA.md)
+[update] rejected: bundled path is a symlink (.claude_pet)
+[update] rejected: bundled path is a symlink (pets)
+[update] rejected: bundled path is a symlink (pets/dog)
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: unreadable archive (BadZipFile)
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: bundle has no arm64 slice
+[update] rejected: bundle has no arm64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: two assets normalize to 'claudepet.zip'
+[update] rejected: unknown architecture ('aarch64')
+[update] rejected: unknown architecture ('ppc')
+[update] rejected: unknown architecture ('')
+[update] rejected: unknown architecture (None)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: Gatekeeper did not attribute the app to us
+[update] rejected: Gatekeeper reported no origin
+[update] rejected: codesign could not run (OSError)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: codesign could not run (TimeoutExpired)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: spctl could not run (OSError)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: spctl could not run (TimeoutExpired)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: xcrun could not run (OSError)
+[update] rejected: no stapled notarization ticket
+[update] rejected: xcrun could not run (TimeoutExpired)
+[update] rejected: no stapled notarization ticket
+[update] rejected: no stapled notarization ticket
+[update] rejected: archive member escapes the archive root
+[update] rejected: archive member is an absolute path
+[update] rejected: unreadable archive (BadZipFile)
+[update] rejected: bundle has no x86_64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: main executable is not a regular file
+[update] bundled pet assets incomplete (16 paths); seeding will skip them
+[update] rejected: bundled exchange helper (Contents/MacOS/python) is not executable
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+[update] refused: could not claim a staging name
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock path is not a plain file we can own
+[update] refused: the update lock directory is not a private directory we own
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink escapes the archive root
+[update] rejected: archive symlink escapes the archive root
+test_display_shrink_recovers_full_window_and_cancels_old_trip (test_companion_motion.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... ok
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (test_companion_motion.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... ok
+test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_actual_summary_draw_keeps_long_text_inside_pill_padding (test_companion_motion.CompanionCompactRegressionTests.test_actual_summary_draw_keeps_long_text_inside_pill_padding) ... ok
+test_actual_summary_formatter_distinguishes_estimate_from_exact (test_companion_motion.CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact) ... ok
+test_crop_change_during_drag_preserves_actual_manual_displacement (test_companion_motion.CompanionCompactRegressionTests.test_crop_change_during_drag_preserves_actual_manual_displacement) ... ok
+test_fit_contract_uses_measured_longest_prefix_and_tiny_width (test_companion_motion.CompanionCompactRegressionTests.test_fit_contract_uses_measured_longest_prefix_and_tiny_width) ... ok
+test_folded_drop_clamps_logical_envelope_before_save_and_restore (test_companion_motion.CompanionCompactRegressionTests.test_folded_drop_clamps_logical_envelope_before_save_and_restore) ... ok
+test_all_orientations_preserve_sprite_anchor_and_logical_home (test_companion_motion.CompanionCropGeometryTests.test_all_orientations_preserve_sprite_anchor_and_logical_home) ... ok
+test_native_compact_size_includes_button_but_not_full_panel_hitbox (test_companion_motion.CompanionCropGeometryTests.test_native_compact_size_includes_button_but_not_full_panel_hitbox) ... ok
+test_summary_text_width_is_bounded_and_origin_uses_same_side (test_companion_motion.CompanionCropGeometryTests.test_summary_text_width_is_bounded_and_origin_uses_same_side) ... ok
+test_uncropped_window_logical_center_remains_native_center (test_companion_motion.CompanionCropGeometryTests.test_uncropped_window_logical_center_remains_native_center) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (test_companion_motion.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (test_companion_motion.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (test_companion_motion.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... ok
+test_approach_summary_expansion_does_not_replace_manual_preference (test_companion_motion.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) ... ok
+test_departure_and_return_fold_even_before_any_displacement (test_companion_motion.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) ... ok
+test_exact_summary_filters_only_first_two_rows_without_replacement (test_companion_motion.CompanionPresentationTests.test_exact_summary_filters_only_first_two_rows_without_replacement) ... ok
+test_explicit_interruption_or_disable_clears_summary_and_expansion (test_companion_motion.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) ... ok
+test_hover_stop_away_keeps_summary_available_for_expansion (test_companion_motion.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion) ... ok
+test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (test_companion_motion.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) ... ok
+test_interruption_has_priority_over_same_call_arrival (test_companion_motion.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival) ... ok
+test_manual_toggle_and_reset_restore_ordinary_preference_behavior (test_companion_motion.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior) ... ok
+test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion (test_companion_motion.CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion) ... ok
+test_server_label_matching_translation_key_remains_an_exact_label (test_companion_motion.CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label) ... ok
+test_summary_invalid_values_are_not_reported_as_zero (test_companion_motion.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) ... ok
+test_summary_keeps_first_two_source_labels_and_values_in_order (test_companion_motion.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order) ... ok
+test_summary_onboarding_and_estimates_preserve_data_meaning (test_companion_motion.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning) ... ok
+test_summary_unknown_zero_and_api_mode_are_distinct (test_companion_motion.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct) ... ok
+test_wander_pause_stays_folded_and_return_restores_manual_choice (test_companion_motion.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice) ... ok
+test_rolling_week_has_no_single_reset_timestamp (test_log_estimate.ComputeUsageTests.test_rolling_week_has_no_single_reset_timestamp) ... ok
+test_cache_creation_uses_ttl_specific_weights (test_log_estimate.ParseUsageEntriesTests.test_cache_creation_uses_ttl_specific_weights) ... ok
+test_distinct_request_ids_are_counted_separately (test_log_estimate.ParseUsageEntriesTests.test_distinct_request_ids_are_counted_separately) ... ok
+test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot (test_log_estimate.ParseUsageEntriesTests.test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot) ... ok
+test_equal_weight_duplicates_keep_the_later_timestamp (test_log_estimate.ParseUsageEntriesTests.test_equal_weight_duplicates_keep_the_later_timestamp) ... ok
+test_legacy_cache_creation_without_breakdown_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_legacy_cache_creation_without_breakdown_uses_5m_fallback) ... ok
+test_malformed_usage_numbers_skip_only_the_bad_rows (test_log_estimate.ParseUsageEntriesTests.test_malformed_usage_numbers_skip_only_the_bad_rows) ... ok
+test_nested_cache_breakdown_above_flat_total_is_clamped (test_log_estimate.ParseUsageEntriesTests.test_nested_cache_breakdown_above_flat_total_is_clamped) ... ok
+test_nested_sidechain_agent_usage_is_included (test_log_estimate.ParseUsageEntriesTests.test_nested_sidechain_agent_usage_is_included) ... ok
+test_record_before_since_does_not_hide_a_later_snapshot (test_log_estimate.ParseUsageEntriesTests.test_record_before_since_does_not_hide_a_later_snapshot) ... ok
+test_records_without_dedup_keys_are_counted_independently (test_log_estimate.ParseUsageEntriesTests.test_records_without_dedup_keys_are_counted_independently) ... ok
+test_streaming_duplicates_keep_an_interior_maximum (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_an_interior_maximum) ... ok
+test_streaming_duplicates_keep_the_final_usage_snapshot (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_the_final_usage_snapshot) ... ok
+test_unclassified_cache_creation_remainder_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_unclassified_cache_creation_remainder_uses_5m_fallback) ... ok
+test_backup_symlink_and_its_target_are_preserved (test_manual_update_transaction.BackupPreservationTests.test_backup_symlink_and_its_target_are_preserved) ... ok
+test_regular_backup_is_not_deleted_when_installed_app_exists (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_deleted_when_installed_app_exists) ... ok
+test_regular_backup_is_not_renamed_away_when_installed_app_is_absent (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_renamed_away_when_installed_app_is_absent) ... ok
+test_direct_build_cannot_remove_shared_app_while_build_lock_is_held (test_manual_update_transaction.BuildLockCoverageTests.test_direct_build_cannot_remove_shared_app_while_build_lock_is_held) ... ok
+test_install_outer_build_lock_survives_inner_build_and_preflight_consumption (test_manual_update_transaction.BuildLockCoverageTests.test_install_outer_build_lock_survives_inner_build_and_preflight_consumption) ... ok
+test_failed_adhoc_nested_fallback_stops_before_outer_signing (test_manual_update_transaction.NestedSigningFailureTests.test_failed_adhoc_nested_fallback_stops_before_outer_signing) ... ok
+test_local_nested_failure_falls_back_as_a_pair_not_outer_only (test_manual_update_transaction.NestedSigningFailureTests.test_local_nested_failure_falls_back_as_a_pair_not_outer_only) ... ok
+test_failed_publish_restores_and_relaunches_the_old_application (test_manual_update_transaction.RollbackAndInstallTests.test_failed_publish_restores_and_relaunches_the_old_application) ... ok
+test_install_copy_failure_preserves_the_existing_application (test_manual_update_transaction.RollbackAndInstallTests.test_install_copy_failure_preserves_the_existing_application) ... ok
+test_in_app_holder_blocks_public_install_and_update_before_child_mutation (test_manual_update_transaction.SharedUpdateLockTests.test_in_app_holder_blocks_public_install_and_update_before_child_mutation) ... ok
+test_manual_holder_blocks_a_simulated_in_app_acquire (test_manual_update_transaction.SharedUpdateLockTests.test_manual_holder_blocks_a_simulated_in_app_acquire) ... ok
+test_code_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_code_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_info_plist_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_info_plist_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_resources_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_resources_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_both_bundle_version_keys_must_equal_the_source_version (test_manual_update_transaction.StagedPreflightTests.test_both_bundle_version_keys_must_equal_the_source_version) ... ok
+test_executable_must_be_a_regular_nonlink_file (test_manual_update_transaction.StagedPreflightTests.test_executable_must_be_a_regular_nonlink_file) ... ok
+test_staged_application_code_must_match_the_checkout_code_hash (test_manual_update_transaction.StagedPreflightTests.test_staged_application_code_must_match_the_checkout_code_hash) ... ok
+test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes (test_manual_update_transaction.WholeTransactionConcurrencyTests.test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes) ... ok
+test_every_literal_needle_still_occurs_in_the_generated_script (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_every_literal_needle_still_occurs_in_the_generated_script) ... ok
+test_the_generator_produces_something_to_search (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_generator_produces_something_to_search)
+Discrimination: an empty script would make every check below vacuous. ... ok
+test_the_needles_are_not_so_generic_that_they_hit_everywhere (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_needles_are_not_so_generic_that_they_hit_everywhere)
+A needle matching many places replaces more than the test intends. ... ok
+test_generating_a_script_creates_nothing (test_mutation_instruments.LockPathIsolationTests.test_generating_a_script_creates_nothing)
+`_update_lock_path` must be pure: asking is not making. ... ok
+test_the_redirect_actually_took_effect (test_mutation_instruments.LockPathIsolationTests.test_the_redirect_actually_took_effect)
+Otherwise the isolation is theatre and the check above is vacuous. ... ok
+test_dynamic_needle_sites_are_reported_rather_than_silently_skipped (test_mutation_instruments.ScopeIsVisibleTests.test_dynamic_needle_sites_are_reported_rather_than_silently_skipped) ... ok
+test_a_symlink_planted_at_the_staging_name_is_not_written_through (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_a_symlink_planted_at_the_staging_name_is_not_written_through) ... ok
+test_the_plant_is_actually_in_the_way (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_the_plant_is_actually_in_the_way)
+Discrimination: if the fixture missed, the test above proves nothing. ... ok
+test_a_pet_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_that_died_midway_is_repaired_by_the_next_run)
+The failure must not be sticky. ... ok
+test_a_pet_whose_sheet_dies_midway_is_not_published (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_whose_sheet_dies_midway_is_not_published) ... ok
+test_the_first_file_dying_midway_is_handled_the_same_way (test_partial_copy_seeding.PartialPetCopyTests.test_the_first_file_dying_midway_is_handled_the_same_way)
+pet.json is what `_is_pet_dir` keys on, so a truncated one is worst. ... ok
+test_the_other_pets_are_still_seeded_whole (test_partial_copy_seeding.PartialPetCopyTests.test_the_other_pets_are_still_seeded_whole)
+One pet dying must not cost the rest - and must not half-cost them. ... ok
+test_a_readme_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_died_midway_is_repaired_by_the_next_run) ... ok
+test_a_readme_that_dies_midway_is_not_linked_into_place (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_dies_midway_is_not_linked_into_place) ... ok
+test_the_other_readmes_still_land_whole (test_partial_copy_seeding.PartialReadmeCopyTests.test_the_other_readmes_still_land_whole) ... ok
+test_cli_forwards_exact_version_and_ordered_arches_to_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_cli_forwards_exact_version_and_ordered_arches_to_validator) ... ok
+test_code_leaf_must_be_regular_present_and_not_a_symlink (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_code_leaf_must_be_regular_present_and_not_a_symlink) ... ok
+test_exact_checkout_code_leaf_reaches_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_exact_checkout_code_leaf_reaches_validator) ... ok
+test_missing_arches_fails_before_validator_delegation (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_arches_fails_before_validator_delegation) ... ok
+test_missing_file_or_symlink_app_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_file_or_symlink_app_is_rejected_before_validator) ... ok
+test_stale_regular_code_leaf_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_stale_regular_code_leaf_is_rejected_before_validator) ... ok
+test_a_symlinked_member_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_a_symlinked_member_in_both_is_still_reported) ... ok
+test_wrong_sheet_name_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sheet_name_in_both_is_still_reported) ... ok
+test_wrong_sprite_version_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sprite_version_in_both_is_still_reported) ... ok
+test_constants_are_read_without_importing_the_app (test_release_gate.ExpectedSetTests.test_constants_are_read_without_importing_the_app)
+BUNDLED_PET_FILES references BUNDLED_PET_SHEET, so plain literal_eval fails. ... ok
+test_expected_members_are_derived_not_hardcoded (test_release_gate.ExpectedSetTests.test_expected_members_are_derived_not_hardcoded)
+A literal 16 would silently check a subset once a fifth pet ships. ... ok
+test_an_id_disagreeing_with_its_folder_is_refused (test_release_gate.InstallerRefusalsAreMirroredTests.test_an_id_disagreeing_with_its_folder_is_refused)
+The installer refuses this pet; shipping it would certify a dud. ... ok
+test_every_installer_refusal_has_a_gate_counterpart (test_release_gate.InstallerRefusalsAreMirroredTests.test_every_installer_refusal_has_a_gate_counterpart)
+The surface is closed: each rejection below is caught by both. ... ok
+test_a_copy_that_fails_midway_leaves_the_old_payload_intact (test_release_gate.ManualBuildAssetSwapTests.test_a_copy_that_fails_midway_leaves_the_old_payload_intact)
+Different state from a copy that fails at the start. ... ok
+test_a_failing_copy_leaves_the_existing_tree_untouched (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_copy_leaves_the_existing_tree_untouched)
+The assertion a destroy-then-copy implementation cannot pass. ... ok
+test_a_failing_final_move_preserves_the_old_payload (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_final_move_preserves_the_old_payload)
+Fault at the second rename — stage→final. Old payload must survive. ... ok
+test_a_failing_restore_keeps_the_backup_and_says_so (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_restore_keeps_the_backup_and_says_so)
+The case the old code lied about: restore fails, it claimed success. ... ok
+test_assets_are_installed_into_a_fresh_bundle (test_release_gate.ManualBuildAssetSwapTests.test_assets_are_installed_into_a_fresh_bundle) ... ok
+test_no_staging_or_backup_residue_is_left_behind (test_release_gate.ManualBuildAssetSwapTests.test_no_staging_or_backup_residue_is_left_behind) ... ok
+test_recovery_moves_the_crashed_out_backup_itself (test_release_gate.ManualBuildAssetSwapTests.test_recovery_moves_the_crashed_out_backup_itself)
+Recovery must restore *that* directory, not produce a look-alike. ... ok
+test_the_next_ordinary_run_self_heals_and_completes (test_release_gate.ManualBuildAssetSwapTests.test_the_next_ordinary_run_self_heals_and_completes)
+After the crash, an unmutated run recovers and finishes the job. ... ok
+test_a_pristine_payload_passes (test_release_gate.PayloadVerificationTests.test_a_pristine_payload_passes) ... ok
+test_cli_exits_non_zero_and_names_the_member (test_release_gate.PayloadVerificationTests.test_cli_exits_non_zero_and_names_the_member) ... ok
+test_contents_differing_from_source_are_reported (test_release_gate.PayloadVerificationTests.test_contents_differing_from_source_are_reported) ... ok
+test_entirely_absent_payload_is_reported (test_release_gate.PayloadVerificationTests.test_entirely_absent_payload_is_reported) ... ok
+test_member_replaced_by_a_symlink_is_reported (test_release_gate.PayloadVerificationTests.test_member_replaced_by_a_symlink_is_reported) ... ok
+test_missing_member_is_reported (test_release_gate.PayloadVerificationTests.test_missing_member_is_reported) ... ok
+test_missing_readme_is_reported (test_release_gate.PayloadVerificationTests.test_missing_readme_is_reported) ... ok
+test_symlink_anywhere_in_the_subtree_is_reported (test_release_gate.PayloadVerificationTests.test_symlink_anywhere_in_the_subtree_is_reported) ... ok
+test_unexpected_extra_file_is_reported (test_release_gate.PayloadVerificationTests.test_unexpected_extra_file_is_reported) ... ok
+test_wrong_sheet_name_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sheet_name_in_metadata_is_reported) ... ok
+test_wrong_sprite_version_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sprite_version_in_metadata_is_reported) ... ok
+test_a_missing_expected_directory_is_reported (test_release_gate.TreeShapeTests.test_a_missing_expected_directory_is_reported) ... ok
+test_a_symlinked_expected_directory_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_expected_directory_is_refused) ... ok
+test_a_symlinked_payload_root_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_payload_root_is_refused)
+os.walk follows the link and cleanly verifies the wrong tree. ... ok
+test_an_unexpected_empty_directory_is_reported (test_release_gate.TreeShapeTests.test_an_unexpected_empty_directory_is_reported)
+A file-only comparison cannot see a directory with nothing in it. ... ok
+test_both_version_keys_equal_app_version (test_release_gate.WritePlistTests.test_both_version_keys_equal_app_version) ... ok
+test_replacement_at_temporary_pet_folder_survives_cleanup (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_pet_folder_survives_cleanup)
+Cleanup must not follow a replaced staging-folder name. ... ok
+test_replacement_at_temporary_readme_name_is_not_published_or_cleaned (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_readme_name_is_not_published_or_cleaned)
+Publish and cleanup must remain bound to the staged README inode. ... ok
+test_replacement_between_pet_stage_mkdir_and_open_is_not_used (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_between_pet_stage_mkdir_and_open_is_not_used)
+Opening and publishing must stay bound to the mkdir-created stage. ... ok
+test_copy_failure_never_publishes_a_partial_pet_directory (test_settings_and_install.BundledPetSeedTests.test_copy_failure_never_publishes_a_partial_pet_directory) ... ok
+test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored) ... ok
+test_destination_root_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_safe_open_is_not_followed) ... ok
+test_destination_root_symlink_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_symlink_is_not_followed) ... ok
+test_empty_destination_receives_the_full_distributed_tree (test_settings_and_install.BundledPetSeedTests.test_empty_destination_receives_the_full_distributed_tree) ... ok
+test_malformed_or_traversing_pet_metadata_is_never_published (test_settings_and_install.BundledPetSeedTests.test_malformed_or_traversing_pet_metadata_is_never_published) ... ok
+test_missing_atomic_directory_publish_primitive_fails_closed (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_directory_publish_primitive_fails_closed) ... ok
+test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme) ... ok
+test_pet_directory_created_during_publish_is_never_replaced (test_settings_and_install.BundledPetSeedTests.test_pet_directory_created_during_publish_is_never_replaced) ... ok
+test_pet_metadata_must_reference_the_distributed_spritesheet (test_settings_and_install.BundledPetSeedTests.test_pet_metadata_must_reference_the_distributed_spritesheet) ... ok
+test_pet_with_a_missing_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_missing_required_file_is_never_published) ... ok
+test_pet_with_a_symlinked_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_symlinked_required_file_is_never_published) ... ok
+test_pets_directory_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_directory_replaced_after_safe_open_is_not_followed) ... ok
+test_pets_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_readme_created_during_publish_is_preserved (test_settings_and_install.BundledPetSeedTests.test_readme_created_during_publish_is_preserved) ... ok
+test_root_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_root_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_second_seed_is_byte_and_mtime_idempotent (test_settings_and_install.BundledPetSeedTests.test_second_seed_is_byte_and_mtime_idempotent) ... ok
+test_symlinked_source_pet_is_not_copied (test_settings_and_install.BundledPetSeedTests.test_symlinked_source_pet_is_not_copied) ... ok
+test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets (test_settings_and_install.BundledPetSeedTests.test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets) ... ok
+test_apple_silicon_never_falls_back_to_an_unrelated_zip (test_settings_and_install.GithubUpdateTests.test_apple_silicon_never_falls_back_to_an_unrelated_zip) ... ok
+test_download_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_download_failure_removes_the_new_temporary_directory) ... ok
+test_failed_poll_does_not_consume_the_retry_cooldown (test_settings_and_install.GithubUpdateTests.test_failed_poll_does_not_consume_the_retry_cooldown) ... ok
+test_intel_never_falls_back_to_an_arm_only_archive (test_settings_and_install.GithubUpdateTests.test_intel_never_falls_back_to_an_arm_only_archive) ... ok
+test_launch_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_launch_failure_removes_the_new_temporary_directory) ... ok
+test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds (test_settings_and_install.GithubUpdateTests.test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds) ... ok
+test_replace_script_preserves_the_installed_app_when_copy_fails (test_settings_and_install.GithubUpdateTests.test_replace_script_preserves_the_installed_app_when_copy_fails) ... ok
+test_replace_script_rolls_back_when_the_replacement_cannot_launch (test_settings_and_install.GithubUpdateTests.test_replace_script_rolls_back_when_the_replacement_cannot_launch) ... ok
+test_successful_launch_transfers_temp_cleanup_to_the_detached_script (test_settings_and_install.GithubUpdateTests.test_successful_launch_transfers_temp_cleanup_to_the_detached_script) ... ok
+test_update_app_preflight_accepts_the_expected_signed_bundle (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_accepts_the_expected_signed_bundle) ... ok
+test_update_app_preflight_rejects_identity_version_and_signature_failures (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_rejects_identity_version_and_signature_failures) ... ok
+test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member) ... ok
+test_update_check_distinguishes_current_from_network_failure (test_settings_and_install.GithubUpdateTests.test_update_check_distinguishes_current_from_network_failure) ... ok
+test_update_check_returns_the_selected_release_asset (test_settings_and_install.GithubUpdateTests.test_update_check_returns_the_selected_release_asset) ... ok
+test_valid_poll_records_cooldown_and_an_update_becomes_pending (test_settings_and_install.GithubUpdateTests.test_valid_poll_records_cooldown_and_an_update_becomes_pending) ... ok
+test_manual_bundle_versions_are_not_hard_coded (test_settings_and_install.PackagingContractTests.test_manual_bundle_versions_are_not_hard_coded) ... ok
+test_manual_update_refreshes_bundled_pet_resources (test_settings_and_install.PackagingContractTests.test_manual_update_refreshes_bundled_pet_resources) ... ok
+test_readmes_do_not_offer_a_recursive_overwrite_command (test_settings_and_install.PackagingContractTests.test_readmes_do_not_offer_a_recursive_overwrite_command) ... ok
+test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them (test_settings_and_install.PackagingContractTests.test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them) ... ok
+test_generation_check_and_state_update_are_atomic (test_settings_and_install.RefreshGenerationTests.test_generation_check_and_state_update_are_atomic) ... ok
+test_only_the_newest_refresh_generation_can_commit (test_settings_and_install.RefreshGenerationTests.test_only_the_newest_refresh_generation_can_commit) ... ok
+test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure (test_settings_and_install.SettingsConfigTests.test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure) ... ok
+test_atomic_config_write_preserves_old_json_when_replace_fails (test_settings_and_install.SettingsConfigTests.test_atomic_config_write_preserves_old_json_when_replace_fails) ... ok
+test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan (test_settings_and_install.SettingsConfigTests.test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan) ... ok
+test_blank_limit_fields_do_not_override_environment_fallbacks (test_settings_and_install.SettingsConfigTests.test_blank_limit_fields_do_not_override_environment_fallbacks) ... ok
+test_calibration_overrides_only_its_matching_direct_limit (test_settings_and_install.SettingsConfigTests.test_calibration_overrides_only_its_matching_direct_limit) ... ok
+test_calibration_rejects_a_gauge_with_zero_usage (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_gauge_with_zero_usage) ... ok
+test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens) ... ok
+test_calibration_usage_scan_failure_is_a_settings_error (test_settings_and_install.SettingsConfigTests.test_calibration_usage_scan_failure_is_a_settings_error) ... ok
+test_compute_usage_uses_the_supplied_runtime_snapshot (test_settings_and_install.SettingsConfigTests.test_compute_usage_uses_the_supplied_runtime_snapshot) ... ok
+test_direct_only_settings_save_does_not_scan_usage (test_settings_and_install.SettingsConfigTests.test_direct_only_settings_save_does_not_scan_usage) ... ok
+test_exact_mode_note_explains_server_calibration_and_estimate_spike_split (test_settings_and_install.SettingsConfigTests.test_exact_mode_note_explains_server_calibration_and_estimate_spike_split) ... ok
+test_exact_token_limits_survive_an_unchanged_settings_round_trip (test_settings_and_install.SettingsConfigTests.test_exact_token_limits_survive_an_unchanged_settings_round_trip) ... ok
+test_gui_save_path_uses_the_tested_transaction_and_commits_before_close (test_settings_and_install.SettingsConfigTests.test_gui_save_path_uses_the_tested_transaction_and_commits_before_close) ... ok
+test_invalid_calibration_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_calibration_rejects_the_whole_candidate) ... ok
+test_invalid_direct_limit_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_direct_limit_rejects_the_whole_candidate) ... ok
+test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths (test_settings_and_install.SettingsConfigTests.test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths) ... ok
+test_merge_retries_instead_of_losing_a_write_between_read_and_save (test_settings_and_install.SettingsConfigTests.test_merge_retries_instead_of_losing_a_write_between_read_and_save) ... ok
+test_new_usage_settings_locale_keys_exist_in_every_supported_language (test_settings_and_install.SettingsConfigTests.test_new_usage_settings_locale_keys_exist_in_every_supported_language) ... ok
+test_other_numeric_settings_require_finite_in_range_values (test_settings_and_install.SettingsConfigTests.test_other_numeric_settings_require_finite_in_range_values) ... ok
+test_percentage_fields_are_primary_and_all_limit_inputs_default_blank (test_settings_and_install.SettingsConfigTests.test_percentage_fields_are_primary_and_all_limit_inputs_default_blank) ... ok
+test_session_percentage_only_backsolves_session_and_preserves_other_limits (test_settings_and_install.SettingsConfigTests.test_session_percentage_only_backsolves_session_and_preserves_other_limits) ... ok
+test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys (test_settings_and_install.SettingsConfigTests.test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys) ... ok
+test_settings_transaction_rejects_invalid_input_before_any_apply (test_settings_and_install.SettingsConfigTests.test_settings_transaction_rejects_invalid_input_before_any_apply) ... ok
+test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched (test_settings_and_install.SettingsConfigTests.test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched) ... ok
+test_valid_direct_limits_are_stored_as_integer_tokens (test_settings_and_install.SettingsConfigTests.test_valid_direct_limits_are_stored_as_integer_tokens) ... ok
+test_zero_percentage_has_a_distinct_actionable_atomic_rejection (test_settings_and_install.SettingsConfigTests.test_zero_percentage_has_a_distinct_actionable_atomic_rejection) ... ok
+test_requirement_accepts_our_own_signed_app (test_signing_contract.CodesignRequirementContractTests.test_requirement_accepts_our_own_signed_app) ... ok
+test_requirement_is_parsed_as_a_requirement_not_a_filename (test_signing_contract.CodesignRequirementContractTests.test_requirement_is_parsed_as_a_requirement_not_a_filename)
+The exact failure that shipped: codesign reading it as a path. ... ok
+test_requirement_rejects_a_bundle_signed_by_someone_else (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_a_bundle_signed_by_someone_else)
+A requirement that accepted everything would also return 0 here. ... ok
+test_requirement_rejects_another_developer_id_signature (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_another_developer_id_signature)
+Closer case: a real third-party Developer ID, not Apple's own. ... ok
+test_assessment_alone_does_not_identify_the_signer (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_alone_does_not_identify_the_signer)
+Why the team check above matters: spctl accepts other vendors too. ... ok
+test_assessment_reports_notarization_and_our_team_for_our_app (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_reports_notarization_and_our_team_for_our_app) ... ok
+test_stapler_rejects_a_bundle_with_no_stapled_ticket (test_signing_contract.StaplerContractTests.test_stapler_rejects_a_bundle_with_no_stapled_ticket)
+Discrimination: stapler must fail on something unstapled. ... ok
+test_stapler_validates_the_installed_app (test_signing_contract.StaplerContractTests.test_stapler_validates_the_installed_app) ... ok
+test_the_real_installed_app_passes_the_whole_preflight (test_signing_contract.ValidateUpdateAppLiveTests.test_the_real_installed_app_passes_the_whole_preflight)
+End-to-end, unmocked: the path a real update actually takes. ... ok
+test_direct_execution_reaches_dispatch_exactly_once (test_source_guard.SourceGuardTests.test_direct_execution_reaches_dispatch_exactly_once) ... ok
+test_guarded_source_is_inert_and_defines_functions (test_source_guard.SourceGuardTests.test_guarded_source_is_inert_and_defines_functions) ... ok
+test_removing_the_guard_makes_source_reach_dispatch_once (test_source_guard.SourceGuardTests.test_removing_the_guard_makes_source_reach_dispatch_once) ... ok
+test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected) ... ok
+test_framework_style_relative_symlink_inside_the_bundle_is_accepted (test_updater.BundleContainmentTests.test_framework_style_relative_symlink_inside_the_bundle_is_accepted) ... ok
+test_missing_manifest_members_still_only_warn (test_updater.BundleContainmentTests.test_missing_manifest_members_still_only_warn)
+Policy guard: missing assets must not strand users on an old build. ... ok
+test_relative_symlink_escaping_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_relative_symlink_escaping_the_bundle_is_rejected)
+Which rule does the work: the realpath containment one, and only it. ... ok
+test_symlink_in_the_pet_subtree_is_rejected_even_when_contained (test_updater.BundleContainmentTests.test_symlink_in_the_pet_subtree_is_rejected_even_when_contained)
+Ours, and it legitimately contains zero symlinks — so any is a red flag. ... ok
+test_symlinked_ancestor_of_the_pet_subtree_is_rejected (test_updater.BundleContainmentTests.test_symlinked_ancestor_of_the_pet_subtree_is_rejected) ... ok
+test_a_failed_check_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_failed_check_leaves_no_stale_choice_behind) ... ok
+test_a_non_update_result_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_non_update_result_leaves_no_stale_choice_behind) ... ok
+test_poll_still_publishes_the_two_tuple_the_ui_reads (test_updater.CheckGithubUpdateShapeTests.test_poll_still_publishes_the_two_tuple_the_ui_reads) ... ok
+test_update_records_the_chosen_asset_and_arch_in_the_cache (test_updater.CheckGithubUpdateShapeTests.test_update_records_the_chosen_asset_and_arch_in_the_cache)
+Per key, by name — `asset` and `arch` are bound through the ... ok
+test_a_second_install_is_refused_while_the_first_helper_lives (test_updater.ConcurrentInstallTests.test_a_second_install_is_refused_while_the_first_helper_lives)
+The same property at the entry point the app actually calls. ... ok
+test_an_install_is_possible_again_once_the_first_helper_exits (test_updater.ConcurrentInstallTests.test_an_install_is_possible_again_once_the_first_helper_exits)
+Discrimination for the test above: the refusal is not permanent. ... ok
+test_one_install_succeeds_and_schedules_exactly_one_helper (test_updater.ConcurrentInstallTests.test_one_install_succeeds_and_schedules_exactly_one_helper)
+Control: without it, an installer that always refused would pass. ... ok
+test_the_lock_changes_hands_and_is_released_by_the_kernel (test_updater.ConcurrentInstallTests.test_the_lock_changes_hands_and_is_released_by_the_kernel)
+The whole handoff lifecycle, in one fixture. ... ok
+test_patching_the_retired_name_intercepts_nothing_and_reaches_out (test_updater.DownloadSeamInstrumentTests.test_patching_the_retired_name_intercepts_nothing_and_reaches_out)
+The mutant: the fixture style this file used to use, run. ... ok
+test_production_downloads_through_the_name_the_fixtures_patch (test_updater.DownloadSeamInstrumentTests.test_production_downloads_through_the_name_the_fixtures_patch) ... ok
+test_the_guard_lets_loopback_through (test_updater.DownloadSeamInstrumentTests.test_the_guard_lets_loopback_through)
+Negative control: it blocks by destination, not by being a socket. ... ok
+test_the_guard_records_and_refuses_a_direct_request (test_updater.DownloadSeamInstrumentTests.test_the_guard_records_and_refuses_a_direct_request)
+Positive control: the guard fires when nothing is patched at all. ... ok
+test_the_module_under_test_is_the_repository_copy (test_updater.DownloadSeamInstrumentTests.test_the_module_under_test_is_the_repository_copy)
+Everything below reads production source; this says whose. ... ok
+test_the_stand_in_intercepts_the_download (test_updater.DownloadSeamInstrumentTests.test_the_stand_in_intercepts_the_download) ... ok
+test_a_missing_operand_fails_loudly_rather_than_creating_anything (test_updater.ExchangeHelperTests.test_a_missing_operand_fails_loudly_rather_than_creating_anything) ... ok
+test_two_directories_are_exchanged_in_place (test_updater.ExchangeHelperTests.test_two_directories_are_exchanged_in_place) ... ok
+test_wrong_argument_count_is_an_error (test_updater.ExchangeHelperTests.test_wrong_argument_count_is_an_error) ... ok
+test_install_refuses_before_downloading_anything (test_updater.ExpectedVersionRequiredTests.test_install_refuses_before_downloading_anything) ... ok
+test_preflight_rejects_a_missing_or_blank_expectation (test_updater.ExpectedVersionRequiredTests.test_preflight_rejects_a_missing_or_blank_expectation) ... ok
+test_each_rejected_record_is_rejected_for_its_own_reason (test_updater.LaunchRegistrationInstrumentTests.test_each_rejected_record_is_rejected_for_its_own_reason)
+Without this, one over-broad filter would look like a clean pass. ... ok
+test_no_fixture_bundle_of_this_run_claims_the_production_identity (test_updater.LaunchRegistrationInstrumentTests.test_no_fixture_bundle_of_this_run_claims_the_production_identity)
+The assertion itself, run early enough to attribute. ... ok
+test_the_parser_reads_the_real_database (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_reads_the_real_database)
+The synthetic dump above proves nothing about the real format. ... ok
+test_the_parser_selects_by_identifier_and_by_root (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_selects_by_identifier_and_by_root) ... ok
+test_a_child_process_computes_the_lock_path_from_the_fixture_home (test_updater.LockIsolationInstrumentTests.test_a_child_process_computes_the_lock_path_from_the_fixture_home)
+The constant patch does not cross a process boundary; HOME does. ... ok
+test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change (test_updater.LockIsolationInstrumentTests.test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change)
+Mutation-style check of the alarm's own discrimination. ... ok
+test_the_lock_lands_in_the_fixture_cache_not_the_real_one (test_updater.LockIsolationInstrumentTests.test_the_lock_lands_in_the_fixture_cache_not_the_real_one)
+The redirection is load-bearing, not decorative. ... ok
+test_the_real_bundle_contains_the_symlinks_this_guard_is_about (test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about)
+Discrimination: without an internal symlink the guard above is vacuous. ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_the_real_installed_bundle_is_accepted_by_the_preflight (test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight) ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_completed_update_never_leaves_the_install_path_empty (test_updater.ReplaceScriptBehaviourTests.test_a_completed_update_never_leaves_the_install_path_empty)
+There is no instant at which the app is absent from its own path. ... ok
+test_a_launch_that_is_never_acknowledged_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_launch_that_is_never_acknowledged_rolls_back)
+`open` exiting 0 is a dispatch, not a health signal. ... ok
+test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged (test_updater.ReplaceScriptBehaviourTests.test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged)
+The fallback branch must actually be reachable. ... ok
+test_a_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_process_running_before_the_update_never_acknowledges_it)
+The false ACK that matters in practice. ... ok
+test_a_process_that_dies_during_the_settle_delay_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_process_that_dies_during_the_settle_delay_rolls_back)
+A bundle that starts and immediately crashes is not a live app. ... ok
+test_a_python_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_python_process_running_before_the_update_never_acknowledges_it)
+Same contract on the fallback pattern, which is a separate branch. ... ok
+test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one (test_updater.ReplaceScriptBehaviourTests.test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one)
+The nesting hole, made deterministic. ... ok
+test_a_stage_tampered_with_after_ditto_is_never_installed (test_updater.ReplaceScriptBehaviourTests.test_a_stage_tampered_with_after_ditto_is_never_installed)
+The installer's second validation rejects the exact staged copy. ... ok
+test_a_stale_process_cannot_cover_for_one_that_died_during_settle (test_updater.ReplaceScriptBehaviourTests.test_a_stale_process_cannot_cover_for_one_that_died_during_settle)
+The settle check must confirm *that* pid, not re-scan for any match. ... ok
+test_an_acknowledged_launch_completes_the_swap_atomically (test_updater.ReplaceScriptBehaviourTests.test_an_acknowledged_launch_completes_the_swap_atomically)
+The atomic path specifically — the branch every real machine takes. ... ok
+test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement)
+The anchor test: a third-party process mentioning the path. ... ok
+test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack)
+The fallback pattern must not match loosely either. ... ok
+test_atomic_exchange_failure_never_starts_a_move_fallback (test_updater.ReplaceScriptBehaviourTests.test_atomic_exchange_failure_never_starts_a_move_fallback)
+Both exchange helpers fail; exact old APP remains and no backup moves. ... ok
+test_rollback_survives_a_new_bundle_with_a_broken_interpreter (test_updater.ReplaceScriptBehaviourTests.test_rollback_survives_a_new_bundle_with_a_broken_interpreter)
+The only time rollback runs is when the new bundle is bad. ... ok
+test_the_old_app_survives_a_rollback_on_the_atomic_path (test_updater.ReplaceScriptBehaviourTests.test_the_old_app_survives_a_rollback_on_the_atomic_path)
+Old-copy preservation on the exchange path specifically. ... ok
+test_the_swap_fails_closed_without_any_bundled_interpreter (test_updater.ReplaceScriptBehaviourTests.test_the_swap_fails_closed_without_any_bundled_interpreter)
+No atomic helper means no update; APP stays the exact old object. ... ok
+test_a_retained_backup_is_recorded_where_the_user_can_find_it (test_updater.ReplaceScriptTextTests.test_a_retained_backup_is_recorded_where_the_user_can_find_it) ... ok
+test_constructor_refuses_to_invent_missing_caller_identities (test_updater.ReplaceScriptTextTests.test_constructor_refuses_to_invent_missing_caller_identities) ... ok
+test_execution_harness_neutralizes_the_primitive_before_consumers (test_updater.ReplaceScriptTextTests.test_execution_harness_neutralizes_the_primitive_before_consumers) ... ok
+test_forward_replacement_is_atomic_only_and_fails_closed (test_updater.ReplaceScriptTextTests.test_forward_replacement_is_atomic_only_and_fails_closed)
+A failed exchange must not reopen the old two-move install window. ... ok
+test_launch_grammar_is_one_definition_and_two_exact_consumers (test_updater.ReplaceScriptTextTests.test_launch_grammar_is_one_definition_and_two_exact_consumers) ... ok
+test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code (test_updater.ReplaceScriptTextTests.test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code)
+`open` returning 0 means dispatched, not running. ... ok
+test_rollback_never_reaches_for_the_new_bundles_interpreter (test_updater.ReplaceScriptTextTests.test_rollback_never_reaches_for_the_new_bundles_interpreter)
+Recovery must not depend on the thing it is recovering from. ... ok
+test_same_filesystem_is_checked_after_staging_and_before_the_swap (test_updater.ReplaceScriptTextTests.test_same_filesystem_is_checked_after_staging_and_before_the_swap)
+A cross-device swap cannot be atomic, and mv would copy instead. ... ok
+test_script_carries_the_callers_exact_app_and_work_identities (test_updater.ReplaceScriptTextTests.test_script_carries_the_callers_exact_app_and_work_identities) ... ok
+test_script_keeps_the_literal_substrings_other_tests_pin (test_updater.ReplaceScriptTextTests.test_script_keeps_the_literal_substrings_other_tests_pin) ... ok
+test_swap_goes_through_the_bundled_interpreter (test_updater.ReplaceScriptTextTests.test_swap_goes_through_the_bundled_interpreter) ... ok
+test_the_ordering_check_notices_the_device_check_moving (test_updater.ReplaceScriptTextTests.test_the_ordering_check_notices_the_device_check_moving)
+Control: the assertion above must be able to fail. ... ok
+test_the_rollback_check_notices_an_interpreter_from_the_new_bundle (test_updater.ReplaceScriptTextTests.test_the_rollback_check_notices_an_interpreter_from_the_new_bundle)
+Control: substitute the failed bundle's interpreter and it fails. ... ok
+test_a_bundle_whose_executable_lacks_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundle_whose_executable_lacks_this_architecture_is_rejected) ... ok
+test_a_bundled_interpreter_lacking_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundled_interpreter_lacking_this_architecture_is_rejected)
+The helper the swap itself runs — a mismatch breaks the update path. ... ok
+test_a_native_and_a_universal_bundle_are_both_accepted (test_updater.RequiredArchitectureTests.test_a_native_and_a_universal_bundle_are_both_accepted)
+Control: the check must not reject the two shapes we ship. ... ok
+test_the_main_executable_and_info_plist_must_be_regular_files (test_updater.RequiredArchitectureTests.test_the_main_executable_and_info_plist_must_be_regular_files)
+Both are read to decide identity; a symlink decides it elsewhere. ... ok
+test_a_non_https_or_hostless_url_is_never_selected (test_updater.SelectUpdateAssetTests.test_a_non_https_or_hostless_url_is_never_selected) ... ok
+test_apple_silicon_accepts_the_universal_archive_alone (test_updater.SelectUpdateAssetTests.test_apple_silicon_accepts_the_universal_archive_alone) ... ok
+test_apple_silicon_prefers_the_arm_archive (test_updater.SelectUpdateAssetTests.test_apple_silicon_prefers_the_arm_archive) ... ok
+test_case_and_surrounding_whitespace_are_normalized (test_updater.SelectUpdateAssetTests.test_case_and_surrounding_whitespace_are_normalized) ... ok
+test_duplicate_unrelated_names_do_not_block_a_clean_choice (test_updater.SelectUpdateAssetTests.test_duplicate_unrelated_names_do_not_block_a_clean_choice)
+Discrimination: the ambiguity rule is about the *allowed* name only. ... ok
+test_intel_never_takes_the_arm_only_archive (test_updater.SelectUpdateAssetTests.test_intel_never_takes_the_arm_only_archive) ... ok
+test_intel_takes_the_universal_archive (test_updater.SelectUpdateAssetTests.test_intel_takes_the_universal_archive) ... ok
+test_malformed_asset_entries_do_not_raise (test_updater.SelectUpdateAssetTests.test_malformed_asset_entries_do_not_raise) ... ok
+test_names_are_matched_only_against_the_allow_list (test_updater.SelectUpdateAssetTests.test_names_are_matched_only_against_the_allow_list) ... ok
+test_two_assets_normalizing_to_one_allowed_name_are_ambiguous (test_updater.SelectUpdateAssetTests.test_two_assets_normalizing_to_one_allowed_name_are_ambiguous)
+Two candidates for the same slot: we cannot know which is the app. ... ok
+test_unknown_architecture_is_rejected_rather_than_defaulted (test_updater.SelectUpdateAssetTests.test_unknown_architecture_is_rejected_rather_than_defaulted) ... ok
+test_codesign_call_binds_the_exact_expected_team_requirement (test_updater.SigningAuthorityPreflightTests.test_codesign_call_binds_the_exact_expected_team_requirement) ... ok
+test_codesign_failure_rejects_before_gatekeeper_and_ticket (test_updater.SigningAuthorityPreflightTests.test_codesign_failure_rejects_before_gatekeeper_and_ticket) ... ok
+test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_stapler_rejects_an_unstapled_bundle_with_rc_65 (test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_stapler_reports_success_for_our_stapled_bundle (test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_tool_that_cannot_run_fails_closed (test_updater.StaplerPreflightTests.test_a_tool_that_cannot_run_fails_closed) ... ok
+test_an_unstapled_bundle_is_refused (test_updater.StaplerPreflightTests.test_an_unstapled_bundle_is_refused) ... ok
+test_every_preflight_tool_runs_under_a_timeout (test_updater.StaplerPreflightTests.test_every_preflight_tool_runs_under_a_timeout)
+A hung signing tool must not wedge the update thread forever. ... ok
+test_preflight_consults_stapler (test_updater.StaplerPreflightTests.test_preflight_consults_stapler) ... ok
+test_a_traversing_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_a_traversing_member_is_rejected_before_extraction) ... ok
+test_an_absolute_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_absolute_member_is_rejected_before_extraction) ... ok
+test_an_ordinary_archive_still_reaches_extraction (test_updater.ZipMemberScanTests.test_an_ordinary_archive_still_reaches_extraction)
+Guard: the scan must not reject the archive we actually ship. ... ok
+test_an_unreadable_archive_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_unreadable_archive_is_rejected_before_extraction) ... ok
+test_universal_named_arm_only_bundle_is_rejected_via_lipo (test_updater_adversarial.ArchitectureBindingTests.test_universal_named_arm_only_bundle_is_rejected_via_lipo) ... ok
+test_atomic_branch_never_moves_old_stage_to_a_backup_name (test_updater_adversarial.AtomicExchangeRecoveryTests.test_atomic_branch_never_moves_old_stage_to_a_backup_name) ... ok
+test_fault_immediately_after_exchange_restores_or_retains_old_app (test_updater_adversarial.AtomicExchangeRecoveryTests.test_fault_immediately_after_exchange_restores_or_retains_old_app) ... ok
+test_info_plist_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_info_plist_must_be_a_regular_non_symlink) ... ok
+test_main_executable_directory_is_not_a_regular_file (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_directory_is_not_a_regular_file) ... ok
+test_main_executable_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_must_be_a_regular_non_symlink) ... ok
+test_nonexecutable_regular_macho_helper_is_rejected_before_popen (test_updater_adversarial.CriticalMemberTypeTests.test_nonexecutable_regular_macho_helper_is_rejected_before_popen) ... ok
+test_only_a_pid_created_after_launch_can_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_only_a_pid_created_after_launch_can_ack) ... ok
+test_preexisting_macos_and_resources_pids_cannot_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_preexisting_macos_and_resources_pids_cannot_ack) ... ok
+test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists (test_updater_adversarial.LaunchAcknowledgementTests.test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists) ... ok
+test_cleanup_does_not_follow_stage_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_cleanup_does_not_follow_stage_name_substitution) ... ok
+test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap) ... ok
+test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap) ... ok
+test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup)
+Atomic exchange failure must stop before any forward-path move. ... ok
+test_fd_bound_discard_preserves_root_replaced_after_fstat (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fd_bound_discard_preserves_root_replaced_after_fstat)
+The standalone discard must keep using its verified directory fd. ... ok
+test_fifo_lock_leaf_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_leaf_fails_closed_without_blocking) ... ok
+test_fifo_lock_root_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_root_fails_closed_without_blocking) ... ok
+test_helper_binds_installed_app_identity_handed_off_by_python (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_binds_installed_app_identity_handed_off_by_python)
+A rival APP substituted after Popen handoff must never be swapped. ... ok
+test_helper_refuses_stage_replaced_after_handoff_before_exchange (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_refuses_stage_replaced_after_handoff_before_exchange)
+The app installed by exchange must be the exact claimed STAGE. ... ok
+test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival)
+Detached cleanup binds WORKID through the standalone fd helper. ... ok
+test_lock_residue_is_under_complete_uninstall_owned_root (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_residue_is_under_complete_uninstall_owned_root) ... ok
+test_lock_root_symlink_is_refused_without_outside_creation (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_root_symlink_is_refused_without_outside_creation) ... ok
+test_manual_replacement_appid_mismatch_refuses_cross_path_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_manual_replacement_appid_mismatch_refuses_cross_path_swap)
+A manual replacement racing the updater is an APPID mismatch. ... ok
+test_owned_private_lock_root_has_normal_acquire_release_lifecycle (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_owned_private_lock_root_has_normal_acquire_release_lifecycle) ... ok
+test_partial_stage_copy_failure_removes_only_owned_candidate (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_partial_stage_copy_failure_removes_only_owned_candidate) ... ok
+test_preexisting_backup_name_is_never_changed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_backup_name_is_never_changed_or_deleted) ... ok
+test_preexisting_stage_name_collision_never_deletes_the_sentinel (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_stage_name_collision_never_deletes_the_sentinel) ... ok
+test_prehandoff_cleanup_binds_stage_beneath_open_parent (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_prehandoff_cleanup_binds_stage_beneath_open_parent)
+A stage rival inserted after parent-open must not be traversed. ... ok
+test_public_sibling_regular_file_is_never_selected_or_changed (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_public_sibling_regular_file_is_never_selected_or_changed) ... ok
+test_python_failure_cleanup_does_not_follow_work_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_python_failure_cleanup_does_not_follow_work_name_substitution)
+Failure cleanup must delete the claimed WORK, never its pathname. ... ok
+test_replaced_lock_root_cannot_create_a_second_lock_domain (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_replaced_lock_root_cannot_create_a_second_lock_domain)
+One app must not acquire two locks through two same-named roots. ... ok
+test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted)
+Covers the separate mkdir-then-rmdir staging-name race. ... ok
+test_symlink_lock_leaf_fails_closed_without_target_change (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_symlink_lock_leaf_fails_closed_without_target_change) ... ok
+test_world_writable_lock_root_is_refused (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_world_writable_lock_root_is_refused) ... ok
+test_post_ditto_mutation_is_seen_by_full_stage_revalidation (test_updater_adversarial.StagedCopyRevalidationTests.test_post_ditto_mutation_is_seen_by_full_stage_revalidation)
+Valid NEW plus invalid STAGE must not dispatch a replacement. ... ok
+test_background_descendant_cannot_retain_lock_after_return (test_updater_adversarial.UpdateLockCommandWrapperTests.test_background_descendant_cannot_retain_lock_after_return)
+Only the wrapper owns the fd; a surviving grandchild cannot. ... ok
+test_busy_lock_returns_100_without_starting_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_busy_lock_returns_100_without_starting_child) ... ok
+test_child_return_code_is_passed_through_exactly (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_return_code_is_passed_through_exactly) ... ok
+test_child_signal_is_mapped_to_128_plus_signal (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_signal_is_mapped_to_128_plus_signal) ... ok
+test_exec_failure_returns_127_and_releases_lock (test_updater_adversarial.UpdateLockCommandWrapperTests.test_exec_failure_returns_127_and_releases_lock) ... ok
+test_untrusted_lock_root_returns_101_without_outside_write (test_updater_adversarial.UpdateLockCommandWrapperTests.test_untrusted_lock_root_returns_101_without_outside_write) ... ok
+test_usage_errors_return_2_without_lock_or_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_usage_errors_return_2_without_lock_or_child) ... ok
+test_complete_uninstall_waits_for_active_update_transaction (test_updater_adversarial.UpdateLockLifecycleTests.test_complete_uninstall_waits_for_active_update_transaction) ... ok
+test_install_hands_lock_to_child_and_serializes_real_transactions (test_updater_adversarial.UpdateLockLifecycleTests.test_install_hands_lock_to_child_and_serializes_real_transactions)
+Distinguishes early close, missing lock, and parent fd leakage. ... ok
+test_mkdtemp_exception_releases_lock_before_any_io (test_updater_adversarial.UpdateLockLifecycleTests.test_mkdtemp_exception_releases_lock_before_any_io) ... ok
+test_uninstall_popen_failure_preserves_app_and_all_settings (test_updater_adversarial.UpdateLockLifecycleTests.test_uninstall_popen_failure_preserves_app_and_all_settings)
+Preparing the deletion helper must precede every destructive step. ... ok
+test_absolute_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_absolute_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_parent_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_parent_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_a_clean_archive_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_clean_archive_is_accepted)
+The control. Without it every rejection below could be a blanket no. ... ok
+test_a_contained_relative_symlink_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_contained_relative_symlink_is_accepted) ... ok
+test_a_missing_artifact_is_rejected_rather_than_skipped (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_missing_artifact_is_rejected_rather_than_skipped) ... ok
+test_a_symlink_member_escaping_the_archive_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_symlink_member_escaping_the_archive_is_rejected)
+The member kind a name-only scan cannot see. ... ok
+test_a_traversing_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_traversing_member_is_rejected) ... ok
+test_an_absolute_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_an_absolute_member_is_rejected) ... ok
+test_the_symlink_fixture_really_is_a_symlink (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_the_symlink_fixture_really_is_a_symlink)
+Discrimination: if the entry is a plain file, the test above is a lie. ... ok
+test_every_name_the_updater_accepts_is_one_release_builds (test_upload_artifact_gate.AssetNameCouplingTests.test_every_name_the_updater_accepts_is_one_release_builds)
+The other direction, which is a different failure. ... ok
+test_every_zip_release_builds_is_one_the_updater_will_accept (test_upload_artifact_gate.AssetNameCouplingTests.test_every_zip_release_builds_is_one_the_updater_will_accept) ... ok
+test_this_module_reads_the_real_names_rather_than_its_own_copy (test_upload_artifact_gate.AssetNameCouplingTests.test_this_module_reads_the_real_names_rather_than_its_own_copy)
+My own blindness to the same coupling, pinned. ... ok
+test_detach_failure_is_gate_failure_and_retains_the_named_mount (test_upload_artifact_gate.DmgArmTests.test_detach_failure_is_gate_failure_and_retains_the_named_mount) ... ok
+test_dmg_is_detached_after_a_successful_check (test_upload_artifact_gate.DmgArmTests.test_dmg_is_detached_after_a_successful_check) ... ok
+test_dmg_mountpoint_exists_before_attach (test_upload_artifact_gate.DmgArmTests.test_dmg_mountpoint_exists_before_attach)
+The regression this arm was fixed for: attach needs the dir first. ... ok
+test_dmg_that_fails_to_attach_fails_the_gate (test_upload_artifact_gate.DmgArmTests.test_dmg_that_fails_to_attach_fails_the_gate) ... ok
+test_dmg_with_a_wrongly_named_app_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_a_wrongly_named_app_fails_and_still_detaches)
+A rejection must not leave the image mounted. ... ok
+test_dmg_with_two_root_apps_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_two_root_apps_fails_and_still_detaches)
+Now constructible, and the detach path must hold for it too. ... ok
+test_sentinels_would_notice_a_path_that_did_not_exist_before (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_sentinels_would_notice_a_path_that_did_not_exist_before)
+`assertNothingEscaped` must catch CREATION, not only growth. ... ok
+test_the_password_database_ignores_our_HOME (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_the_password_database_ignores_our_HOME)
+The bypass, shown end to end in a shell we ourselves sandboxed. ... ok
+test_the_gate_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_gate_fragment_is_self_contained) ... ok
+test_the_publish_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_publish_fragment_is_self_contained) ... ok
+test_this_check_can_actually_detect_a_missing_callee (test_upload_artifact_gate.FragmentCompletenessTests.test_this_check_can_actually_detect_a_missing_callee)
+Discrimination: otherwise a broken regex reports self-contained. ... ok
+test_an_unconfigured_ditto_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_ditto_is_poisoned_rather_than_real)
+Forgetting `setup_ditto` must be loud, not plausible. ... ok
+test_an_unconfigured_hdiutil_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_hdiutil_is_poisoned_rather_than_real) ... ok
+test_mktemp_refuses_to_run_without_a_TMPDIR (test_upload_artifact_gate.HarnessContainmentTests.test_mktemp_refuses_to_run_without_a_TMPDIR)
+The failure mode the shim exists for, exercised directly. ... ok
+test_temporary_allocation_stays_inside_the_sandbox (test_upload_artifact_gate.HarnessContainmentTests.test_temporary_allocation_stays_inside_the_sandbox) ... ok
+test_the_gate_allocates_at_all (test_upload_artifact_gate.HarnessContainmentTests.test_the_gate_allocates_at_all)
+Discrimination: `assertAllocationsWereContained` is vacuous if not. ... ok
+test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage) ... ok
+test_notary_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_notary_failure_quarantines_dmg_and_removes_stage) ... ok
+test_staple_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_staple_failure_quarantines_dmg_and_removes_stage) ... ok
+test_success_runs_create_notary_staple_validate_in_exact_order (test_upload_artifact_gate.OneDmgPackagingTests.test_success_runs_create_notary_staple_validate_in_exact_order) ... ok
+test_validate_failure_text_with_zero_status_is_still_failure (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_failure_text_with_zero_status_is_still_failure) ... ok
+test_validate_nonzero_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_nonzero_quarantines_dmg_and_removes_stage) ... ok
+test_a_later_artifact_failing_stops_every_upload (test_upload_artifact_gate.PublishBehaviourTests.test_a_later_artifact_failing_stops_every_upload)
+The one a first-file-only gate would pass. ... ok
+test_all_artifacts_good_does_reach_gh (test_upload_artifact_gate.PublishBehaviourTests.test_all_artifacts_good_does_reach_gh) ... ok
+test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens) ... ok
+test_assets_subcommand_blocks_a_wrong_four_name_set (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_wrong_four_name_set) ... ok
+test_assets_subcommand_receives_exactly_the_four_release_names (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_receives_exactly_the_four_release_names) ... ok
+test_detach_failure_retains_the_mount_and_blocks_gh (test_upload_artifact_gate.PublishBehaviourTests.test_detach_failure_retains_the_mount_and_blocks_gh) ... ok
+test_every_artifact_is_verified_before_the_first_gh_call (test_upload_artifact_gate.PublishBehaviourTests.test_every_artifact_is_verified_before_the_first_gh_call) ... ok
+test_no_gh_call_when_the_archive_scan_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_archive_scan_fails) ... ok
+test_no_gh_call_when_the_artifact_carries_an_extra_app (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_carries_an_extra_app) ... ok
+test_no_gh_call_when_the_artifact_is_corrupt (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_is_corrupt) ... ok
+test_no_gh_call_when_the_payload_check_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_payload_check_fails) ... ok
+test_publish_stops_at_the_first_bad_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_publish_stops_at_the_first_bad_artifact)
+`|| exit 1`, not a status collected and ignored to the end. ... ok
+test_the_upload_carries_every_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_the_upload_carries_every_artifact)
+A gate that verifies four files and uploads three is still wrong. ... ok
+test_publish_aborts_on_a_failed_verification (test_upload_artifact_gate.PublishWiringTests.test_publish_aborts_on_a_failed_verification) ... ok
+test_publish_verifies_before_it_uploads (test_upload_artifact_gate.PublishWiringTests.test_publish_verifies_before_it_uploads) ... ok
+test_contained_symlink_is_a_positive_control_and_reaches_ditto (test_upload_artifact_gate.RealScannerGateWiringTests.test_contained_symlink_is_a_positive_control_and_reaches_ditto) ... ok
+test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside (test_upload_artifact_gate.RealScannerGateWiringTests.test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside) ... ok
+test_a_second_root_app_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_a_second_root_app_is_rejected)
+Flipped from documenting the gap to requiring it be closed. ... ok
+test_an_app_hidden_inside_the_bundle_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_an_app_hidden_inside_the_bundle_is_rejected)
+The nested scan, which no other case reaches. ... ok
+test_clean_zip_with_one_root_app_passes (test_upload_artifact_gate.VerifyUploadArtifactTests.test_clean_zip_with_one_root_app_passes) ... ok
+test_corrupt_zip_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_corrupt_zip_fails) ... ok
+test_every_artifact_passes_the_exact_current_version_and_arch_contract (test_upload_artifact_gate.VerifyUploadArtifactTests.test_every_artifact_passes_the_exact_current_version_and_arch_contract)
+The defect an all-passing shim hid completely. ... ok
+test_failing_archive_scan_fails_before_extraction (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_archive_scan_fails_before_extraction)
+The scan runs before `ditto`, and order is the whole point. ... ok
+test_failing_bundle_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_bundle_check_fails_the_gate)
+The `app` branch, unreachable until the shim learned subcommands. ... ok
+test_failing_payload_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_payload_check_fails_the_gate) ... ok
+test_missing_artifact_fails_rather_than_passing_unchecked (test_upload_artifact_gate.VerifyUploadArtifactTests.test_missing_artifact_fails_rather_than_passing_unchecked) ... ok
+test_nested_app_is_not_accepted_as_a_root_app (test_upload_artifact_gate.VerifyUploadArtifactTests.test_nested_app_is_not_accepted_as_a_root_app) ... ok
+test_the_plain_archive_pins_arm64_from_the_contract_not_the_host (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_plain_archive_pins_arm64_from_the_contract_not_the_host)
+Asserted against `UPDATE_ASSET_NAMES`, deliberately not `uname -m`. ... ok
+test_the_two_archive_kinds_are_not_given_the_same_arches (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_two_archive_kinds_are_not_given_the_same_arches)
+Discrimination: if both produced one value, one test above is dead. ... ok
+test_the_universal_archive_pins_BOTH_architectures (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_universal_archive_pins_BOTH_architectures)
+Both, exactly - not "at least one", which is the whole point. ... ok
+test_unknown_extension_fails_closed (test_upload_artifact_gate.VerifyUploadArtifactTests.test_unknown_extension_fails_closed) ... ok
+test_zip_with_no_app_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_zip_with_no_app_fails) ... ok
+test_calibration_pct_applies_immediately (test_v020_boundaries.B1Settings.test_calibration_pct_applies_immediately) ... ok
+test_direct_limit_applies_immediately (test_v020_boundaries.B1Settings.test_direct_limit_applies_immediately) ... ok
+test_invalid_input_rejects_whole_save (test_v020_boundaries.B1Settings.test_invalid_input_rejects_whole_save) ... ok
+test_mutant_control_for_the_failure_path (test_v020_boundaries.B1Settings.test_mutant_control_for_the_failure_path)
+MUTANT: strip both `return`s from the rejection paths, so a rejected ... ok
+test_save_settings_failure_keeps_panel_open_and_state_untouched (test_v020_boundaries.B1Settings.test_save_settings_failure_keeps_panel_open_and_state_untouched) ... ok
+test_save_settings_success_updates_state_and_closes_panel (test_v020_boundaries.B1Settings.test_save_settings_success_updates_state_and_closes_panel) ... ok
+test_save_settings_uses_the_seam (test_v020_boundaries.B1Settings.test_save_settings_uses_the_seam) ... ok
+test_saved_limits_survive_restart (test_v020_boundaries.B1Settings.test_saved_limits_survive_restart) ... ok
+test_both_build_paths_declare_the_payload (test_v020_boundaries.B2Bundle.test_both_build_paths_declare_the_payload)
+Source fact, not an artifact: both builders stage .claude_pet. ... [b2] repo-root ClaudePet.app has .claude_pet: False
+[b2] dist/ClaudePet.app has .claude_pet: True
+ok
+test_expected_set_is_derived (test_v020_boundaries.B2Bundle.test_expected_set_is_derived) ... ok
+test_py2app_bundle_carries_every_asset (test_v020_boundaries.B2Bundle.test_py2app_bundle_carries_every_asset) ... ok
+test_seeding_into_empty_dest_creates_everything (test_v020_boundaries.B2Bundle.test_seeding_into_empty_dest_creates_everything)
+POSITIVE CONTROL for the never-clobber tests below. ... ok
+test_seeding_is_idempotent (test_v020_boundaries.B2Bundle.test_seeding_is_idempotent) ... ok
+test_seeding_never_clobbers_edited_files (test_v020_boundaries.B2Bundle.test_seeding_never_clobbers_edited_files) ... ok
+test_seeding_refuses_a_symlinked_dest_root (test_v020_boundaries.B2Bundle.test_seeding_refuses_a_symlinked_dest_root) ... ok
+test_github_choice_binds_v021_tag_asset_and_arch_without_network (test_v020_boundaries.B3Updater.test_github_choice_binds_v021_tag_asset_and_arch_without_network) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_invalid_candidates_are_refused_before_handoff (test_v020_boundaries.B3Updater.test_invalid_candidates_are_refused_before_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_well_formed_v021_reaches_one_sandbox_handoff (test_v020_boundaries.B3Updater.test_well_formed_v021_reaches_one_sandbox_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... ok
+test_claude_has_durable_user_facing_release_note_policy (test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v021_version_and_final_source_pins_propagate (test_v021_release_contract.VersionAndPinContractTests.test_v021_version_and_final_source_pins_propagate) ... ok
+
+----------------------------------------------------------------------
+Ran 440 tests in 314.979s
+
+OK (skipped=7)
+```
+
+### Actual OS Reduce Motion menu RED
+
+Actual OS switch enabled during approach on PID33130 loaded9d15: out at09:29:52.136194Z; runtime reduce_motion=True/ enabled=False by09:29:53.436641Z; unchanged stopped position740.6369665180216,511.3146539732439 through09:29:55.486731Z. Menu AXEnabled independently read True at09:32:13.922731Z despite runtime flagTrue. Both attempts restored OS switch0 and runtime reduce_motion=False; the first same-process NSWorkspace read was cached, so final restoration was checked using native AX, a fresh process and the real GUI loop.
+
+Native menu regression command `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py CompanionGuiOwnershipTests.test_native_menu_validation_preserves_reduce_motion_disabled_item -v`; source SHA 9d15b8790a4b414824ace0cb17ce72d9b7410a2cd948dcd9448d8aa85529dc99; UTC 2026-09-08T09:33:43.558354+00:00–2026-09-08T09:33:43.848701+00:00. Actual source menu-building method, real NSMenu.update validation, no popup or installed-app action.
+
+```text
+test_native_menu_validation_preserves_reduce_motion_disabled_item (__main__.CompanionGuiOwnershipTests.test_native_menu_validation_preserves_reduce_motion_disabled_item) ... FAIL
+
+======================================================================
+FAIL: test_native_menu_validation_preserves_reduce_motion_disabled_item (__main__.CompanionGuiOwnershipTests.test_native_menu_validation_preserves_reduce_motion_disabled_item)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_companion_motion.py", line 883, in test_native_menu_validation_preserves_reduce_motion_disabled_item
+    self.assertEqual(observed, [False, True],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+                     "native menu validation re-enabled the Reduce Motion-blocked action")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [True, True] != [False, True]
+
+First differing element 0:
+True
+False
+
+- [True, True]
++ [False, True] : native menu validation re-enabled the Reduce Motion-blocked action
+
+----------------------------------------------------------------------
+Ran 1 test in 0.135s
+
+FAILED (failures=1)
+```
+
+### Menu-fix focused suite
+
+Command `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py -v`; source SHA 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c; UTC 2026-09-08T09:36:18.985914+00:00–2026-09-08T09:36:21.757336+00:00.
+
+```text
+test_display_shrink_recovers_full_window_and_cancels_old_trip (__main__.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... ok
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (__main__.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... ok
+test_disabled_start_remains_at_current_position (__main__.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (__main__.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (__main__.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (__main__.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_actual_summary_draw_keeps_long_text_inside_pill_padding (__main__.CompanionCompactRegressionTests.test_actual_summary_draw_keeps_long_text_inside_pill_padding) ... ok
+test_actual_summary_formatter_distinguishes_estimate_from_exact (__main__.CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact) ... ok
+test_crop_change_during_drag_preserves_actual_manual_displacement (__main__.CompanionCompactRegressionTests.test_crop_change_during_drag_preserves_actual_manual_displacement) ... ok
+test_fit_contract_uses_measured_longest_prefix_and_tiny_width (__main__.CompanionCompactRegressionTests.test_fit_contract_uses_measured_longest_prefix_and_tiny_width) ... ok
+test_folded_drop_clamps_logical_envelope_before_save_and_restore (__main__.CompanionCompactRegressionTests.test_folded_drop_clamps_logical_envelope_before_save_and_restore) ... ok
+test_all_orientations_preserve_sprite_anchor_and_logical_home (__main__.CompanionCropGeometryTests.test_all_orientations_preserve_sprite_anchor_and_logical_home) ... ok
+test_native_compact_size_includes_button_but_not_full_panel_hitbox (__main__.CompanionCropGeometryTests.test_native_compact_size_includes_button_but_not_full_panel_hitbox) ... ok
+test_summary_text_width_is_bounded_and_origin_uses_same_side (__main__.CompanionCropGeometryTests.test_summary_text_width_is_bounded_and_origin_uses_same_side) ... ok
+test_uncropped_window_logical_center_remains_native_center (__main__.CompanionCropGeometryTests.test_uncropped_window_logical_center_remains_native_center) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (__main__.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_native_menu_validation_preserves_reduce_motion_disabled_item (__main__.CompanionGuiOwnershipTests.test_native_menu_validation_preserves_reduce_motion_disabled_item) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (__main__.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (__main__.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (__main__.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (__main__.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (__main__.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (__main__.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (__main__.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (__main__.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (__main__.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (__main__.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (__main__.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (__main__.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (__main__.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_long_interaction_still_gets_full_fresh_rest_after_release (__main__.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (__main__.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (__main__.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (__main__.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (__main__.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (__main__.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... ok
+test_approach_summary_expansion_does_not_replace_manual_preference (__main__.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) ... ok
+test_departure_and_return_fold_even_before_any_displacement (__main__.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) ... ok
+test_exact_summary_filters_only_first_two_rows_without_replacement (__main__.CompanionPresentationTests.test_exact_summary_filters_only_first_two_rows_without_replacement) ... ok
+test_explicit_interruption_or_disable_clears_summary_and_expansion (__main__.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) ... ok
+test_hover_stop_away_keeps_summary_available_for_expansion (__main__.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion) ... ok
+test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (__main__.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) ... ok
+test_interruption_has_priority_over_same_call_arrival (__main__.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival) ... ok
+test_manual_toggle_and_reset_restore_ordinary_preference_behavior (__main__.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior) ... ok
+test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion (__main__.CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion) ... ok
+test_server_label_matching_translation_key_remains_an_exact_label (__main__.CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label) ... ok
+test_summary_invalid_values_are_not_reported_as_zero (__main__.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) ... ok
+test_summary_keeps_first_two_source_labels_and_values_in_order (__main__.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order) ... ok
+test_summary_onboarding_and_estimates_preserve_data_meaning (__main__.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning) ... ok
+test_summary_unknown_zero_and_api_mode_are_distinct (__main__.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct) ... ok
+test_wander_pause_stays_folded_and_return_restores_manual_choice (__main__.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice) ... ok
+
+----------------------------------------------------------------------
+Ran 51 tests in 2.695s
+
+OK
+```
+
+### Menu-fix compact native smoke
+
+Command `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 tests/test_companion_motion.py --native-smoke --compact-presentation-gate`; isolated HOME/TMPDIR/ZDOTDIR/CLAUDEPET_SMOKE_SANDBOX=/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-menu-final-native-ypqei49h; SHA 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c; UTC 2026-09-08T09:37:40.123948+00:00–2026-09-08T09:37:40.578462+00:00. Current compact-smoke.json/png hold this final SHA; earlier source outputs remain embedded in this document.
+
+```text
+{
+  "layout_midpoint": [
+    960.0,
+    543.0
+  ],
+  "synthetic_initial_center": [
+    920.0,
+    503.0
+  ],
+  "native_window_class": "<objective-c class NSWindow at 0x1f0708608>",
+  "native_view_class": "<objective-c class PetView at 0xbe6cca370>",
+  "runtime_roam_default": true,
+  "defaults": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_roamer_cfg": {
+    "rest_min_s": 45.0,
+    "rest_max_s": 90.0,
+    "approach_cooldown_s": 180.0,
+    "wander_cooldown_s": 300.0,
+    "walk_speed": 55.0,
+    "approach_stop": 150.0,
+    "approach_max": 360.0,
+    "look_s": 6.0,
+    "wander_radius": 160.0,
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,
+    "cursor_move_px": 12.0,
+    "cursor_sample_s": 1.0,
+    "cursor_margin_px": 24.0,
+    "max_dt_s": 0.25,
+    "gap_s": 5.0,
+    "min_trip_px": 60.0,
+    "arrive_px": 2.0
+  },
+  "initial_radius": 190.21303845951255,
+  "visible_screen": [
+    0.0,
+    36.0,
+    1920.0,
+    1014.0
+  ],
+  "transitions": [
+    {
+      "t": 46.650000000000006,
+      "phase": "out",
+      "window": [
+        790.0,
+        400.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "logical_center": [
+        920.0,
+        518.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "idle"
+    },
+    {
+      "t": 53.2,
+      "phase": "look",
+      "window": [
+        1104.0,
+        572.0,
+        130.0,
+        140.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "logical_center": [
+        1236.0,
+        690.0
+      ],
+      "mode": "summary",
+      "crop": [
+        2,
+        98,
+        130,
+        140
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 59.2,
+      "phase": "home",
+      "window": [
+        1106.0,
+        572.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "logical_center": [
+        1236.0,
+        690.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 65.75,
+      "phase": "rest",
+      "window": [
+        786.0,
+        398.0,
+        268.0,
+        240.0
+      ],
+      "sprite": [
+        792.0,
+        402.0
+      ],
+      "logical_center": [
+        920.0,
+        518.0
+      ],
+      "mode": "full",
+      "crop": [
+        0,
+        0,
+        268.0,
+        240.0
+      ],
+      "pos": [
+        920.0,
+        518.0
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_states": [
+    {
+      "t": 46.7,
+      "phase": "out",
+      "window": [
+        792.0,
+        401.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        794.0,
+        403.0
+      ],
+      "logical_center": [
+        922.0,
+        519.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        922.4149978676317,
+        519.3154030938589
+      ],
+      "mood": "running-right"
+    },
+    {
+      "t": 53.25,
+      "phase": "look",
+      "window": [
+        1104.0,
+        572.0,
+        130.0,
+        140.0
+      ],
+      "sprite": [
+        1108.0,
+        574.0
+      ],
+      "logical_center": [
+        1236.0,
+        690.0
+      ],
+      "mode": "summary",
+      "crop": [
+        2,
+        98,
+        130,
+        140
+      ],
+      "pos": [
+        1236.1451753990714,
+        690.1982231960899
+      ],
+      "mood": "review"
+    },
+    {
+      "t": 59.25,
+      "phase": "home",
+      "window": [
+        1103.0,
+        571.0,
+        128.0,
+        108.0
+      ],
+      "sprite": [
+        1105.0,
+        573.0
+      ],
+      "logical_center": [
+        1233.0,
+        689.0
+      ],
+      "mode": "folded",
+      "crop": [
+        4,
+        130,
+        128,
+        108
+      ],
+      "pos": [
+        1233.7301775314397,
+        688.882820102231
+      ],
+      "mood": "running-left"
+    }
+  ],
+  "capture_column_phases": [
+    "out",
+    "look",
+    "home"
+  ],
+  "crossed_horizontal_midpoint": true,
+  "crossed_vertical_midpoint": true,
+  "max_native_model_axis_residual": 0.8747334539777967,
+  "max_sprite_anchor_axis_residual": 0.8747334539777967,
+  "native_visible_bounds_violations": 0,
+  "start_utc": "2026-09-08T09:37:40.249029+00:00",
+  "end_utc": "2026-09-08T09:37:40.553535+00:00",
+  "measured_utc": "2026-09-08T09:37:40.553535+00:00",
+  "source_sha256": "3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c",
+  "grouping_key": "manually invoked native Ticker.tick_ callback",
+  "sampled_ticks": 1315,
+  "synthetic_time_start": 0.05,
+  "synthetic_time_end": 65.75,
+  "max_window_step": 6.708203932499369,
+  "max_sprite_step": 3.605551275463989,
+  "max_model_step": 2.7500000000006315,
+  "max_sprite_displacement_beyond_model": 0.9005000937109834,
+  "forbidden_calls": [],
+  "suppressed_background_workers": [
+    "work",
+    "_run_update_check"
+  ],
+  "config_writes": []
+}
+```
+
+Verifier confirmed at 2026-09-08T09:38:16.187490+00:00 that removing only the new three comment lines and setAutoenablesItems_(False) restores exact9d15 SHA. Thus previous actual approach/crop/summary measurements connect to final3a961 source through byte-identical common code. Reviewed app hash pins updated to 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c after Reviewer source approval.
+
+### Actual final GUI interactions and OS restoration
+
+Normal run_gui with default movement timing and real cursor events: PID33130 loaded9d15. First approach out09:17:36.133230Z → look09:17:42.382959Z → home09:17:48.383301Z → rest09:17:54.633160Z; watch duration6.000342s. Real NSWindow frames in the trace are128×108 folded travel,143×140 arrival summary,128×108 return,268×240 restored full view. The untouched original arrival screenshot is [quiet-companion-arrival.png](quiet-companion-arrival.png), captured09:17:42.711707Z from window1451. This live exact-usage capture shows session28% and weekly27%; these are displayed values, not an independent verification of the usage calculation.
+
+Second approach starts09:23:13.484881Z and arrives09:23:20.034518Z. Real hover stops motion without clearing the summary; actual chevron click at09:23:21.739395Z expands to268×240, with summary_latched=True/summary_expanded=True while the original show_panel=False is preserved. A second click restores summary; right-click/menu dismissal clears the latch and restores the ordinary folded preference. Trace events ui_summary_expand/ui_summary_collapse/ui_summary_menu_reset contain the runtime/native evidence.
+
+Other actual events: OFF sets persisted roam=False and runtime enabled=False at09:19:20.726768Z. A folded edge drop at09:20:21.258564Z saves logical x0,y324; native frame x4 and128×108 stays visible; manual home becomes134,444. A following manual drag establishes home700,504. ON is confirmed09:21:14.233248Z. Settings open09:21:16.183516Z sets busy=True; close09:22:05.483995Z resumes a fresh quiet period. All preferences are isolated at the config path recorded in each launch event; installed PID29528 is preserved.
+
+Final menu-only source3a961 runs as PID49172. Actual OS Reduce Motion ON at09:40:46.132305Z yields roam AXEnabled=False; OFF at09:40:49.485623Z yields True. Settings, gauge toggle, reset size and quit menu items remain AXEnabled=True in both observations (4/4 each; grouping key is the four named menu titles, raw final_os_menu_validation events). The original OS Reduce Motion=False is restored, and the pre-existing System Settings window263 returns to Storage at its original1067,347 /723×625 rectangle. Sensitivity was restored through the actual Normal popup + Save to spike_mult=1.0 before final-source launch.
+
+Input harness corrections are retained as limitations of the automation, not product failures: the first actual drag had pre-input motion/capture skew; a return screenshot watcher incorrectly required kind=approach after the state machine clears kind on home; an OS wait without recent cursor activity had no eligible trip; same-process NSWorkspace reads without an event loop remained stale after a setting changed; explicit clickCount=1 is needed for standard popup controls, while the established right-click event sequence uses its default context-menu count; hidden zero-size Back menu items were excluded in favor of the visible toolbar arrow when restoring System Settings. The actual menu-enabled defect was separately established with native NSMenu.update and fixed before the final PASS.
+
+### Final menu-fix full suite
+
+Grouping key unittest case ID; file set tests/test_*.py enumerated below. Command `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m unittest discover -s tests -v`; normal top-level HOME, per-module temp fixtures, PYTHONDONTWRITEBYTECODE=1, live boundary opt-in absent. UTC 2026-09-08T09:38:16.301325+00:00–2026-09-08T09:43:35.791215+00:00; start SHA 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c; end SHA 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c; exit 0.
+
+```text
+
+[instruments] 14 injection site(s) use a computed needle and are NOT checked here:
+  test_updater.py:2018  replace(LAUNCH_DEFINITION, ...)
+  test_updater.py:2019  replace(LAUNCH_PRIMARY, ...)
+  test_updater.py:2020  replace(LAUNCH_RESTORE, ...)
+  test_updater.py:2119  replace(line + '\n', ...)
+  test_updater.py:2344  replace(line, ...)
+  test_updater.py:2347  replace(line, ...)
+  test_updater_adversarial.py:183  replace(assignment, ...)
+  test_updater_adversarial.py:393  replace(launch_call, ...)
+  test_updater_adversarial.py:1010  replace(exchange_boundary, ...)
+  test_updater_adversarial.py:1270  replace(post_exchange, ...)
+  test_updater_adversarial.py:1841  replace(stage_identity_gate, ...)
+  test_updater_adversarial.py:1854  replace(post_exchange, ...)
+  test_updater_adversarial.py:2200  replace(needle, ...)
+  test_updater_adversarial.py:1167  replace(post_exchange, ...)
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: Contents/Resources/claude_pet.py is missing or is not a regular file
+[gate] rejected: --arches is required (what the artifact claims to support, not what this machine happens to be)
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the app is not a real directory
+[gate] rejected: the bundled claude_pet.py is not this checkout's (53def4313b53… != 3a96147a2e46…)
+[update] rejected: bundle identifier does not match
+[update] rejected: CFBundleVersion does not match the release tag
+[update] rejected: CFBundleShortVersionString does not match the release tag
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: signature missing, invalid, or not ours
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: absolute symlink target in bundle
+[update] rejected: bundle path resolves outside the bundle
+[update] rejected: bundled path is a symlink (pets/dog/extra.png)
+[update] rejected: bundled path is a symlink (pets/spare)
+[update] rejected: bundled path is a symlink (EXTRA.md)
+[update] rejected: bundled path is a symlink (.claude_pet)
+[update] rejected: bundled path is a symlink (pets)
+[update] rejected: bundled path is a symlink (pets/dog)
+[update] asset=claudepet.zip arch=arm64
+[update] rejected: unreadable archive (BadZipFile)
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] refused: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: no expected version to verify against
+[update] rejected: bundled path is a symlink (pets/dog/preview.png)
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: bundle has no arm64 slice
+[update] rejected: bundle has no arm64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: claudepet.zip is not served over https
+[update] rejected: two assets normalize to 'claudepet.zip'
+[update] rejected: unknown architecture ('aarch64')
+[update] rejected: unknown architecture ('ppc')
+[update] rejected: unknown architecture ('')
+[update] rejected: unknown architecture (None)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: Gatekeeper did not attribute the app to us
+[update] rejected: Gatekeeper reported no origin
+[update] rejected: codesign could not run (OSError)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: codesign could not run (TimeoutExpired)
+[update] rejected: signature missing, invalid, or not ours
+[update] rejected: spctl could not run (OSError)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: spctl could not run (TimeoutExpired)
+[update] rejected: not notarized / rejected by Gatekeeper
+[update] rejected: xcrun could not run (OSError)
+[update] rejected: no stapled notarization ticket
+[update] rejected: xcrun could not run (TimeoutExpired)
+[update] rejected: no stapled notarization ticket
+[update] rejected: no stapled notarization ticket
+[update] rejected: archive member escapes the archive root
+[update] rejected: archive member is an absolute path
+[update] rejected: unreadable archive (BadZipFile)
+[update] rejected: bundle has no x86_64 slice
+[update] rejected: Info.plist is not a regular file
+[update] rejected: main executable is not a regular file
+[update] rejected: main executable is not a regular file
+[update] bundled pet assets incomplete (16 paths); seeding will skip them
+[update] rejected: bundled exchange helper (Contents/MacOS/python) is not executable
+[update] rejected: the staged copy does not match what was validated
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+[update] refused: could not claim a staging name
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock path is not a plain file we can own
+[update] refused: the update lock directory is not a private directory we own
+[update] rejected: the staged copy does not match what was validated
+[update] refused: the update lock directory is not a plain directory we can own
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink points to an absolute path
+[update] rejected: archive symlink escapes the archive root
+[update] rejected: archive symlink escapes the archive root
+test_display_shrink_recovers_full_window_and_cancels_old_trip (test_companion_motion.CompanionAdapterTests.test_display_shrink_recovers_full_window_and_cancels_old_trip) ... ok
+test_resize_while_away_cancels_motion_and_recomputes_window_radius (test_companion_motion.CompanionAdapterTests.test_resize_while_away_cancels_motion_and_recomputes_window_radius) ... ok
+test_disabled_start_remains_at_current_position (test_companion_motion.CompanionApiTests.test_disabled_start_remains_at_current_position) ... ok
+test_initial_rest_does_not_move_for_early_activity (test_companion_motion.CompanionApiTests.test_initial_rest_does_not_move_for_early_activity) ... ok
+test_public_pure_motion_contract_exists (test_companion_motion.CompanionApiTests.test_public_pure_motion_contract_exists) ... ok
+test_set_home_replaces_both_old_motion_origin_and_manual_home (test_companion_motion.CompanionApiTests.test_set_home_replaces_both_old_motion_origin_and_manual_home) ... ok
+test_actual_summary_draw_keeps_long_text_inside_pill_padding (test_companion_motion.CompanionCompactRegressionTests.test_actual_summary_draw_keeps_long_text_inside_pill_padding) ... ok
+test_actual_summary_formatter_distinguishes_estimate_from_exact (test_companion_motion.CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact) ... ok
+test_crop_change_during_drag_preserves_actual_manual_displacement (test_companion_motion.CompanionCompactRegressionTests.test_crop_change_during_drag_preserves_actual_manual_displacement) ... ok
+test_fit_contract_uses_measured_longest_prefix_and_tiny_width (test_companion_motion.CompanionCompactRegressionTests.test_fit_contract_uses_measured_longest_prefix_and_tiny_width) ... ok
+test_folded_drop_clamps_logical_envelope_before_save_and_restore (test_companion_motion.CompanionCompactRegressionTests.test_folded_drop_clamps_logical_envelope_before_save_and_restore) ... ok
+test_all_orientations_preserve_sprite_anchor_and_logical_home (test_companion_motion.CompanionCropGeometryTests.test_all_orientations_preserve_sprite_anchor_and_logical_home) ... ok
+test_native_compact_size_includes_button_but_not_full_panel_hitbox (test_companion_motion.CompanionCropGeometryTests.test_native_compact_size_includes_button_but_not_full_panel_hitbox) ... ok
+test_summary_text_width_is_bounded_and_origin_uses_same_side (test_companion_motion.CompanionCropGeometryTests.test_summary_text_width_is_bounded_and_origin_uses_same_side) ... ok
+test_uncropped_window_logical_center_remains_native_center (test_companion_motion.CompanionCropGeometryTests.test_uncropped_window_logical_center_remains_native_center) ... ok
+test_click_during_auto_away_does_not_persist_automatic_xy (test_companion_motion.CompanionGuiOwnershipTests.test_click_during_auto_away_does_not_persist_automatic_xy) ... ok
+test_native_menu_validation_preserves_reduce_motion_disabled_item (test_companion_motion.CompanionGuiOwnershipTests.test_native_menu_validation_preserves_reduce_motion_disabled_item) ... ok
+test_activity_bursts_respect_approach_cooldown_without_starving_future_visits (test_companion_motion.CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits) ... ok
+test_approach_max_and_watch_hold_are_geometrically_bounded (test_companion_motion.CompanionMotionTests.test_approach_max_and_watch_hold_are_geometrically_bounded) ... ok
+test_click_without_drag_preserves_manual_home_and_current_position (test_companion_motion.CompanionMotionTests.test_click_without_drag_preserves_manual_home_and_current_position) ... ok
+test_cursor_on_outbound_segment_cancels_instead_of_crossing_it (test_companion_motion.CompanionMotionTests.test_cursor_on_outbound_segment_cancels_instead_of_crossing_it) ... ok
+test_cursor_on_return_segment_also_cancels (test_companion_motion.CompanionMotionTests.test_cursor_on_return_segment_also_cancels) ... ok
+test_disabled_during_return_does_not_snap_to_manual_home (test_companion_motion.CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home) ... ok
+test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly (test_companion_motion.CompanionMotionTests.test_each_interaction_freezes_an_inflight_approach_and_resumes_quietly) ... ok
+test_eligible_activity_starts_approach_after_the_rest (test_companion_motion.CompanionMotionTests.test_eligible_activity_starts_approach_after_the_rest) ... ok
+test_fixed_destination_does_not_chase_new_cursor_locations (test_companion_motion.CompanionMotionTests.test_fixed_destination_does_not_chase_new_cursor_locations) ... ok
+test_hold_on_every_trip_phase_freezes_look_and_return_too (test_companion_motion.CompanionMotionTests.test_hold_on_every_trip_phase_freezes_look_and_return_too) ... ok
+test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target (test_companion_motion.CompanionMotionTests.test_invalid_bounds_do_not_bypass_suppression_or_restore_stale_target) ... ok
+test_invalid_center_bounds_freeze_without_reversed_clamp_jump (test_companion_motion.CompanionMotionTests.test_invalid_center_bounds_freeze_without_reversed_clamp_jump) ... ok
+test_late_tick_caps_distance_without_using_full_elapsed_time (test_companion_motion.CompanionMotionTests.test_late_tick_caps_distance_without_using_full_elapsed_time) ... ok
+test_long_interaction_still_gets_full_fresh_rest_after_release (test_companion_motion.CompanionMotionTests.test_long_interaction_still_gets_full_fresh_rest_after_release) ... ok
+test_nonzero_negative_monitor_origin_contains_every_position (test_companion_motion.CompanionMotionTests.test_nonzero_negative_monitor_origin_contains_every_position) ... ok
+test_pointer_in_interior_of_full_leg_stops_before_next_step (test_companion_motion.CompanionMotionTests.test_pointer_in_interior_of_full_leg_stops_before_next_step) ... ok
+test_real_drag_establishes_a_new_home_and_cancels_old_target (test_companion_motion.CompanionMotionTests.test_real_drag_establishes_a_new_home_and_cancels_old_target) ... ok
+test_sleep_gap_freezes_in_place_and_discards_old_journey (test_companion_motion.CompanionMotionTests.test_sleep_gap_freezes_in_place_and_discards_old_journey) ... ok
+test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown (test_companion_motion.CompanionMotionTests.test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown) ... ok
+test_approach_summary_expansion_does_not_replace_manual_preference (test_companion_motion.CompanionPresentationTests.test_approach_summary_expansion_does_not_replace_manual_preference) ... ok
+test_departure_and_return_fold_even_before_any_displacement (test_companion_motion.CompanionPresentationTests.test_departure_and_return_fold_even_before_any_displacement) ... ok
+test_exact_summary_filters_only_first_two_rows_without_replacement (test_companion_motion.CompanionPresentationTests.test_exact_summary_filters_only_first_two_rows_without_replacement) ... ok
+test_explicit_interruption_or_disable_clears_summary_and_expansion (test_companion_motion.CompanionPresentationTests.test_explicit_interruption_or_disable_clears_summary_and_expansion) ... ok
+test_hover_stop_away_keeps_summary_available_for_expansion (test_companion_motion.CompanionPresentationTests.test_hover_stop_away_keeps_summary_available_for_expansion) ... ok
+test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry (test_companion_motion.CompanionPresentationTests.test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry) ... ok
+test_interruption_has_priority_over_same_call_arrival (test_companion_motion.CompanionPresentationTests.test_interruption_has_priority_over_same_call_arrival) ... ok
+test_manual_toggle_and_reset_restore_ordinary_preference_behavior (test_companion_motion.CompanionPresentationTests.test_manual_toggle_and_reset_restore_ordinary_preference_behavior) ... ok
+test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion (test_companion_motion.CompanionPresentationTests.test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion) ... ok
+test_server_label_matching_translation_key_remains_an_exact_label (test_companion_motion.CompanionPresentationTests.test_server_label_matching_translation_key_remains_an_exact_label) ... ok
+test_summary_invalid_values_are_not_reported_as_zero (test_companion_motion.CompanionPresentationTests.test_summary_invalid_values_are_not_reported_as_zero) ... ok
+test_summary_keeps_first_two_source_labels_and_values_in_order (test_companion_motion.CompanionPresentationTests.test_summary_keeps_first_two_source_labels_and_values_in_order) ... ok
+test_summary_onboarding_and_estimates_preserve_data_meaning (test_companion_motion.CompanionPresentationTests.test_summary_onboarding_and_estimates_preserve_data_meaning) ... ok
+test_summary_unknown_zero_and_api_mode_are_distinct (test_companion_motion.CompanionPresentationTests.test_summary_unknown_zero_and_api_mode_are_distinct) ... ok
+test_wander_pause_stays_folded_and_return_restores_manual_choice (test_companion_motion.CompanionPresentationTests.test_wander_pause_stays_folded_and_return_restores_manual_choice) ... ok
+test_rolling_week_has_no_single_reset_timestamp (test_log_estimate.ComputeUsageTests.test_rolling_week_has_no_single_reset_timestamp) ... ok
+test_cache_creation_uses_ttl_specific_weights (test_log_estimate.ParseUsageEntriesTests.test_cache_creation_uses_ttl_specific_weights) ... ok
+test_distinct_request_ids_are_counted_separately (test_log_estimate.ParseUsageEntriesTests.test_distinct_request_ids_are_counted_separately) ... ok
+test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot (test_log_estimate.ParseUsageEntriesTests.test_equal_timestamp_duplicates_keep_the_largest_complete_snapshot) ... ok
+test_equal_weight_duplicates_keep_the_later_timestamp (test_log_estimate.ParseUsageEntriesTests.test_equal_weight_duplicates_keep_the_later_timestamp) ... ok
+test_legacy_cache_creation_without_breakdown_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_legacy_cache_creation_without_breakdown_uses_5m_fallback) ... ok
+test_malformed_usage_numbers_skip_only_the_bad_rows (test_log_estimate.ParseUsageEntriesTests.test_malformed_usage_numbers_skip_only_the_bad_rows) ... ok
+test_nested_cache_breakdown_above_flat_total_is_clamped (test_log_estimate.ParseUsageEntriesTests.test_nested_cache_breakdown_above_flat_total_is_clamped) ... ok
+test_nested_sidechain_agent_usage_is_included (test_log_estimate.ParseUsageEntriesTests.test_nested_sidechain_agent_usage_is_included) ... ok
+test_record_before_since_does_not_hide_a_later_snapshot (test_log_estimate.ParseUsageEntriesTests.test_record_before_since_does_not_hide_a_later_snapshot) ... ok
+test_records_without_dedup_keys_are_counted_independently (test_log_estimate.ParseUsageEntriesTests.test_records_without_dedup_keys_are_counted_independently) ... ok
+test_streaming_duplicates_keep_an_interior_maximum (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_an_interior_maximum) ... ok
+test_streaming_duplicates_keep_the_final_usage_snapshot (test_log_estimate.ParseUsageEntriesTests.test_streaming_duplicates_keep_the_final_usage_snapshot) ... ok
+test_unclassified_cache_creation_remainder_uses_5m_fallback (test_log_estimate.ParseUsageEntriesTests.test_unclassified_cache_creation_remainder_uses_5m_fallback) ... ok
+test_backup_symlink_and_its_target_are_preserved (test_manual_update_transaction.BackupPreservationTests.test_backup_symlink_and_its_target_are_preserved) ... ok
+test_regular_backup_is_not_deleted_when_installed_app_exists (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_deleted_when_installed_app_exists) ... ok
+test_regular_backup_is_not_renamed_away_when_installed_app_is_absent (test_manual_update_transaction.BackupPreservationTests.test_regular_backup_is_not_renamed_away_when_installed_app_is_absent) ... ok
+test_direct_build_cannot_remove_shared_app_while_build_lock_is_held (test_manual_update_transaction.BuildLockCoverageTests.test_direct_build_cannot_remove_shared_app_while_build_lock_is_held) ... ok
+test_install_outer_build_lock_survives_inner_build_and_preflight_consumption (test_manual_update_transaction.BuildLockCoverageTests.test_install_outer_build_lock_survives_inner_build_and_preflight_consumption) ... ok
+test_failed_adhoc_nested_fallback_stops_before_outer_signing (test_manual_update_transaction.NestedSigningFailureTests.test_failed_adhoc_nested_fallback_stops_before_outer_signing) ... ok
+test_local_nested_failure_falls_back_as_a_pair_not_outer_only (test_manual_update_transaction.NestedSigningFailureTests.test_local_nested_failure_falls_back_as_a_pair_not_outer_only) ... ok
+test_failed_publish_restores_and_relaunches_the_old_application (test_manual_update_transaction.RollbackAndInstallTests.test_failed_publish_restores_and_relaunches_the_old_application) ... ok
+test_install_copy_failure_preserves_the_existing_application (test_manual_update_transaction.RollbackAndInstallTests.test_install_copy_failure_preserves_the_existing_application) ... ok
+test_in_app_holder_blocks_public_install_and_update_before_child_mutation (test_manual_update_transaction.SharedUpdateLockTests.test_in_app_holder_blocks_public_install_and_update_before_child_mutation) ... ok
+test_manual_holder_blocks_a_simulated_in_app_acquire (test_manual_update_transaction.SharedUpdateLockTests.test_manual_holder_blocks_a_simulated_in_app_acquire) ... ok
+test_code_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_code_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_info_plist_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_info_plist_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_resources_symlink_is_rejected_before_its_target_is_mutated (test_manual_update_transaction.StagedContainmentTests.test_resources_symlink_is_rejected_before_its_target_is_mutated) ... ok
+test_both_bundle_version_keys_must_equal_the_source_version (test_manual_update_transaction.StagedPreflightTests.test_both_bundle_version_keys_must_equal_the_source_version) ... ok
+test_executable_must_be_a_regular_nonlink_file (test_manual_update_transaction.StagedPreflightTests.test_executable_must_be_a_regular_nonlink_file) ... ok
+test_staged_application_code_must_match_the_checkout_code_hash (test_manual_update_transaction.StagedPreflightTests.test_staged_application_code_must_match_the_checkout_code_hash) ... ok
+test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes (test_manual_update_transaction.WholeTransactionConcurrencyTests.test_second_update_cannot_clean_or_prepare_until_first_transaction_finishes) ... ok
+test_every_literal_needle_still_occurs_in_the_generated_script (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_every_literal_needle_still_occurs_in_the_generated_script) ... ok
+test_the_generator_produces_something_to_search (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_generator_produces_something_to_search)
+Discrimination: an empty script would make every check below vacuous. ... ok
+test_the_needles_are_not_so_generic_that_they_hit_everywhere (test_mutation_instruments.InjectionNeedlesStillMatchTests.test_the_needles_are_not_so_generic_that_they_hit_everywhere)
+A needle matching many places replaces more than the test intends. ... ok
+test_generating_a_script_creates_nothing (test_mutation_instruments.LockPathIsolationTests.test_generating_a_script_creates_nothing)
+`_update_lock_path` must be pure: asking is not making. ... ok
+test_the_redirect_actually_took_effect (test_mutation_instruments.LockPathIsolationTests.test_the_redirect_actually_took_effect)
+Otherwise the isolation is theatre and the check above is vacuous. ... ok
+test_dynamic_needle_sites_are_reported_rather_than_silently_skipped (test_mutation_instruments.ScopeIsVisibleTests.test_dynamic_needle_sites_are_reported_rather_than_silently_skipped) ... ok
+test_a_symlink_planted_at_the_staging_name_is_not_written_through (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_a_symlink_planted_at_the_staging_name_is_not_written_through) ... ok
+test_the_plant_is_actually_in_the_way (test_partial_copy_seeding.CopyPrimitiveRefusesAnExistingNameTests.test_the_plant_is_actually_in_the_way)
+Discrimination: if the fixture missed, the test above proves nothing. ... ok
+test_a_pet_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_that_died_midway_is_repaired_by_the_next_run)
+The failure must not be sticky. ... ok
+test_a_pet_whose_sheet_dies_midway_is_not_published (test_partial_copy_seeding.PartialPetCopyTests.test_a_pet_whose_sheet_dies_midway_is_not_published) ... ok
+test_the_first_file_dying_midway_is_handled_the_same_way (test_partial_copy_seeding.PartialPetCopyTests.test_the_first_file_dying_midway_is_handled_the_same_way)
+pet.json is what `_is_pet_dir` keys on, so a truncated one is worst. ... ok
+test_the_other_pets_are_still_seeded_whole (test_partial_copy_seeding.PartialPetCopyTests.test_the_other_pets_are_still_seeded_whole)
+One pet dying must not cost the rest - and must not half-cost them. ... ok
+test_a_readme_that_died_midway_is_repaired_by_the_next_run (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_died_midway_is_repaired_by_the_next_run) ... ok
+test_a_readme_that_dies_midway_is_not_linked_into_place (test_partial_copy_seeding.PartialReadmeCopyTests.test_a_readme_that_dies_midway_is_not_linked_into_place) ... ok
+test_the_other_readmes_still_land_whole (test_partial_copy_seeding.PartialReadmeCopyTests.test_the_other_readmes_still_land_whole) ... ok
+test_cli_forwards_exact_version_and_ordered_arches_to_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_cli_forwards_exact_version_and_ordered_arches_to_validator) ... ok
+test_code_leaf_must_be_regular_present_and_not_a_symlink (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_code_leaf_must_be_regular_present_and_not_a_symlink) ... ok
+test_exact_checkout_code_leaf_reaches_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_exact_checkout_code_leaf_reaches_validator) ... ok
+test_missing_arches_fails_before_validator_delegation (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_arches_fails_before_validator_delegation) ... ok
+test_missing_file_or_symlink_app_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_missing_file_or_symlink_app_is_rejected_before_validator) ... ok
+test_stale_regular_code_leaf_is_rejected_before_validator (test_release_artifact_preflight.ReleaseArtifactAppPreflightTests.test_stale_regular_code_leaf_is_rejected_before_validator) ... ok
+test_a_symlinked_member_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_a_symlinked_member_in_both_is_still_reported) ... ok
+test_wrong_sheet_name_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sheet_name_in_both_is_still_reported) ... ok
+test_wrong_sprite_version_in_both_is_still_reported (test_release_gate.ChecksThatOnlyFireWhenSourceAndArtifactAgreeTests.test_wrong_sprite_version_in_both_is_still_reported) ... ok
+test_constants_are_read_without_importing_the_app (test_release_gate.ExpectedSetTests.test_constants_are_read_without_importing_the_app)
+BUNDLED_PET_FILES references BUNDLED_PET_SHEET, so plain literal_eval fails. ... ok
+test_expected_members_are_derived_not_hardcoded (test_release_gate.ExpectedSetTests.test_expected_members_are_derived_not_hardcoded)
+A literal 16 would silently check a subset once a fifth pet ships. ... ok
+test_an_id_disagreeing_with_its_folder_is_refused (test_release_gate.InstallerRefusalsAreMirroredTests.test_an_id_disagreeing_with_its_folder_is_refused)
+The installer refuses this pet; shipping it would certify a dud. ... ok
+test_every_installer_refusal_has_a_gate_counterpart (test_release_gate.InstallerRefusalsAreMirroredTests.test_every_installer_refusal_has_a_gate_counterpart)
+The surface is closed: each rejection below is caught by both. ... ok
+test_a_copy_that_fails_midway_leaves_the_old_payload_intact (test_release_gate.ManualBuildAssetSwapTests.test_a_copy_that_fails_midway_leaves_the_old_payload_intact)
+Different state from a copy that fails at the start. ... ok
+test_a_failing_copy_leaves_the_existing_tree_untouched (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_copy_leaves_the_existing_tree_untouched)
+The assertion a destroy-then-copy implementation cannot pass. ... ok
+test_a_failing_final_move_preserves_the_old_payload (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_final_move_preserves_the_old_payload)
+Fault at the second rename — stage→final. Old payload must survive. ... ok
+test_a_failing_restore_keeps_the_backup_and_says_so (test_release_gate.ManualBuildAssetSwapTests.test_a_failing_restore_keeps_the_backup_and_says_so)
+The case the old code lied about: restore fails, it claimed success. ... ok
+test_assets_are_installed_into_a_fresh_bundle (test_release_gate.ManualBuildAssetSwapTests.test_assets_are_installed_into_a_fresh_bundle) ... ok
+test_no_staging_or_backup_residue_is_left_behind (test_release_gate.ManualBuildAssetSwapTests.test_no_staging_or_backup_residue_is_left_behind) ... ok
+test_recovery_moves_the_crashed_out_backup_itself (test_release_gate.ManualBuildAssetSwapTests.test_recovery_moves_the_crashed_out_backup_itself)
+Recovery must restore *that* directory, not produce a look-alike. ... ok
+test_the_next_ordinary_run_self_heals_and_completes (test_release_gate.ManualBuildAssetSwapTests.test_the_next_ordinary_run_self_heals_and_completes)
+After the crash, an unmutated run recovers and finishes the job. ... ok
+test_a_pristine_payload_passes (test_release_gate.PayloadVerificationTests.test_a_pristine_payload_passes) ... ok
+test_cli_exits_non_zero_and_names_the_member (test_release_gate.PayloadVerificationTests.test_cli_exits_non_zero_and_names_the_member) ... ok
+test_contents_differing_from_source_are_reported (test_release_gate.PayloadVerificationTests.test_contents_differing_from_source_are_reported) ... ok
+test_entirely_absent_payload_is_reported (test_release_gate.PayloadVerificationTests.test_entirely_absent_payload_is_reported) ... ok
+test_member_replaced_by_a_symlink_is_reported (test_release_gate.PayloadVerificationTests.test_member_replaced_by_a_symlink_is_reported) ... ok
+test_missing_member_is_reported (test_release_gate.PayloadVerificationTests.test_missing_member_is_reported) ... ok
+test_missing_readme_is_reported (test_release_gate.PayloadVerificationTests.test_missing_readme_is_reported) ... ok
+test_symlink_anywhere_in_the_subtree_is_reported (test_release_gate.PayloadVerificationTests.test_symlink_anywhere_in_the_subtree_is_reported) ... ok
+test_unexpected_extra_file_is_reported (test_release_gate.PayloadVerificationTests.test_unexpected_extra_file_is_reported) ... ok
+test_wrong_sheet_name_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sheet_name_in_metadata_is_reported) ... ok
+test_wrong_sprite_version_in_metadata_is_reported (test_release_gate.PayloadVerificationTests.test_wrong_sprite_version_in_metadata_is_reported) ... ok
+test_a_missing_expected_directory_is_reported (test_release_gate.TreeShapeTests.test_a_missing_expected_directory_is_reported) ... ok
+test_a_symlinked_expected_directory_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_expected_directory_is_refused) ... ok
+test_a_symlinked_payload_root_is_refused (test_release_gate.TreeShapeTests.test_a_symlinked_payload_root_is_refused)
+os.walk follows the link and cleanly verifies the wrong tree. ... ok
+test_an_unexpected_empty_directory_is_reported (test_release_gate.TreeShapeTests.test_an_unexpected_empty_directory_is_reported)
+A file-only comparison cannot see a directory with nothing in it. ... ok
+test_both_version_keys_equal_app_version (test_release_gate.WritePlistTests.test_both_version_keys_equal_app_version) ... ok
+test_replacement_at_temporary_pet_folder_survives_cleanup (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_pet_folder_survives_cleanup)
+Cleanup must not follow a replaced staging-folder name. ... ok
+test_replacement_at_temporary_readme_name_is_not_published_or_cleaned (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_at_temporary_readme_name_is_not_published_or_cleaned)
+Publish and cleanup must remain bound to the staged README inode. ... ok
+test_replacement_between_pet_stage_mkdir_and_open_is_not_used (test_seeding_identity.SeedingTemporaryIdentityTests.test_replacement_between_pet_stage_mkdir_and_open_is_not_used)
+Opening and publishing must stay bound to the mkdir-created stage. ... ok
+test_copy_failure_never_publishes_a_partial_pet_directory (test_settings_and_install.BundledPetSeedTests.test_copy_failure_never_publishes_a_partial_pet_directory) ... ok
+test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_pets_open_keeps_readmes_fd_anchored) ... ok
+test_destination_root_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_replaced_after_safe_open_is_not_followed) ... ok
+test_destination_root_symlink_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_destination_root_symlink_is_not_followed) ... ok
+test_empty_destination_receives_the_full_distributed_tree (test_settings_and_install.BundledPetSeedTests.test_empty_destination_receives_the_full_distributed_tree) ... ok
+test_malformed_or_traversing_pet_metadata_is_never_published (test_settings_and_install.BundledPetSeedTests.test_malformed_or_traversing_pet_metadata_is_never_published) ... ok
+test_missing_atomic_directory_publish_primitive_fails_closed (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_directory_publish_primitive_fails_closed) ... ok
+test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme (test_settings_and_install.BundledPetSeedTests.test_missing_atomic_file_publish_primitive_never_leaves_a_partial_readme) ... ok
+test_pet_directory_created_during_publish_is_never_replaced (test_settings_and_install.BundledPetSeedTests.test_pet_directory_created_during_publish_is_never_replaced) ... ok
+test_pet_metadata_must_reference_the_distributed_spritesheet (test_settings_and_install.BundledPetSeedTests.test_pet_metadata_must_reference_the_distributed_spritesheet) ... ok
+test_pet_with_a_missing_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_missing_required_file_is_never_published) ... ok
+test_pet_with_a_symlinked_required_file_is_never_published (test_settings_and_install.BundledPetSeedTests.test_pet_with_a_symlinked_required_file_is_never_published) ... ok
+test_pets_directory_replaced_after_safe_open_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_directory_replaced_after_safe_open_is_not_followed) ... ok
+test_pets_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_pets_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_readme_created_during_publish_is_preserved (test_settings_and_install.BundledPetSeedTests.test_readme_created_during_publish_is_preserved) ... ok
+test_root_symlink_inserted_during_destination_creation_is_not_followed (test_settings_and_install.BundledPetSeedTests.test_root_symlink_inserted_during_destination_creation_is_not_followed) ... ok
+test_second_seed_is_byte_and_mtime_idempotent (test_settings_and_install.BundledPetSeedTests.test_second_seed_is_byte_and_mtime_idempotent) ... ok
+test_symlinked_source_pet_is_not_copied (test_settings_and_install.BundledPetSeedTests.test_symlinked_source_pet_is_not_copied) ... ok
+test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets (test_settings_and_install.BundledPetSeedTests.test_upgrade_preserves_every_existing_path_and_adds_only_missing_pets) ... ok
+test_apple_silicon_never_falls_back_to_an_unrelated_zip (test_settings_and_install.GithubUpdateTests.test_apple_silicon_never_falls_back_to_an_unrelated_zip) ... ok
+test_download_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_download_failure_removes_the_new_temporary_directory) ... ok
+test_failed_poll_does_not_consume_the_retry_cooldown (test_settings_and_install.GithubUpdateTests.test_failed_poll_does_not_consume_the_retry_cooldown) ... ok
+test_intel_never_falls_back_to_an_arm_only_archive (test_settings_and_install.GithubUpdateTests.test_intel_never_falls_back_to_an_arm_only_archive) ... ok
+test_launch_failure_removes_the_new_temporary_directory (test_settings_and_install.GithubUpdateTests.test_launch_failure_removes_the_new_temporary_directory) ... ok
+test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds (test_settings_and_install.GithubUpdateTests.test_replace_script_does_not_destroy_the_installed_app_before_copy_succeeds) ... ok
+test_replace_script_preserves_the_installed_app_when_copy_fails (test_settings_and_install.GithubUpdateTests.test_replace_script_preserves_the_installed_app_when_copy_fails) ... ok
+test_replace_script_rolls_back_when_the_replacement_cannot_launch (test_settings_and_install.GithubUpdateTests.test_replace_script_rolls_back_when_the_replacement_cannot_launch) ... ok
+test_successful_launch_transfers_temp_cleanup_to_the_detached_script (test_settings_and_install.GithubUpdateTests.test_successful_launch_transfers_temp_cleanup_to_the_detached_script) ... ok
+test_update_app_preflight_accepts_the_expected_signed_bundle (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_accepts_the_expected_signed_bundle) ... ok
+test_update_app_preflight_rejects_identity_version_and_signature_failures (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_rejects_identity_version_and_signature_failures) ... ok
+test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member (test_settings_and_install.GithubUpdateTests.test_update_app_preflight_warns_but_does_not_strand_on_missing_manifest_member) ... ok
+test_update_check_distinguishes_current_from_network_failure (test_settings_and_install.GithubUpdateTests.test_update_check_distinguishes_current_from_network_failure) ... ok
+test_update_check_returns_the_selected_release_asset (test_settings_and_install.GithubUpdateTests.test_update_check_returns_the_selected_release_asset) ... ok
+test_valid_poll_records_cooldown_and_an_update_becomes_pending (test_settings_and_install.GithubUpdateTests.test_valid_poll_records_cooldown_and_an_update_becomes_pending) ... ok
+test_manual_bundle_versions_are_not_hard_coded (test_settings_and_install.PackagingContractTests.test_manual_bundle_versions_are_not_hard_coded) ... ok
+test_manual_update_refreshes_bundled_pet_resources (test_settings_and_install.PackagingContractTests.test_manual_update_refreshes_bundled_pet_resources) ... ok
+test_readmes_do_not_offer_a_recursive_overwrite_command (test_settings_and_install.PackagingContractTests.test_readmes_do_not_offer_a_recursive_overwrite_command) ... ok
+test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them (test_settings_and_install.PackagingContractTests.test_startup_seeds_bundled_pets_before_discovery_and_builds_ship_them) ... ok
+test_generation_check_and_state_update_are_atomic (test_settings_and_install.RefreshGenerationTests.test_generation_check_and_state_update_are_atomic) ... ok
+test_only_the_newest_refresh_generation_can_commit (test_settings_and_install.RefreshGenerationTests.test_only_the_newest_refresh_generation_can_commit) ... ok
+test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure (test_settings_and_install.SettingsConfigTests.test_absolute_limit_fields_are_collapsed_but_enabled_behind_advanced_disclosure) ... ok
+test_atomic_config_write_preserves_old_json_when_replace_fails (test_settings_and_install.SettingsConfigTests.test_atomic_config_write_preserves_old_json_when_replace_fails) ... ok
+test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan (test_settings_and_install.SettingsConfigTests.test_blank_limit_and_percentage_fields_preserve_existing_limits_without_usage_scan) ... ok
+test_blank_limit_fields_do_not_override_environment_fallbacks (test_settings_and_install.SettingsConfigTests.test_blank_limit_fields_do_not_override_environment_fallbacks) ... ok
+test_calibration_overrides_only_its_matching_direct_limit (test_settings_and_install.SettingsConfigTests.test_calibration_overrides_only_its_matching_direct_limit) ... ok
+test_calibration_rejects_a_gauge_with_zero_usage (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_gauge_with_zero_usage) ... ok
+test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens (test_settings_and_install.SettingsConfigTests.test_calibration_rejects_a_positive_result_that_rounds_to_zero_tokens) ... ok
+test_calibration_usage_scan_failure_is_a_settings_error (test_settings_and_install.SettingsConfigTests.test_calibration_usage_scan_failure_is_a_settings_error) ... ok
+test_compute_usage_uses_the_supplied_runtime_snapshot (test_settings_and_install.SettingsConfigTests.test_compute_usage_uses_the_supplied_runtime_snapshot) ... ok
+test_direct_only_settings_save_does_not_scan_usage (test_settings_and_install.SettingsConfigTests.test_direct_only_settings_save_does_not_scan_usage) ... ok
+test_exact_mode_note_explains_server_calibration_and_estimate_spike_split (test_settings_and_install.SettingsConfigTests.test_exact_mode_note_explains_server_calibration_and_estimate_spike_split) ... ok
+test_exact_token_limits_survive_an_unchanged_settings_round_trip (test_settings_and_install.SettingsConfigTests.test_exact_token_limits_survive_an_unchanged_settings_round_trip) ... ok
+test_gui_save_path_uses_the_tested_transaction_and_commits_before_close (test_settings_and_install.SettingsConfigTests.test_gui_save_path_uses_the_tested_transaction_and_commits_before_close) ... ok
+test_invalid_calibration_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_calibration_rejects_the_whole_candidate) ... ok
+test_invalid_direct_limit_rejects_the_whole_candidate (test_settings_and_install.SettingsConfigTests.test_invalid_direct_limit_rejects_the_whole_candidate) ... ok
+test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths (test_settings_and_install.SettingsConfigTests.test_merge_config_updates_preserves_fresh_keys_owned_by_other_paths) ... ok
+test_merge_retries_instead_of_losing_a_write_between_read_and_save (test_settings_and_install.SettingsConfigTests.test_merge_retries_instead_of_losing_a_write_between_read_and_save) ... ok
+test_new_usage_settings_locale_keys_exist_in_every_supported_language (test_settings_and_install.SettingsConfigTests.test_new_usage_settings_locale_keys_exist_in_every_supported_language) ... ok
+test_other_numeric_settings_require_finite_in_range_values (test_settings_and_install.SettingsConfigTests.test_other_numeric_settings_require_finite_in_range_values) ... ok
+test_percentage_fields_are_primary_and_all_limit_inputs_default_blank (test_settings_and_install.SettingsConfigTests.test_percentage_fields_are_primary_and_all_limit_inputs_default_blank) ... ok
+test_session_percentage_only_backsolves_session_and_preserves_other_limits (test_settings_and_install.SettingsConfigTests.test_session_percentage_only_backsolves_session_and_preserves_other_limits) ... ok
+test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys (test_settings_and_install.SettingsConfigTests.test_settings_transaction_applies_calibration_and_preserves_fresh_disk_keys) ... ok
+test_settings_transaction_rejects_invalid_input_before_any_apply (test_settings_and_install.SettingsConfigTests.test_settings_transaction_rejects_invalid_input_before_any_apply) ... ok
+test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched (test_settings_and_install.SettingsConfigTests.test_settings_transaction_write_failure_keeps_memory_and_callbacks_untouched) ... ok
+test_valid_direct_limits_are_stored_as_integer_tokens (test_settings_and_install.SettingsConfigTests.test_valid_direct_limits_are_stored_as_integer_tokens) ... ok
+test_zero_percentage_has_a_distinct_actionable_atomic_rejection (test_settings_and_install.SettingsConfigTests.test_zero_percentage_has_a_distinct_actionable_atomic_rejection) ... ok
+test_requirement_accepts_our_own_signed_app (test_signing_contract.CodesignRequirementContractTests.test_requirement_accepts_our_own_signed_app) ... ok
+test_requirement_is_parsed_as_a_requirement_not_a_filename (test_signing_contract.CodesignRequirementContractTests.test_requirement_is_parsed_as_a_requirement_not_a_filename)
+The exact failure that shipped: codesign reading it as a path. ... ok
+test_requirement_rejects_a_bundle_signed_by_someone_else (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_a_bundle_signed_by_someone_else)
+A requirement that accepted everything would also return 0 here. ... ok
+test_requirement_rejects_another_developer_id_signature (test_signing_contract.CodesignRequirementContractTests.test_requirement_rejects_another_developer_id_signature)
+Closer case: a real third-party Developer ID, not Apple's own. ... ok
+test_assessment_alone_does_not_identify_the_signer (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_alone_does_not_identify_the_signer)
+Why the team check above matters: spctl accepts other vendors too. ... ok
+test_assessment_reports_notarization_and_our_team_for_our_app (test_signing_contract.GatekeeperAssessmentContractTests.test_assessment_reports_notarization_and_our_team_for_our_app) ... ok
+test_stapler_rejects_a_bundle_with_no_stapled_ticket (test_signing_contract.StaplerContractTests.test_stapler_rejects_a_bundle_with_no_stapled_ticket)
+Discrimination: stapler must fail on something unstapled. ... ok
+test_stapler_validates_the_installed_app (test_signing_contract.StaplerContractTests.test_stapler_validates_the_installed_app) ... ok
+test_the_real_installed_app_passes_the_whole_preflight (test_signing_contract.ValidateUpdateAppLiveTests.test_the_real_installed_app_passes_the_whole_preflight)
+End-to-end, unmocked: the path a real update actually takes. ... ok
+test_direct_execution_reaches_dispatch_exactly_once (test_source_guard.SourceGuardTests.test_direct_execution_reaches_dispatch_exactly_once) ... ok
+test_guarded_source_is_inert_and_defines_functions (test_source_guard.SourceGuardTests.test_guarded_source_is_inert_and_defines_functions) ... ok
+test_removing_the_guard_makes_source_reach_dispatch_once (test_source_guard.SourceGuardTests.test_removing_the_guard_makes_source_reach_dispatch_once) ... ok
+test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_absolute_symlink_target_anywhere_in_the_bundle_is_rejected) ... ok
+test_framework_style_relative_symlink_inside_the_bundle_is_accepted (test_updater.BundleContainmentTests.test_framework_style_relative_symlink_inside_the_bundle_is_accepted) ... ok
+test_missing_manifest_members_still_only_warn (test_updater.BundleContainmentTests.test_missing_manifest_members_still_only_warn)
+Policy guard: missing assets must not strand users on an old build. ... ok
+test_relative_symlink_escaping_the_bundle_is_rejected (test_updater.BundleContainmentTests.test_relative_symlink_escaping_the_bundle_is_rejected)
+Which rule does the work: the realpath containment one, and only it. ... ok
+test_symlink_in_the_pet_subtree_is_rejected_even_when_contained (test_updater.BundleContainmentTests.test_symlink_in_the_pet_subtree_is_rejected_even_when_contained)
+Ours, and it legitimately contains zero symlinks — so any is a red flag. ... ok
+test_symlinked_ancestor_of_the_pet_subtree_is_rejected (test_updater.BundleContainmentTests.test_symlinked_ancestor_of_the_pet_subtree_is_rejected) ... ok
+test_a_failed_check_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_failed_check_leaves_no_stale_choice_behind) ... ok
+test_a_non_update_result_leaves_no_stale_choice_behind (test_updater.CheckGithubUpdateShapeTests.test_a_non_update_result_leaves_no_stale_choice_behind) ... ok
+test_poll_still_publishes_the_two_tuple_the_ui_reads (test_updater.CheckGithubUpdateShapeTests.test_poll_still_publishes_the_two_tuple_the_ui_reads) ... ok
+test_update_records_the_chosen_asset_and_arch_in_the_cache (test_updater.CheckGithubUpdateShapeTests.test_update_records_the_chosen_asset_and_arch_in_the_cache)
+Per key, by name — `asset` and `arch` are bound through the ... ok
+test_a_second_install_is_refused_while_the_first_helper_lives (test_updater.ConcurrentInstallTests.test_a_second_install_is_refused_while_the_first_helper_lives)
+The same property at the entry point the app actually calls. ... ok
+test_an_install_is_possible_again_once_the_first_helper_exits (test_updater.ConcurrentInstallTests.test_an_install_is_possible_again_once_the_first_helper_exits)
+Discrimination for the test above: the refusal is not permanent. ... ok
+test_one_install_succeeds_and_schedules_exactly_one_helper (test_updater.ConcurrentInstallTests.test_one_install_succeeds_and_schedules_exactly_one_helper)
+Control: without it, an installer that always refused would pass. ... ok
+test_the_lock_changes_hands_and_is_released_by_the_kernel (test_updater.ConcurrentInstallTests.test_the_lock_changes_hands_and_is_released_by_the_kernel)
+The whole handoff lifecycle, in one fixture. ... ok
+test_patching_the_retired_name_intercepts_nothing_and_reaches_out (test_updater.DownloadSeamInstrumentTests.test_patching_the_retired_name_intercepts_nothing_and_reaches_out)
+The mutant: the fixture style this file used to use, run. ... ok
+test_production_downloads_through_the_name_the_fixtures_patch (test_updater.DownloadSeamInstrumentTests.test_production_downloads_through_the_name_the_fixtures_patch) ... ok
+test_the_guard_lets_loopback_through (test_updater.DownloadSeamInstrumentTests.test_the_guard_lets_loopback_through)
+Negative control: it blocks by destination, not by being a socket. ... ok
+test_the_guard_records_and_refuses_a_direct_request (test_updater.DownloadSeamInstrumentTests.test_the_guard_records_and_refuses_a_direct_request)
+Positive control: the guard fires when nothing is patched at all. ... ok
+test_the_module_under_test_is_the_repository_copy (test_updater.DownloadSeamInstrumentTests.test_the_module_under_test_is_the_repository_copy)
+Everything below reads production source; this says whose. ... ok
+test_the_stand_in_intercepts_the_download (test_updater.DownloadSeamInstrumentTests.test_the_stand_in_intercepts_the_download) ... ok
+test_a_missing_operand_fails_loudly_rather_than_creating_anything (test_updater.ExchangeHelperTests.test_a_missing_operand_fails_loudly_rather_than_creating_anything) ... ok
+test_two_directories_are_exchanged_in_place (test_updater.ExchangeHelperTests.test_two_directories_are_exchanged_in_place) ... ok
+test_wrong_argument_count_is_an_error (test_updater.ExchangeHelperTests.test_wrong_argument_count_is_an_error) ... ok
+test_install_refuses_before_downloading_anything (test_updater.ExpectedVersionRequiredTests.test_install_refuses_before_downloading_anything) ... ok
+test_preflight_rejects_a_missing_or_blank_expectation (test_updater.ExpectedVersionRequiredTests.test_preflight_rejects_a_missing_or_blank_expectation) ... ok
+test_each_rejected_record_is_rejected_for_its_own_reason (test_updater.LaunchRegistrationInstrumentTests.test_each_rejected_record_is_rejected_for_its_own_reason)
+Without this, one over-broad filter would look like a clean pass. ... ok
+test_no_fixture_bundle_of_this_run_claims_the_production_identity (test_updater.LaunchRegistrationInstrumentTests.test_no_fixture_bundle_of_this_run_claims_the_production_identity)
+The assertion itself, run early enough to attribute. ... ok
+test_the_parser_reads_the_real_database (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_reads_the_real_database)
+The synthetic dump above proves nothing about the real format. ... ok
+test_the_parser_selects_by_identifier_and_by_root (test_updater.LaunchRegistrationInstrumentTests.test_the_parser_selects_by_identifier_and_by_root) ... ok
+test_a_child_process_computes_the_lock_path_from_the_fixture_home (test_updater.LockIsolationInstrumentTests.test_a_child_process_computes_the_lock_path_from_the_fixture_home)
+The constant patch does not cross a process boundary; HOME does. ... ok
+test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change (test_updater.LockIsolationInstrumentTests.test_the_bypass_alarm_notices_each_way_the_watched_paths_can_change)
+Mutation-style check of the alarm's own discrimination. ... ok
+test_the_lock_lands_in_the_fixture_cache_not_the_real_one (test_updater.LockIsolationInstrumentTests.test_the_lock_lands_in_the_fixture_cache_not_the_real_one)
+The redirection is load-bearing, not decorative. ... ok
+test_the_real_bundle_contains_the_symlinks_this_guard_is_about (test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about)
+Discrimination: without an internal symlink the guard above is vacuous. ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_the_real_installed_bundle_is_accepted_by_the_preflight (test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight) ... 
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_completed_update_never_leaves_the_install_path_empty (test_updater.ReplaceScriptBehaviourTests.test_a_completed_update_never_leaves_the_install_path_empty)
+There is no instant at which the app is absent from its own path. ... ok
+test_a_launch_that_is_never_acknowledged_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_launch_that_is_never_acknowledged_rolls_back)
+`open` exiting 0 is a dispatch, not a health signal. ... ok
+test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged (test_updater.ReplaceScriptBehaviourTests.test_a_launch_visible_only_to_the_fallback_pattern_is_acknowledged)
+The fallback branch must actually be reachable. ... ok
+test_a_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_process_running_before_the_update_never_acknowledges_it)
+The false ACK that matters in practice. ... ok
+test_a_process_that_dies_during_the_settle_delay_rolls_back (test_updater.ReplaceScriptBehaviourTests.test_a_process_that_dies_during_the_settle_delay_rolls_back)
+A bundle that starts and immediately crashes is not a live app. ... ok
+test_a_python_process_running_before_the_update_never_acknowledges_it (test_updater.ReplaceScriptBehaviourTests.test_a_python_process_running_before_the_update_never_acknowledges_it)
+Same contract on the fallback pattern, which is a separate branch. ... ok
+test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one (test_updater.ReplaceScriptBehaviourTests.test_a_rollback_that_cannot_move_the_new_app_aside_keeps_the_old_one)
+The nesting hole, made deterministic. ... ok
+test_a_stage_tampered_with_after_ditto_is_never_installed (test_updater.ReplaceScriptBehaviourTests.test_a_stage_tampered_with_after_ditto_is_never_installed)
+The installer's second validation rejects the exact staged copy. ... ok
+test_a_stale_process_cannot_cover_for_one_that_died_during_settle (test_updater.ReplaceScriptBehaviourTests.test_a_stale_process_cannot_cover_for_one_that_died_during_settle)
+The settle check must confirm *that* pid, not re-scan for any match. ... ok
+test_an_acknowledged_launch_completes_the_swap_atomically (test_updater.ReplaceScriptBehaviourTests.test_an_acknowledged_launch_completes_the_swap_atomically)
+The atomic path specifically — the branch every real machine takes. ... ok
+test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_path_is_not_an_acknowledgement)
+The anchor test: a third-party process mentioning the path. ... ok
+test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack (test_updater.ReplaceScriptBehaviourTests.test_an_unrelated_process_mentioning_the_resources_path_is_not_an_ack)
+The fallback pattern must not match loosely either. ... ok
+test_atomic_exchange_failure_never_starts_a_move_fallback (test_updater.ReplaceScriptBehaviourTests.test_atomic_exchange_failure_never_starts_a_move_fallback)
+Both exchange helpers fail; exact old APP remains and no backup moves. ... ok
+test_rollback_survives_a_new_bundle_with_a_broken_interpreter (test_updater.ReplaceScriptBehaviourTests.test_rollback_survives_a_new_bundle_with_a_broken_interpreter)
+The only time rollback runs is when the new bundle is bad. ... ok
+test_the_old_app_survives_a_rollback_on_the_atomic_path (test_updater.ReplaceScriptBehaviourTests.test_the_old_app_survives_a_rollback_on_the_atomic_path)
+Old-copy preservation on the exchange path specifically. ... ok
+test_the_swap_fails_closed_without_any_bundled_interpreter (test_updater.ReplaceScriptBehaviourTests.test_the_swap_fails_closed_without_any_bundled_interpreter)
+No atomic helper means no update; APP stays the exact old object. ... ok
+test_a_retained_backup_is_recorded_where_the_user_can_find_it (test_updater.ReplaceScriptTextTests.test_a_retained_backup_is_recorded_where_the_user_can_find_it) ... ok
+test_constructor_refuses_to_invent_missing_caller_identities (test_updater.ReplaceScriptTextTests.test_constructor_refuses_to_invent_missing_caller_identities) ... ok
+test_execution_harness_neutralizes_the_primitive_before_consumers (test_updater.ReplaceScriptTextTests.test_execution_harness_neutralizes_the_primitive_before_consumers) ... ok
+test_forward_replacement_is_atomic_only_and_fails_closed (test_updater.ReplaceScriptTextTests.test_forward_replacement_is_atomic_only_and_fails_closed)
+A failed exchange must not reopen the old two-move install window. ... ok
+test_launch_grammar_is_one_definition_and_two_exact_consumers (test_updater.ReplaceScriptTextTests.test_launch_grammar_is_one_definition_and_two_exact_consumers) ... ok
+test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code (test_updater.ReplaceScriptTextTests.test_launch_is_acknowledged_by_a_process_match_not_by_opens_exit_code)
+`open` returning 0 means dispatched, not running. ... ok
+test_rollback_never_reaches_for_the_new_bundles_interpreter (test_updater.ReplaceScriptTextTests.test_rollback_never_reaches_for_the_new_bundles_interpreter)
+Recovery must not depend on the thing it is recovering from. ... ok
+test_same_filesystem_is_checked_after_staging_and_before_the_swap (test_updater.ReplaceScriptTextTests.test_same_filesystem_is_checked_after_staging_and_before_the_swap)
+A cross-device swap cannot be atomic, and mv would copy instead. ... ok
+test_script_carries_the_callers_exact_app_and_work_identities (test_updater.ReplaceScriptTextTests.test_script_carries_the_callers_exact_app_and_work_identities) ... ok
+test_script_keeps_the_literal_substrings_other_tests_pin (test_updater.ReplaceScriptTextTests.test_script_keeps_the_literal_substrings_other_tests_pin) ... ok
+test_swap_goes_through_the_bundled_interpreter (test_updater.ReplaceScriptTextTests.test_swap_goes_through_the_bundled_interpreter) ... ok
+test_the_ordering_check_notices_the_device_check_moving (test_updater.ReplaceScriptTextTests.test_the_ordering_check_notices_the_device_check_moving)
+Control: the assertion above must be able to fail. ... ok
+test_the_rollback_check_notices_an_interpreter_from_the_new_bundle (test_updater.ReplaceScriptTextTests.test_the_rollback_check_notices_an_interpreter_from_the_new_bundle)
+Control: substitute the failed bundle's interpreter and it fails. ... ok
+test_a_bundle_whose_executable_lacks_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundle_whose_executable_lacks_this_architecture_is_rejected) ... ok
+test_a_bundled_interpreter_lacking_this_architecture_is_rejected (test_updater.RequiredArchitectureTests.test_a_bundled_interpreter_lacking_this_architecture_is_rejected)
+The helper the swap itself runs — a mismatch breaks the update path. ... ok
+test_a_native_and_a_universal_bundle_are_both_accepted (test_updater.RequiredArchitectureTests.test_a_native_and_a_universal_bundle_are_both_accepted)
+Control: the check must not reject the two shapes we ship. ... ok
+test_the_main_executable_and_info_plist_must_be_regular_files (test_updater.RequiredArchitectureTests.test_the_main_executable_and_info_plist_must_be_regular_files)
+Both are read to decide identity; a symlink decides it elsewhere. ... ok
+test_a_non_https_or_hostless_url_is_never_selected (test_updater.SelectUpdateAssetTests.test_a_non_https_or_hostless_url_is_never_selected) ... ok
+test_apple_silicon_accepts_the_universal_archive_alone (test_updater.SelectUpdateAssetTests.test_apple_silicon_accepts_the_universal_archive_alone) ... ok
+test_apple_silicon_prefers_the_arm_archive (test_updater.SelectUpdateAssetTests.test_apple_silicon_prefers_the_arm_archive) ... ok
+test_case_and_surrounding_whitespace_are_normalized (test_updater.SelectUpdateAssetTests.test_case_and_surrounding_whitespace_are_normalized) ... ok
+test_duplicate_unrelated_names_do_not_block_a_clean_choice (test_updater.SelectUpdateAssetTests.test_duplicate_unrelated_names_do_not_block_a_clean_choice)
+Discrimination: the ambiguity rule is about the *allowed* name only. ... ok
+test_intel_never_takes_the_arm_only_archive (test_updater.SelectUpdateAssetTests.test_intel_never_takes_the_arm_only_archive) ... ok
+test_intel_takes_the_universal_archive (test_updater.SelectUpdateAssetTests.test_intel_takes_the_universal_archive) ... ok
+test_malformed_asset_entries_do_not_raise (test_updater.SelectUpdateAssetTests.test_malformed_asset_entries_do_not_raise) ... ok
+test_names_are_matched_only_against_the_allow_list (test_updater.SelectUpdateAssetTests.test_names_are_matched_only_against_the_allow_list) ... ok
+test_two_assets_normalizing_to_one_allowed_name_are_ambiguous (test_updater.SelectUpdateAssetTests.test_two_assets_normalizing_to_one_allowed_name_are_ambiguous)
+Two candidates for the same slot: we cannot know which is the app. ... ok
+test_unknown_architecture_is_rejected_rather_than_defaulted (test_updater.SelectUpdateAssetTests.test_unknown_architecture_is_rejected_rather_than_defaulted) ... ok
+test_codesign_call_binds_the_exact_expected_team_requirement (test_updater.SigningAuthorityPreflightTests.test_codesign_call_binds_the_exact_expected_team_requirement) ... ok
+test_codesign_failure_rejects_before_gatekeeper_and_ticket (test_updater.SigningAuthorityPreflightTests.test_codesign_failure_rejects_before_gatekeeper_and_ticket) ... ok
+test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_with_foreign_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id (test_updater.SigningAuthorityPreflightTests.test_spctl_success_without_origin_is_rejected_even_when_path_has_team_id) ... ok
+test_stapler_rejects_an_unstapled_bundle_with_rc_65 (test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_stapler_reports_success_for_our_stapled_bundle (test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle) ... 
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_a_tool_that_cannot_run_fails_closed (test_updater.StaplerPreflightTests.test_a_tool_that_cannot_run_fails_closed) ... ok
+test_an_unstapled_bundle_is_refused (test_updater.StaplerPreflightTests.test_an_unstapled_bundle_is_refused) ... ok
+test_every_preflight_tool_runs_under_a_timeout (test_updater.StaplerPreflightTests.test_every_preflight_tool_runs_under_a_timeout)
+A hung signing tool must not wedge the update thread forever. ... ok
+test_preflight_consults_stapler (test_updater.StaplerPreflightTests.test_preflight_consults_stapler) ... ok
+test_a_traversing_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_a_traversing_member_is_rejected_before_extraction) ... ok
+test_an_absolute_member_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_absolute_member_is_rejected_before_extraction) ... ok
+test_an_ordinary_archive_still_reaches_extraction (test_updater.ZipMemberScanTests.test_an_ordinary_archive_still_reaches_extraction)
+Guard: the scan must not reject the archive we actually ship. ... ok
+test_an_unreadable_archive_is_rejected_before_extraction (test_updater.ZipMemberScanTests.test_an_unreadable_archive_is_rejected_before_extraction) ... ok
+test_universal_named_arm_only_bundle_is_rejected_via_lipo (test_updater_adversarial.ArchitectureBindingTests.test_universal_named_arm_only_bundle_is_rejected_via_lipo) ... ok
+test_atomic_branch_never_moves_old_stage_to_a_backup_name (test_updater_adversarial.AtomicExchangeRecoveryTests.test_atomic_branch_never_moves_old_stage_to_a_backup_name) ... ok
+test_fault_immediately_after_exchange_restores_or_retains_old_app (test_updater_adversarial.AtomicExchangeRecoveryTests.test_fault_immediately_after_exchange_restores_or_retains_old_app) ... ok
+test_info_plist_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_info_plist_must_be_a_regular_non_symlink) ... ok
+test_main_executable_directory_is_not_a_regular_file (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_directory_is_not_a_regular_file) ... ok
+test_main_executable_must_be_a_regular_non_symlink (test_updater_adversarial.CriticalMemberTypeTests.test_main_executable_must_be_a_regular_non_symlink) ... ok
+test_nonexecutable_regular_macho_helper_is_rejected_before_popen (test_updater_adversarial.CriticalMemberTypeTests.test_nonexecutable_regular_macho_helper_is_rejected_before_popen) ... ok
+test_only_a_pid_created_after_launch_can_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_only_a_pid_created_after_launch_can_ack) ... ok
+test_preexisting_macos_and_resources_pids_cannot_ack (test_updater_adversarial.LaunchAcknowledgementTests.test_preexisting_macos_and_resources_pids_cannot_ack) ... ok
+test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists (test_updater_adversarial.LaunchAcknowledgementTests.test_same_ack_pid_must_survive_even_if_a_replacement_pid_exists) ... ok
+test_cleanup_does_not_follow_stage_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_cleanup_does_not_follow_stage_name_substitution) ... ok
+test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_follow_directory_child_after_lstat_swap) ... ok
+test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_empty_dir_at_does_not_unlink_file_child_after_lstat_swap) ... ok
+test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_exchange_failure_keeps_exact_old_app_without_forward_mv_backup)
+Atomic exchange failure must stop before any forward-path move. ... ok
+test_fd_bound_discard_preserves_root_replaced_after_fstat (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fd_bound_discard_preserves_root_replaced_after_fstat)
+The standalone discard must keep using its verified directory fd. ... ok
+test_fifo_lock_leaf_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_leaf_fails_closed_without_blocking) ... ok
+test_fifo_lock_root_fails_closed_without_blocking (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_fifo_lock_root_fails_closed_without_blocking) ... ok
+test_helper_binds_installed_app_identity_handed_off_by_python (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_binds_installed_app_identity_handed_off_by_python)
+A rival APP substituted after Popen handoff must never be swapped. ... ok
+test_helper_refuses_stage_replaced_after_handoff_before_exchange (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_refuses_stage_replaced_after_handoff_before_exchange)
+The app installed by exchange must be the exact claimed STAGE. ... ok
+test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_helper_work_cleanup_uses_fd_bound_discard_and_preserves_rival)
+Detached cleanup binds WORKID through the standalone fd helper. ... ok
+test_lock_residue_is_under_complete_uninstall_owned_root (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_residue_is_under_complete_uninstall_owned_root) ... ok
+test_lock_root_symlink_is_refused_without_outside_creation (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_lock_root_symlink_is_refused_without_outside_creation) ... ok
+test_manual_replacement_appid_mismatch_refuses_cross_path_swap (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_manual_replacement_appid_mismatch_refuses_cross_path_swap)
+A manual replacement racing the updater is an APPID mismatch. ... ok
+test_owned_private_lock_root_has_normal_acquire_release_lifecycle (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_owned_private_lock_root_has_normal_acquire_release_lifecycle) ... ok
+test_partial_stage_copy_failure_removes_only_owned_candidate (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_partial_stage_copy_failure_removes_only_owned_candidate) ... ok
+test_preexisting_backup_name_is_never_changed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_backup_name_is_never_changed_or_deleted) ... ok
+test_preexisting_stage_name_collision_never_deletes_the_sentinel (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_preexisting_stage_name_collision_never_deletes_the_sentinel) ... ok
+test_prehandoff_cleanup_binds_stage_beneath_open_parent (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_prehandoff_cleanup_binds_stage_beneath_open_parent)
+A stage rival inserted after parent-open must not be traversed. ... ok
+test_public_sibling_regular_file_is_never_selected_or_changed (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_public_sibling_regular_file_is_never_selected_or_changed) ... ok
+test_python_failure_cleanup_does_not_follow_work_name_substitution (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_python_failure_cleanup_does_not_follow_work_name_substitution)
+Failure cleanup must delete the claimed WORK, never its pathname. ... ok
+test_replaced_lock_root_cannot_create_a_second_lock_domain (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_replaced_lock_root_cannot_create_a_second_lock_domain)
+One app must not acquire two locks through two same-named roots. ... ok
+test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_rival_reclaim_after_claim_release_is_never_consumed_or_deleted)
+Covers the separate mkdir-then-rmdir staging-name race. ... ok
+test_symlink_lock_leaf_fails_closed_without_target_change (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_symlink_lock_leaf_fails_closed_without_target_change) ... ok
+test_world_writable_lock_root_is_refused (test_updater_adversarial.LockAndTemporaryNameSafetyTests.test_world_writable_lock_root_is_refused) ... ok
+test_post_ditto_mutation_is_seen_by_full_stage_revalidation (test_updater_adversarial.StagedCopyRevalidationTests.test_post_ditto_mutation_is_seen_by_full_stage_revalidation)
+Valid NEW plus invalid STAGE must not dispatch a replacement. ... ok
+test_background_descendant_cannot_retain_lock_after_return (test_updater_adversarial.UpdateLockCommandWrapperTests.test_background_descendant_cannot_retain_lock_after_return)
+Only the wrapper owns the fd; a surviving grandchild cannot. ... ok
+test_busy_lock_returns_100_without_starting_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_busy_lock_returns_100_without_starting_child) ... ok
+test_child_return_code_is_passed_through_exactly (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_return_code_is_passed_through_exactly) ... ok
+test_child_signal_is_mapped_to_128_plus_signal (test_updater_adversarial.UpdateLockCommandWrapperTests.test_child_signal_is_mapped_to_128_plus_signal) ... ok
+test_exec_failure_returns_127_and_releases_lock (test_updater_adversarial.UpdateLockCommandWrapperTests.test_exec_failure_returns_127_and_releases_lock) ... ok
+test_untrusted_lock_root_returns_101_without_outside_write (test_updater_adversarial.UpdateLockCommandWrapperTests.test_untrusted_lock_root_returns_101_without_outside_write) ... ok
+test_usage_errors_return_2_without_lock_or_child (test_updater_adversarial.UpdateLockCommandWrapperTests.test_usage_errors_return_2_without_lock_or_child) ... ok
+test_complete_uninstall_waits_for_active_update_transaction (test_updater_adversarial.UpdateLockLifecycleTests.test_complete_uninstall_waits_for_active_update_transaction) ... ok
+test_install_hands_lock_to_child_and_serializes_real_transactions (test_updater_adversarial.UpdateLockLifecycleTests.test_install_hands_lock_to_child_and_serializes_real_transactions)
+Distinguishes early close, missing lock, and parent fd leakage. ... ok
+test_mkdtemp_exception_releases_lock_before_any_io (test_updater_adversarial.UpdateLockLifecycleTests.test_mkdtemp_exception_releases_lock_before_any_io) ... ok
+test_uninstall_popen_failure_preserves_app_and_all_settings (test_updater_adversarial.UpdateLockLifecycleTests.test_uninstall_popen_failure_preserves_app_and_all_settings)
+Preparing the deletion helper must precede every destructive step. ... ok
+test_absolute_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_absolute_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_parent_unix_symlink_target_with_child_member_is_rejected (test_updater_adversarial.ZipSymlinkPreExtractionTests.test_parent_unix_symlink_target_with_child_member_is_rejected) ... ok
+test_a_clean_archive_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_clean_archive_is_accepted)
+The control. Without it every rejection below could be a blanket no. ... ok
+test_a_contained_relative_symlink_is_accepted (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_contained_relative_symlink_is_accepted) ... ok
+test_a_missing_artifact_is_rejected_rather_than_skipped (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_missing_artifact_is_rejected_rather_than_skipped) ... ok
+test_a_symlink_member_escaping_the_archive_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_symlink_member_escaping_the_archive_is_rejected)
+The member kind a name-only scan cannot see. ... ok
+test_a_traversing_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_a_traversing_member_is_rejected) ... ok
+test_an_absolute_member_is_rejected (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_an_absolute_member_is_rejected) ... ok
+test_the_symlink_fixture_really_is_a_symlink (test_upload_artifact_gate.ArchiveScannerRealFixtureTests.test_the_symlink_fixture_really_is_a_symlink)
+Discrimination: if the entry is a plain file, the test above is a lie. ... ok
+test_every_name_the_updater_accepts_is_one_release_builds (test_upload_artifact_gate.AssetNameCouplingTests.test_every_name_the_updater_accepts_is_one_release_builds)
+The other direction, which is a different failure. ... ok
+test_every_zip_release_builds_is_one_the_updater_will_accept (test_upload_artifact_gate.AssetNameCouplingTests.test_every_zip_release_builds_is_one_the_updater_will_accept) ... ok
+test_this_module_reads_the_real_names_rather_than_its_own_copy (test_upload_artifact_gate.AssetNameCouplingTests.test_this_module_reads_the_real_names_rather_than_its_own_copy)
+My own blindness to the same coupling, pinned. ... ok
+test_detach_failure_is_gate_failure_and_retains_the_named_mount (test_upload_artifact_gate.DmgArmTests.test_detach_failure_is_gate_failure_and_retains_the_named_mount) ... ok
+test_dmg_is_detached_after_a_successful_check (test_upload_artifact_gate.DmgArmTests.test_dmg_is_detached_after_a_successful_check) ... ok
+test_dmg_mountpoint_exists_before_attach (test_upload_artifact_gate.DmgArmTests.test_dmg_mountpoint_exists_before_attach)
+The regression this arm was fixed for: attach needs the dir first. ... ok
+test_dmg_that_fails_to_attach_fails_the_gate (test_upload_artifact_gate.DmgArmTests.test_dmg_that_fails_to_attach_fails_the_gate) ... ok
+test_dmg_with_a_wrongly_named_app_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_a_wrongly_named_app_fails_and_still_detaches)
+A rejection must not leave the image mounted. ... ok
+test_dmg_with_two_root_apps_fails_and_still_detaches (test_upload_artifact_gate.DmgArmTests.test_dmg_with_two_root_apps_fails_and_still_detaches)
+Now constructible, and the detach path must hold for it too. ... ok
+test_sentinels_would_notice_a_path_that_did_not_exist_before (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_sentinels_would_notice_a_path_that_did_not_exist_before)
+`assertNothingEscaped` must catch CREATION, not only growth. ... ok
+test_the_password_database_ignores_our_HOME (test_upload_artifact_gate.EnvironmentIsolationLimitsTests.test_the_password_database_ignores_our_HOME)
+The bypass, shown end to end in a shell we ourselves sandboxed. ... ok
+test_the_gate_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_gate_fragment_is_self_contained) ... ok
+test_the_publish_fragment_is_self_contained (test_upload_artifact_gate.FragmentCompletenessTests.test_the_publish_fragment_is_self_contained) ... ok
+test_this_check_can_actually_detect_a_missing_callee (test_upload_artifact_gate.FragmentCompletenessTests.test_this_check_can_actually_detect_a_missing_callee)
+Discrimination: otherwise a broken regex reports self-contained. ... ok
+test_an_unconfigured_ditto_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_ditto_is_poisoned_rather_than_real)
+Forgetting `setup_ditto` must be loud, not plausible. ... ok
+test_an_unconfigured_hdiutil_is_poisoned_rather_than_real (test_upload_artifact_gate.HarnessContainmentTests.test_an_unconfigured_hdiutil_is_poisoned_rather_than_real) ... ok
+test_mktemp_refuses_to_run_without_a_TMPDIR (test_upload_artifact_gate.HarnessContainmentTests.test_mktemp_refuses_to_run_without_a_TMPDIR)
+The failure mode the shim exists for, exercised directly. ... ok
+test_temporary_allocation_stays_inside_the_sandbox (test_upload_artifact_gate.HarnessContainmentTests.test_temporary_allocation_stays_inside_the_sandbox) ... ok
+test_the_gate_allocates_at_all (test_upload_artifact_gate.HarnessContainmentTests.test_the_gate_allocates_at_all)
+Discrimination: `assertAllocationsWereContained` is vacuous if not. ... ok
+test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_hdiutil_failure_quarantines_partial_dmg_and_removes_stage) ... ok
+test_notary_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_notary_failure_quarantines_dmg_and_removes_stage) ... ok
+test_staple_failure_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_staple_failure_quarantines_dmg_and_removes_stage) ... ok
+test_success_runs_create_notary_staple_validate_in_exact_order (test_upload_artifact_gate.OneDmgPackagingTests.test_success_runs_create_notary_staple_validate_in_exact_order) ... ok
+test_validate_failure_text_with_zero_status_is_still_failure (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_failure_text_with_zero_status_is_still_failure) ... ok
+test_validate_nonzero_quarantines_dmg_and_removes_stage (test_upload_artifact_gate.OneDmgPackagingTests.test_validate_nonzero_quarantines_dmg_and_removes_stage) ... ok
+test_a_later_artifact_failing_stops_every_upload (test_upload_artifact_gate.PublishBehaviourTests.test_a_later_artifact_failing_stops_every_upload)
+The one a first-file-only gate would pass. ... ok
+test_all_artifacts_good_does_reach_gh (test_upload_artifact_gate.PublishBehaviourTests.test_all_artifacts_good_does_reach_gh) ... ok
+test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_missing_file_before_any_artifact_opens) ... ok
+test_assets_subcommand_blocks_a_wrong_four_name_set (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_blocks_a_wrong_four_name_set) ... ok
+test_assets_subcommand_receives_exactly_the_four_release_names (test_upload_artifact_gate.PublishBehaviourTests.test_assets_subcommand_receives_exactly_the_four_release_names) ... ok
+test_detach_failure_retains_the_mount_and_blocks_gh (test_upload_artifact_gate.PublishBehaviourTests.test_detach_failure_retains_the_mount_and_blocks_gh) ... ok
+test_every_artifact_is_verified_before_the_first_gh_call (test_upload_artifact_gate.PublishBehaviourTests.test_every_artifact_is_verified_before_the_first_gh_call) ... ok
+test_no_gh_call_when_the_archive_scan_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_archive_scan_fails) ... ok
+test_no_gh_call_when_the_artifact_carries_an_extra_app (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_carries_an_extra_app) ... ok
+test_no_gh_call_when_the_artifact_is_corrupt (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_artifact_is_corrupt) ... ok
+test_no_gh_call_when_the_payload_check_fails (test_upload_artifact_gate.PublishBehaviourTests.test_no_gh_call_when_the_payload_check_fails) ... ok
+test_publish_stops_at_the_first_bad_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_publish_stops_at_the_first_bad_artifact)
+`|| exit 1`, not a status collected and ignored to the end. ... ok
+test_the_upload_carries_every_artifact (test_upload_artifact_gate.PublishBehaviourTests.test_the_upload_carries_every_artifact)
+A gate that verifies four files and uploads three is still wrong. ... ok
+test_publish_aborts_on_a_failed_verification (test_upload_artifact_gate.PublishWiringTests.test_publish_aborts_on_a_failed_verification) ... ok
+test_publish_verifies_before_it_uploads (test_upload_artifact_gate.PublishWiringTests.test_publish_verifies_before_it_uploads) ... ok
+test_contained_symlink_is_a_positive_control_and_reaches_ditto (test_upload_artifact_gate.RealScannerGateWiringTests.test_contained_symlink_is_a_positive_control_and_reaches_ditto) ... ok
+test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside (test_upload_artifact_gate.RealScannerGateWiringTests.test_escaping_symlink_bytes_fail_before_ditto_and_cannot_touch_outside) ... ok
+test_a_second_root_app_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_a_second_root_app_is_rejected)
+Flipped from documenting the gap to requiring it be closed. ... ok
+test_an_app_hidden_inside_the_bundle_is_rejected (test_upload_artifact_gate.VerifyUploadArtifactTests.test_an_app_hidden_inside_the_bundle_is_rejected)
+The nested scan, which no other case reaches. ... ok
+test_clean_zip_with_one_root_app_passes (test_upload_artifact_gate.VerifyUploadArtifactTests.test_clean_zip_with_one_root_app_passes) ... ok
+test_corrupt_zip_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_corrupt_zip_fails) ... ok
+test_every_artifact_passes_the_exact_current_version_and_arch_contract (test_upload_artifact_gate.VerifyUploadArtifactTests.test_every_artifact_passes_the_exact_current_version_and_arch_contract)
+The defect an all-passing shim hid completely. ... ok
+test_failing_archive_scan_fails_before_extraction (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_archive_scan_fails_before_extraction)
+The scan runs before `ditto`, and order is the whole point. ... ok
+test_failing_bundle_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_bundle_check_fails_the_gate)
+The `app` branch, unreachable until the shim learned subcommands. ... ok
+test_failing_payload_check_fails_the_gate (test_upload_artifact_gate.VerifyUploadArtifactTests.test_failing_payload_check_fails_the_gate) ... ok
+test_missing_artifact_fails_rather_than_passing_unchecked (test_upload_artifact_gate.VerifyUploadArtifactTests.test_missing_artifact_fails_rather_than_passing_unchecked) ... ok
+test_nested_app_is_not_accepted_as_a_root_app (test_upload_artifact_gate.VerifyUploadArtifactTests.test_nested_app_is_not_accepted_as_a_root_app) ... ok
+test_the_plain_archive_pins_arm64_from_the_contract_not_the_host (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_plain_archive_pins_arm64_from_the_contract_not_the_host)
+Asserted against `UPDATE_ASSET_NAMES`, deliberately not `uname -m`. ... ok
+test_the_two_archive_kinds_are_not_given_the_same_arches (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_two_archive_kinds_are_not_given_the_same_arches)
+Discrimination: if both produced one value, one test above is dead. ... ok
+test_the_universal_archive_pins_BOTH_architectures (test_upload_artifact_gate.VerifyUploadArtifactTests.test_the_universal_archive_pins_BOTH_architectures)
+Both, exactly - not "at least one", which is the whole point. ... ok
+test_unknown_extension_fails_closed (test_upload_artifact_gate.VerifyUploadArtifactTests.test_unknown_extension_fails_closed) ... ok
+test_zip_with_no_app_fails (test_upload_artifact_gate.VerifyUploadArtifactTests.test_zip_with_no_app_fails) ... ok
+test_calibration_pct_applies_immediately (test_v020_boundaries.B1Settings.test_calibration_pct_applies_immediately) ... ok
+test_direct_limit_applies_immediately (test_v020_boundaries.B1Settings.test_direct_limit_applies_immediately) ... ok
+test_invalid_input_rejects_whole_save (test_v020_boundaries.B1Settings.test_invalid_input_rejects_whole_save) ... ok
+test_mutant_control_for_the_failure_path (test_v020_boundaries.B1Settings.test_mutant_control_for_the_failure_path)
+MUTANT: strip both `return`s from the rejection paths, so a rejected ... ok
+test_save_settings_failure_keeps_panel_open_and_state_untouched (test_v020_boundaries.B1Settings.test_save_settings_failure_keeps_panel_open_and_state_untouched) ... ok
+test_save_settings_success_updates_state_and_closes_panel (test_v020_boundaries.B1Settings.test_save_settings_success_updates_state_and_closes_panel) ... ok
+test_save_settings_uses_the_seam (test_v020_boundaries.B1Settings.test_save_settings_uses_the_seam) ... ok
+test_saved_limits_survive_restart (test_v020_boundaries.B1Settings.test_saved_limits_survive_restart) ... ok
+test_both_build_paths_declare_the_payload (test_v020_boundaries.B2Bundle.test_both_build_paths_declare_the_payload)
+Source fact, not an artifact: both builders stage .claude_pet. ... [b2] repo-root ClaudePet.app has .claude_pet: False
+[b2] dist/ClaudePet.app has .claude_pet: True
+ok
+test_expected_set_is_derived (test_v020_boundaries.B2Bundle.test_expected_set_is_derived) ... ok
+test_py2app_bundle_carries_every_asset (test_v020_boundaries.B2Bundle.test_py2app_bundle_carries_every_asset) ... ok
+test_seeding_into_empty_dest_creates_everything (test_v020_boundaries.B2Bundle.test_seeding_into_empty_dest_creates_everything)
+POSITIVE CONTROL for the never-clobber tests below. ... ok
+test_seeding_is_idempotent (test_v020_boundaries.B2Bundle.test_seeding_is_idempotent) ... ok
+test_seeding_never_clobbers_edited_files (test_v020_boundaries.B2Bundle.test_seeding_never_clobbers_edited_files) ... ok
+test_seeding_refuses_a_symlinked_dest_root (test_v020_boundaries.B2Bundle.test_seeding_refuses_a_symlinked_dest_root) ... ok
+test_github_choice_binds_v021_tag_asset_and_arch_without_network (test_v020_boundaries.B3Updater.test_github_choice_binds_v021_tag_asset_and_arch_without_network) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_invalid_candidates_are_refused_before_handoff (test_v020_boundaries.B3Updater.test_invalid_candidates_are_refused_before_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_well_formed_v021_reaches_one_sandbox_handoff (test_v020_boundaries.B3Updater.test_well_formed_v021_reaches_one_sandbox_handoff) ... skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... ok
+test_claude_has_durable_user_facing_release_note_policy (test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v021_version_and_final_source_pins_propagate (test_v021_release_contract.VersionAndPinContractTests.test_v021_version_and_final_source_pins_propagate) ... ok
+
+----------------------------------------------------------------------
+Ran 441 tests in 319.337s
+
+OK (skipped=7)
+```
+
+### Final normal-run handoff and frozen evidence
+
+At 2026-09-08T09:44:54.321876+00:00, trace PID49172 is stopped and normal, unwrapped run_gui PID58849 is running from final SHA3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c. The only runtime override is CONFIG_PATH=`/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-live-ui-oo_b3vxs/config.json`; roam=True, spike_mult=1.0. No Roamer/Ticker wrapper, cursor generator or trace writer remains in this process. Native window {"isOffscreen": false, "height": 240, "screenIndex": 0, "id": 1531, "y": 426, "width": 268, "title": "", "x": 566, "platform": {"layer": 25}, "isMinimized": false} confirms startup. Screenshot source `/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/orca-computer-use/16ef2640-3762-4f68-9e7b-a0a914dcdd62-screenshot.png`. Original installed PID29528 remains running. OS Reduce Motion=False; pre-existing System Settings Storage window restored.
+
+Frozen trace last step UTC 2026-09-08T09:44:02.825143+00:00; final normalization/measured UTC 2026-09-08T09:44:54.321876+00:00; SHA256 1829600a0f1134d401b39438bdf1ff95ed3fc7fd47641fe8f76623d618df5a00. 3414 non-finite no-activity sentinels were converted to JSON null for strict JSONL; finite sampled positions/times and event rows are unchanged. Trace includes launches for each source SHA and must be filtered by PID/source window when comparing results. No subsequent runtime appends to the trace.
+
+Exact normal launcher (stdin; not a persistent launcher file), executed after terminating only trace PID49172:
+
+```sh
+/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 - <<'PY'
+import os,sys,hashlib,pathlib
+sys.path.insert(0,'/Users/yeongyu/claude-pet')
+import claude_pet as pet
+pet.CONFIG_PATH='/var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-live-ui-oo_b3vxs/config.json'
+cfg=pet.load_config();assert cfg.get('spike_mult')==1.0 and cfg.get('roam') is True
+print('NORMAL_NO_TRACE_PID',os.getpid(),'SHA',hashlib.sha256(pathlib.Path(pet.__file__).read_bytes()).hexdigest(),'CONFIG',pet.CONFIG_PATH,flush=True)
+pet.run_gui()
+PY
+```
+
+```text
+NORMAL_NO_TRACE_PID 58849 SHA 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c CONFIG /var/folders/dq/w9mxm3513csghc_7h8xg8wj40000gn/T/claudepet-live-ui-oo_b3vxs/config.json
+```
+
+`run_gui` follows its normal config-load/apply path and starts its normal timers/workers. The final native window1531 is visible at x566,y426,width268,height240; the process and window checks are recorded in the preceding handoff section.
+
+
+## v0.22 release — pre-commit verification
+
+Verifier: `verifier-v022 (Claude Code subagent, spawned by coordinator-v022, 2026-09-08)`.
+I held no other role on this change: I authored no production file and no
+documentation, and I read `claude_pet.py`'s full diff only to review it and to repin
+the executable harnesses. Measurement window for this whole section:
+`2026-09-08T11:35:59Z` – `2026-09-08T11:52Z` (UTC, `date -u`).
+
+### Scope, environment, and what this session did NOT do
+
+**This measuring session never launched the GUI.** `python3 claude_pet.py` was never
+run in any form (with or without `--report`), `./build_app.sh` and `./release.sh` were
+never invoked, and no process was killed — installed PID `29528` and development PID
+`58849` were left running and untouched. No git write command was run: only
+`git status --porcelain`, `git diff`, `git log`, `git tag`. No `CLAUDEPET_RUN_LIVE_*`
+variable was set, so the seven opt-in live tests stayed skipped. Nothing was written to
+`~/.claude_pet/`, `~/.claude_pet.json`, or `~/.claude`; `LOG_DIRS` was never repointed;
+no untracked file outside my deliverable list was created, modified, moved or deleted.
+All scratch work lives under
+`/private/tmp/claude-501/-Users-yeongyu-claude-pet/5a38ef52-554f-499f-833d-ed01a4c765dd/scratchpad/verifier`.
+
+Environment: `Python 3.13.7 (v3.13.7:bcee1c32211, Aug 14 2025, 19:10:51)` at
+`/Library/Frameworks/Python.framework/Versions/3.13/bin/python3`;
+`Darwin Mac 25.5.0 … RELEASE_ARM64_T8132 arm64`. Working directory for every command:
+the repository root `/Users/yeongyu/claude-pet`.
+
+My deliverables (the only files I edited): `tests/test_v021_release_contract.py`,
+`tests/test_upload_artifact_gate.py`, `tests/test_manual_update_transaction.py`, and
+this record (appended only — no existing section was rewritten, reordered or deleted).
+`tests/test_companion_motion.py` was read, not edited.
+
+Source identity at verification time (`shasum -a 256`, measured `2026-09-08T11:35:59Z`
+and unchanged at `2026-09-08T11:52Z`):
+
+```text
+c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9  claude_pet.py
+8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d  verify_release_artifact.py
+a5b256867bf3e78314b4bfdec7e9372d6a9ed7304c534b921a62cd9dc2146e23  release.sh
+83eca429c7742a3254715a9f8c063289e79553b01a36124c1402c579cea600d6  build_app.sh
+350ec6a2fbb71fe94970fea3a676342aef97817394d65be641d20fe1a33afcaa  verify_pet_payload.py
+```
+
+### Tracked-tree state before my first edit
+
+`git status --porcelain`, measured `2026-09-08T11:35:59Z`:
+
+```text
+ M README.ko.md
+ M RELEASE_NOTES.md
+ M claude_pet.py
+ M tests/test_manual_update_transaction.py
+ M tests/test_upload_artifact_gate.py
+ M verify_release_artifact.py
+?? diag.py
+?? docs-design/quiet-companion-arrival.png
+?? docs-design/quiet-companion-compact-smoke.json
+?? docs-design/quiet-companion-compact-smoke.png
+?? docs-design/quiet-companion-live-contact.png
+?? docs-design/quiet-companion-live-trace.jsonl
+?? docs-design/quiet-companion-review.md
+?? docs-design/quiet-companion-smoke.json
+?? docs-design/quiet-companion-smoke.png
+?? docs-design/quiet-companion-verification.md
+?? docs-design/quiet-companion.md
+?? release/ClaudePet.iconset/
+?? release/icon_1024.png
+?? tests/test_companion_motion.py
+```
+
+### Observed RED before any edit — the v0.21 contract against a v0.22 tree
+
+```sh
+python3 -m unittest -v tests.test_v021_release_contract
+```
+
+Run `2026-09-08T11:36:19Z`. Raw output:
+
+```text
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (tests.test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... FAIL
+test_claude_has_durable_user_facing_release_note_policy (tests.test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v021_version_and_final_source_pins_propagate (tests.test_v021_release_contract.VersionAndPinContractTests.test_v021_version_and_final_source_pins_propagate) ... FAIL
+
+======================================================================
+FAIL: test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (tests.test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_v021_release_contract.py", line 134, in test_v021_notes_are_concise_user_facing_and_preserve_published_bytes
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        headings[0],
+        ^^^^^^^^^^^^
+        "0.21",
+        ^^^^^^^
+        f"newest release heading must be v0.21, got v{headings[0]}",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: '0.22' != '0.21'
+- 0.22
+?    ^
++ 0.21
+?    ^
+ : newest release heading must be v0.21, got v0.22
+
+======================================================================
+FAIL: test_v021_version_and_final_source_pins_propagate (tests.test_v021_release_contract.VersionAndPinContractTests.test_v021_version_and_final_source_pins_propagate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_v021_release_contract.py", line 113, in test_v021_version_and_final_source_pins_propagate
+    self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ["APP_VERSION must be one literal '0.21', got ['0.22']", 'verify_release_artifact.py usage must show --expect-version 0.21', 'test_manual_update_transaction.py:REVIEWED_APP_SOURCE_SHA256 pins 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, final source is c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9', 'test_upload_artifact_gate.py:REVIEWED_APP_SOURCE_SHA256 pins 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, final source is c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9', 'test_upload_artifact_gate.py:REVIEWED_VERIFIER_SHA256 pins 7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa, final source is 8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d'] is not false : 
+- APP_VERSION must be one literal '0.21', got ['0.22']
+- verify_release_artifact.py usage must show --expect-version 0.21
+- test_manual_update_transaction.py:REVIEWED_APP_SOURCE_SHA256 pins 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, final source is c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9
+- test_upload_artifact_gate.py:REVIEWED_APP_SOURCE_SHA256 pins 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, final source is c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9
+- test_upload_artifact_gate.py:REVIEWED_VERIFIER_SHA256 pins 7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa, final source is 8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.042s
+
+FAILED (failures=2)
+```
+
+### Observed RED before any edit — the two pinned executable harnesses
+
+Both harnesses **fail loudly**; neither skips. `tests/test_upload_artifact_gate.py`
+(`python3 -m unittest -v tests.test_upload_artifact_gate`, tail of raw output):
+
+```text
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_upload_artifact_gate.py", line 74, in assert_reviewed_file
+    testcase.assertEqual(
+    ~~~~~~~~~~~~~~~~~~~~^
+        actual, expected,
+        ^^^^^^^^^^^^^^^^^
+        f"{path.name} changed after this executable harness was reviewed; "
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "refusing to run it until a verifier reviews and repins the new bytes")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d' != '7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa'
+- 8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d
++ 7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa
+ : verify_release_artifact.py changed after this executable harness was reviewed; refusing to run it until a verifier reviews and repins the new bytes
+
+======================================================================
+FAIL: test_zip_with_no_app_fails (tests.test_upload_artifact_gate.VerifyUploadArtifactTests.test_zip_with_no_app_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_upload_artifact_gate.py", line 377, in setUp
+    assert_reviewed_file(self, RELEASE_VERIFIER, REVIEWED_VERIFIER_SHA256)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_upload_artifact_gate.py", line 74, in assert_reviewed_file
+    testcase.assertEqual(
+    ~~~~~~~~~~~~~~~~~~~~^
+        actual, expected,
+        ^^^^^^^^^^^^^^^^^
+        f"{path.name} changed after this executable harness was reviewed; "
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "refusing to run it until a verifier reviews and repins the new bytes")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d' != '7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa'
+- 8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d
++ 7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa
+ : verify_release_artifact.py changed after this executable harness was reviewed; refusing to run it until a verifier reviews and repins the new bytes
+
+----------------------------------------------------------------------
+Ran 64 tests in 3.538s
+
+FAILED (failures=48)
+```
+
+`tests/test_manual_update_transaction.py` refuses in `setUpClass`, so it runs zero
+tests (`python3 -m unittest -v tests.test_manual_update_transaction`, tail of raw
+output):
+
+```text
+  File "/Users/yeongyu/claude-pet/tests/test_manual_update_transaction.py", line 742, in setUpClass
+    raise AssertionError(
+    ...<2 lines>...
+    )
+AssertionError: claude_pet.py changed after the shared-lock/version harness was reviewed: expected 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, found c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9
+
+======================================================================
+ERROR: setUpClass (tests.test_manual_update_transaction.StagedPreflightTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_manual_update_transaction.py", line 742, in setUpClass
+    raise AssertionError(
+    ...<2 lines>...
+    )
+AssertionError: claude_pet.py changed after the shared-lock/version harness was reviewed: expected 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, found c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9
+
+======================================================================
+ERROR: setUpClass (tests.test_manual_update_transaction.WholeTransactionConcurrencyTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_manual_update_transaction.py", line 742, in setUpClass
+    raise AssertionError(
+    ...<2 lines>...
+    )
+AssertionError: claude_pet.py changed after the shared-lock/version harness was reviewed: expected 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c, found c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9
+
+----------------------------------------------------------------------
+Ran 0 tests in 0.003s
+
+FAILED (errors=8)
+```
+
+Numerators/denominators for those two stale-pin runs, grouping key = one unittest test
+case: upload gate `48 / 64` failures, `16 / 64` passing (the cases that do not touch the
+verifier pin); manual transaction `8 / 8` `setUpClass` errors, `0` tests run.
+
+### Repin (after reading `git diff -- claude_pet.py verify_release_artifact.py` in full)
+
+`REVIEWED_APP_SOURCE_SHA256` in both harnesses:
+`3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c` →
+`c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9`.
+`REVIEWED_VERIFIER_SHA256` in `tests/test_upload_artifact_gate.py`:
+`7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa` →
+`8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d`.
+Each replacement asserted its needle occurred exactly once before replacing.
+`REVIEWED_RELEASE_SHA256` (`a5b25686…`) and `REVIEWED_BUILD_APP_SHA256` (`83eca429…`)
+were **not** changed: they already equal the current bytes of `release.sh` and
+`build_app.sh`.
+
+The reviewed application diff is the quiet-companion feature plus the version bump: the
+`Roamer`/`RoamDisplay` state machine and geometry helpers after `gauge_rows`, the
+`run_gui()` adapter (`roam_tick`, crop/logical-window conversion, summary pill), the
+`menu_roam` item in all four locales, `RUNTIME["roam"]`, and `APP_VERSION "0.21"` →
+`"0.22"`. The verifier diff is one usage line, `--expect-version 0.21` → `0.22`.
+
+### New v0.22 gates — RED observed for every new assertion
+
+Method: each mutant is a **copy** of `RELEASE_NOTES.md`, `claude_pet.py` or
+`verify_release_artifact.py` written into the scratchpad; the test module's path
+constants (`RELEASE_NOTES` / `APP_SOURCE` / `RELEASE_VERIFIER`) are repointed at the
+copy for one test method and restored afterwards. `RELEASE_NOTES.md` and
+`claude_pet.py` in the repository were never modified. Because `str.replace` cannot
+fail, every mutation asserts its needle is present before replacing, and the runner
+fails loudly if any mutant stays green. Runner:
+`scratchpad/verifier/mutate.py`. Result: **25 / 25 mutants observed RED, 0
+non-discriminating.** Header line plus the actual assertion message for each:
+
+```text
+[N1 fourth bullet] V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: 4 != 3 : v0.22 must have exactly 3 top-level bullets, got 4
+[N2 nested bullet] V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: Lists differ: ['  - 중첩 불릿입니다.'] != []
+[N3 over 450 chars] V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: 486 not less than or equal to 450 : v0.22 Korean body is 486 Unicode characters; max is 450
+[N4 three sentences] V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: 3 not less than or equal to 2 : each bullet must have at most 2 sentences
+[N5 frequency word 가끔] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ["remove unsupported magnitude/frequency: '가끔'"] is not false : 
+[N6 drop 화면 돌아다니기] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ['name the context-menu item "화면 돌아다니기" and that it toggles'] is not false : 
+[N7 drop 동작 줄이기] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ['say macOS Reduce Motion suppresses the movement'] is not false : 
+[N8 drop chevron] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ['say the ⌄ button expands the full gauges'] is not false : 
+[N9 drop approx mark] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ['say ≈ marks log-estimated values'] is not false : 
+[N10 drop v0.21 inclusion] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ["say v0.21's % calibration ships inside this version"] is not false : 
+[N11 drop cursor promise] V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: ['say it never walks over the cursor'] is not false : 
+[N12 notes say 7 seconds] V022ReleaseNotesContractTests.test_v022_look_duration_matches_the_source_default  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: 7.0 != 6.0 : notes say 7초 but ROAM_DEFAULTS["look_s"] is 6.0
+[N13 v0.22 placed under v0.21] ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes  mutant=RELEASE_NOTES.md  ->  RED
+    AssertionError: Lists differ: ['0.21', '0.22'] != ['0.22', '0.21']
+[S1 source look_s 7.0] V022ReleaseNotesContractTests.test_v022_look_duration_matches_the_source_default  mutant=claude_pet.py  ->  RED
+    AssertionError: 7.0 != 6.0 : ROAM_DEFAULTS["look_s"] is 7.0; the v0.22 notes promise 6 seconds
+[S2 swap watch durations] V022ReleaseNotesContractTests.test_v022_look_duration_governs_the_approach_watch  mutant=claude_pet.py  ->  RED
+    AssertionError: 'look_s' not found in {'wander_pause_s', 'review'} : the "approach" branch of Roamer._watch must use ROAM_DEFAULTS["look_s"]
+[S3 approx mark changed] V022SourceBackedClaimTests.test_approx_mark_is_applied_to_estimates_and_withheld_from_server_rows  mutant=claude_pet.py  ->  RED
+    AssertionError: '~' != '≈'
+[S4 approx also on exact rows] V022SourceBackedClaimTests.test_approx_mark_is_applied_to_estimates_and_withheld_from_server_rows  mutant=claude_pet.py  ->  RED
+    AssertionError: 'SUMMARY_APPROX' unexpectedly found in {'SUMMARY_APPROX', 'label', 'payload', 'pct'} : server (exact) rows must not be marked as estimates
+[S5 ko menu label reworded] V022SourceBackedClaimTests.test_roam_menu_item_exists_in_every_locale_with_the_documented_korean_label  mutant=claude_pet.py  ->  RED
+    AssertionError: '자유 이동' != '화면 돌아다니기'
+[S6 es locale loses menu_roam] V022SourceBackedClaimTests.test_roam_menu_item_exists_in_every_locale_with_the_documented_korean_label  mutant=claude_pet.py  ->  RED
+    AssertionError: Lists differ: ['es'] != []
+[S7 reduce-motion read removed] V022SourceBackedClaimTests.test_reduce_motion_and_the_roam_default_are_where_the_notes_say  mutant=claude_pet.py  ->  RED
+    AssertionError: 'accessibilityDisplayShouldReduceMotion' not found in '#!/usr/bin/env python3\n"""\nClaude Pet — Codex Pets 스타일 투명 오버레이 펫 + Claude 토큰 사용량\n=====================================================================\n- 창 프레임/타이틀 없음, 배경 완전 투명 (펫과 게이지만 화면에 떠 있음)\n- 스프라이트: ~/.codex/pet-runs/patch-entp-cat/frames 의 Patch 고양이 프레임 사용\n- 게이지 3종: 현재 세션(5h) / 주간 전체 / 주간 Opus — 남은량 + 리셋 카운트다운\n- 한도 …[truncated]
+[S8 roam defaults off] V022SourceBackedClaimTests.test_reduce_motion_and_the_roam_default_are_where_the_notes_say  mutant=claude_pet.py  ->  RED
+    AssertionError: unexpectedly None : RUNTIME["roam"] must default on via CLAUDE_PET_ROAM, as the menu item implies
+[S9 APP_VERSION left at 0.21] VersionAndPinContractTests.test_v022_version_and_final_source_pins_propagate  mutant=claude_pet.py  ->  RED
+    AssertionError: ["APP_VERSION must be one literal '0.22', got ['0.21']", 'test_manual_update_transaction.py:REVIEWED_APP_SOURCE_SHA256 pins c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9, final source is 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c', 'test_upload_artifact_gate.py:REVIEWED_APP_SOURCE_SHA256 pins c3d343439c812804154b02ce8cd1959d385c576256a471204 …[truncated]
+[S10 verifier usage left at 0.21] VersionAndPinContractTests.test_v022_version_and_final_source_pins_propagate  mutant=verify_release_artifact.py  ->  RED
+    AssertionError: ['verify_release_artifact.py usage must show --expect-version 0.22', 'verify_release_artifact.py still advertises --expect-version 0.21', 'test_upload_artifact_gate.py:REVIEWED_VERIFIER_SHA256 pins 8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d, final source is 7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa'] is not false : 
+```
+
+Two further mutants, run through the same runner:
+
+```text
+==============================================================================
+[N14 prose line in the body] V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format  mutant=RELEASE_NOTES.md  ->  RED
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_v021_release_contract.py", line 402, in setUp
+    self.top_level, self.nested, self.bullets = _bullet_shape(self.visible)
+                                                ~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/yeongyu/claude-pet/tests/test_v021_release_contract.py", line 344, in _bullet_shape
+    raise AssertionError(f"release body must consist only of bullets; got {preamble!r}")
+AssertionError: release body must consist only of bullets; got ['이번 릴리즈 요약입니다.']
+==============================================================================
+[N15 two durations stated] V022ReleaseNotesContractTests.test_v022_look_duration_matches_the_source_default  mutant=RELEASE_NOTES.md  ->  RED
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet/tests/test_v021_release_contract.py", line 484, in test_v022_look_duration_matches_the_source_default
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        len(stated), 1, f"expected exactly one duration in seconds in the notes, got {stated!r}")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1 : expected exactly one duration in seconds in the notes, got ['6', '30']
+both extra mutants RED
+```
+
+### GREEN against the real tree (focused)
+
+```sh
+python3 -m unittest -v tests.test_v021_release_contract
+```
+
+```text
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (tests.test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... ok
+test_claude_has_durable_user_facing_release_note_policy (tests.test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v022_look_duration_governs_the_approach_watch (tests.test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_look_duration_governs_the_approach_watch)
+look_s must be the approach branch's dwell, not the wander pause. ... ok
+test_v022_look_duration_matches_the_source_default (tests.test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_look_duration_matches_the_source_default)
+The notes' "6초" must be the look constant the source actually uses. ... ok
+test_v022_notes_follow_the_three_bullet_450_character_format (tests.test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format) ... ok
+test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal (tests.test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal) ... ok
+test_approx_mark_is_applied_to_estimates_and_withheld_from_server_rows (tests.test_v021_release_contract.V022SourceBackedClaimTests.test_approx_mark_is_applied_to_estimates_and_withheld_from_server_rows) ... ok
+test_reduce_motion_and_the_roam_default_are_where_the_notes_say (tests.test_v021_release_contract.V022SourceBackedClaimTests.test_reduce_motion_and_the_roam_default_are_where_the_notes_say) ... ok
+test_roam_menu_item_exists_in_every_locale_with_the_documented_korean_label (tests.test_v021_release_contract.V022SourceBackedClaimTests.test_roam_menu_item_exists_in_every_locale_with_the_documented_korean_label) ... ok
+test_v022_version_and_final_source_pins_propagate (tests.test_v021_release_contract.VersionAndPinContractTests.test_v022_version_and_final_source_pins_propagate) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.151s
+
+OK
+```
+
+`10 / 10` cases pass (`3` before my edits: the file gained `7` cases — four v0.22 note
+and look-duration gates, three source-backed claim gates).
+
+### Full suite from the repository root
+
+Command, exactly as run:
+
+```sh
+python3 -m unittest discover -s tests -v 2>&1 | tee <scratch>/full_suite.txt
+```
+
+- Start: `2026-09-08T11:42:34Z` (`date -u` → `Tue Sep  8 11:42:34 UTC 2026`)
+- End: `2026-09-08T11:47:57Z` (`date -u` → `Tue Sep  8 11:47:57 UTC 2026`)
+- Wall clock reported by unittest: `322.224s`
+- Grouping key: **one unittest discovered test case** (one `TestCase` method)
+- File set: the 16 files matching `tests/test_*.py` —
+  `test_companion_motion.py`, `test_log_estimate.py`,
+  `test_manual_update_transaction.py`, `test_mutation_instruments.py`,
+  `test_partial_copy_seeding.py`, `test_release_artifact_preflight.py`,
+  `test_release_gate.py`, `test_seeding_identity.py`,
+  `test_settings_and_install.py`, `test_signing_contract.py`,
+  `test_source_guard.py`, `test_updater_adversarial.py`, `test_updater.py`,
+  `test_upload_artifact_gate.py`, `test_v020_boundaries.py`,
+  `test_v021_release_contract.py`
+- Result: **`441 / 448` passed, `7 / 448` skipped, `0 / 448` failures, `0 / 448`
+  errors.** Previous release's baseline was `434 / 441`; the `+7` denominator is
+  exactly the seven cases I added.
+
+The seven skips are the pre-existing opt-in live checks, unchanged and still skipped
+because no `CLAUDEPET_RUN_LIVE_*` variable was set:
+
+```text
+test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about
+  skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight
+  skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65
+  skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle
+  skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_v020_boundaries.B3Updater.test_github_choice_binds_v021_tag_asset_and_arch_without_network
+  skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v020_boundaries.B3Updater.test_invalid_candidates_are_refused_before_handoff
+  skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v020_boundaries.B3Updater.test_well_formed_v021_reaches_one_sandbox_handoff
+  skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+```
+
+Raw tail of the run — the ten `test_v021_release_contract` case lines and the summary
+block, verbatim (the lines after it in the captured file are the harnesses' own
+`[update] rejected: …` stderr from earlier cases, which `tee` interleaves):
+
+```text
+test_v021_notes_are_concise_user_facing_and_preserve_published_bytes (test_v021_release_contract.ReleaseNotesContractTests.test_v021_notes_are_concise_user_facing_and_preserve_published_bytes) ... ok
+test_claude_has_durable_user_facing_release_note_policy (test_v021_release_contract.ReleaseNotesPolicyTests.test_claude_has_durable_user_facing_release_note_policy) ... ok
+test_v022_look_duration_governs_the_approach_watch (test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_look_duration_governs_the_approach_watch)
+look_s must be the approach branch's dwell, not the wander pause. ... ok
+test_v022_look_duration_matches_the_source_default (test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_look_duration_matches_the_source_default)
+The notes' "6초" must be the look constant the source actually uses. ... ok
+test_v022_notes_follow_the_three_bullet_450_character_format (test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_notes_follow_the_three_bullet_450_character_format) ... ok
+test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal (test_v021_release_contract.V022ReleaseNotesContractTests.test_v022_notes_state_the_user_facing_behaviour_and_nothing_internal) ... ok
+test_approx_mark_is_applied_to_estimates_and_withheld_from_server_rows (test_v021_release_contract.V022SourceBackedClaimTests.test_approx_mark_is_applied_to_estimates_and_withheld_from_server_rows) ... ok
+test_reduce_motion_and_the_roam_default_are_where_the_notes_say (test_v021_release_contract.V022SourceBackedClaimTests.test_reduce_motion_and_the_roam_default_are_where_the_notes_say) ... ok
+test_roam_menu_item_exists_in_every_locale_with_the_documented_korean_label (test_v021_release_contract.V022SourceBackedClaimTests.test_roam_menu_item_exists_in_every_locale_with_the_documented_korean_label) ... ok
+test_v022_version_and_final_source_pins_propagate (test_v021_release_contract.VersionAndPinContractTests.test_v022_version_and_final_source_pins_propagate) ... ok
+
+----------------------------------------------------------------------
+Ran 448 tests in 322.224s
+
+OK (skipped=7)
+```
+
+### Tracked-tree state after my edits and after the run
+
+`git status --porcelain`, measured `2026-09-08T11:49Z` (identical before and after the
+suite run):
+
+```text
+ M README.ko.md
+ M RELEASE_NOTES.md
+ M claude_pet.py
+ M tests/test_manual_update_transaction.py
+ M tests/test_upload_artifact_gate.py
+ M tests/test_v021_release_contract.py
+ M verify_release_artifact.py
+?? diag.py
+?? docs-design/quiet-companion-arrival.png
+?? docs-design/quiet-companion-compact-smoke.json
+?? docs-design/quiet-companion-compact-smoke.png
+?? docs-design/quiet-companion-live-contact.png
+?? docs-design/quiet-companion-live-trace.jsonl
+?? docs-design/quiet-companion-review.md
+?? docs-design/quiet-companion-smoke.json
+?? docs-design/quiet-companion-smoke.png
+?? docs-design/quiet-companion-verification.md
+?? docs-design/quiet-companion.md
+?? release/ClaudePet.iconset/
+?? release/icon_1024.png
+?? tests/test_companion_motion.py
+```
+
+The only difference from the pre-edit listing is `M tests/test_v021_release_contract.py`;
+`tests/test_upload_artifact_gate.py` and `tests/test_manual_update_transaction.py` were
+already modified (by the repin the developer staged) before I touched them. No untracked
+path was added or removed. `__pycache__/` is gitignored, so test bytecode does not appear.
+
+`shasum -a 256` and byte sizes of the three test files after my edits:
+
+```text
+9bb09107e43e4edcd4ca24d35d5daa15eaef4da81acb512139ddb5e14aa956c9  tests/test_v021_release_contract.py   24494 bytes
+608988aa6708c59731aefb169c3a6e46e543b5ff7bf733dd7fc7f2d444ca9ae7  tests/test_upload_artifact_gate.py    86335 bytes
+5c44e3e895db231341ac84183b2be409eea8a17490726e8d1678281a50241a95  tests/test_manual_update_transaction.py  53245 bytes
+```
+
+### Every v0.22 release-note claim checked against the source
+
+Source facts (read directly out of `claude_pet.py` at
+`c3d34343…`; these are deterministic reads, not sampled observations):
+
+| Notes claim | Backing in source |
+| --- | --- |
+| approaches while the mouse is moving | `Roamer._plan` requires `self._active(now)` (cursor movement ≥ `cursor_move_px` within `activity_window_s`) before `_plan_approach` |
+| "6초 바라보고" | `ROAM_DEFAULTS["look_s"] = 6.0`, consumed only by the `self.kind == "approach"` branch of `Roamer._watch` (the else branch uses `wander_pause_s`) |
+| returns to its place | `Roamer._plan` → `_begin("home", …)` when `self.away` |
+| never walks over the cursor | `_roam_seg_dist(cursor, pos, leg) < radius + cursor_margin_px` stops both the out and home legs; `_plan_wander` also refuses a target within `approach_stop + radius` of the cursor |
+| grab / hover / menu / settings stop it in place | `Roamer.step`'s `hold = (not enabled) or dragging or blocked or busy`; the adapter sets `blocked` from `state["hover"]`, `busy` from `ui["panel"]`, `state["menu_open"]`, `state["roam_hold"]`, `spike_info(...)` |
+| gauges fold while walking | `RoamDisplay.mode` returns `DISPLAY_FOLDED` for `phase in ("out", "home")` unconditionally |
+| one-line session/weekly % summary on arrival | `roam_summary` collects `("session", "weekly")` rows; `roam_summary_line` joins them with `·`; `RoamDisplay.note` latches `summary` on `phase == "look" and kind == "approach"` |
+| `≈` on log-estimated values only | `SUMMARY_APPROX = "≈"` appears in the `estimate` branch of `roam_summary_line` and not in the `exact` branch |
+| `⌄` expands the full gauges | `RoamDisplay.toggle` flips `expanded` while the summary latch is on, and `mode` then returns `DISPLAY_FULL`; the button is hit-tested in `mouseDown_` via `btnOrigin()` |
+| the folded/expanded choice comes back on return | `RoamDisplay.note` calls `reset()` on `phase == "rest" and not away and settled`; `mode` then falls back to `state["show_panel"]` |
+| context-menu item "화면 돌아다니기" | `TR["ko"]["menu_roam"] == "화면 돌아다니기"`, wired to `toggleRoam:`; present in all four locales |
+| macOS Reduce Motion suppresses movement | `_reduce_motion()` reads `NSWorkspace.sharedWorkspace().accessibilityDisplayShouldReduceMotion()`; `roam_tick` computes `enabled = RUNTIME["roam"] and not state["reduce_motion"]`, and the menu item is disabled in that state |
+| v0.21's % calibration ships in this version | newest tag is `v0.20` (`git tag --sort=-v:refname | head -1`), so the `**v0.21**` section in `RELEASE_NOTES.md` has never been published and goes out with v0.22 |
+
+Two qualifications, neither of which makes a notes sentence false:
+
+1. **The `⌄` glyph is not a source literal.** The chevron is drawn as an `NSBezierPath`
+   in `drawRect_`; the character appears in `README.ko.md`, not in `claude_pet.py`. The
+   gate therefore pins the *mechanism* (`RoamDisplay.toggle`/`mode` reaching
+   `DISPLAY_FULL`) and the notes' use of the glyph, not a source string.
+2. **The notes describe the approach trip only; the pet also wanders.**
+   `ROAM_DEFAULTS["wander_radius"] = 160.0` with `wander_cooldown_s = 300.0` is enabled
+   by default, so `Roamer._plan` will start a short `wander` leg around home even with no
+   cursor movement. The v0.22 bullet says the pet rests and approaches when the mouse
+   moves; it does not claim the pet moves *only* then, and the feature's own name in the
+   menu ("화면 돌아다니기") and `README.ko.md` cover the wander. This is reported to the
+   Coordinator as an omission to weigh, not as an inaccuracy. **I did not edit
+   `RELEASE_NOTES.md`.**
+
+Measured note geometry, for the record: the `**v0.22**` body is `341` characters after
+`" ".join(text.split())` normalization (budget `450`), in `3` top-level bullets of
+`107 / 119 / 107` characters, `2` sentences each, `0` nested bullets.
+
+### Artifacts referenced but intentionally not committed
+
+Requested by the Coordinator after the Reviewer noted that this record and
+`docs-design/quiet-companion-review.md` cite QA captures that the v0.22 release commit
+will not carry, so a reader of the committed record on GitHub would follow dangling
+links. The six files below are **raw QA captures — live cursor traces and screenshots —
+retained locally on the maintainer's machine and deliberately excluded from the v0.22
+release commit.** They are identified here by size and SHA-256 so a later reader can
+confirm the exact file if the maintainer supplies it.
+
+Measured `2026-09-08T11:52:22Z` with read-only `ls -l` and `shasum -a 256`; no file was
+modified, moved or deleted, and none is staged by me (I ran no git write command).
+
+| Path | Bytes (`ls -l`) | SHA-256 |
+| --- | --- | --- |
+| `docs-design/quiet-companion-live-trace.jsonl` | 9354299 | `1829600a0f1134d401b39438bdf1ff95ed3fc7fd47641fe8f76623d618df5a00` |
+| `docs-design/quiet-companion-live-contact.png` | 183713 | `4a7ed16ee4f4b1fcf32a25c28b230ecc1ad82ededca785ed775f31938f6cb5d4` |
+| `docs-design/quiet-companion-smoke.json` | 394617 | `28a516c9fa4575aa476a4f69723f91fe56b83f0c07c6c12d9024973424e8016f` |
+| `docs-design/quiet-companion-smoke.png` | 637216 | `c1454321c1174eea19076ba025bf2f292888d07f92765a20dabfffff18e33f28` |
+| `docs-design/quiet-companion-compact-smoke.json` | 591719 | `d21282f562e8883d761fd4ffd0e3ddd2e124d9aa5f735b3c3c2bdd73c958c562` |
+| `docs-design/quiet-companion-compact-smoke.png` | 509897 | `564749eef95d7129b3abdff41b4e138b10bc67efbd03d10801e6d4d7e4b291de` |
+
+Two of these hashes match values already quoted earlier in this document and in the
+Reviewer's record — the frozen trace `1829600a…`, the compact-smoke metadata
+`d21282f5…` and contact sheet `564749ee…` — which confirms the files listed here are the
+ones those sections cite.
+
+`docs-design/quiet-companion-arrival.png` is the exception: **the Coordinator has
+designated it for inclusion in the v0.22 release commit**, so its links from the
+committed records will resolve. Size 65372 bytes, SHA-256
+`a8e3a55362f08b48ef331fa829fd7b3c262e0dd5ca7268529ab57801f0558970`.
+
+Stated precisely, because the two claims differ in kind: the sizes and hashes above are
+measurements I took. Which files the release commit carries is the Coordinator's
+decision recorded here at their request, not something I verified — at my measurement
+time `git ls-files docs-design/` listed only `docs-design/self-login-oauth.md`, so all
+seven paths, `quiet-companion-arrival.png` included, were still untracked. Whether the
+commit ends up matching this note is checkable afterwards with
+`git show --stat` on the release commit.
+
+### README en/ja/es documentation check (F1)
+
+Checked `2026-09-08T12:02:47Z` – `2026-09-08T12:05Z` (UTC) by `verifier-v022 (Claude Code
+subagent, spawned by coordinator-v022, 2026-09-08)`, at the Coordinator's request after
+the Developer applied Reviewer finding F1. §7 defines the Verifier of a documentation-only
+change as the agent who checked the documented claims against the source; that is what
+this subsection records. I edited none of the four READMEs and ran no git write command,
+no GUI, and no build or release script.
+
+**Result: PASS.** Every claim in the new English, Japanese and Spanish text is backed by
+`claude_pet.py`. Two scope nuances are recorded below; neither is a false statement, and
+both are inherited from the Korean text that was already reviewed.
+
+#### 1. Shape of the diffs
+
+`git diff --numstat` — all four files identical in shape, 8 added lines and 1 replaced
+line each:
+
+```text
+8	1	README.es.md
+8	1	README.ja.md
+8	1	README.ko.md
+8	1	README.md
+```
+
+`git diff -U3 | grep -c '^@@'` gives **3 hunks per file** for all four. The three hunks
+mirror the Korean reference one for one:
+
+| Hunk | Location | Change |
+| --- | --- | --- |
+| 1 | the behaviour bullet list, after the mouse-greeting bullet | +4 lines: two new bullets (roaming/approach/return, and fold-while-walking/summary/`⌄`) |
+| 2 | the mouse-and-menu list | the right-click line replaced, gaining the roam item between "Collapse" and "Reset size" |
+| 3 | the settings section, above the `~/.claude_pet.json` sentence | +3 lines: blank line plus a two-line paragraph on the roam toggle, Reduce Motion, and position saving |
+
+`git diff -- README.md README.ja.md README.es.md | grep -E '^-[^-]'` returns **exactly
+three removed lines, one per file — each the old right-click menu line.** No other
+sentence in any of the three files changed.
+
+The menu order in hunk 2 (Settings / Collapse / Roam / Reset size / Quit) matches the
+construction order in `rightMouseDown_`: `menu_settings`, `menu_toggle`, `menu_roam`,
+`menu_reset_size`, separator, `menu_uninstall`, `menu_quit`. (All four READMEs omit
+"Uninstall completely…" from that line; that omission predates this change and is not
+introduced by it.)
+
+#### 2. Claim-by-claim check against `claude_pet.py` (`c3d34343…`)
+
+| Claim (en / ja / es) | Backing in source | Verdict |
+| --- | --- | --- |
+| menu label "Roam the screen" | `TR["en"]["menu_roam"] == "Roam the screen"` | exact match |
+| menu label "画面を歩き回る" | `TR["ja"]["menu_roam"] == "画面を歩き回る"` | exact match |
+| menu label "Pasear por la pantalla" | `TR["es"]["menu_roam"] == "Pasear por la pantalla"` | exact match |
+| on by default | `RUNTIME["roam"] = os.environ.get("CLAUDE_PET_ROAM", "1") != "0"`; the menu item is checked from `RUNTIME.get("roam")` | backed |
+| toggled by a check item in the right-click menu | `mi.setState_(…)` on the `toggleRoam:` item; `toggleRoam_` flips `RUNTIME["roam"]` and persists `{"roam": value}` | backed |
+| "roams on its own now and then" | `Roamer._plan` starts a `wander` leg with `wander_radius = 160.0`, `wander_cooldown_s = 300.0`, between rests of `rest_min_s = 45.0`–`rest_max_s = 90.0` | backed (the frequency wording is bounded by those constants) |
+| approaches only while the mouse is moving | `_plan` requires `self._active(now)` and a non-`None` cursor; `_active` is true only within `activity_window_s = 20.0` of a cursor sample that moved ≥ `cursor_move_px = 12.0` between samples ≥ `cursor_sample_s = 1.0` apart | backed (see nuance A) |
+| walks over **once**, then returns | `_approach_ok_at = now + approach_cooldown_s (180.0)` on each approach; `_plan` → `_begin("home", …)` when `self.away` | backed |
+| never walks onto the cursor | both walking legs stop when `_roam_seg_dist(cursor, pos, leg) < radius + cursor_margin_px (24.0)`; `_plan_approach` stops `approach_stop (150.0) + radius` short; `_plan_wander` refuses a target inside that same distance | backed |
+| stops where it is if grabbed, or if the menu or Settings opens | `Roamer.step`'s `hold = (not enabled) or dragging or blocked or busy` → `_stop(now)` with no teleport; the adapter fills `dragging` from `state["dragging"]`, `busy` from `ui["panel"]`, `state["menu_open"]`, `state["roam_hold"]`, `spike_info(...)` | backed (see nuance B) |
+| gauges fold while walking, only the pet moves | `RoamDisplay.mode` returns `DISPLAY_FOLDED` for `phase in ("out", "home")` before consulting anything else; `roam_frame` then crops the window to sprite ∪ button | backed |
+| one-line session·weekly % summary on arrival | `RoamDisplay.note` latches `summary` on `phase == "look" and kind == "approach"`; `roam_summary` collects the `("session", "weekly")` rows and `roam_summary_line` joins them with `·` | backed (see nuance C) |
+| `⌄` expands the full gauges | `RoamDisplay.toggle` flips `expanded` while the latch is on and returns `show_panel` unchanged; `mode` then returns `DISPLAY_FULL`; the button is hit-tested in `mouseDown_` via `btnOrigin()` | backed |
+| on return, the previous collapsed/expanded state comes back | `note` calls `reset()` on `phase == "rest" and not away and settled`; `mode` falls back to `state["show_panel"]`, which the summary path never wrote | backed |
+| macOS Accessibility Reduce Motion stops the movement | `_reduce_motion()` reads `NSWorkspace.sharedWorkspace().accessibilityDisplayShouldReduceMotion()` at 1 Hz; `roam_tick` sets `enabled = RUNTIME["roam"] and not state["reduce_motion"]`, and the menu item is disabled in that state | backed |
+| wandered-to positions are not saved; only dragged ones are | `cfg["x"]`/`cfg["y"]` and `merge_config_updates({"x": …, "y": …})` occur at exactly **one** site in the file — inside `mouseUp_`'s `if moved:` branch (a real drag). `roam_tick` moves the window through `place_window_center()`, which writes no config | backed |
+
+**Localized Reduce Motion names.** English "Reduce Motion" is Apple's own name for the
+System Settings → Accessibility → Display switch, which is what
+`accessibilityDisplayShouldReduceMotion` reports. The Japanese 「視差効果を減らす」 and
+Spanish "Reducir movimiento" are, to my knowledge, Apple's localizations of that same
+switch — **but they are not verified on this machine and there is no record here to cite:**
+this Mac's UI is English, and the earlier actual-OS runs in this document logged the
+setting only as "Reduce Motion". I did not open System Settings. If certainty is wanted,
+the maintainer can confirm the two strings in a Japanese/Spanish UI; nothing else in the
+paragraph depends on them.
+
+**Nuance A — "while the mouse is moving" is a 20-second window, not an instant.**
+`activity_window_s = 20.0`, so an approach can begin up to 20 s after the last qualifying
+cursor movement. The sentence is a fair description of the trigger; it is not a promise
+that the cursor is in motion at the moment the pet sets off. Same wording as the Korean.
+
+**Nuance B — hover is omitted from the stop list in all four READMEs.** Hovering the pet
+also stops it (`blocked` from `state["hover"]`), and `RELEASE_NOTES.md` mentions it; the
+README bullets name only grabbing and the menu/Settings. This is an omission, not an
+error, and it is inherited from the Korean text rather than introduced by F1.
+
+**Nuance C — "session and weekly %" describes subscription mode.** `roam_summary` returns
+`("cost", …)` in API mode and a `("status", key)` row while data is missing or the user is
+onboarding, so the arrival pill is not always two percentages. Again inherited from the
+Korean, and again not a false statement about the mode the paragraph is describing.
+
+#### 3. Does any test read the root READMEs?
+
+`grep -rn 'README' tests/ verify_pet_payload.py verify_release_artifact.py` returns
+matches in seven test modules and `verify_pet_payload.py`, and **every one of them refers
+to the bundled `.claude_pet/README*.md` payload or to a synthetic file in a
+`tempfile` directory — none reads the repository-root `README.md`, `README.ko.md`,
+`README.ja.md` or `README.es.md`.** The two matches that look like the root files are not:
+
+- `tests/test_release_gate.py:151` unlinks `self.root / "README.ko.md"`, where `self.root`
+  is `payload_copy(Path(self.td) / "payload")` — a temp copy of the bundled payload.
+- `tests/test_settings_and_install.py:3261` globs `README*.md` under
+  `Path(__file__).parents[1] / ".claude_pet"` — the bundled tree, named explicitly.
+
+`verify_release_artifact.py` contains no `README` reference at all;
+`verify_pet_payload.py`'s are all `BUNDLED_PET_README`. `setup.py` and `release.sh` do not
+mention READMEs, and `build_app.sh`'s single match is a comment about the bundled
+`.claude_pet` payload — so the root READMEs are not packaged either.
+
+**Therefore the full-suite figures recorded above — `441 / 448` passed, `7 / 448` skipped,
+`0` failures, `0` errors, run `2026-09-08T11:42:34Z`–`11:47:57Z` — remain valid for this
+tree, and I did not rerun the suite.** The claim is not "documentation changes are
+harmless in general"; it is that no test in this suite reads these four files, so their
+bytes cannot enter any test outcome.
+
+#### 4. Tree state at this check
+
+`shasum -a 256`, `2026-09-08T12:04:28Z` — both unchanged since the suite run, so the
+harness pins still match:
+
+```text
+c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9  claude_pet.py
+8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d  verify_release_artifact.py
+```
+
+`git status --porcelain`, `2026-09-08T12:02:47Z` — the previous seven modified tracked
+paths plus the three READMEs the Developer changed; the untracked listing is unchanged:
+
+```text
+ M README.es.md
+ M README.ja.md
+ M README.ko.md
+ M README.md
+ M RELEASE_NOTES.md
+ M claude_pet.py
+ M tests/test_manual_update_transaction.py
+ M tests/test_upload_artifact_gate.py
+ M tests/test_v021_release_contract.py
+ M verify_release_artifact.py
+```

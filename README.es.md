@@ -68,6 +68,10 @@ python3 claude_pet.py --report   # solo informe en terminal, sin GUI
 
 - **Quieta por defecto** — primer fotograma congelado; solo respira/parpadea una vez cada 25s
 - **Cuando el ratón se acerca** — saluda con la mano (30s de enfriamiento)
+- **Pasea por su cuenta de vez en cuando** — descansa en su sitio y, cuando el ratón se está moviendo, se acerca una vez,
+  mira un momento y vuelve. Nunca camina sobre el cursor y se detiene donde está si la agarras o abres el menú o los Ajustes
+- **Pliega los medidores al caminar** y solo se mueve la mascota. Al llegar muestra un pequeño **resumen** de una línea con el % de sesión y semanal;
+  pulsa el botón ⌄ para desplegar los medidores completos. Al volver, recupera lo que tenías plegado o desplegado
 - **Agarrar y arrastrar** — corre en la dirección del arrastre; **doble clic** = salto + **actualización de uso inmediata** (recarga ignorando la caché)
 - **Cuando el consumo de tokens se dispara** — pulso de color de alerta + cara de pánico + ▲pico en el medidor:
   - 🔴 pico de sesión / 🟣 pico de modelo (Fable/Opus) / 🟠 pico semanal
@@ -78,7 +82,7 @@ python3 claude_pet.py --report   # solo informe en terminal, sin GUI
 - **Rueda (sobre la mascota)**: cambiar tamaño (0.3×–2.0×, se guarda; por defecto 0.5×)
 - **Clic (botón ⌄)**: contraer/expandir el panel de medidores
 - **Arrastrar**: mover (se guarda la posición)
-- **Clic derecho**: menú — Ajustes / Contraer / Restablecer tamaño / Salir
+- **Clic derecho**: menú — Ajustes / Contraer / Pasear por la pantalla (activar/desactivar) / Restablecer tamaño / Salir
 
 ## Tres medidores (modo suscripción)
 
@@ -93,6 +97,9 @@ El medidor por modelo **detecta automáticamente** el nivel superior en los regi
   `límite = uso actual ÷ %`. Solo se aplican los campos que introduzcas.
 - **Día/hora de reinicio semanal**: si la app dice "se reinicia sáb 20:00", pon sábado/20:00. 7 días rodantes si no se define.
 - Palabra clave de modelo (auto recomendado), sensibilidad de picos, saludo del ratón on/off, clave de Admin API, presupuesto mensual
+
+- **Pasear por la pantalla**: se activa o desactiva con la casilla del menú de clic derecho (activado por defecto). Si en Accesibilidad de macOS
+  está activado **Reducir movimiento**, la mascota no se mueve. Las posiciones a las que pasea no se guardan; solo se recuerda donde la dejas al arrastrarla.
 
 Todos los ajustes, tamaño y posición se guardan en `~/.claude_pet.json`.
 

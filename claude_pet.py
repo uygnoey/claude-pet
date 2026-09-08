@@ -18,7 +18,9 @@ Claude Pet — Codex Pets 스타일 투명 오버레이 펫 + Claude 토큰 사�
 """
 
 import json
+import math
 import os
+import random
 import re
 import sys
 import glob
@@ -37,6 +39,7 @@ import zipfile
 import urllib.request
 import urllib.error
 import urllib.parse
+from collections import namedtuple
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
@@ -866,7 +869,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.21"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.22"                 # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
 _upd_cache = {"t": 0.0, "busy": False}
@@ -915,6 +918,9 @@ RUNTIME = {
     "opus_limit":    int(os.environ.get("CLAUDE_PET_OPUS_LIMIT", 15_000_000)),
     "spike_mult": 1.0,          # 급증 민감도 배율 (0.5=민감, 1=보통, 2=둔감)
     "greet": os.environ.get("CLAUDE_PET_FOLLOW", "1") != "0",
+    # 조용한 동행: 펫이 가끔 스스로 돌아다니고, 활동이 있으면 다가와 바라본다.
+    # 우클릭 메뉴의 체크 항목으로 켜고 끈다(설정 창 키가 아니라 자기 키만 쓴다).
+    "roam": os.environ.get("CLAUDE_PET_ROAM", "1") != "0",
     "admin_key": os.environ.get("ANTHROPIC_ADMIN_KEY", ""),
     "api_budget": 0.0,          # API 모드 월 예산($), 0이면 게이지 없음
     # 모델별 한도 게이지의 모델 키워드. "auto"면 로그에서 상위 티어 자동 감지
@@ -928,7 +934,7 @@ RUNTIME = {
 
 def apply_config(cfg):
     for k in ("mode", "session_limit", "weekly_limit", "opus_limit",
-              "spike_mult", "greet", "admin_key", "api_budget",
+              "spike_mult", "greet", "roam", "admin_key", "api_budget",
               "model_keyword", "weekly_reset_day", "weekly_reset_hour", "lang"):
         if k in cfg:
             RUNTIME[k] = cfg[k]
@@ -997,6 +1003,7 @@ TR = {
     "term_done": "✅ Done. You can close this window; Claude Pet will show usage shortly.",
     "menu_settings": "Settings…", "menu_toggle": "Collapse/expand gauges",
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
+    "menu_roam": "Roam the screen",
     "menu_update": "⬆︎ Install v{v}",
     "menu_uninstall": "Uninstall completely…",
     "menu_pets": "Pet", "pet_default": "Cat 🐱",
@@ -1077,6 +1084,7 @@ TR = {
     "term_done": "✅ 완료됐습니다. 이 창은 닫아도 되며, 곧 Claude Pet에 사용량이 표시됩니다.",
     "menu_settings": "설정…", "menu_toggle": "게이지 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
+    "menu_roam": "화면 돌아다니기",
     "menu_uninstall": "완전 삭제…",
     "menu_pets": "펫", "pet_default": "고양이 🐱",
     "pet_add": "➕ 펫 추가… (폴더 열기)",
@@ -1153,6 +1161,7 @@ TR = {
     "term_done": "✅ 完了しました。このウィンドウは閉じて構いません。まもなく使用量が表示されます。",
     "menu_settings": "設定…", "menu_toggle": "ゲージの折りたたみ",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
+    "menu_roam": "画面を歩き回る",
     "menu_uninstall": "完全に削除…",
     "menu_pets": "ペット", "pet_default": "ネコ 🐱",
     "pet_add": "➕ ペットを追加…（フォルダを開く）",
@@ -1234,6 +1243,7 @@ TR = {
     "term_done": "✅ Listo. Puedes cerrar esta ventana; Claude Pet mostrará el uso en breve.",
     "menu_settings": "Ajustes…", "menu_toggle": "Contraer/expandir medidores",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
+    "menu_roam": "Pasear por la pantalla",
     "menu_uninstall": "Desinstalar por completo…",
     "menu_pets": "Mascota", "pet_default": "Gato 🐱",
     "pet_add": "➕ Añadir mascota… (abrir carpeta)",
@@ -5080,6 +5090,553 @@ def gauge_rows(stats):
     return [(t("session"), stats["session"]), (t("weekly"), stats["weekly"]),
             (model_label, stats["opus"])]
 
+# ─────────────── 조용한 동행(quiet companion) — 순수 상태기계 ───────────────
+# 펫이 스스로 화면을 돌아다니는 규칙. AppKit 을 모른다: 시간·커서·경계·플래그를
+# 전부 인자로 받고 "어디에 있어야 하고 어떤 애니메이션이어야 하는가" 만 값으로
+# 돌려준다. 창을 옮기고 override 를 켜는 것은 run_gui() 안의 어댑터(roam_tick)다.
+# 설계 문서: docs-design/quiet-companion.md. 게이트: tests/test_companion_motion.py.
+#
+# 좌표는 **창 중심**의 스크린 포인트(y 는 위로). radius 는 창 전체의 외접원 반지름
+# (hypot(W/2, H/2)) 이라, "커서까지 radius + 여백" 은 창의 어느 픽셀도 커서에
+# 닿지 않는다는 뜻이다. 시간은 단조 초(float). 난수는 rng.uniform(a, b) 만 쓴다.
+#
+# 여기 이름들은 AppKit 없이 exec 될 수 있어야 한다 — math/random/namedtuple 과
+# 이 절의 정의만 참조한다(다른 모듈 레벨 이름을 끌어오면 그 시험이 깨진다).
+
+ROAM_DEFAULTS = {
+    "rest_min_s": 45.0, "rest_max_s": 90.0,   # 쉬는 시간: rng.uniform(min, max)
+    "approach_cooldown_s": 180.0,             # 구경(approach) 최소 간격
+    "wander_cooldown_s": 300.0,               # 산책(wander) 최소 간격
+    "walk_speed": 55.0,                       # pt/s
+    "approach_stop": 150.0,                   # 커서와 창 외접원 사이 최소 거리 (radius 를 더해 중심 기준으로 쓴다)
+    "approach_max": 360.0,                    # 한 번 이동 상한 — 더 멀면 여기까지만 가서 멀리서 본다
+    "look_s": 6.0,                            # 바라보기(review) 지속
+    "wander_radius": 160.0,                   # 집 기준 산책 반경, 0 이면 산책 없음(구경 전용)
+    "wander_pause_s": 2.0,
+    "activity_window_s": 20.0,                # 최근 이 시간 안에 커서 이동/활동 힌트가 있으면 '활동 중'
+    "cursor_move_px": 12.0, "cursor_sample_s": 1.0,   # 1 Hz 샘플 사이 이보다 작은 이동은 무시
+    "cursor_margin_px": 24.0,                 # 이동 중 창 외접원과 커서 사이의 안전 여백
+    "max_dt_s": 0.25,                         # step 당 이동 시간 상한 — 늦은 tick 이 순간이동이 되지 않게
+    "gap_s": 5.0,                             # 이보다 긴 공백(잠자기·메뉴)이면 그 자리에 서고 휴식
+    "min_trip_px": 60.0, "arrive_px": 2.0,
+}
+
+# pos   = (x, y) 지금 창 중심 (항상 채움)
+# anim  = None | "running-left" | "running-right" | "review"
+# moved = 이 step 에 pos 가 바뀌었는가
+# away  = |pos − home| > arrive_px
+# phase = "rest" | "out" | "look" | "home"
+RoamOut = namedtuple("RoamOut", "pos anim moved away phase")
+
+
+def _roam_dist(a, b):
+    return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
+def _roam_clamp(p, bounds):
+    x0, y0, x1, y1 = bounds
+    return (min(max(float(p[0]), x0), x1), min(max(float(p[1]), y0), y1))
+
+
+def _roam_seg_dist(p, a, b):
+    """점 p 에서 선분 ab 까지의 거리."""
+    ax, ay = a
+    bx, by = b
+    vx, vy = bx - ax, by - ay
+    ln = vx * vx + vy * vy
+    if ln <= 0.0:
+        return _roam_dist(p, a)
+    u = ((p[0] - ax) * vx + (p[1] - ay) * vy) / ln
+    u = min(max(u, 0.0), 1.0)
+    return _roam_dist(p, (ax + vx * u, ay + vy * u))
+
+
+class Roamer:
+    """펫의 자율 이동 상태기계 — rest → out → look → home → rest.
+
+    · rest  집(사용자가 놓은 자리)에서 쉰다. 휴식이 끝나면 활동이 있고 cooldown 이
+            지났을 때 구경(approach)을, 아니면 산책(wander)을, 아니면 나가 있으면
+            귀가를 계획한다. 계획한 step 에는 움직이지 않는다. 쉬는 동안 조작(아래
+            플래그)이 있으면 휴식 시각을 그때부터 다시 잰다.
+    · out   목표를 향해 walk_speed 로 걷는다. 목표는 출발 때 한 번 정하고 다시
+            계산하지 않는다(커서를 쫓지 않는다).
+    · look  구경이면 review 애니메이션으로 look_s 동안, 산책이면 idle 로 잠깐 선다.
+    · home  집으로 걷는다.
+
+    **모든 phase 에서 사용자가 우선이다.** enabled=False(설정 off·Reduce Motion),
+    dragging, blocked(hover·남의 애니메이션), busy(설정 창·메뉴·spike), 그리고
+    gap_s 보다 긴 tick 공백은 **그 자리에 즉시 서고** 휴식을 새로 추첨한다 —
+    집으로 순간이동하지도, 옛 목표를 이어 걷지도 않는다. 걷는 두 leg(out/home)
+    모두 매 step 현재 커서와 [pos, 목표] 선분의 거리가 radius + 여백보다 작으면
+    그 자리에 서고 휴식한다(우회하지 않는다). 자동 이동은 좌표를 저장하지 않는다.
+    """
+
+    def __init__(self, home, now, rng=None, cfg=None, radius=0.0):
+        self.cfg = dict(ROAM_DEFAULTS)
+        if cfg:
+            self.cfg.update(cfg)
+        self.rng = rng if rng is not None else random.Random()
+        self.radius = float(radius)
+        self.home = (float(home[0]), float(home[1]))
+        self.pos = self.home
+        self.phase = "rest"
+        self.kind = None                  # None | "approach" | "wander"
+        # 마지막으로 rest 가 된 이유가 '자연 완료' 인가. 생성·제자리 구경 만료·귀가 도착·
+        # 휴식 끝 재추첨·수동 배치(set_home)면 True, hold·공백·guard·경계·단순 클릭으로
+        # 그 자리에 선 것이면 False. 표시 계층이 "구경 중 hover 로 멈춘 것" 과 "구경이
+        # 끝난 것" 을 이 값으로 구별한다.
+        self.settled = True
+        self._target = None
+        self._anim = None
+        self._last_now = float(now)
+        self._next_at = float(now)
+        self._look_until = float(now)
+        self._approach_ok_at = float(now)
+        self._wander_ok_at = float(now)
+        self._last_active = float("-inf")
+        self._sample = None
+        self._sample_at = float("-inf")
+        self._arm(float(now))
+
+    # ── 읽기 ──
+    @property
+    def away(self):
+        return _roam_dist(self.pos, self.home) > self.cfg["arrive_px"]
+
+    def _out(self, moved):
+        return RoamOut(self.pos, self._anim, bool(moved), self.away, self.phase)
+
+    # ── 내부 전이 ──
+    def _arm(self, now):
+        """휴식 재추첨. next_at 전에는 어떤 step 도 움직이지 않는다."""
+        self._next_at = now + self.rng.uniform(self.cfg["rest_min_s"],
+                                               self.cfg["rest_max_s"])
+
+    def _stop(self, now, settled=False):
+        """그 자리에 선다. 목표·종류·애니메이션을 버리고 휴식으로.
+
+        settled=True 는 '자연 완료'(구경 만료·귀가 도착·수동 배치), False 는 hold·공백·
+        guard·경계·단순 클릭으로 멈춘 것. 값은 self.settled 로 읽힌다.
+        """
+        self.phase = "rest"
+        self.kind = None
+        self.settled = bool(settled)
+        self._target = None
+        self._anim = None
+        self._arm(now)
+
+    def _begin(self, kind, target, now):
+        """leg 를 시작한다. kind="home" 은 집으로 가는 leg."""
+        if kind == "home":
+            self.kind = None
+            self._target = None
+            self.phase = "home"
+            leg = self.home
+        else:
+            self.kind = kind
+            self._target = target
+            if _roam_dist(target, self.pos) <= self.cfg["arrive_px"]:
+                self._watch(now)                      # 제자리 구경
+                return
+            self.phase = "out"
+            leg = target
+        self._anim = "running-right" if leg[0] >= self.pos[0] else "running-left"
+
+    def _watch(self, now):
+        self.phase = "look"
+        if self.kind == "approach":
+            self._anim = "review"
+            self._look_until = now + self.cfg["look_s"]
+        else:
+            self._anim = None
+            self._look_until = now + self.cfg["wander_pause_s"]
+
+    def _note(self, now, cursor, activity):
+        """활동 기록. 커서는 cursor_sample_s 마다 한 번만 직전 샘플과 비교한다."""
+        if activity:
+            self._last_active = now
+        if cursor is not None and now - self._sample_at >= self.cfg["cursor_sample_s"]:
+            here = (float(cursor[0]), float(cursor[1]))
+            if (self._sample is not None
+                    and _roam_dist(here, self._sample) >= self.cfg["cursor_move_px"]):
+                self._last_active = now
+            self._sample = here
+            self._sample_at = now
+
+    def _active(self, now):
+        return now - self._last_active <= self.cfg["activity_window_s"]
+
+    def _plan_approach(self, cursor, bounds):
+        stop = self.cfg["approach_stop"] + self.radius
+        d = _roam_dist(cursor, self.pos)
+        if d <= stop:
+            return self.pos                            # 이미 가까움 → 제자리 구경
+        travel = min(d - stop, self.cfg["approach_max"])
+        ux, uy = (cursor[0] - self.pos[0]) / d, (cursor[1] - self.pos[1]) / d
+        target = _roam_clamp((self.pos[0] + ux * travel, self.pos[1] + uy * travel),
+                             bounds)
+        if _roam_dist(target, cursor) < stop / 2:
+            return None                                # 클램프 때문에 너무 가까워짐
+        if _roam_dist(target, self.pos) < self.cfg["min_trip_px"]:
+            return self.pos
+        return target
+
+    def _plan_wander(self, cursor, bounds):
+        ang = self.rng.uniform(0.0, 2.0 * math.pi)
+        dist = self.rng.uniform(self.cfg["min_trip_px"], self.cfg["wander_radius"])
+        target = _roam_clamp((self.home[0] + math.cos(ang) * dist,
+                              self.home[1] + math.sin(ang) * dist), bounds)   # 집 기준
+        if _roam_dist(target, self.pos) < self.cfg["min_trip_px"]:
+            return None
+        if (cursor is not None
+                and _roam_dist(target, cursor) < self.cfg["approach_stop"] + self.radius):
+            return None                                # 사용자 작업 위로 걸어 들어가지 않는다
+        return target
+
+    def _plan(self, now, cursor, bounds):
+        if (self._active(now) and cursor is not None
+                and now >= self._approach_ok_at):
+            target = self._plan_approach(cursor, bounds)
+            if target is not None:
+                self._approach_ok_at = now + self.cfg["approach_cooldown_s"]
+                self._begin("approach", target, now)
+                return
+        if self.cfg["wander_radius"] > 0 and now >= self._wander_ok_at:
+            target = self._plan_wander(cursor, bounds)
+            if target is not None:
+                self._wander_ok_at = now + self.cfg["wander_cooldown_s"]
+                self._begin("wander", target, now)
+                return
+        if self.away:
+            self._begin("home", None, now)             # 멈춰 섰던 자리에서 천천히 귀가
+            return
+        self.kind = None                               # 할 일이 없다 — 자연스럽게 쉰다
+        self.settled = True
+        self._arm(now)
+
+    # ── 공개 API ──
+    def step(self, now, cursor, bounds, *, enabled=True, dragging=False,
+             blocked=False, busy=False, activity=False):
+        """한 tick. cursor=(x, y)|None, bounds=(x0, y0, x1, y1)=허용되는 창 중심 rect.
+
+        blocked = "지금 출발하지 마"(hover, 남의 override 재생 중).
+        busy    = "출발 금지"(설정 창·메뉴·spike). 이동 중이면 둘 다 그 자리 정지.
+        """
+        now = float(now)
+        gap = now - self._last_now
+        dt = min(max(gap, 0.0), self.cfg["max_dt_s"])
+        self._last_now = now
+        self._note(now, cursor, activity)
+        x0, y0, x1, y1 = bounds
+        valid = not (x0 > x1 or y0 > y1)               # 뒤집힌 경계 = 창이 화면보다 크다
+        hold = (not enabled) or dragging or blocked or busy
+
+        if self.phase == "rest":
+            if hold:
+                # 조작이 이어지는 동안 휴식 시각을 계속 뒤로 민다 — 조작이 '끝난' 시점부터
+                # 온전한 휴식이 확보된다. 지나간 마감을 따라잡아 곧바로 출발하지 않는다.
+                self._arm(now)
+                return self._out(False)
+            if gap > self.cfg["gap_s"]:
+                self._arm(now)                         # 깨어나자마자 출발하지 않게
+            if not valid:
+                return self._out(False)
+            if not (x0 <= self.pos[0] <= x1 and y0 <= self.pos[1] <= y1):
+                self.pos = _roam_clamp(self.pos, bounds)   # 화면이 바뀌어 밖에 남은 창을 들인다
+                self.home = _roam_clamp(self.home, bounds)
+                return self._out(True)
+            if now < self._next_at:
+                return self._out(False)
+            self._plan(now, cursor, bounds)
+            return self._out(False)                    # 계획한 step 에는 움직이지 않는다
+
+        if hold or gap > self.cfg["gap_s"] or not valid:
+            # 사용자 우선: 그 자리 정지, 순간이동 없음. 경계가 뒤집혀도 같은 처리다 —
+            # 목표를 남겨 두면 화면이 돌아왔을 때 오래된 경로를 이어 걷게 된다.
+            self._stop(now)
+            return self._out(False)
+
+        if not (x0 <= self.pos[0] <= x1 and y0 <= self.pos[1] <= y1):
+            # 화면 구성이 바뀌어 창이 허용 범위 밖에 남았다. 자동 이동이 하는 유일한
+            # '점프' 다: 창 전체가 다시 보이도록 안으로 들이고, 하던 이동은 접는다.
+            self.pos = _roam_clamp(self.pos, bounds)
+            self.home = _roam_clamp(self.home, bounds)
+            self._stop(now)
+            return self._out(True)
+
+        if self.phase == "look":
+            if now >= self._look_until:
+                if self.away:
+                    self._begin("home", None, now)
+                else:
+                    self._stop(now, settled=True)      # 제자리 구경이 끝났다
+            return self._out(False)
+
+        # out / home — 걷는 두 leg
+        leg = _roam_clamp(self._target if self.phase == "out" else self.home, bounds)
+        if (cursor is not None and _roam_seg_dist(cursor, self.pos, leg)
+                < self.radius + self.cfg["cursor_margin_px"]):
+            self._stop(now)                            # 커서를 가로지르지 않는다
+            return self._out(False)
+        remaining = _roam_dist(self.pos, leg)
+        stride = self.cfg["walk_speed"] * dt
+        if remaining <= max(stride, self.cfg["arrive_px"]):
+            moved = leg != self.pos
+            self.pos = leg
+            if self.phase == "out":
+                self._watch(now)
+            else:
+                self._stop(now, settled=True)          # 귀가 완료
+            return self._out(moved)
+        if stride <= 0.0:
+            return self._out(False)
+        f = stride / remaining
+        self.pos = (self.pos[0] + (leg[0] - self.pos[0]) * f,
+                    self.pos[1] + (leg[1] - self.pos[1]) * f)
+        return self._out(True)
+
+    def set_home(self, pos, now):
+        """수동 배치(드래그 끝·크기 변경): 여기가 집이고 지금 자리다. 휴식부터."""
+        self.home = (float(pos[0]), float(pos[1]))
+        self.pos = self.home
+        self._last_now = float(now)
+        self._stop(float(now), settled=True)
+
+    def release(self, now, pos, moved):
+        """드래그/클릭 끝. moved 면 새 집(자연 완료), 아니면 집은 그대로 두고 그 자리에
+        선다 — 단순 클릭은 자연 완료가 아니다(settled=False)."""
+        if moved:
+            self.set_home(pos, now)
+            return
+        self.pos = (float(pos[0]), float(pos[1]))
+        self._last_now = float(now)
+        self._stop(float(now))
+
+
+# ─────────── 조용한 동행 — 표시(접기/요약/전체) 순수 상태와 요약 내용 ───────────
+# 사용자 요구: "이동 중엔 게이지는 접어서 넣어 두고, 와서 펼쳐 주거나 요약으로 작게".
+# 사용자의 접기 선택(state["show_panel"])은 자동 표시가 절대 덮어쓰지 않는다 — 화면에
+# 그릴 모드는 매번 RoamDisplay.mode(phase, show_panel) 로 유도한다.
+DISPLAY_FULL = "full"           # 기존 게이지 필 전체
+DISPLAY_FOLDED = "folded"       # 펫만 (걷는 동안, 산책 멈춤, 사용자의 접기 선택)
+DISPLAY_SUMMARY = "summary"     # 구경 도착: 작은 사용량 요약
+
+
+class RoamDisplay:
+    """Roamer 의 phase 를 표시 모드로 옮기는 순수 상태. 상태는 둘뿐이다.
+
+    summary  = 구경(approach) 도착으로 켜진 요약 래치. 걷기 시작·귀환·명시적 중단이 끈다.
+               hover 로 멈춘 것은 중단이 아니라 래치를 유지한다 — 요약을 펼치려면 커서를
+               올려야 하기 때문이다. 집에서의 제자리 구경은 "hover 로 멈춤" 과 "6초가 끝남"
+               이 둘 다 rest/집 이라, Roamer.settled 로 구별한다: settled=False(정지)면 유지,
+               True(자연 완료)면 평소 선택으로 복원.
+    expanded = 요약 중 사용자가 기존 펼치기 조작으로 전체 게이지를 연 상태. show_panel 은
+               건드리지 않으므로 귀환·중단 뒤엔 평소 선택이 그대로 돌아온다.
+
+    note() 의 우선순위: 명시적 중단/비활성 > 걷기 > 구경 도착 > 집에서 휴식.
+    """
+
+    def __init__(self):
+        self.summary = False
+        self.expanded = False
+
+    def reset(self):
+        """수동 배치(드래그 끝 moved, set_home, 펫 교체) 와 메뉴 시작: 둘 다 끈다."""
+        self.summary = False
+        self.expanded = False
+
+    def note(self, phase, kind, away, *, interrupted=False, enabled=True, settled=True):
+        """매 tick, Roamer.step 직후. interrupted = 설정 창·메뉴·spike·공백 (dragging 은 아님:
+        클릭의 mouseDown 도 한 tick dragging 을 세우므로, 진짜 드래그는 release(moved) 가 reset 한다).
+        settled = Roamer.settled — 집에서 rest 인데 자연 완료가 아니면(hover·클릭 정지) 래치를 유지한다."""
+        if interrupted or not enabled:
+            self.reset()
+            return
+        if phase in ("out", "home"):
+            self.reset()
+        elif phase == "look" and kind == "approach":
+            self.summary = True
+        elif phase == "rest" and not away and settled:
+            self.reset()                               # 집에서 자연스럽게 쉰다 → 평소 선택
+
+    def toggle(self, show_panel):
+        """기존 펼치기 조작(꺾쇠 버튼·메뉴 '접기/펴기') → 새 show_panel.
+
+        요약 래치 중이면 expanded 만 뒤집고 show_panel 은 그대로 돌려준다(평소 선택 불변).
+        아니면 기존처럼 반전한다.
+        """
+        if self.summary:
+            self.expanded = not self.expanded
+            return show_panel
+        return not show_panel
+
+    def mode(self, phase, show_panel):
+        if phase in ("out", "home"):
+            return DISPLAY_FOLDED                  # 걷는 동안엔 무조건 접는다
+        if self.summary:
+            return DISPLAY_FULL if self.expanded else DISPLAY_SUMMARY
+        if phase == "look":
+            return DISPLAY_FOLDED                  # 산책 멈춤: 조용히
+        return DISPLAY_FULL if show_panel else DISPLAY_FOLDED
+
+
+def _roam_valid_pct(value):
+    """요약에 쓸 수 있는 수치인가 — 실수형(bool 제외), 유한, 0 이상. 아니면 버린다(0 으로 꾸미지 않는다)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(value) and value >= 0
+
+
+def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key):
+    """요약 필 내용 → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
+
+    ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login / scanning
+    ("cost", float)      API 모드의 오늘 비용
+    ("exact", rows)      정확 모드: 앞 2행 중 유효 행 [(서버 라벨 원문, pct), ...]. 라벨은 그대로 그린다 —
+                         원문이 "session" 이어도 번역 키가 아니라 원문이다.
+    ("estimate", rows)   로그 추정: [("session", pct), ("weekly", pct)] 중 유효 행. 라벨은 키라 어댑터가 t() 로 옮긴다.
+    정확 모드 행이 있는데 유효 행이 하나도 없으면 추정으로 내려가지 않고 상태를 준다.
+    """
+    if mode == "api":
+        if not has_admin_key:
+            return ("status", "need_admin_key")
+        if not _roam_valid_pct(cost_today):
+            return ("status", "loading")
+        return ("cost", float(cost_today))
+    if oauth:
+        rows = [(row[0], float(row[1])) for row in list(oauth)[:2]
+                if _roam_valid_pct(row[1])]
+        return ("exact", rows) if rows else ("status", "scanning")
+    if onboard in ("install", "login"):
+        return ("status", "onb_" + onboard)
+    if stats:
+        rows = []
+        for gauge in ("session", "weekly"):
+            pct = ((stats.get(gauge) or {}).get("pct")
+                   if isinstance(stats.get(gauge), dict) else None)
+            if _roam_valid_pct(pct):
+                rows.append((gauge, float(pct)))
+        if rows:
+            return ("estimate", rows)
+    return ("status", "scanning")
+
+
+SUMMARY_APPROX = "≈"          # 로그 추정치 앞의 표식. 서버 값(exact)에는 붙이지 않는다
+
+
+def roam_summary_line(kind, payload, tr):
+    """roam_summary 결과 → 요약 필 한 줄. tr 은 번역 콜러블(어댑터는 t).
+
+    exact    라벨 원문 그대로, 표식 없음:      "Session 42% · Weekly 17%"
+    estimate 라벨 키를 tr 로, 값 앞에 ≈:       "세션 ≈42% · 주간 ≈17%"
+    cost     tr("today") 와 달러 두 자리         "오늘 $1.23"
+    status   tr(key)
+    """
+    if kind == "exact":
+        return " · ".join(f"{label} {pct:.0f}%" for label, pct in payload)
+    if kind == "estimate":
+        return " · ".join(f"{tr(label)} {SUMMARY_APPROX}{pct:.0f}%"
+                          for label, pct in payload)
+    if kind == "cost":
+        return f"{tr('today')} ${payload:.2f}"
+    return tr(payload)
+
+
+def roam_fit_text(text, max_w, measure, ellipsis="…"):
+    """폭 max_w 안에 들어가는 문자열. measure(s) 는 s 의 폭.
+
+    들어가면 원문 그대로. 아니면 실제로 측정해 가며 가장 긴 prefix + ellipsis 를 고른다
+    (폰트 축소 없음 — 11pt 가독성 유지). ellipsis 하나도 안 들어가면 빈 문자열.
+    """
+    if measure(text) <= max_w:
+        return text
+    for n in range(len(text) - 1, -1, -1):
+        candidate = text[:n] + ellipsis
+        if measure(candidate) <= max_w:
+            return candidate
+    return ""
+
+
+# ─────────── 조용한 동행 — 기하: 실제 창은 논리 full 창의 부분 사각형(crop) ───────────
+# Roamer 는 '논리 full 창'(크기 W×H, 중심 roamer.pos, 배치 right/bottom)만 안다 — 중심·radius·
+# bounds·집 전부 그대로다. 실제 NSWindow 는 그 창의 부분 사각형이고, 부분 사각형은 표시 모드
+# 에서만 유도되므로 펫의 전역 좌표(논리 원점 + (px, py))는 모드와 무관하게 같다. 접기·요약·
+# 펼침 전환에서 바뀌는 것은 창의 origin/size 뿐이다.
+SUMMARY_H = 30            # 요약 필 높이(한 줄)
+SUMMARY_MIN_W = 120       # 요약 필 최소 폭. 최대는 PILL_W
+
+
+def roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w=0):
+    """표시 모드의 필 사각형 (논리 창 flipped 좌표: 좌상단 원점). "folded" 면 None.
+
+    full    기존 pillLeft/pillTop 과 같은 자리·크기.
+    summary 글자 폭에 맞춘 작은 필을 펫 쪽에 정렬해 펫 위/아래에 붙인다.
+    """
+    if mode == DISPLAY_FULL:
+        return (W - PILL_W - 4 if right else 4, 4 if bottom else PH + GAP, PILL_W, pill_h)
+    if mode == DISPLAY_SUMMARY:
+        w = min(PILL_W, max(SUMMARY_MIN_W, text_w + 2 * PILL_PAD))
+        h = SUMMARY_H
+        return (W - w - 4 if right else 4, pill_h + 4 - h if bottom else PH + GAP, w, h)
+    return None
+
+
+def _roam_union(rects):
+    x0 = min(r[0] for r in rects)
+    y0 = min(r[1] for r in rects)
+    x1 = max(r[0] + r[2] for r in rects)
+    y1 = max(r[1] + r[3] for r in rects)
+    return (x0, y0, x1 - x0, y1 - y0)
+
+
+def roam_frame(center, mode, right, bottom, W, H, PW, PH, pill_h, scale, text_w=0):
+    """논리 full 창 → 표시 모드에 맞는 실제 창.
+
+    center 는 논리 창 중심(스크린 좌표, y 위). 반환 dict:
+      crop   (cx, cy, cw, ch)  논리 창 flipped 좌표의 부분 사각형. full 은 창 전체,
+                               folded 는 펫 ∪ 꺾쇠 버튼, summary 는 펫 ∪ 버튼 ∪ 요약 필 을 2pt 넓힌 것
+      origin (x, y)            실제 창 원점(AppKit, y 위)
+      size   (w, h)
+      sprite / button / pill   실제 창 flipped 좌표의 사각형. folded 의 pill 은 None
+    불변: crop ⊆ (0, 0, W, H) 이고, origin + sprite 의 전역 위치는 mode 와 무관하게 같다.
+    """
+    px = W - PW - 6 if right else 6
+    py = pill_h + GAP if bottom else 2
+    sprite = (px, py, PW, PH)
+    bx = px - BTN_R * 2 - 2 if right else px + PW + 2
+    by = py + int(26 * scale)
+    button = (bx, by, BTN_R * 2, BTN_R * 2)
+    pill = roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w)
+    if mode == DISPLAY_FULL:
+        crop = (0, 0, W, H)
+    else:
+        parts = [sprite, button] + ([pill] if pill is not None else [])
+        ux, uy, uw, uh = _roam_union(parts)
+        x0 = max(0, ux - 2)
+        y0 = max(0, uy - 2)
+        x1 = min(W, ux + uw + 2)
+        y1 = min(H, uy + uh + 2)
+        crop = (x0, y0, x1 - x0, y1 - y0)
+    cx, cy, cw, ch = crop
+    return {
+        "crop": crop,
+        "origin": (center[0] - W / 2 + cx, center[1] + H / 2 - cy - ch),
+        "size": (cw, ch),
+        "sprite": (px - cx, py - cy, PW, PH),
+        "button": (bx - cx, by - cy, BTN_R * 2, BTN_R * 2),
+        "pill": None if pill is None else (pill[0] - cx, pill[1] - cy, pill[2], pill[3]),
+    }
+
+
+def roam_logical_center(origin, size, crop, env):
+    """실제 창(origin, size) 과 crop, 논리 크기 env=(W, H) → 논리 창 중심. crop 이 None 이면 창 중심."""
+    if crop is None:
+        return (origin[0] + size[0] / 2, origin[1] + size[1] / 2)
+    cx, cy, cw, ch = crop
+    W, H = env
+    return (origin[0] - cx + W / 2, origin[1] - (H - cy - ch) + H / 2)
+
+
 # ─────────────────────── GUI (macOS 네이티브 AppKit) ───────────────────────
 # 행동 원칙:
 #   · 평소엔 첫 프레임으로 "정지". 25초에 한 번만 숨쉬기
@@ -5095,7 +5652,7 @@ def run_gui():
         from AppKit import (
             NSApplication, NSWindow, NSPanel, NSView, NSColor, NSImage, NSFont,
             NSBezierPath, NSMakeRect, NSMakePoint, NSMakeSize,
-            NSScreen, NSTimer, NSEvent,
+            NSScreen, NSTimer, NSEvent, NSWorkspace,
             NSMenu, NSMenuItem, NSTextField, NSSecureTextField, NSPopUpButton,
             NSAlert,
             NSButton, NSWindowStyleMaskBorderless, NSWindowStyleMaskTitled,
@@ -5131,6 +5688,8 @@ def run_gui():
              NSForegroundColorAttributeName: C_MAIN}
     F_SUB = {NSFontAttributeName: mono(9.5),
              NSForegroundColorAttributeName: C_SUB}
+    F_SUMMARY = {NSFontAttributeName: mono(11, True),      # 구경 도착 요약 필 한 줄
+                 NSForegroundColorAttributeName: C_MAIN}
     F_ALERT = {NSFontAttributeName: mono(9.5, True),
                NSForegroundColorAttributeName: hexcolor(COL_BAD)}
     F_TINY = {NSFontAttributeName: mono(8.5),
@@ -5253,6 +5812,20 @@ def run_gui():
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
              "hover": False, "update": None,
+             # 조용한 동행(Roamer) 어댑터의 키 — roam_tick() 참조.
+             #   roam_layout: 자동 이동이 고정해 둔 (petOnRight, petOnBottom). 수동 드래그가 푼다.
+             #   roam_anim:   우리가 켠 override 이름(남의 인사·점프와 구분).
+             #   roam_hold:   메뉴 등 상호작용이 있었다는 한 번짜리 표시 → 다음 tick 정지.
+             #   roam_release: mouseUp_ 이 부르는 훅(moved) — 창 없는 시험에선 없다.
+             "roam_layout": None, "roam_anim": None, "roam_hold": False,
+             "menu_open": False, "reduce_motion": False, "roam_release": None,
+             # 표시(접기/요약/전체) 계층 — roam_apply_display() 참조. 없으면 실제 창 = 논리 창.
+             #   roam_display: RoamDisplay. roam_env: 논리 full 창 (W, H). roam_crop: 실제 창이
+             #   논리 창에서 잘려 나온 부분 사각형. roam_rects: roam_frame() 결과(실제 창 좌표).
+             #   roam_mode: 마지막으로 적용한 표시 모드. roam_toggle/roam_interrupt: 훅.
+             "roam_display": None, "roam_env": None, "roam_crop": None,
+             "roam_rects": None, "roam_mode": None,
+             "roam_toggle": None, "roam_interrupt": None,
              # 구독 모드인데 Claude Code 데이터가 전혀 없을 때: None|'install'|'login'.
              # refresh 워커가 매 주기 갱신한다(아래 compute_onboard_state).
              "onboard": None,
@@ -5459,32 +6032,55 @@ def run_gui():
             return True
 
         def petOnRight(self):
-            """펫이 화면 오른쪽 절반에 있으면 True → 필이 왼쪽으로 붙음."""
+            """펫이 화면 오른쪽 절반에 있으면 True → 필이 왼쪽으로 붙음.
+
+            자동 이동 중에는 출발 때 고정한 값을 쓴다 — 창이 중앙선을 넘는 순간 펫이
+            창 안에서 튀지 않게. 수동 드래그가 끝날 때만 다시 계산한다.
+            """
+            frozen = state.get("roam_layout")
+            if frozen is not None:
+                return frozen[0]
             w = self.window()
             scr = (w.screen() if w else None) or NSScreen.mainScreen()
             vf = scr.frame()
-            wx = w.frame().origin.x if w else vf.origin.x
-            return (wx + W / 2) >= (vf.origin.x + vf.size.width / 2)
+            # 실제 창은 접혀 있을 수 있으므로 실제 origin + 논리 W/2 를 섞지 않고 논리 중심으로 판정
+            cx = window_center()[0] if w else vf.origin.x + W / 2
+            return cx >= (vf.origin.x + vf.size.width / 2)
 
         def petOnBottom(self):
-            """펫이 화면 아래쪽 절반에 있으면 True → 필이 위로 붙음."""
+            """펫이 화면 아래쪽 절반에 있으면 True → 필이 위로 붙음. (고정 규칙은 petOnRight 와 같다)"""
+            frozen = state.get("roam_layout")
+            if frozen is not None:
+                return frozen[1]
             w = self.window()
             scr = (w.screen() if w else None) or NSScreen.mainScreen()
             vf = scr.frame()
-            wy = w.frame().origin.y if w else vf.origin.y
-            return (wy + H / 2) < (vf.origin.y + vf.size.height / 2)
+            cy = window_center()[1] if w else vf.origin.y + H / 2
+            return cy < (vf.origin.y + vf.size.height / 2)
 
+        # 아래 네 위치는 **실제 창** flipped 좌표다. 표시 계층이 crop 을 적용해 두었으면
+        # (state["roam_rects"]) 그 값을 쓰고, 없으면 실제 창 = 논리 창이라 기존 계산과 같다.
+        # drawRect_·mouseUp_ 버튼 판정·인사 pet_center 가 모두 여기를 거치므로 자동으로 맞는다.
         def pillTop(self):
             """필의 y (flipped 좌표). 펫이 아래쪽이면 필이 위."""
+            rects = state.get("roam_rects")
+            if rects and rects.get("pill"):
+                return rects["pill"][1]
             return 4 if self.petOnBottom() else PH + GAP
 
         def pillLeft(self):
             """필의 x — 펫이 있는 쪽으로 정렬."""
+            rects = state.get("roam_rects")
+            if rects and rects.get("pill"):
+                return rects["pill"][0]
             if self.petOnRight():
                 return W - PILL_W - 4    # 펫 오른쪽 → 필도 오른쪽 정렬
             return 4                     # 펫 왼쪽 → 필도 왼쪽 정렬
 
         def petOrigin(self):
+            rects = state.get("roam_rects")
+            if rects:
+                return (rects["sprite"][0], rects["sprite"][1])
             py = pill_h() + GAP if self.petOnBottom() else 2
             # 버튼이 안쪽에 붙으므로 펫은 창 가장자리에 밀착
             if self.petOnRight():
@@ -5492,6 +6088,9 @@ def run_gui():
             return (6, py)                # 펫 왼쪽 끝, 버튼은 오른쪽 안쪽
 
         def btnOrigin(self):
+            rects = state.get("roam_rects")
+            if rects:
+                return (rects["button"][0], rects["button"][1])
             px, py = self.petOrigin()
             by = py + int(26 * g["scale"])
             if self.petOnRight():
@@ -5506,7 +6105,12 @@ def run_gui():
             img = seq[fr]
 
             # ── 상태 필 (펫 위치 기준 상하 플립 + 좌우 정렬) ──
-            if state["show_panel"]:
+            # 무엇을 그릴지는 사용자의 접기 선택이 아니라 표시 계층이 유도한 모드가 정한다:
+            # 걷는 동안 접힘, 구경 도착 뒤 요약, 펼쳤거나 평소 선택이 펼침이면 전체.
+            mode = roam_mode_now()
+            if mode == DISPLAY_SUMMARY:
+                draw_summary_pill()
+            elif mode == DISPLAY_FULL:
                 gx0 = self.pillLeft()
                 gy0 = self.pillTop()
                 C_PILL.set()
@@ -5557,9 +6161,11 @@ def run_gui():
                 ring.stroke()
                 # 꺾쇠: 필이 열리는/닫히는 방향을 가리키도록 직접 그림
                 pill_below = not self.petOnBottom()   # 필이 펫 아래에 붙는 배치
-                # 열려 있으면 '접는' 방향(필 반대쪽), 닫혀 있으면 '펼치는' 방향(필 쪽)
-                point_down = (pill_below and not state["show_panel"]) or \
-                             (not pill_below and state["show_panel"])
+                # 열려 있으면 '접는' 방향(필 반대쪽), 닫혀 있으면 '펼치는' 방향(필 쪽).
+                # 요약 중엔 '펼치는' 방향 — 누르면 전체 게이지가 된다.
+                is_full = roam_mode_now() == DISPLAY_FULL
+                point_down = (pill_below and not is_full) or \
+                             (not pill_below and is_full)
                 cx, cy = bx + BTN_R, by + BTN_R
                 wdt, hgt = 5.5, 3.0
                 chev = NSBezierPath.bezierPath()
@@ -5600,11 +6206,28 @@ def run_gui():
             state["dragging"] = False
             clear_sticky()
             clamp_to_screen()   # 화면 밖으로 나갔으면 다시 안으로
-            fo = self.window().frame().origin
-            cfg["x"], cfg["y"] = fo.x, fo.y
-            merge_config_updates({"x": fo.x, "y": fo.y})   # 이 경로가 가진 키만
+            moved = bool(getattr(self, "_moved", False))
+            if moved:
+                # 진짜 드래그만 '수동 배치'다. 자동 이동이 고정해 둔 레이아웃을 풀고,
+                # 새 자리를 저장한다. 자동으로 나가 있는 동안의 단순 클릭은 자동 위치를
+                # 집으로 만들지도, x/y 로 저장하지도 않는다.
+                state["roam_layout"] = None
+                f = self.window().frame()
+                lx, ly = f.origin.x, f.origin.y
+                crop, env = state.get("roam_crop"), state.get("roam_env")
+                if crop and env:
+                    # 실제 창이 접힌 부분 사각형이면 저장하는 x/y 는 논리 full 창의 원점이다 —
+                    # 다음 실행에서 full 창이 같은 자리에 뜬다.
+                    lx = f.origin.x - crop[0]
+                    ly = f.origin.y - (env[1] - crop[1] - crop[3])
+                cfg["x"], cfg["y"] = lx, ly
+                merge_config_updates({"x": lx, "y": ly})   # 이 경로가 가진 키만
+            # Roamer 에는 state 의 훅으로 알린다(창 없는 시험에선 훅이 없다).
+            hook = state.get("roam_release")
+            if hook is not None:
+                hook(moved)
             self.setNeedsDisplay_(True)  # 좌우 플립 반영
-            if getattr(self, "_moved", False):
+            if moved:
                 return
             if event.clickCount() == 2:
                 set_override("jumping")
@@ -5616,13 +6239,28 @@ def run_gui():
             loc = self.convertPoint_fromView_(event.locationInWindow(), None)
             bx, by = self.btnOrigin()
             if (loc.x - bx - BTN_R) ** 2 + (loc.y - by - BTN_R) ** 2 <= (BTN_R + 6) ** 2:
-                state["show_panel"] = not state["show_panel"]
+                # 요약 중엔 요약 ↔ 전체만 오가고 평소 선택은 그대로(RoamDisplay.toggle).
+                # 판정은 클릭 시점의 실제 창 좌표로 했고, 창 성장은 다음 틱이 한다.
+                toggle = state.get("roam_toggle")
+                state["show_panel"] = (toggle() if toggle is not None
+                                       else not state["show_panel"])
                 self.setNeedsDisplay_(True)
 
         def rightMouseDown_(self, event):
+            # 메뉴는 '시작 시 복원': 요약 래치를 먼저 끄고 메뉴를 띄운다. 그래서 메뉴의
+            # '접기/펴기' 는 래치 없이 평소 선택을 바꾸는 일반 토글이고, 메뉴 뒤에 오는
+            # roam_hold 중단은 멱등이라 의도한 펼치기가 되돌려지는 일이 없다.
+            interrupt = state.get("roam_interrupt")
+            if interrupt is not None:
+                interrupt()
             menu = NSMenu.alloc().initWithTitle_("ClaudePet")
+            # NSMenu 는 기본(autoenablesItems=YES)으로 표시 직전에 항목을 다시 검증해, target 이
+            # action 에 응답하면 enabled 를 YES 로 되돌린다 — 아래 setEnabled_(False) 가 덮인다.
+            # 우리는 항목별로 직접 정하므로 자동 활성화를 끈다. 다른 항목은 기본값(YES) 그대로.
+            menu.setAutoenablesItems_(False)
             for title, action in ((t("menu_settings"), "openSettings:"),
                                   (t("menu_toggle"), "togglePanel:"),
+                                  (t("menu_roam"), "toggleRoam:"),
                                   (t("menu_reset_size"), "resetScale:"),
                                   (None, None),
                                   (t("menu_uninstall"), "uninstallApp:"),
@@ -5633,6 +6271,10 @@ def run_gui():
                 mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     title, action, "")
                 mi.setTarget_(handler)
+                if action == "toggleRoam:":
+                    mi.setState_(1 if RUNTIME.get("roam") else 0)   # 체크 표시
+                    # macOS '동작 줄이기' 가 켜져 있으면 어차피 움직이지 않는다 → 비활성
+                    mi.setEnabled_(not state["reduce_motion"])
                 menu.addItem_(mi)
             # 펫 선택 서브메뉴 (우클릭 때마다 폴더를 새로 스캔 → 새로 넣은 펫 즉시 반영)
             pet_list = discover_pets()
@@ -5655,7 +6297,7 @@ def run_gui():
                 pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_pets"), None, "")
                 pet_item.setSubmenu_(sub)
-                menu.insertItem_atIndex_(pet_item, 3)       # '크기 원래대로' 다음
+                menu.insertItem_atIndex_(pet_item, 4)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -5679,16 +6321,30 @@ def run_gui():
                 top.setTarget_(handler)
                 menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
                 menu.insertItem_atIndex_(top, 0)
-            NSMenu.popUpContextMenu_withEvent_forView_(menu, event, self)
+            # 메뉴는 동기 추적 루프라 그동안 틱이 멈춘다. 자동 이동은 명시적으로 막고,
+            # 닫힌 뒤 첫 틱이 반드시 '그 자리 정지' 로 처리하도록 한 번짜리 표시를 남긴다.
+            state["menu_open"] = True
+            try:
+                NSMenu.popUpContextMenu_withEvent_forView_(menu, event, self)
+            finally:
+                state["menu_open"] = False
+                state["roam_hold"] = True
 
         def scrollWheel_(self, event):
             set_scale(g["scale"] + event.scrollingDeltaY() * 0.004)
 
     # ── 화면 경계 클램프: 창이 모든 모니터 밖으로 나가 증발하는 것 방지 ──
     def clamp_to_screen():
-        f = win.frame()
-        cx = f.origin.x + f.size.width / 2
-        cy = f.origin.y + f.size.height / 2
+        """논리 full 창 전체가 가장 가까운 화면의 visibleFrame 안에 들어가게 한다.
+
+        실제 창이 접혀 있어도(crop) 기준은 **논리 창**이다. 접힌 창만 화면 안에 두면 논리
+        원점이 화면 밖에 저장되고 집도 그리로 잡혀, 다음에 펼쳐질 때 펫이 화면 밖에 놓인다.
+        crop 이 없으면(시작 시) 실제 창 = 논리 창이라 기존 동작과 같다.
+        """
+        lx, ly = roam_logical_origin()
+        w_, h_ = roam_env()
+        cx = lx + w_ / 2
+        cy = ly + h_ / 2
         best, best_d = None, None
         for scr in NSScreen.screens():
             vf = scr.visibleFrame()
@@ -5699,14 +6355,216 @@ def run_gui():
                 best, best_d = vf, d
         if best is None:
             return
-        # 창 전체가 화면 안에 있도록 (필은 안쪽으로 플립되므로 이게 자연스러움)
-        fw, fh = f.size.width, f.size.height
-        nx = min(max(f.origin.x, best.origin.x),
-                 best.origin.x + best.size.width - fw)
-        ny = min(max(f.origin.y, best.origin.y),
-                 best.origin.y + best.size.height - fh)
-        if abs(nx - f.origin.x) > 0.5 or abs(ny - f.origin.y) > 0.5:
-            win.setFrameOrigin_(NSMakePoint(nx, ny))
+        # 논리 창 전체가 화면 안에 있도록 (필은 안쪽으로 플립되므로 이게 자연스러움)
+        nx = min(max(lx, best.origin.x), best.origin.x + best.size.width - w_)
+        ny = min(max(ly, best.origin.y), best.origin.y + best.size.height - h_)
+        if abs(nx - lx) > 0.5 or abs(ny - ly) > 0.5:
+            ccx, ccy, ccw, cch = roam_crop_now()
+            win.setFrameOrigin_(NSMakePoint(nx + ccx, ny + (h_ - ccy - cch)))
+
+    # ── 조용한 동행: Roamer(순수 상태기계) ↔ 창 사이의 얇은 어댑터 ──
+    # 상태기계는 '논리 full 창'(크기 roam_env, 중심 roamer.pos)만 안다 — 중심·radius·
+    # bounds·집이 전부 그 창 기준이다. 실제 NSWindow 는 그 창의 부분 사각형(crop)이고,
+    # crop 은 표시 모드(접힘/요약/전체)에서만 유도되므로 펫의 전역 좌표는 모드와 무관하다.
+    # 여기서 논리 ↔ 실제를 바꾸고, 허용 rect 를 화면에서 읽고, 플래그를 state 에서 모아
+    # 넘기고, 결과를 창/애니메이션/표시에 반영한다. roamer 자체는 창이 만들어진 뒤(아래
+    # 앱/윈도우 절)에서. roam_env/roam_crop/roam_display 가 없으면(창 없는 시험) 실제
+    # 창 = 논리 창으로 동작한다.
+    def roam_env():
+        """논리 full 창 크기 (W, H). 표시 계층이 없으면 실제 창 크기."""
+        env = state.get("roam_env")
+        if env:
+            return env
+        f = win.frame()
+        return (f.size.width, f.size.height)
+
+    def roam_crop_now():
+        """현재 crop (cx, cy, cw, ch), 논리 창 flipped 좌표. 없으면 논리 창 전체."""
+        crop = state.get("roam_crop")
+        if crop:
+            return crop
+        w_, h_ = roam_env()
+        return (0.0, 0.0, w_, h_)
+
+    def window_center():
+        """논리 full 창의 중심 (스크린, y 위). crop 이 없으면 실제 창 중심과 같다."""
+        f = win.frame()
+        cx, cy, cw, ch = roam_crop_now()
+        w_, h_ = roam_env()
+        return (f.origin.x - cx + w_ / 2, f.origin.y - (h_ - cy - ch) + h_ / 2)
+
+    def roam_logical_origin():
+        """논리 full 창의 원점 (스크린, y 위)."""
+        f = win.frame()
+        cx, cy, cw, ch = roam_crop_now()
+        w_, h_ = roam_env()
+        return (f.origin.x - cx, f.origin.y - (h_ - cy - ch))
+
+    def place_window_center(pos):
+        """논리 중심 pos 에 맞춰 실제 창(현재 crop)을 놓는다. 크기가 다르면 크기까지."""
+        cx, cy, cw, ch = roam_crop_now()
+        w_, h_ = roam_env()
+        ox = pos[0] - w_ / 2 + cx
+        oy = pos[1] + h_ / 2 - cy - ch
+        f = win.frame()
+        if abs(f.size.width - cw) > 0.5 or abs(f.size.height - ch) > 0.5:
+            win.setFrame_display_(NSMakeRect(ox, oy, cw, ch), True)
+            view.setFrame_(NSMakeRect(0, 0, cw, ch))
+        else:
+            win.setFrameOrigin_(NSMakePoint(ox, oy))
+
+    def roam_bounds():
+        """논리 full 창 전체가 화면(visibleFrame) 안에 남는, 논리 중심의 허용 rect."""
+        scr = win.screen() or NSScreen.mainScreen()
+        vf = scr.visibleFrame()
+        w_, h_ = roam_env()
+        return (vf.origin.x + w_ / 2, vf.origin.y + h_ / 2,
+                vf.origin.x + vf.size.width - w_ / 2,
+                vf.origin.y + vf.size.height - h_ / 2)
+
+    def roam_env_update():
+        """geom() 이 바뀐 직후(크기 조절·필 행 수·펫 교체)에 호출한다. 호출자가 실제 창을
+        새 full 크기로 되돌려 두었으므로 crop 은 없고, 논리 크기는 새 W×H 다. 표시는
+        다음 틱에 다시 잘린다."""
+        state["roam_env"] = (float(W), float(H))
+        state["roam_crop"] = None
+        state["roam_rects"] = None
+        state["roam_mode"] = None
+
+    def roam_mode_now():
+        """지금 그릴 표시 모드. 표시 계층이 아직 안 돌았으면 사용자 선택 그대로."""
+        mode = state.get("roam_mode")
+        if mode is None:
+            return DISPLAY_FULL if state["show_panel"] else DISPLAY_FOLDED
+        return mode
+
+    def roam_summary_text():
+        """요약 필 한 줄(원문)과 그 폭. exact 라벨은 원문 그대로, estimate 는 t() + ≈.
+
+        말줄임은 하지 않는다 — 실제 필 폭을 아는 draw_summary_pill 이 같은 폰트로 맞춘다.
+        여기서 잰 폭은 roam_frame 의 text_w 가 되고, roam_pill_rect 가 PILL_W 로 캡한다.
+        """
+        kind, payload = roam_summary(RUNTIME["mode"], state["oauth"], state["stats"],
+                                     state.get("onboard"), state["cost"],
+                                     bool(RUNTIME.get("admin_key")))
+        txt = roam_summary_line(kind, payload, t)
+        return txt, astr(txt, F_SUMMARY).size().width
+
+    def draw_summary_pill():
+        """구경 도착 요약: 펫에 붙은 작은 둥근 필 한 줄. 상태줄·버전 없음.
+
+        문자열이 필의 안쪽 폭(패딩 제외)을 넘으면 같은 폰트로 재면서 말줄임한다 — 폰트를
+        줄이지 않으므로 측정과 그리기가 같은 F_SUMMARY 로 일치한다.
+        """
+        rects = state.get("roam_rects")
+        pill = rects.get("pill") if rects else None
+        if not pill:
+            return
+        x, y, w, h = pill
+        C_PILL.set()
+        NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            NSMakeRect(x, y, w, h), h / 2, h / 2).fill()
+        txt, _tw = roam_summary_text()
+        txt = roam_fit_text(txt, w - 2 * PILL_PAD,
+                            lambda value: astr(value, F_SUMMARY).size().width)
+        s = astr(txt, F_SUMMARY)
+        sz = s.size()
+        s.drawAtPoint_(NSMakePoint(x + (w - sz.width) / 2, y + (h - sz.height) / 2))
+
+    def roam_apply_display(phase):
+        """표시 모드 → crop/rect → 실제 창 크기·원점. 경로·집은 건드리지 않는다 → 다시 그릴지."""
+        disp = state.get("roam_display")
+        if disp is None:
+            return False
+        mode = disp.mode(phase, state["show_panel"])
+        text_w = roam_summary_text()[1] if mode == DISPLAY_SUMMARY else 0.0
+        w_, h_ = roam_env()
+        lay = roam_frame(roamer.pos, mode, view.petOnRight(), view.petOnBottom(),
+                         w_, h_, PW, PH, pill_h(), g["scale"], text_w)
+        crop = tuple(lay["crop"])
+        changed = crop != state.get("roam_crop") or mode != state.get("roam_mode")
+        if changed:
+            # 변경 '직전' 실제 창의 논리 중심(옛 crop 으로 역산)을 기준으로 새 crop 을 놓는다.
+            # roamer.pos 가 아니다: 드래그·clamp·필 행 수 변경처럼 창이 밖에서 움직인 뒤에
+            # roamer.pos 로 되돌리면 사용자의 이동이 지워진다. 트립 중엔 두 값이 같다.
+            center = window_center()
+        state["roam_mode"] = mode
+        state["roam_crop"] = crop
+        state["roam_rects"] = lay
+        if changed:
+            place_window_center(center)
+        return changed
+
+    def _reduce_motion():
+        try:
+            ws = NSWorkspace.sharedWorkspace()
+            return bool(ws.accessibilityDisplayShouldReduceMotion())
+        except Exception:
+            return False
+
+    def roam_resync():
+        """창 크기가 바뀐 뒤(크기 조절·필 행 수·펫 교체): 크기 변경도 조작이다.
+
+        외접원 반지름을 새 크기로 갱신하고, 하던 이동은 그 자리에서 접는다. 나가
+        있으면 상태기계의 자리(pos)가 기준이고, 집이면 새 창 중심이 집이다. 어느
+        쪽이든 창 전체가 화면 안에 남도록 중심을 허용 범위로 들인 뒤 창을 놓는다.
+        """
+        w_, h_ = roam_env()
+        roamer.radius = math.hypot(w_ / 2, h_ / 2)
+        now = _time.monotonic()
+        cx, cy = roamer.pos if roamer.away else window_center()
+        x0, y0, x1, y1 = roam_bounds()
+        if x0 <= x1 and y0 <= y1:
+            cx, cy = min(max(cx, x0), x1), min(max(cy, y0), y1)
+        if roamer.away:
+            roamer.release(now, (cx, cy), False)     # 그 자리 정지 + pos 동기화, 집은 그대로
+        else:
+            roamer.set_home((cx, cy), now)
+        place_window_center((cx, cy))
+
+    def roam_tick():
+        """Roamer 한 step 을 돌리고 창/애니메이션에 반영한다 → 다시 그릴지."""
+        now = _time.monotonic()
+        if now - roam_clock["rm_at"] >= 1.0:        # Reduce Motion 은 1 Hz 만 읽는다
+            roam_clock["rm_at"] = now
+            state["reduce_motion"] = _reduce_motion()
+        enabled = bool(RUNTIME.get("roam")) and not state["reduce_motion"]
+        # 남의 override(인사·점프·드래그 달리기)가 재생 중이면 출발하지 않고, 이동 중이면 선다
+        blocked = bool(state["hover"]) or (state["override"] is not None
+                                           and state["override"] != state["roam_anim"])
+        busy = (bool(ui.get("panel")) or bool(state["menu_open"])
+                or bool(state["roam_hold"]) or bool(spike_info(state["stats"])))
+        state["roam_hold"] = False
+        gap = now - roam_clock.get("last", now)
+        roam_clock["last"] = now
+        mp = NSEvent.mouseLocation()
+        out = roamer.step(now, (mp.x, mp.y), roam_bounds(), enabled=enabled,
+                          dragging=bool(state["dragging"]), blocked=blocked, busy=busy)
+        disp = state.get("roam_display")
+        if disp is not None:
+            # 표시 계층: 걷는 동안 접기, 구경 도착 요약, 귀환·명시적 중단 시 평소 선택 복원.
+            # hover(blocked)·dragging 은 중단이 아니다 — 요약을 펼치려면 커서를 올려야 한다.
+            disp.note(out.phase, roamer.kind, out.away,
+                      interrupted=(not enabled) or busy or gap > roamer.cfg["gap_s"],
+                      enabled=enabled, settled=roamer.settled)
+        dirty = False
+        if out.moved:
+            if state["roam_layout"] is None:
+                # 창을 옮기기 '전'의 배치를 고정한다 — 이동 중 중앙선을 넘어도 펫이 튀지 않게.
+                # 수동 드래그(mouseUp_)만 이 고정을 푼다.
+                state["roam_layout"] = (view.petOnRight(), view.petOnBottom())
+            place_window_center(out.pos)
+            dirty = True
+        if roam_apply_display(out.phase):
+            dirty = True
+        if out.anim != state["roam_anim"]:
+            if out.anim is not None:
+                set_override(out.anim, sticky_flag=True)
+            elif state["override"] == state["roam_anim"]:
+                clear_sticky()                       # 우리가 켠 것만 끈다
+            state["roam_anim"] = out.anim
+            dirty = True
+        return dirty
 
     # ── 크기 조절 ──
     def set_scale(value):
@@ -5715,13 +6573,15 @@ def run_gui():
         if abs(new - g["scale"]) < 1e-4:
             return
         g["scale"] = new
+        lx, ly = roam_logical_origin()      # 실제 창이 접혀 있어도 논리 full 창 기준
         PW, PH, W, H = geom()
-        f = win.frame()
-        win.setFrame_display_(NSMakeRect(f.origin.x, f.origin.y, W, H), True)
+        win.setFrame_display_(NSMakeRect(lx, ly, W, H), True)
         view.setFrame_(NSMakeRect(0, 0, W, H))
         view.setNeedsDisplay_(True)
         cfg["scale"] = round(g["scale"], 3)
         merge_config_updates({"scale": cfg["scale"]})      # 이 경로가 가진 키만
+        roam_env_update()
+        roam_resync()
 
     def cur_rows_n():
         if RUNTIME["mode"] == "api":
@@ -5737,12 +6597,14 @@ def run_gui():
         if n == CUR_PILL["n"]:
             return
         CUR_PILL["n"] = n
-        fr = win.frame()
-        top = fr.origin.y + fr.size.height
+        lx, ly = roam_logical_origin()      # 실제 창이 접혀 있어도 논리 full 창 기준
+        top = ly + roam_env()[1]
         PW, PH, W, H = geom()
-        win.setFrame_display_(NSMakeRect(fr.origin.x, top - H, W, H), True)
+        win.setFrame_display_(NSMakeRect(lx, top - H, W, H), True)
         view.setFrame_(NSMakeRect(0, 0, W, H))
         view.setNeedsDisplay_(True)
+        roam_env_update()
+        roam_resync()
 
     # ── 펫 교체 (라이브) ──
     def set_pet(pet_id):
@@ -5758,10 +6620,10 @@ def run_gui():
         sz2 = frames["idle"][0].size()
         PW0 = int(sz2.width // PET_SCALE_DOWN)
         PH0 = int(sz2.height // PET_SCALE_DOWN)
-        fr = win.frame()
-        top = fr.origin.y + fr.size.height      # 상단 고정한 채 크기만 갱신
+        lx, ly = roam_logical_origin()          # 실제 창이 접혀 있어도 논리 full 창 기준
+        top = ly + roam_env()[1]                # 상단 고정한 채 크기만 갱신
         PW, PH, W, H = geom()
-        win.setFrame_display_(NSMakeRect(fr.origin.x, top - H, W, H), True)
+        win.setFrame_display_(NSMakeRect(lx, top - H, W, H), True)
         view.setFrame_(NSMakeRect(0, 0, W, H))
         state["frame"] = 0                      # 애니메이션 처음부터
         state["elapsed"] = 0.0
@@ -5772,6 +6634,8 @@ def run_gui():
             cfg.update(merged)
         else:
             cfg["pet"] = pet_id
+        roam_env_update()
+        roam_resync()
 
     def open_user_pets_dir():
         try:
@@ -5783,6 +6647,9 @@ def run_gui():
 
     # ── 설정 창 ──
     def open_settings():
+        interrupt = state.get("roam_interrupt")   # 설정 창은 명시적 중단: 요약 래치 해제
+        if interrupt is not None:
+            interrupt()
         if ui.get("panel"):
             ui["panel"].makeKeyAndOrderFront_(None)
             NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
@@ -6206,8 +7073,21 @@ def run_gui():
             open_settings()
 
         def togglePanel_(self, sender):
-            state["show_panel"] = not state["show_panel"]
+            toggle = state.get("roam_toggle")      # 요약 중엔 요약 ↔ 전체, 아니면 평소 선택 반전
+            state["show_panel"] = (toggle() if toggle is not None
+                                   else not state["show_panel"])
             view.setNeedsDisplay_(True)
+
+        def toggleRoam_(self, sender):
+            # 우클릭 체크 항목. 끄면 다음 틱에 그 자리에서 선다(집으로 되돌리지 않는다).
+            value = not RUNTIME.get("roam")
+            RUNTIME["roam"] = value
+            ok, merged = merge_config_updates({"roam": value})   # 이 경로가 가진 키만
+            if ok:
+                cfg.clear()
+                cfg.update(merged)
+            else:
+                cfg["roam"] = value
 
         def resetScale_(self, sender):
             set_scale(0.5)
@@ -6343,13 +7223,17 @@ def run_gui():
                 if now >= state["greet_cool"]:
                     mpos = NSEvent.mouseLocation()
                     f = win.frame()
-                    px, py = view.petOrigin()
+                    px, py = view.petOrigin()          # 실제(접힐 수 있는) 창 좌표
                     cx = f.origin.x + px + PW / 2
-                    cy = f.origin.y + (H - py - PH / 2)
+                    cy = f.origin.y + (f.size.height - py - PH / 2)
                     if math.hypot(mpos.x - cx, mpos.y - cy) < NEAR_PX + PW / 2:
                         set_override("waving")
                         state["greet_cool"] = now + GREET_COOLDOWN
                         dirty = True
+
+            # 조용한 동행 — 스스로 돌아다니기 (인사 판정 뒤, 같은 틱 안에서)
+            if roam_tick():
+                dirty = True
 
             if spike_info(state["stats"]):
                 dirty = True
@@ -6414,6 +7298,22 @@ def run_gui():
     win.setContentView_(view)
     win.orderFrontRegardless()
     clamp_to_screen()   # 저장된 좌표가 화면 밖이면 안으로 복구
+
+    # 조용한 동행: 집 = 지금(클램프된) 창 중심. 자동 이동은 x/y 를 저장하지 않는다.
+    state["roam_env"] = (float(W), float(H))     # 논리 full 창 크기 — 지금은 실제 창도 full
+    roamer = Roamer(window_center(), _time.monotonic(),
+                    radius=math.hypot(W / 2, H / 2))
+    roam_clock = {"rm_at": 0.0}
+    roam_display = RoamDisplay()
+    state["roam_display"] = roam_display
+
+    def _roam_release(moved):
+        roamer.release(_time.monotonic(), window_center(), moved)
+        if moved:
+            roam_display.reset()                 # 수동 배치 → 평소 선택
+    state["roam_release"] = _roam_release
+    state["roam_toggle"] = lambda: roam_display.toggle(state["show_panel"])
+    state["roam_interrupt"] = roam_display.reset
 
     handler = Handler.alloc().init()
     ticker = Ticker.alloc().init()
