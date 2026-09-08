@@ -1676,3 +1676,107 @@ The release commit's named-path list grows by three: `README.md`, `README.ja.md`
 enumerated the right-click menu, so nothing on the site is now stale.
 
 reviewer-v022 (Claude Code subagent, spawned by coordinator-v022, 2026-09-08)
+
+### Follow-up: release-notes bullet 3 wording (execution gate)
+
+**Verdict: PASS.** The edit is one line, it removes a genuine defect that would have
+reached every reader of the GitHub release, the replacement sentence is true against both
+the source and the v0.21 section it summarizes, and the block still satisfies CLAUDE.md
+step 2. No findings. This is a §6 item 3 re-check of the release notes only; it changes
+nothing else I have signed off, and it does not by itself make the execution gate GREEN.
+
+**The defect was real, and it was invisible in the file.** `release.sh`'s
+`gen_release_notes()` prints the preamble, then the changelog heading, then keeps lines
+only while `keep=(trim($0)==ver)` — so the GitHub release body contains the `**v0.22**`
+block and nothing below it. Reading `RELEASE_NOTES.md` in the repository, "아래 v0.21의
+% 보정 설정도…" points at a section sitting immediately underneath; in the body users
+actually receive, it pointed at nothing. That is the kind of error only reproduction
+catches, which is why item 4 below matters more than re-reading the sentence.
+
+**(1) Scope — exactly one line, published bytes untouched.** Line-level opcodes against
+`HEAD:RELEASE_NOTES.md` give **one** non-equal region, `replace HEAD[84:85] -> cur[84:85]`,
+and nothing else anywhere in the file:
+
+```text
+- - 우클릭 메뉴의 "화면 돌아다니기"로 끄고 켤 수 있고, macOS 손쉬운 사용의 동작 줄이기가 켜져 있으면 움직이지 않습니다. 아래 v0.21의 % 보정 설정도 이 버전에 함께 들어 있습니다.
++ - 우클릭 메뉴의 "화면 돌아다니기"로 끄고 켤 수 있고, macOS 손쉬운 사용의 동작 줄이기가 켜져 있으면 움직이지 않습니다. v0.21로 준비했던 % 보정 설정(세션·주간·모델 게이지를 Claude 앱에 보이는 %로 맞추기)도 이 버전에 함께 들어 있습니다.
+```
+
+The frozen regions are byte-identical, checked by hash rather than by eye:
+
+| Region | HEAD | working tree |
+|---|---|---|
+| `**v0.20**` heading count | 1 | 1 |
+| v0.20-and-older suffix (heading → EOF) | `6d73456411eac4d7b2aa9b7556bb185fc43f84417ce8e91969dd8b91caf52ee1` | identical |
+| v0.21 block (between its heading and `**v0.20**`) | `ce349dbbe513cbaccdf07340fb239c5f46a9bf1086a2ab14e5dfad50efe07f4c` | identical |
+
+The suffix hash is exactly the value `PUBLISHED_V020_AND_OLDER_SHA256` pins, so the
+published-bytes gate is untouched. Only `RELEASE_NOTES.md` is modified in the tree.
+
+**(2) CLAUDE.md step 2 — still satisfied.** 3 top-level bullets, 0 nested, **379 / 450**
+normalized characters (confirming the Developer's figure), 2 sentences in each bullet
+(bullet lengths 109 / 121 / 147). The six forbidden-pattern classes were re-scanned over
+the new text: **no hits** — no hash, source path, line reference, internal identifier,
+test prose, or magnitude/frequency word. The only numeral added is a version string.
+
+**(3) Truthful, and natural without the deictic.** The sentence makes three claims and
+each holds:
+
+- *"v0.21로 준비했던"* — v0.21 was committed as `45a03c4` but never tagged or published,
+  so it was prepared and not shipped. True.
+- *"% 보정 설정(세션·주간·모델 게이지를 Claude 앱에 보이는 %로 맞추기)"* — a faithful
+  compression of the v0.21 section's own first bullet, "세션·주간·모델 3개 게이지를
+  Claude 앱에 보이는 %로 보정합니다", and correct against the source: `GAUGE_LIMIT_KEYS`
+  is exactly the three pairs session/weekly/opus, whose Korean panel labels are
+  세션 한도 / 주간 한도 / 모델 한도, and the calibration input is the percentage the user
+  reads in Claude's own usage screen.
+- *"도 이 버전에 함께 들어 있습니다"* — true for the same reason v0.21 is unpublished.
+
+It reads naturally in Korean and, unlike the original, is self-contained: nothing in it
+refers to a location in a document the reader may not have. The parenthetical is a gloss
+in the same explanatory register the v0.21 section already uses.
+
+**(4) Regenerated body, reproduced without sourcing or executing `release.sh`.** I copied
+the `awk` program out of `gen_release_notes()` into a scratch script with
+`ver='**v0.22**'` and ran it over both files. `release.sh` was never sourced, dispatched,
+or executed — which matters here, because sourcing it is precisely the move the
+`ZSH_EVAL_CONTEXT` guard exists to make inert, and reaching for it to test one helper is
+the documented trap.
+
+Against the committed bytes the changelog part of the body ended:
+
+```text
+- 우클릭 메뉴의 "화면 돌아다니기"로 끄고 켤 수 있고, macOS 손쉬운 사용의 동작 줄이기가 켜져 있으면 움직이지 않습니다. 아래 v0.21의 % 보정 설정도 이 버전에 함께 들어 있습니다.
+```
+
+— with no v0.21 section anywhere beneath it. Against the working tree, the changelog part
+of the generated body is now, verbatim:
+
+```text
+### 📝 변경 내역 / Changelog
+**v0.22**
+- 펫이 제자리에서 쉬다가 마우스가 움직이고 있으면 한 번 다가와 6초 바라보고 제자리로 돌아옵니다. 커서 위로는 걸어가지 않고, 잡거나 마우스를 올리거나 메뉴·설정을 열면 그 자리에서 멈춥니다.
+- 걷는 동안에는 게이지를 접어 펫만 움직이고, 다가와서는 세션·주간 %를 한 줄로 요약해 보여 주며 로그 추정치에는 ≈가 붙습니다. ⌄ 버튼을 누르면 전체 게이지가 펼쳐지고, 돌아오면 접어 두었던 대로 되돌아갑니다.
+- 우클릭 메뉴의 "화면 돌아다니기"로 끄고 켤 수 있고, macOS 손쉬운 사용의 동작 줄이기가 켜져 있으면 움직이지 않습니다. v0.21로 준비했던 % 보정 설정(세션·주간·모델 게이지를 Claude 앱에 보이는 %로 맞추기)도 이 버전에 함께 들어 있습니다.
+```
+
+Three bullets, no dangling reference, and the calibration work is described where the
+reader can see it rather than pointed at.
+
+**(5) No other file moved.** `claude_pet.py` is still
+`c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9`, and
+`git status --porcelain` shows `M RELEASE_NOTES.md` as the only tracked modification.
+
+**Gate re-run.** `tests/test_v021_release_contract.py`: `10 / 10` OK after the edit. The
+three assertions this sentence could have broken all still hold — the `_has_all` clause
+requiring `v0.21` together with `보정` and one of 함께/같이/포함/들어, the `<= 450`
+character limit at 379, and the "exactly one duration in seconds" check, since the new
+clause introduces no `초`.
+
+**Consequence for the release commit.** The v0.22 release commit `7865af5d` carries
+`RELEASE_NOTES.md` at `9d56cd60…`; this fix supersedes those bytes, so the follow-up
+commit that carries it must be in place before anything generates the release body. The
+§6 item 3 finding "release notes checked" now attaches to the corrected file, not to the
+bytes in `7865af5d`.
+
+reviewer-v022 (Claude Code subagent, spawned by coordinator-v022, 2026-09-08)
