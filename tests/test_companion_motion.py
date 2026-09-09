@@ -122,6 +122,7 @@ class CompanionMotionTests(unittest.TestCase):
         api = pure_api(self)
         cfg = {"rest_min_s": 10.0, "rest_max_s": 10.0,
                "approach_cooldown_s": 0.0, "wander_cooldown_s": 100000.0,
+               "wander_enabled": False,
                "walk_speed": 40.0, "approach_stop": 150.0,
                "approach_max": 360.0, "look_s": 2.0,
                "max_dt_s": 0.25, "gap_s": 5.0}
@@ -204,14 +205,14 @@ class CompanionMotionTests(unittest.TestCase):
                                      "long interaction shortened the promised fresh rest")
                     self.assertFalse(out.moved)
 
-    def test_disabled_during_return_does_not_snap_to_manual_home(self):
+    def test_disabled_after_arrival_does_not_snap_to_manual_home(self):
         r, now = self.depart()
         for tick in range(1, 200):
             now = 10.0 + tick * 0.25
             out = r.step(now, self.cursor, self.bounds)
-            if out.phase == "home":
+            if out.phase == "rest" and r.settled:
                 break
-        self.assertEqual(out.phase, "home", "trip never entered return phase")
+        self.assertEqual(out.phase, "rest", "arrival never settled at its destination")
         before = tuple(r.pos)
         self.assertGreater(math.dist(before, r.home), 60.0)
         out = r.step(now + 0.25, self.cursor, self.bounds, enabled=False)
@@ -272,14 +273,14 @@ class CompanionMotionTests(unittest.TestCase):
         self.assertEqual(tuple(out.pos), before)
         self.assertFalse(out.moved)
 
-    def test_cursor_on_return_segment_also_cancels(self):
-        r, now = self.depart(radius=50.0)
-        for tick in range(1, 200):
-            now = 10.0 + tick * 0.25
-            out = r.step(now, self.cursor, self.bounds)
-            if out.phase == "home":
-                break
-        self.assertEqual(out.phase, "home")
+    def test_cursor_on_leftward_outbound_segment_also_cancels(self):
+        r = self.make(home=(1400.0, 300.0), radius=50.0)
+        for now in range(10):
+            r.step(now, self.cursor, self.bounds)
+        now = 10.0
+        out = r.step(now, self.cursor, self.bounds, activity=True)
+        self.assertEqual(out.phase, "out")
+        self.assertEqual(out.anim, "running-left")
         before = tuple(r.pos)
         out = r.step(now + 0.25, (before[0] - 5.0, before[1]), self.bounds)
         self.assertEqual(tuple(out.pos), before)
@@ -303,7 +304,7 @@ class CompanionMotionTests(unittest.TestCase):
         for tick in range(0, 1681):
             now = tick * 0.25
             out = r.step(now, self.cursor, self.bounds, activity=(tick % 4 == 0))
-            if out.phase == "out" and previous != "out" and r.kind == "approach":
+            if out.phase in ("out", "look") and previous == "rest" and r.kind == "approach":
                 departures.append(now)
             previous = out.phase
         self.assertGreaterEqual(len(departures), 2,
@@ -311,15 +312,29 @@ class CompanionMotionTests(unittest.TestCase):
         for previous, current in zip(departures, departures[1:]):
             self.assertGreaterEqual(current - previous, 180.0)
 
-    def test_wander_is_bounded_pauses_quietly_returns_and_respects_own_cooldown(self):
-        r = self.make(wander_cooldown_s=300.0, wander_radius=160.0)
+    def test_wander_uses_monitor_bounds_pauses_and_respects_own_cooldown(self):
+        r = self.make(wander_cooldown_s=300.0, wander_enabled=True)
+        class OppositeDestinations:
+            def __init__(self):
+                self.i = 0
+            def uniform(self, low, high):
+                if low == high:
+                    return low
+                fraction = (0.8, 0.7, 0.2, 0.25)[self.i % 4]
+                self.i += 1
+                return low + fraction * (high - low)
+        r.rng = OppositeDestinations()
         departures = []
         saw_pause = False
+        max_distance = 0.0
         previous = r.phase
         for tick in range(0, 1441):
             now = tick * 0.25
             out = r.step(now, None, self.bounds)
-            self.assertLessEqual(math.dist(self.home, out.pos), 160.0)
+            self.assertTrue(0 <= out.pos[0] <= 2000 and 0 <= out.pos[1] <= 1500)
+            self.assertEqual(tuple(r.home), self.home)
+            self.assertNotEqual(out.phase, "home")
+            max_distance = max(max_distance, math.dist(self.home, out.pos))
             if out.phase == "out" and previous != "out" and r.kind == "wander":
                 departures.append(now)
             if out.phase == "look":
@@ -327,12 +342,13 @@ class CompanionMotionTests(unittest.TestCase):
                 saw_pause = True
             previous = out.phase
         self.assertTrue(saw_pause, "wander never had its quiet pause")
+        self.assertGreater(max_distance, 360.0)
         self.assertGreaterEqual(len(departures), 2)
         for first, second in zip(departures, departures[1:]):
             self.assertGreaterEqual(second - first, 300.0)
 
-    def test_hold_on_every_trip_phase_freezes_look_and_return_too(self):
-        for wanted in ("look", "home"):
+    def test_hold_on_every_trip_phase_freezes_outbound_and_look(self):
+        for wanted in ("out", "look"):
             for flag, value in (("enabled", False), ("dragging", True),
                                 ("blocked", True), ("busy", True)):
                 with self.subTest(phase=wanted, flag=flag):
@@ -416,11 +432,10 @@ class CompanionPresentationTests(unittest.TestCase):
     def display(self):
         return pure_api(self, {"RoamDisplay"})["RoamDisplay"]()
 
-    def test_departure_and_return_fold_even_before_any_displacement(self):
+    def test_departure_folds_even_before_any_displacement(self):
         for preference in (False, True):
             for phase, kind, away in (("out", "approach", False),
-                                      ("out", "wander", False),
-                                      ("home", None, True)):
+                                      ("out", "wander", False)):
                 with self.subTest(preference=preference, phase=phase, kind=kind):
                     d = self.display()
                     d.note(phase, kind, away)
@@ -437,27 +452,24 @@ class CompanionPresentationTests(unittest.TestCase):
                     self.assertEqual(d.mode("look", preference), "full")
                     self.assertEqual(d.toggle(preference), preference)
                     self.assertEqual(d.mode("look", preference), "summary")
-                    d.note("home", None, True)
-                    self.assertEqual(d.mode("home", preference), "folded")
-                    d.note("rest", None, False)
+                    d.note("rest", None, True, settled=True)
                     self.assertEqual(d.mode("rest", preference),
                                      "full" if preference else "folded")
 
-    def test_wander_pause_stays_folded_and_return_restores_manual_choice(self):
+    def test_wander_pause_stays_folded_and_settlement_restores_manual_choice(self):
         for preference in (False, True):
             d = self.display()
             d.note("out", "wander", False)
             d.note("look", "wander", True)
             self.assertEqual(d.mode("look", preference), "folded")
-            d.note("home", None, True)
-            d.note("rest", None, False)
+            d.note("rest", None, True, settled=True)
             self.assertEqual(d.mode("rest", preference),
                              "full" if preference else "folded")
 
     def test_hover_stop_away_keeps_summary_available_for_expansion(self):
         d = self.display()
         d.note("look", "approach", True)
-        d.note("rest", None, True)  # ordinary hover stops motion; not explicit interruption
+        d.note("rest", None, True, settled=False)  # ordinary hover, not natural completion
         self.assertEqual(d.mode("rest", False), "summary")
         self.assertFalse(d.toggle(False))
         self.assertEqual(d.mode("rest", False), "full")
@@ -469,7 +481,7 @@ class CompanionPresentationTests(unittest.TestCase):
                 d = api["RoamDisplay"]()
                 r = api["Roamer"]((400, 300), 0, rng=MinimumRng(),
                                   cfg={"rest_min_s": 0, "rest_max_s": 0,
-                                       "wander_radius": 0, "look_s": 6})
+                                       "wander_enabled": False, "look_s": 6})
                 out = r.step(1, (450, 300), (0, 0, 1200, 900), activity=True)
                 self.assertEqual(out.phase, "look")
                 self.assertFalse(out.away)
@@ -488,7 +500,7 @@ class CompanionPresentationTests(unittest.TestCase):
     def test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion(self):
         api = pure_api(self, {"RoamDisplay", "Roamer"})
         r = api["Roamer"]((400, 300), 0, rng=MinimumRng(),
-                          cfg={"rest_min_s": 0, "rest_max_s": 0, "wander_radius": 0})
+                          cfg={"rest_min_s": 0, "rest_max_s": 0, "wander_enabled": False})
         self.assertTrue(hasattr(r, "settled"), "motion completion cause is not exposed")
         self.assertTrue(r.settled)
         d = api["RoamDisplay"]()
@@ -670,7 +682,7 @@ class CompanionAdapterTests(unittest.TestCase):
         api = pure_api(self)
         roamer = api["Roamer"]((800.0, 300.0), 0.0, rng=MinimumRng(),
                     cfg={"rest_min_s": 10.0, "rest_max_s": 10.0,
-                         "approach_cooldown_s": 0.0, "wander_radius": 0.0,
+                         "approach_cooldown_s": 0.0, "wander_enabled": False,
                          "walk_speed": 40.0})
         world = {"screen": fake_rect(0, 0, 1000, 700), "frame": fake_rect(750, 250, 100, 100),
                  "now": 10.0, "moves": []}
@@ -753,7 +765,7 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                  "reduce_motion": False, "show_panel": True, "roam_display": api["RoamDisplay"](),
                  "roam_env": (300, 220), "roam_crop": None, "roam_rects": None}
         r = api["Roamer"]((420, 350), 0, rng=MinimumRng(),
-                           cfg={"rest_min_s": 0, "rest_max_s": 0, "wander_radius": 0})
+                           cfg={"rest_min_s": 0, "rest_max_s": 0, "wander_enabled": False})
         r.step(0, (1200, 350), (150, 110, 1250, 890), activity=True)
         self.assertEqual(r.phase, "out")
         scope = dict(api, win=win, view=view, state=state, roamer=r, ui={}, math=math,
@@ -920,7 +932,7 @@ def run_native_smoke():
     import AppKit
 
     compact_gate = "--compact-presentation-gate" in sys.argv
-    artifact_stem = "quiet-companion-compact-smoke" if compact_gate else "quiet-companion-smoke"
+    artifact_stem = "free-roaming-native-20260909"
 
     sandbox = Path(os.environ["CLAUDEPET_SMOKE_SANDBOX"]).resolve()
     for key in ("HOME", "TMPDIR", "ZDOTDIR"):
@@ -1023,7 +1035,7 @@ def run_native_smoke():
                 f = window.frame()
                 if roamer.phase == "rest" and not started:
                     initial_native_size = (float(f.size.width), float(f.size.height))
-                if compact_gate and roamer.phase in ("out", "home"):
+                if compact_gate and roamer.phase == "out":
                     actual_size = (float(f.size.width), float(f.size.height))
                     if not (actual_size[0] < initial_native_size[0]
                             and actual_size[1] < initial_native_size[1]):
@@ -1054,8 +1066,11 @@ def run_native_smoke():
                     summary.setdefault("transitions", []).append(sample)
                     previous_phase = roamer.phase
                 if roamer.phase == "out":
+                    if not started:
+                        manual_home_at_departure = tuple(roamer.home)
+                        summary["manual_home_at_departure"] = list(manual_home_at_departure)
                     started = True
-                expected_mood = {"out": "running-right", "look": "review", "home": "running-left"}.get(roamer.phase)
+                expected_mood = {"out": "running-right", "look": "review", "rest": "idle" if started else None}.get(roamer.phase)
                 if (expected_mood is not None and state["mood"] == expected_mood
                         and not any(item[0] == roamer.phase for item in captures)):
                     view.setNeedsDisplay_(True)
@@ -1065,15 +1080,23 @@ def run_native_smoke():
                     captures.append((roamer.phase, bitmap))
                     summary.setdefault("capture_states", []).append(sample)
                 if started and roamer.phase == "rest":
-                    completed = True
-                    break
+                    if not completed:
+                        completed = True
+                        completed_at = clock["now"]
+                        arrival_position = tuple(roamer.pos)
+                        if math.dist(arrival_position, manual_home_at_departure) < 60.0:
+                            raise AssertionError("arrival returned to the old manual home")
+                    if tuple(roamer.pos) != arrival_position or tuple(roamer.home) != manual_home_at_departure:
+                        raise AssertionError(f"completed trip drifted/home changed: pos={roamer.pos}, arrival={arrival_position}, home={roamer.home}, departure_home={manual_home_at_departure}, phase={roamer.phase}, t={clock['now']}")
+                    if clock["now"] - completed_at >= 10.0:
+                        break
             if not started or not completed:
                 raise AssertionError("native timer never completed an automatic trip")
             if config_writes:
                 raise AssertionError("native automatic ticks wrote application configuration")
             if compact_gate and (state.get("roam_mode") != "full"
                                  or tuple(frames[-1]["window"][2:]) != initial_native_size):
-                raise AssertionError("return did not restore the original expanded presentation")
+                raise AssertionError("arrival completion did not restore the original expanded presentation")
             # A real native content view is rendered into a contact sheet; the desktop
             # and other applications are never captured.
             width = max(int(bitmap.pixelsWide()) for _, bitmap in captures)
@@ -1204,7 +1227,7 @@ def run_mutation_checks():
          lambda: replace_function("_roam_clamp", "return (float(p[0]), float(p[1]))")),
         ("no approach cooldown", "CompanionMotionTests.test_activity_bursts_respect_approach_cooldown_without_starving_future_visits",
          lambda: replace_once('self._approach_ok_at = now + self.cfg["approach_cooldown_s"]', 'self._approach_ok_at = now')),
-        ("watch never returns home", "CompanionMotionTests.test_disabled_during_return_does_not_snap_to_manual_home",
+        ("watch never settles", "CompanionMotionTests.test_disabled_after_arrival_does_not_snap_to_manual_home",
          lambda: replace_once('if now >= self._look_until:', 'if False:')),
     ]
     records = []
@@ -1226,7 +1249,7 @@ def run_mutation_checks():
     finally:
         SOURCE = source_path
         ended = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        with (REPO / "docs-design/quiet-companion-verification.md").open("a") as report:
+        with (REPO / "docs-design/free-roaming-verification-20260909.md").open("a") as report:
             report.write("\n## In-memory rival execution\n\nGrouping key: rival implementation paired with its targeted test case. "
                          "File set: tests/test_companion_motion.py and the frozen-in-memory claude_pet.py snapshot. "
                          "Source SHA-256: " + hashlib.sha256(baseline.encode()).hexdigest() + ". "
