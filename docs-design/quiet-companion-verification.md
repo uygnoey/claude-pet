@@ -10066,3 +10066,228 @@ Three things this section deliberately does **not** claim:
   carries `0.22` in its bundle and its embedded `claude_pet.py` no longer matches this
   checkout, so `verify_release_artifact.py app` would reject it. A rebuild, re-sign and
   re-notarization is required, exactly as the choice the user answered said.
+
+## v0.21 release — execution gate: clean-tree suite re-run at commit 13675f5
+
+Run by `verifier-v021 (Claude Code subagent, independent Verifier, 2026-09-09)` for
+AGENTS.md §6 execution-gate item 2: the full suite re-run from a tracked-clean tree at the
+release commit, with the command and its output recorded.
+
+This is the run that the pre-commit section above (`### 6. Full suite from the repository
+root`) explicitly said would still be needed. That earlier run measured the same source
+bytes but from a tree carrying six tracked modifications by design; this one runs at the
+release commit with **zero** tracked `M`/`A`/`D` entries, and the tree is shown below to be
+byte- and mtime-identical on both sides of the window.
+
+**I did not launch the GUI** — `python3 claude_pet.py` was never run, with or without
+`--report`. No build or release script was invoked (`build_app.sh` and `release.sh` were
+never executed or sourced), no process was killed (installed PID `29528` and development
+PID `58849` were left alone), no git write command was run (`add`, `commit`, `tag`, `push`,
+`clean`, `reset`, `stash`, `checkout` — none), and **no `CLAUDEPET_RUN_LIVE_*` variable was
+set**; `env | grep -i 'CLAUDEPET\|CLAUDE_PET'` returned nothing before the run. No
+user-owned file (`diag.py`, `release/ClaudePet.iconset/`, `release/icon_1024.png`) and no
+untracked QA capture was read into, written, or moved. This measuring session wrote nothing
+under `~/.claude_pet/` and did not touch `~/.claude_pet.json`, and `LOG_DIRS` was never
+pointed at a real `~/.claude` path. The only file I modified is this record, and I modified
+it only after step 3 below had been captured.
+
+### 1. Tree state and identity before the run — `2026-09-09T01:07:03Z`
+
+```text
+$ git rev-parse HEAD
+13675f5604e2c0f823a3e74a307cd0808e2b8c48
+$ git log -1 --format='%H %s'
+13675f5604e2c0f823a3e74a307cd0808e2b8c48 release: ClaudePet v0.21 (renumbered from the prepared v0.22)
+```
+
+`git status --porcelain` — **zero `M`, `A` and `D` lines**. The ten untracked entries are
+the three user-owned files and the seven QA/handoff captures the release commit
+deliberately excluded:
+
+```text
+?? diag.py
+?? docs-design/quiet-companion-compact-smoke.json
+?? docs-design/quiet-companion-compact-smoke.png
+?? docs-design/quiet-companion-live-contact.png
+?? docs-design/quiet-companion-live-trace.jsonl
+?? docs-design/quiet-companion-release-operator.md
+?? docs-design/quiet-companion-smoke.json
+?? docs-design/quiet-companion-smoke.png
+?? release/ClaudePet.iconset/
+?? release/icon_1024.png
+```
+
+Per AGENTS.md §6 "what clean tree means here", those `??` entries are this repository's
+permanent state and are not tracked dirt.
+
+`shasum -a 256` of the working files, and of the same paths as committed at `HEAD` — the
+working files **equal** the committed blobs, so the suite ran against the release commit's
+own bytes and not against something merely sitting in the directory:
+
+```text
+working file                                                        HEAD blob
+3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c    3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c    claude_pet.py
+9e3e30b4eb47e2863441dba4fb3ce9037c41568e1ccd8514520fbf78bfcd5c06    9e3e30b4eb47e2863441dba4fb3ce9037c41568e1ccd8514520fbf78bfcd5c06    RELEASE_NOTES.md
+88eb7e2cc9e75fcf1f977fa797750ec29438d07894547a56c2b308e6d461820b    88eb7e2cc9e75fcf1f977fa797750ec29438d07894547a56c2b308e6d461820b    tests/test_v021_release_contract.py
+```
+
+`claude_pet.py` is `3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c`,
+which is the source hash the Coordinator's instruction named and the hash the two
+executable harnesses are pinned to.
+
+Mtimes before the run (`stat -f '%m'`, rendered with `date -u`), all three **earlier than
+the start of the window**:
+
+```text
+1788914250  2026-09-09T00:37:30Z  claude_pet.py
+1788914263  2026-09-09T00:37:43Z  RELEASE_NOTES.md
+1788914595  2026-09-09T00:43:15Z  tests/test_v021_release_contract.py
+```
+
+### 2. The run
+
+Command, exactly as run, from the repository root `/Users/yeongyu/claude-pet`:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+(stdout and stderr were captured together into a scratch file; nothing else was added to the
+command line, and no environment variable was set for it.)
+
+- UTC start: `2026-09-09T01:07:20Z`
+- UTC end: `2026-09-09T01:12:48Z`
+- Process exit status: `0`
+- Wall clock reported by unittest: `328.000s`
+- **Grouping key: one unittest discovered test case** — a single `TestCase` method as
+  reported by the `-v` runner. Every count below is in those units, so the denominator is
+  the runner's own `Ran` figure and not a file, class, or assertion count.
+- **File set: the 16 files matching `ls tests/test_*.py`** (counted: 16) —
+  `test_companion_motion.py`, `test_log_estimate.py`, `test_manual_update_transaction.py`,
+  `test_mutation_instruments.py`, `test_partial_copy_seeding.py`,
+  `test_release_artifact_preflight.py`, `test_release_gate.py`, `test_seeding_identity.py`,
+  `test_settings_and_install.py`, `test_signing_contract.py`, `test_source_guard.py`,
+  `test_updater_adversarial.py`, `test_updater.py`, `test_upload_artifact_gate.py`,
+  `test_v020_boundaries.py`, `test_v021_release_contract.py`.
+
+The two summary lines, verbatim from the captured output:
+
+```text
+Ran 448 tests in 328.000s
+```
+
+```text
+OK (skipped=7)
+```
+
+**`441 / 448` passed, `7 / 448` skipped, `0 / 448` failures, `0 / 448` errors.**
+
+How the pass figure was counted, since it is not printed: the captured stream contains 440
+occurrences of `... ok` plus one bare `ok` on its own line — the marker for
+`test_v020_boundaries.B2Bundle.test_both_build_paths_declare_the_payload`, whose `... ok`
+was split by that test's own `[b2] …` stderr lines interleaving into the stream. `440 + 1
+ok` and `7 skipped` sum to the runner's `448`, and the runner's own `OK (skipped=7)`
+independently fixes the skip count and the zero failures and zero errors. Four of the seven
+skip markers are likewise detached from their test-name lines by the loud `[updater]
+SKIPPED: …` stderr the suite prints on purpose, which is why a naive line grep finds only
+three.
+
+The seven skips are the pre-existing opt-in live checks, skipped because no
+`CLAUDEPET_RUN_LIVE_*` variable was set — `7 / 7` of the skips are of that kind, and none is
+a skip caused by a missing tool, a missing fixture, or an error:
+
+```text
+test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about
+  skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight
+  skipped 'the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65
+  skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle
+  skipped 'the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it'
+test_v020_boundaries.B3Updater.test_github_choice_binds_v021_tag_asset_and_arch_without_network
+  skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v020_boundaries.B3Updater.test_invalid_candidates_are_refused_before_handoff
+  skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+test_v020_boundaries.B3Updater.test_well_formed_v021_reaches_one_sandbox_handoff
+  skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+```
+
+These are the same seven skips, with the same reasons, as the pre-commit run in the section
+above and as the v0.22 gate run before it. **They are skips by design, not silent gaps**:
+each prints its reason to stderr as well as to the result line, exactly so that a missing
+prerequisite cannot read as coverage.
+
+The counts match the pre-commit run recorded above (`Ran 448 tests` / `OK (skipped=7)`,
+`441` passing) test for test. That is the expected result — the source bytes are identical —
+and it is reported here as a consistency observation, not as a substitute for this run.
+
+### 3. Tree state after the run — `2026-09-09T01:12:56Z`, identical to step 1
+
+`git status --porcelain` after the run:
+
+```text
+?? diag.py
+?? docs-design/quiet-companion-compact-smoke.json
+?? docs-design/quiet-companion-compact-smoke.png
+?? docs-design/quiet-companion-live-contact.png
+?? docs-design/quiet-companion-live-trace.jsonl
+?? docs-design/quiet-companion-release-operator.md
+?? docs-design/quiet-companion-smoke.json
+?? docs-design/quiet-companion-smoke.png
+?? release/ClaudePet.iconset/
+?? release/icon_1024.png
+```
+
+`diff` of the two `git status --porcelain` captures reports **no difference**: still zero
+`M`/`A`/`D`, the same ten untracked entries in the same order. The suite writes only into
+`tempfile` directories, and `__pycache__/` is gitignored.
+
+`HEAD` after the run is still `13675f5604e2c0f823a3e74a307cd0808e2b8c48`.
+
+Hashes after the run, identical to §1:
+
+```text
+3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c  claude_pet.py
+9e3e30b4eb47e2863441dba4fb3ce9037c41568e1ccd8514520fbf78bfcd5c06  RELEASE_NOTES.md
+88eb7e2cc9e75fcf1f977fa797750ec29438d07894547a56c2b308e6d461820b  tests/test_v021_release_contract.py
+```
+
+Mtimes after the run — the same epoch seconds as §1, every one of them earlier than the
+`01:07:20Z` start, so no tracked file moved at any point in the window:
+
+```text
+1788914250  2026-09-09T00:37:30Z  claude_pet.py
+1788914263  2026-09-09T00:37:43Z  RELEASE_NOTES.md
+1788914595  2026-09-09T00:43:15Z  tests/test_v021_release_contract.py
+```
+
+**The tree was unchanged for the whole window**, so this run counts as the §6 item 2 record.
+The only tracked file that changes afterwards is this document, written after the step 3
+capture above.
+
+### 4. Verdict, and what this section does *not* establish
+
+**PASS** for AGENTS.md §6 execution-gate item 2: at release commit
+`13675f5604e2c0f823a3e74a307cd0808e2b8c48`, from a tracked-clean tree that did not move
+during the run, `python3 -m unittest discover -s tests -v` from the repository root reports
+`Ran 448 tests in 328.000s` and `OK (skipped=7)` — `441/448` pass, `7/448` opt-in live
+skips, `0/448` failures, `0/448` errors — and the tree is byte-identical before and after.
+
+What this section does **not** establish, so that nobody reads it as more than it is:
+
+- It is **not** the whole execution gate. §6 also requires the release-notes check, the
+  Coordinator's recorded sign-off, and a named eligible release operator with their
+  eligibility stated. Those are items 3, 4 and 5 and belong to other parties; nothing here
+  supplies them.
+- It is **not** authorization for anything. It is a finding that one gate item passed. Under
+  CLAUDE.md's release procedure the build, signing, notarization, tag push and publication
+  each remain separately authorized, and an authorization is never a finding that the gate
+  passed — nor the reverse.
+- It says nothing about any **artifact**. No bundle was built, signed, notarized or
+  inspected here; the previously signed and notarized v0.22 artifact remains stale for this
+  release, as the pre-commit section already recorded.
+- The seven skips are **untested paths, not passing ones**. They cover the live installed
+  bundle, the real stapler contract, and the v0.20→v0.21 upgrade boundary against a real
+  installation; running them requires the opt-in variables, which this session deliberately
+  did not set.
