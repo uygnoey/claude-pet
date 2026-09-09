@@ -9693,3 +9693,376 @@ usage: claude_pet.py --with-update-lock <APP_PATH> -- <COMMAND> [ARGS...]
 [update] rejected: archive symlink escapes the archive root
 [update] rejected: archive symlink escapes the archive root
 ```
+
+---
+
+## v0.21 release (renumbered from v0.22 by user decision) — pre-commit verification
+
+Run by `verifier-v021 (Claude Code subagent, fresh independent Verifier)`. I held **no
+other role** on this change: I did not write, edit, or review any production file of it.
+The three tracked production/notes edits under test were made by the Developer
+(`Claude Fable 5.1`, session `55c3dee4-727f-4a94-b960-66540b129014`) before I was
+spawned; the only files I modified are the three test files named in §6 below and this
+record.
+
+**Why this section exists.** The release had been prepared as v0.22 on top of the
+untagged, unpublished v0.21. The user then decided first-hand, answering the choice
+"1. 0.22로 게시 / 2. 0.21로 게시(재빌드·재서명·재공증 필요)" with **"2"**, after saying
+"21 버전이 릴리즈되야지", "지금 20버전이 최신인데", and "릴리스 내용 왤케 길어 간결하게
+하라니까". The release is therefore renumbered to v0.21 and the notes shortened. This
+section verifies the renumbered, uncommitted working tree; it is a **pre-commit**
+verification, not the §6 execution gate, which is evaluated after the release commit
+from a clean tree.
+
+**Safety envelope.** I did not launch the GUI — `python3 claude_pet.py` was never run,
+with or without `--report`. No build or release script was invoked or sourced. No process
+was killed (installed PID `29528` and development PID `58849` were left alone). No git
+write command was run: no `add`, `commit`, `tag`, `push`, `clean`, `reset`, `stash`, or
+`checkout`. No `rm -rf` was run against any repository directory. No untracked file was
+created, modified, or deleted — `diag.py`, `release/ClaudePet.iconset/`,
+`release/icon_1024.png` and the six untracked `docs-design/quiet-companion-*` QA captures
+plus `docs-design/quiet-companion-release-operator.md` were all left alone. This
+measuring session wrote nothing under `~/.claude_pet/`, did not touch `~/.claude_pet.json`,
+and never pointed `LOG_DIRS` at a real `~/.claude` path. Every scratch artifact of the
+mutation check below lived under the session scratchpad, outside the repository.
+
+### 1. Working-tree diff, and the identity of the application source — `2026-09-09T00:38Z`
+
+`git rev-parse HEAD` → `b456b46a5f0a8bc5aad87673e9f38f0f0de3a238`
+(`docs: record the v0.22 execution gate — clean-tree suite re-run at 22a0645 and
+Coordinator sign-off`), on top of `22a0645`, `7865af5`, `45a03c4` (`release: ClaudePet
+v0.21`). Local tag `v0.22` exists at `b456b46` and has never been pushed;
+`git tag --sort=-v:refname | head -3` → `v0.22`, `v0.20`, `v0.19`.
+
+`git status --porcelain` at that moment showed exactly **three** tracked modifications
+and no additions or deletions:
+
+```text
+ M RELEASE_NOTES.md
+ M claude_pet.py
+ M verify_release_artifact.py
+```
+
+The complete tracked diff is three one-line changes plus the notes rewrite
+(`git diff --stat` → `3 files changed, 5 insertions(+), 10 deletions(-)`):
+
+- `claude_pet.py`: `APP_VERSION = "0.22"` → `APP_VERSION = "0.21"`, and nothing else.
+- `verify_release_artifact.py`: the usage line `--expect-version 0.22` →
+  `--expect-version 0.21`, and nothing else.
+- `RELEASE_NOTES.md`: the `**v0.22**` section removed and the unpublished `**v0.21**`
+  section rewritten as one concise section.
+
+**Confirmed: `claude_pet.py` is byte-identical to the previously reviewed and fully
+verified source.** `shasum -a 256 claude_pet.py` →
+`3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c`, which is the value
+the assignment stated. The only difference from the source verified at `22a0645`
+(`c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9`, confirmed here by
+`git show HEAD:claude_pet.py | shasum -a 256`) is the single `APP_VERSION` literal.
+
+Working-file hashes at the start of this verification:
+
+```text
+3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c  claude_pet.py
+7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa  verify_release_artifact.py
+a5b256867bf3e78314b4bfdec7e9372d6a9ed7304c534b921a62cd9dc2146e23  release.sh
+83eca429c7742a3254715a9f8c063289e79553b01a36124c1402c579cea600d6  build_app.sh
+9e3e30b4eb47e2863441dba4fb3ce9037c41568e1ccd8514520fbf78bfcd5c06  RELEASE_NOTES.md
+```
+
+`release.sh` and `build_app.sh` are **unchanged**, matching the values already pinned in
+the two executable harnesses. Only `claude_pet.py` and `verify_release_artifact.py` moved.
+
+### 2. The published v0.20-and-older bytes are untouched
+
+`RELEASE_NOTES.md` from the `**v0.20**` heading through EOF hashes to
+`6d73456411eac4d7b2aa9b7556bb185fc43f84417ce8e91969dd8b91caf52ee1`, which is exactly the
+value `PUBLISHED_V020_AND_OLDER_SHA256` already pinned before this change. Renumbering an
+unpublished entry disturbed no published byte. The changelog headings are now
+`['0.21', '0.20', '0.19', '0.18', …]` — `0.22` is gone.
+
+The new v0.21 body, verbatim and complete:
+
+```text
+- 세션·주간·모델 한도를 Claude 앱에 보이는 %로 맞춥니다. 빈 칸은 기존 한도를 유지하고, %와 M을 같이 넣으면 %가 우선합니다.
+- 펫이 쉬다가 마우스가 움직이면 한 번 다가와 6초 보고 돌아옵니다. 잡거나 메뉴를 열면 그 자리에 멈추고, 걸을 땐 게이지를 접었다가 도착하면 세션·주간 %만 한 줄로 보여 줍니다.
+- 우클릭 메뉴 "화면 돌아다니기"로 끌 수 있고, 동작 줄이기가 켜져 있으면 움직이지 않습니다. 추정 계산은 그대로라 다시 보정할 필요가 없습니다.
+```
+
+Measured: **3** top-level bullets, **0** nested bullets, **266** Unicode characters with
+whitespace normalized to single spaces (budget 450), **2** sentences in each of the three
+bullets (budget 2). Grouping key: one changelog bullet.
+
+### 3. Observed RED before repinning the two executable harnesses
+
+The two harnesses pin the reviewed bytes of the files they extract fragments from, and
+those pins still named the v0.22 bytes. **Both were run first and their actual failure
+output recorded**, per AGENTS.md §3 — the pins are a safety boundary, so the red state is
+the boundary firing, and it must be seen rather than assumed.
+
+`python3 -m unittest tests.test_upload_artifact_gate` — `2026-09-09T00:39Z`:
+
+```text
+FAIL: test_zip_with_no_app_fails (tests.test_upload_artifact_gate.VerifyUploadArtifactTests.test_zip_with_no_app_fails)
+  File "/Users/yeongyu/claude-pet/tests/test_upload_artifact_gate.py", line 377, in setUp
+    assert_reviewed_file(self, RELEASE_VERIFIER, REVIEWED_VERIFIER_SHA256)
+AssertionError: '7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa' != '8de85e87dd8ba5c5dc254dfac33f7bcedfd19e2d681d2bf981df19b34e8eb82d'
+ : verify_release_artifact.py changed after this executable harness was reviewed; refusing to run it until a verifier reviews and repins the new bytes
+
+Ran 64 tests in 3.451s
+
+FAILED (failures=48)
+```
+
+All 48 failures carried that identical assertion message; the `setUp` gate checks the
+verifier hash before the application hash, so the stale `claude_pet.py` pin in the same
+file was masked by it rather than absent.
+
+`python3 -m unittest tests.test_manual_update_transaction` — `2026-09-09T00:39Z`:
+
+```text
+ERROR: setUpClass (tests.test_manual_update_transaction.WholeTransactionConcurrencyTests)
+  File "/Users/yeongyu/claude-pet/tests/test_manual_update_transaction.py", line 742, in setUpClass
+    raise AssertionError(
+AssertionError: claude_pet.py changed after the shared-lock/version harness was reviewed: expected c3d343439c812804154b02ce8cd1959d385c576256a471204af589996e8dcaf9, found 3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c
+
+Ran 0 tests in 0.004s
+
+FAILED (errors=8)
+```
+
+All 8 class-level errors carried that same message.
+
+**Repinned only after reading every changed line** — the whole tracked diff is quoted in
+§1 above and amounts to two literal edits plus the notes rewrite:
+
+| File | Constant | Was | Now |
+| --- | --- | --- | --- |
+| `tests/test_upload_artifact_gate.py` | `REVIEWED_VERIFIER_SHA256` | `8de85e87…eb82d` | `7f4e4887…1256fa` |
+| `tests/test_upload_artifact_gate.py` | `REVIEWED_APP_SOURCE_SHA256` | `c3d34343…dcaf9` | `3a96147a…9768c` |
+| `tests/test_manual_update_transaction.py` | `REVIEWED_APP_SOURCE_SHA256` | `c3d34343…dcaf9` | `3a96147a…9768c` |
+
+`REVIEWED_RELEASE_SHA256` and `REVIEWED_BUILD_APP_SHA256` were **not** touched:
+`release.sh` and `build_app.sh` did not change, and repinning an unchanged file would
+have destroyed the evidence that it is unchanged.
+
+GREEN after repinning, same commands, `2026-09-09T00:41Z`:
+
+```text
+Ran 64 tests in 48.692s
+
+OK
+```
+
+```text
+Ran 18 tests in 13.450s
+
+OK
+```
+
+### 4. `tests/test_v021_release_contract.py` updated for the renumbered release
+
+The module previously gated **two** changelog sections (the untagged v0.21 and the new
+v0.22) and pinned `APP_VERSION == "0.22"`. It now gates one v0.21 section. Changes:
+
+- `APP_VERSION` must be exactly one literal `"0.21"`; `verify_release_artifact.py` must
+  advertise `--expect-version 0.21` and must **not** advertise `0.22` or `0.20`.
+- Changelog headings must begin `["0.21", "0.20"]`, and `0.22` must appear in no heading.
+- The whole `V022ReleaseNotesContractTests` / `V022SourceBackedClaimTests` pair is gone.
+- The old v0.21 content pins are gone with it, including the ones the user explicitly
+  asked to shorten away: the `2M`/`25%`/`8M` worked example, the "0% cannot be
+  back-solved" advice, the exact-mode-versus-spike-detection distinction, and the
+  four-locale coverage claim. Pinning prose the user asked to delete would have made the
+  gate demand the very verbosity the renumbering was for.
+- **One assertion was dropped without replacement and is recorded here rather than
+  quietly:** the old `SUMMARY_APPROX`/`≈` source-backed test. Its stated reason was "the
+  notes promise ≈", and the concise notes no longer mention `≈`, so keeping it would have
+  left a test whose docstring asserts something false. The `≈` behaviour itself is
+  unchanged in the source and remains covered by `tests/test_companion_motion.py`.
+- New content pins, holding for the new text: session/weekly/model limits set from the
+  displayed `%`; blank inputs preserving existing limits; `%` winning over an absolute
+  `M` limit; approach-on-mouse-movement with a duration in seconds and a return;
+  grabbing or opening the menu stopping it in place; gauges folding while walking; a
+  one-line session/weekly `%` arrival summary; the right-click menu toggling it off;
+  macOS Reduce Motion suppressing the movement; and recalibration being unnecessary
+  because the estimator is unchanged. Plus the unchanged structural gates (exactly 3
+  top-level bullets, no nested bullets, ≤450 normalized characters, ≤2 sentences per
+  bullet, Korean in every bullet) and the unchanged `FORBIDDEN_NOTE_PATTERNS` scan
+  (hashes, source paths, line references, internal identifiers, test prose, unsupported
+  magnitude/frequency words).
+- Two claims are **cross-checked against the source by AST**, so neither side can drift
+  alone: the notes' single `초` figure must equal `ROAM_DEFAULTS["look_s"]`, which must be
+  `6.0` (and `look_s` must be the dwell of `Roamer._watch`'s `"approach"` branch, not the
+  wander pause); and the quoted context-menu label must be exactly `TR["ko"]["menu_roam"]`
+  = `화면 돌아다니기`, with `menu_roam` present in all four locales.
+- `PUBLISHED_V020_AND_OLDER_SHA256` and the published-suffix check are **unchanged**,
+  moved verbatim into their own `PublishedNotesImmutabilityTests` case.
+
+One regex needed correcting during this work and is worth recording, because it failed in
+the direction that produces a vacuous gate rather than a loud one: `\bM\b` does **not**
+match the `M` in `M을`. Korean particles are word characters, so there is no word boundary
+after the `M`, and the `%`-wins pin silently found nothing. It is now
+`(?<![A-Za-z])M(?![A-Za-z])`, with the reason in a comment beside it.
+
+Result on the real tree, `python3 -m unittest tests.test_v021_release_contract`:
+
+```text
+Ran 10 tests in 0.099s
+
+OK
+```
+
+### 5. Mutation check: the new pins discriminate — `2026-09-09T00:42Z`
+
+A gate that is green on the current text has not yet been shown to be green *because of*
+the text. The real `RELEASE_NOTES.md` was **never edited**. Instead `RELEASE_NOTES.md`,
+`claude_pet.py`, `verify_release_artifact.py`, `CLAUDE.md` and the three test files were
+copied into a scratch directory outside the repository, and each mutation was applied and
+reverted there. Grouping key: one mutation. Denominator: 12 mutations, plus a baseline
+before and after.
+
+```text
+[baseline] -> OK
+[6초 -> 8초]                        -> FAILED (failures=1) | test_v021_look_duration_matches_the_source_default
+[4th bullet added]                  -> FAILED (failures=1) | test_v021_notes_follow_the_three_bullet_450_character_format
+[nested bullet added]               -> FAILED (failures=1) | test_v021_notes_follow_the_three_bullet_450_character_format
+[forbidden magnitude word '대부분']  -> FAILED (failures=1) | test_v021_notes_state_the_user_facing_behaviour_and_nothing_internal
+[forbidden test prose '테스트']      -> FAILED (failures=1) | test_v021_notes_state_the_user_facing_behaviour_and_nothing_internal
+[menu label reworded]               -> FAILED (failures=1) | test_v021_menu_label_is_quoted_exactly_as_the_korean_source_string
+[blank-preserves claim dropped]     -> FAILED (failures=1) | test_v021_notes_state_the_user_facing_behaviour_and_nothing_internal
+[recalibration claim dropped]       -> FAILED (failures=1) | test_v021_notes_state_the_user_facing_behaviour_and_nothing_internal
+[arrival summary claim dropped]     -> FAILED (failures=1) | test_v021_notes_state_the_user_facing_behaviour_and_nothing_internal
+[v0.22 heading restored]            -> FAILED (failures=1) | test_v021_is_the_newest_heading_and_v022_is_gone
+[APP_VERSION back to 0.22]          -> FAILED (failures=1) | test_v021_version_and_final_source_pins_propagate
+[ROAM look_s 6.0 -> 8.0]            -> FAILED (failures=2) | test_v021_look_duration_matches_the_source_default,
+                                                             test_v021_version_and_final_source_pins_propagate
+[restored baseline] -> OK
+```
+
+**12 of 12 mutations turned the gate red, and each was caught by the case that is meant
+to catch it.** The last row is the two-sided cross-check working in the source direction:
+moving `look_s` while the notes still say `6초` fails the duration comparison, and it also
+trips the application-source pin, which is the correct second signal for an edit to
+`claude_pet.py`. The `6초 -> 8초` row is the same check working in the notes direction.
+The two baselines bracket the run, so no mutation leaked into the next.
+
+`shasum -a 256` of the real `RELEASE_NOTES.md` after the mutation run →
+`9e3e30b4eb47e2863441dba4fb3ce9037c41568e1ccd8514520fbf78bfcd5c06`, unchanged from §1,
+and `claude_pet.py` → `3a96147a…9768c`, likewise unchanged.
+
+### 6. Full suite from the repository root
+
+Command, run verbatim from `/Users/yeongyu/claude-pet`:
+
+```text
+python3 -m unittest discover -s tests -v
+```
+
+- **UTC start:** `2026-09-09T00:43:51Z`
+- **UTC end:** `2026-09-09T00:49:18Z`
+- **Process exit status:** `0`
+- **Grouping key:** one unittest-discovered test case (a `TestCase` method), as reported
+  by unittest's own `Ran N tests` counter.
+- **File set:** the 16 files matching `tests/test_*.py` in this checkout —
+  `test_companion_motion.py`, `test_log_estimate.py`, `test_manual_update_transaction.py`,
+  `test_mutation_instruments.py`, `test_partial_copy_seeding.py`,
+  `test_release_artifact_preflight.py`, `test_release_gate.py`, `test_seeding_identity.py`,
+  `test_settings_and_install.py`, `test_signing_contract.py`, `test_source_guard.py`,
+  `test_updater.py`, `test_updater_adversarial.py`, `test_upload_artifact_gate.py`,
+  `test_v020_boundaries.py`, `test_v021_release_contract.py`.
+
+Verbatim result lines:
+
+```text
+----------------------------------------------------------------------
+Ran 448 tests in 326.263s
+
+OK (skipped=7)
+```
+
+Counts, with the denominator unittest itself reported:
+
+| | count | of |
+| --- | --- | --- |
+| ran | 448 | 448 |
+| passed | 441 | 448 |
+| skipped | 7 | 448 |
+| failures | 0 | 448 |
+| errors | 0 | 448 |
+
+`grep -cE "^(FAIL|ERROR):"` over the captured output → `0`.
+
+The 7 skips are the expected opt-in live checks, each announced loudly on stderr as well
+as through `skipTest`, and all 7 reasons were read from the run:
+
+```text
+[updater] SKIPPED: the installed-app preflight is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+  test_updater.RealBundleAcceptanceTests.test_the_real_bundle_contains_the_symlinks_this_guard_is_about
+  test_updater.RealBundleAcceptanceTests.test_the_real_installed_bundle_is_accepted_by_the_preflight
+[updater] SKIPPED: the real stapler contract is an opt-in live check; set CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1 to run it
+  test_updater.StaplerLiveContractTests.test_stapler_rejects_an_unstapled_bundle_with_rc_65
+  test_updater.StaplerLiveContractTests.test_stapler_reports_success_for_our_stapled_bundle
+skipped 'live installed-v0.20 to checkout-v0.21 boundary requires CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1'
+  test_v020_boundaries.test_github_choice_binds_v021_tag_asset_and_arch_without_network
+  test_v020_boundaries.test_invalid_candidates_are_refused_before_handoff
+  test_v020_boundaries.test_well_formed_v021_reaches_one_sandbox_handoff
+```
+
+Neither `CLAUDEPET_RUN_LIVE_UPDATER_TESTS` nor `CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES`
+was set by me. Note that the third message now reads **`checkout-v0.21`**: it is derived
+from `APP_VERSION`, so the renumbering is visible in the skip text itself.
+
+Tree state immediately after the run — the same six tracked modifications, no additions,
+no deletions, and the ten untracked entries unchanged in number and name:
+
+```text
+ M RELEASE_NOTES.md
+ M claude_pet.py
+ M tests/test_manual_update_transaction.py
+ M tests/test_upload_artifact_gate.py
+ M tests/test_v021_release_contract.py
+ M verify_release_artifact.py
+?? diag.py
+?? docs-design/quiet-companion-compact-smoke.json
+?? docs-design/quiet-companion-compact-smoke.png
+?? docs-design/quiet-companion-live-contact.png
+?? docs-design/quiet-companion-live-trace.jsonl
+?? docs-design/quiet-companion-release-operator.md
+?? docs-design/quiet-companion-smoke.json
+?? docs-design/quiet-companion-smoke.png
+?? release/ClaudePet.iconset/
+?? release/icon_1024.png
+```
+
+Hashes after the run, identical to §1:
+
+```text
+3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c  claude_pet.py
+9e3e30b4eb47e2863441dba4fb3ce9037c41568e1ccd8514520fbf78bfcd5c06  RELEASE_NOTES.md
+7f4e4887e532be3d576dbb478d08668a562a136de75d35ff6851d7731d1256fa  verify_release_artifact.py
+a5b256867bf3e78314b4bfdec7e9372d6a9ed7304c534b921a62cd9dc2146e23  release.sh
+83eca429c7742a3254715a9f8c063289e79553b01a36124c1402c579cea600d6  build_app.sh
+```
+
+### 7. Verdict, and what this section does *not* establish
+
+**PASS** for what was asked: the working tree carries exactly the three Developer edits,
+`claude_pet.py` is byte-identical to the previously reviewed source apart from its
+`APP_VERSION` literal, the two harness pins were repinned only after an observed RED, the
+renumbered release-contract gate is green and shown to discriminate on 12 of 12
+mutations, and the full suite is `Ran 448 tests` / `OK (skipped=7)` with zero failures and
+zero errors.
+
+Three things this section deliberately does **not** claim:
+
+- It is **not** the AGENTS.md §6 execution gate. That is evaluated *after* the release
+  commit, from a tracked-clean tree, and this tree has six tracked modifications by
+  design. The suite run above is pre-commit evidence; the gate needs its own re-run.
+- It records **no Coordinator sign-off and names no release operator**. Those are §6
+  items 4 and 5 and belong to other parties.
+- It is **not** authorization for anything. The user's "2" chose the version number; it
+  is not authorization to bump, commit, tag, push, sign, notarize, or publish, each of
+  which is separately authorized under CLAUDE.md's release procedure. The v0.22 arm64
+  artifact that was already signed and notarized is **stale for this release** — it
+  carries `0.22` in its bundle and its embedded `claude_pet.py` no longer matches this
+  checkout, so `verify_release_artifact.py app` would reject it. A rebuild, re-sign and
+  re-notarization is required, exactly as the choice the user answered said.

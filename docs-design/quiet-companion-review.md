@@ -1780,3 +1780,230 @@ commit that carries it must be in place before anything generates the release bo
 bytes in `7865af5d`.
 
 reviewer-v022 (Claude Code subagent, spawned by coordinator-v022, 2026-09-08)
+
+---
+
+## v0.21 release (renumbered) — pre-commit review
+
+Reviewer: **reviewer-v021** (Claude Code subagent, fresh session; holds the Reviewer role
+only — not Developer, not Verifier, not Coordinator, not release operator on this
+release). Read-only review of the uncommitted working tree; no file in the repository was
+modified except this append. Verdict: **PASS**, with non-blocking findings listed at the
+end.
+
+The user decided the renumbering first-hand — "2" to the choice
+"1. 0.22로 게시 / 2. 0.21로 게시(재빌드·재서명·재공증 필요)", after "21 버전이 릴리즈되야지",
+"지금 20버전이 최신인데" and "릴리스 내용 왤케 길어 간결하게 하라니까". **This review records
+that the tree matches that decision. It is not an authorization for any release step**, and
+it is **not** the §6 execution gate: the gate is evaluated after the release commit from a
+tracked-clean tree, and six tracked files are modified right now.
+
+### 1. Working-tree scope, and the three Developer files
+
+`git status --porcelain` shows exactly seven tracked modifications and no additions or
+deletions: the Developer's three (`claude_pet.py`, `verify_release_artifact.py`,
+`RELEASE_NOTES.md`), the Verifier's four (three under `tests/`, plus the verification
+record). Untracked entries are the ten expected ones; none was touched.
+
+- **`claude_pet.py`** — `git diff HEAD` is one removed and one added line, the
+  `APP_VERSION` literal `"0.22"` → `"0.21"`. Working-tree SHA-256 is
+  `3a96147a2e4658eec7182662d85ccbb669e5449b244caa689e7b669138d9768c`, the value the
+  assignment names. That is the source this document's *Final Reviewer sign-off* and
+  *Final development sign-off* sections passed and the verification record's header still
+  carries as "Verifier PASS on final source". HEAD (`b456b46`) holds
+  `c3d34343…dcaf9`, which differs from it by that single literal — so the earlier full
+  verification and the earlier Reviewer PASS transfer to these bytes without an argument
+  about what else might have moved.
+- **`verify_release_artifact.py`** — one line, inside the module docstring's usage
+  block: `--expect-version 0.22` → `0.21`. No code path reads it; `release.sh` passes
+  `--expect-version "$(cur_version)"`, and `cur_version` greps `APP_VERSION` out of
+  `claude_pet.py`, so the real value follows the constant. The edit keeps the advertised
+  example from contradicting the tool's behaviour.
+- **`RELEASE_NOTES.md`** — reviewed in §2.
+
+`release.sh` (`a5b25868…46a23`) and `build_app.sh` (`83eca429…600d6`) are unmodified,
+which matters because two test pins assert exactly that.
+
+`setup.py` derives `CFBundleVersion` and `CFBundleShortVersionString` from `APP_VERSION`
+by regex, so the plist follows the constant with no second edit. A tree-wide scan for a
+literal `0.22` outside the three `docs-design/quiet-companion-*` records and the contract
+test (where it appears only as the value to *reject*) finds none.
+
+### 2. `RELEASE_NOTES.md` against CLAUDE.md step 2
+
+Measured on the working tree, not asserted:
+
+| Rule | Required | Measured |
+| --- | --- | --- |
+| top-level bullets | exactly 3 | 3 |
+| nested bullets | none | 0 |
+| normalized body | ≤ 450 chars | 266 (260 without the `- ` markers) |
+| sentences per bullet | 1–2 | 2 / 2 / 2 |
+| language | Korean | all three |
+
+Forbidden content: no hash, no internal identifier, no source path, no line reference, no
+test prose, no unquantified magnitude/frequency word. The one quantity in the entry, `6초`,
+is auditable in the release commit's own tree — `ROAM_DEFAULTS["look_s"] == 6.0` — which is
+what CLAUDE.md's "감사할 수 있거나" clause requires.
+
+**Published bytes.** From `**v0.20**` through EOF the working tree and HEAD hash to the
+same `6d73456411eac4d7b2aa9b7556bb185fc43f84417ce8e91969dd8b91caf52ee1`; a byte comparison
+of the same range returns identical, and the four-language installer prefix above the
+changelog is byte-identical too. The only rewritten region is the unpublished area between
+them. `gh release list` reports v0.20 as Latest with no v0.21 and no v0.22, and
+`git tag --sort=-v:refname` contains no `v0.21` — so by CLAUDE.md's operational test the
+rewritten entry is *staged*, and correcting it is ordinary work rather than rewriting
+history.
+
+**Generated release body.** `release.sh`'s `gen_release_notes` awk program was copied out
+and run over a scratch copy of `RELEASE_NOTES.md` with `ver="**v0.21**"`; `release.sh` was
+never executed and never sourced. The result is 64 lines: the four-language install block,
+the changelog heading, and the v0.21 section alone. The v0.20 planning comment is stripped
+(`keep` is 0 until a heading matches), and the body contains no `v0.22`, `v0.20` or `v0.19`
+token — so it is self-contained. This is what the earlier v0.22 body needed a trailing
+"v0.21로 준비했던 % 보정 설정도 이 버전에 함께 들어 있습니다" sentence to achieve; merging the
+two entries into one removes the need for the pointer instead of restating it.
+
+**Claim-by-claim, against `claude_pet.py` at `3a96147a…` (deterministic source reads, not
+sampled observations):**
+
+1. *"세션·주간·모델 한도를 … %로 맞춥니다"* — `GAUGE_LIMIT_KEYS` is exactly
+   `session/weekly/opus`, and `prepare_settings_config` back-solves `used * 100 / pct` per
+   gauge. ✓
+2. *"빈 칸은 기존 한도를 유지하고"* — both loops `continue` on an untouched blank raw
+   string, and `candidate` starts as a copy of `base_cfg`, so an untouched gauge keeps its
+   key and gains none. ✓
+3. *"%와 M을 같이 넣으면 %가 우선합니다"* — the direct-M loop writes `limits[ckey]` first and
+   the calibration loop overwrites the same key. ✓
+4. *"마우스가 움직이면 한 번 다가와 6초 보고 돌아옵니다"* — `Roamer._watch` sets
+   `_look_until = now + cfg["look_s"]` on the `approach` branch (the `else` uses
+   `wander_pause_s`), and `ROAM_DEFAULTS["look_s"] == 6.0`. ✓
+5. *"잡거나 메뉴를 열면 그 자리에 멈추고"* — `Roamer.step` computes
+   `hold = (not enabled) or dragging or blocked or busy`, `busy` includes
+   `state["menu_open"]`, and while moving `hold` stops in place. ✓
+6. *"걸을 땐 게이지를 접었다가"* — `RoamDisplay.mode` returns `DISPLAY_FOLDED` for phases
+   `out`/`home` unconditionally. ✓
+7. *"도착하면 세션·주간 %만 한 줄로 보여 줍니다"* — `RoamDisplay.note` latches `summary` on
+   `phase == "look" and kind == "approach"`; `roam_summary` yields the `session`/`weekly`
+   rows and `roam_summary_line` joins them with ` · `. ✓ (see finding N1 for API mode)
+8. *"우클릭 메뉴 \"화면 돌아다니기\"로 끌 수 있고"* — `TR["ko"]["menu_roam"]` is exactly
+   `화면 돌아다니기`, present in all four locales, wired to `toggleRoam:`. ✓
+9. *"동작 줄이기가 켜져 있으면 움직이지 않습니다"* — `enabled = bool(RUNTIME.get("roam")) and
+   not state["reduce_motion"]`, fed by `accessibilityDisplayShouldReduceMotion()`; the menu
+   item is additionally disabled in that state. ✓
+10. *"추정 계산은 그대로라 다시 보정할 필요가 없습니다"* — checked rather than trusted. The
+    source text of `_weigh_usage`, `parse_usage_entries`, `compute_usage`,
+    `_weekly_window_start`, `_iter_log_files`, `spike_info`, `is_spike` and
+    `_detect_model_keyword` was extracted by AST from `68a2b1d` (the published v0.20) and
+    from the working tree and hashed pairwise: all eight identical. The estimator that
+    produced a user's calibrated limit is byte-for-byte the one v0.21 ships, so the
+    Danger-zone recalibration warning is correctly *absent*. ✓
+
+### 3. The Verifier's test edits
+
+**Repins recomputed independently**, by hashing the files rather than reading the record:
+`tests/test_manual_update_transaction.py:REVIEWED_APP_SOURCE_SHA256` and
+`tests/test_upload_artifact_gate.py:REVIEWED_APP_SOURCE_SHA256` now hold
+`3a96147a…9768c` = `sha256(claude_pet.py)`; `test_upload_artifact_gate.py:
+REVIEWED_VERIFIER_SHA256` holds `7f4e4887…1256fa` = `sha256(verify_release_artifact.py)`.
+`REVIEWED_RELEASE_SHA256` and `REVIEWED_BUILD_APP_SHA256` were correctly left alone and
+still match `release.sh` and `build_app.sh` — repinning them would have erased the evidence
+that those two files did not move. Both harnesses were re-run here: `28 tests OK` for the
+contract plus manual-update modules, `64 tests OK` for the upload gate.
+
+**Nothing weakened in the published-bytes pin.** `PUBLISHED_V020_AND_OLDER_SHA256` holds the
+same `6d734564…52ee1` as before the rewrite, and the assertion moved intact into
+`PublishedNotesImmutabilityTests` — still `count(b"**v0.20**") == 1` plus the suffix hash.
+The heading-order assertion was tightened, not loosened: it now demands
+`["0.21", "0.20"]` *and* that no `0.22` heading survives anywhere in the changelog.
+
+**Discrimination checked by mutation, independently of the Verifier's run.** A scratch
+copy of the tree (repository files copied out, never modified in place) was mutated 11
+times, one at a time, with the module re-run each time and the baseline confirmed OK before
+and after. All 11 went RED:
+
+| mutation | result |
+| --- | --- |
+| notes `6초` → `9초` | FAILED (1) |
+| source `look_s` 6.0 → 9.0 | FAILED (2) |
+| a 4th top-level bullet | FAILED (1) |
+| a nested bullet | FAILED (1) |
+| forbidden word `대부분` inserted | FAILED (1) |
+| menu label reworded in the source | FAILED (2) |
+| "빈 칸은 기존 한도를 유지하고" deleted | FAILED (1) |
+| "%가 우선합니다" clause deleted | FAILED (1) |
+| arrival-summary clause deleted | FAILED (1) |
+| one byte changed in the published v0.19 area | FAILED (1) |
+| `APP_VERSION` back to `"0.22"` | FAILED (1) |
+
+The two-failure rows are the deliberate both-sides pins: moving either the source constant
+or the sentence breaks the cross-check, which is the property a one-sided pin would lose.
+
+**The regex defect the Verifier reported is real, and the fix is right.** Against the actual
+bullet text, `re.search(r"\bM\b", …)` returns `None` while
+`re.search(r"(?<![A-Za-z])M(?![A-Za-z])", …)` matches: a Korean particle is a word
+character, so `M을` carries no trailing word boundary. The old form would have passed
+vacuously — a gate asserting nothing while reading as though it asserted the precedence
+rule. Deleting the clause now fails, as the table above shows.
+
+**The one assertion dropped without replacement was disclosed, and the coverage claim
+holds.** The old `SUMMARY_APPROX`/`≈` source cross-check was justified by the notes
+promising `≈`; the shortened notes no longer mention it, so the justification is gone
+rather than the behaviour. `tests/test_companion_motion.py` still asserts both directions —
+`"세션 ≈42% · 주간 ≈17%"` for the estimate path and `"session 42% · 주간 17%"` for server
+rows, plus a third assertion in the fit-contract test. Verified by reading those tests, not
+by taking the report's word for it.
+
+**The verification record is append-only in the strict sense.** `git diff --numstat` reports
+`373 0`, and a byte comparison confirms HEAD's copy is an exact prefix of the working-tree
+file (20,633 bytes appended). No earlier section was rewritten.
+
+### 4. Privacy
+
+The user-facing entry contains no filesystem path, no `~/`-rooted path, no UUID, no session
+identifier, no hex string of 7 or more digits, and no transcript content; a pattern scan
+over the section returns nothing on any of those. The one quoted string is a UI label from
+`TR`. Nothing in the entry names a project directory.
+
+### 5. Non-blocking findings
+
+- **N1 — bullet 2 generalizes over API mode.** "도착하면 세션·주간 %만 한 줄로 보여 줍니다" is
+  true in subscription mode (exact and estimate both yield the two gauge rows), but
+  `roam_summary` returns `("cost", …)` in API mode, so an API-mode user sees today's cost
+  there instead. The published v0.22 draft carried the same generalization, so this is not a
+  regression, and API mode requires an Admin API key. Left as-is; noted so nobody later
+  reads the sentence as a spec.
+- **N2 — the stale local tag `v0.22` still points at `b456b46`.** It was never pushed, and
+  `gh release list` confirms nothing beyond v0.20 exists publicly. Whoever runs the release
+  must tag `v0.21` at the new release commit and must not push tags wholesale, or a phantom
+  v0.22 goes out. Tag handling is outside a Reviewer's scope; flagged only.
+- **N3 — the signed and notarized v0.22 arm64 artifact cannot be reused**, as the Verifier
+  already recorded: it carries `0.22` in its plist and an embedded `claude_pet.py` at
+  `c3d34343…`, so `verify_release_artifact.py app` refuses it on both the version and the
+  code-identity check. Rebuild, re-sign, re-notarize — which is the option the user chose.
+- **N4 — `docs-design/quiet-companion-release-operator.md` (untracked) still describes the
+  v0.22 artifact** and pins `c3d34343…`. Not touched by this review; it will need a
+  superseding record from the v0.21 operator.
+- **N5 — `FORBIDDEN_NOTE_PATTERNS`' magnitude/frequency list is a denylist, not a
+  decision procedure.** It catches `대부분`/`훨씬`/`자주` and their neighbours but not, say,
+  `조금` or `대체로`. The current entry is clean either way; the gate should not be read as
+  proof that any future entry is.
+- **N6 — a provenance comment was dropped in the rewrite.** The old module recorded the
+  whole-file `RELEASE_NOTES.md` SHA the published-suffix pin was derived from. The
+  load-bearing pin itself is unchanged; only the derivation note went. Cheap to restore if
+  anyone wants it.
+
+### 6. What this review does not certify
+
+- It is a **pre-commit review, not §6's execution gate**. That gate is evaluated after the
+  release commit from a tracked-clean tree and additionally requires the Verifier's
+  clean-tree suite re-run, the Coordinator's recorded sign-off, and a named eligible
+  release operator. None of those is recorded here.
+- It grants **no authorization**. The user's "2" chose a version number; it is not
+  authorization to bump, commit, tag, push, sign, notarize or publish, each of which is
+  separately gated.
+- Merge-checklist items 1 and 3 cannot be evaluated yet: there is no release commit, so
+  there are no trailers to check, and red-before-green for this change is the Verifier's
+  recorded observation, which I read but did not re-produce.
+
+reviewer-v021 (Claude Code subagent, 2026-09-09)
