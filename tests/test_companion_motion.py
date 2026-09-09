@@ -73,7 +73,7 @@ class CompanionApiTests(unittest.TestCase):
     def test_public_pure_motion_contract_exists(self):
         api = pure_api(self)
         self.assertEqual(api["RoamOut"]._fields,
-                         ("pos", "anim", "moved", "away", "phase"))
+                         ("pos", "anim", "moved", "away", "phase", "effect"))
         r = api["Roamer"]((400.0, 300.0), 0.0, rng=MinimumRng())
         self.assertEqual(tuple(r.pos), (400.0, 300.0))
         self.assertEqual(tuple(r.home), (400.0, 300.0))
@@ -85,7 +85,7 @@ class CompanionApiTests(unittest.TestCase):
     def test_initial_rest_does_not_move_for_early_activity(self):
         api = pure_api(self)
         r = api["Roamer"]((400.0, 300.0), 0.0, rng=MinimumRng(),
-                          cfg={"rest_min_s": 10.0, "rest_max_s": 10.0})
+                          cfg={"follow_p": 0.0, "jump_enabled": False, "rest_min_s": 10.0, "rest_max_s": 10.0})
         for now in (0.0, 0.25, 1.0, 3.0, 9.99):
             with self.subTest(now=now):
                 out = r.step(now, (1000.0, 300.0), (0.0, 0.0, 2000.0, 1500.0), activity=True)
@@ -120,7 +120,7 @@ class CompanionMotionTests(unittest.TestCase):
 
     def make(self, home=None, radius=0.0, **overrides):
         api = pure_api(self)
-        cfg = {"rest_min_s": 10.0, "rest_max_s": 10.0,
+        cfg = {"follow_p": 0.0, "jump_enabled": False, "rest_min_s": 10.0, "rest_max_s": 10.0,
                "approach_cooldown_s": 0.0, "wander_cooldown_s": 100000.0,
                "wander_enabled": False,
                "walk_speed": 40.0, "approach_stop": 150.0,
@@ -480,7 +480,7 @@ class CompanionPresentationTests(unittest.TestCase):
             with self.subTest(hover_stop=hover_stop):
                 d = api["RoamDisplay"]()
                 r = api["Roamer"]((400, 300), 0, rng=MinimumRng(),
-                                  cfg={"rest_min_s": 0, "rest_max_s": 0,
+                                  cfg={"follow_p": 0.0, "jump_enabled": False, "rest_min_s": 0, "rest_max_s": 0,
                                        "wander_enabled": False, "look_s": 6})
                 out = r.step(1, (450, 300), (0, 0, 1200, 900), activity=True)
                 self.assertEqual(out.phase, "look")
@@ -500,7 +500,7 @@ class CompanionPresentationTests(unittest.TestCase):
     def test_no_drag_click_does_not_turn_in_place_summary_stop_into_completion(self):
         api = pure_api(self, {"RoamDisplay", "Roamer"})
         r = api["Roamer"]((400, 300), 0, rng=MinimumRng(),
-                          cfg={"rest_min_s": 0, "rest_max_s": 0, "wander_enabled": False})
+                          cfg={"follow_p": 0.0, "jump_enabled": False, "rest_min_s": 0, "rest_max_s": 0, "wander_enabled": False})
         self.assertTrue(hasattr(r, "settled"), "motion completion cause is not exposed")
         self.assertTrue(r.settled)
         d = api["RoamDisplay"]()
@@ -679,14 +679,15 @@ class CompanionCropGeometryTests(unittest.TestCase):
 
 class CompanionAdapterTests(unittest.TestCase):
     def setup_adapter(self):
-        api = pure_api(self)
+        api = pure_api(self, {"Roamer", "RoamScreen"})
         roamer = api["Roamer"]((800.0, 300.0), 0.0, rng=MinimumRng(),
-                    cfg={"rest_min_s": 10.0, "rest_max_s": 10.0,
+                    cfg={"follow_p": 0.0, "jump_enabled": False, "rest_min_s": 10.0, "rest_max_s": 10.0,
                          "approach_cooldown_s": 0.0, "wander_enabled": False,
                          "walk_speed": 40.0})
         world = {"screen": fake_rect(0, 0, 1000, 700), "frame": fake_rect(750, 250, 100, 100),
                  "now": 10.0, "moves": []}
-        screen = SimpleNamespace(visibleFrame=lambda: world["screen"], frame=lambda: world["screen"])
+        screen = SimpleNamespace(visibleFrame=lambda: world["screen"], frame=lambda: world["screen"],
+                                 deviceDescription=lambda: {"NSScreenNumber": 11})
         def place(point):
             world["frame"].origin = SimpleNamespace(x=point.x, y=point.y)
             world["moves"].append((point.x, point.y))
@@ -699,6 +700,7 @@ class CompanionAdapterTests(unittest.TestCase):
         def clear():
             state["override"] = None
         scope = {"win": window, "roamer": roamer, "state": state, "ui": {},
+                 "RoamScreen": api["RoamScreen"],
                  "RUNTIME": {"roam": True}, "math": math,
                  "_time": SimpleNamespace(monotonic=lambda: world["now"]),
                  "roam_clock": {"rm_at": 0.0}, "_reduce_motion": lambda: False,
@@ -748,9 +750,11 @@ class CompanionAdapterTests(unittest.TestCase):
 
 class CompanionCompactRegressionTests(unittest.TestCase):
     def adapter(self, right=False):
-        api = pure_api(self, {"Roamer", "RoamDisplay", "roam_frame"})
+        api = pure_api(self, {"Roamer", "RoamDisplay", "roam_frame", "RoamScreen"})
         world = {"frame": fake_rect(270, 240, 300, 220), "now": 0.1, "writes": []}
-        screen = SimpleNamespace(visibleFrame=lambda: fake_rect(0, 0, 1400, 1000))
+        screen = SimpleNamespace(visibleFrame=lambda: fake_rect(0, 0, 1400, 1000),
+                                 frame=lambda: fake_rect(0, 0, 1400, 1000),
+                                 deviceDescription=lambda: {"NSScreenNumber": 12})
         def place(p):
             world["frame"].origin = SimpleNamespace(x=p.x, y=p.y)
         def resize(rect, display):
@@ -765,7 +769,7 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                  "reduce_motion": False, "show_panel": True, "roam_display": api["RoamDisplay"](),
                  "roam_env": (300, 220), "roam_crop": None, "roam_rects": None}
         r = api["Roamer"]((420, 350), 0, rng=MinimumRng(),
-                           cfg={"rest_min_s": 0, "rest_max_s": 0, "wander_enabled": False})
+                           cfg={"follow_p": 0.0, "jump_enabled": False, "rest_min_s": 0, "rest_max_s": 0, "wander_enabled": False})
         r.step(0, (1200, 350), (150, 110, 1250, 890), activity=True)
         self.assertEqual(r.phase, "out")
         scope = dict(api, win=win, view=view, state=state, roamer=r, ui={}, math=math,

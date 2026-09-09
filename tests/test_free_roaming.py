@@ -29,6 +29,7 @@ class FreeRoamingSamplingTests(unittest.TestCase):
         api = pure_api(self)
         rng = FractionRng(fractions)
         r = api["Roamer"](start, 0, rng=rng, radius=radius, cfg={
+            "follow_p": 0.0, "jump_enabled": False,
             "rest_min_s": 0, "rest_max_s": 0, "wander_enabled": True,
             "wander_tries": 6, "walk_speed": 100})
         return r, rng
@@ -85,6 +86,7 @@ class FreeRoamingCompletionTests(unittest.TestCase):
     def make(self, wander=False):
         api = pure_api(self, {"Roamer", "RoamDisplay"})
         r = api["Roamer"](self.start, 0, rng=MinimumRng(), cfg={
+            "follow_p": 0.0, "jump_enabled": False,
             "rest_min_s": 10.0, "rest_max_s": 10.0,
             "approach_cooldown_s": 180.0, "wander_cooldown_s": 300.0,
             "wander_enabled": wander,
