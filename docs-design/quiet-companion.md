@@ -3,7 +3,9 @@
 > 목표: 펫이 화면을 **스스로** 돌아다니되 정신 사납지 않게 — 평소엔 제자리에서 쉬고,
 > 사용자가 뭔가 하고 있으면 **한 번** 다가와 멈춰서 바라보고, 그 자리에서 쉰다. (2026-09-09 부터
 > 자동 귀가 없음·산책은 모니터 전체 — `docs-design/free-roaming-20260909.md`; 그 변경의 검증·리뷰 기록은
-> `docs-design/free-roaming-verification-20260909.md` / `docs-design/free-roaming-review-20260909.md`.)
+> `docs-design/free-roaming-verification-20260909.md` / `docs-design/free-roaming-review-20260909.md`.
+> 같은 날 추가: 가끔 10~20초 커서 따라다니기(follow)와 모니터 사이 점프(jump) —
+> `docs-design/companion-play-20260909.md`, 기록 `companion-play-verification-20260909.md` / `companion-play-review-20260909.md`.)
 >
 > 상태: **구현됨 (미배포, 미커밋)**. 순수 상태기계 `Roamer` 와 `run_gui()` 안의 어댑터.
 > 게이트: `tests/test_companion_motion.py` (독립 Verifier 소유). **승인·검증 결과의 단일 기준은
@@ -24,6 +26,8 @@
 | 너무 정신 사납게는 말고 | **오래 쉰다** | 지금 있는 자리에서 45~90초 쉬고, 구경은 180초에 한 번 이하, 산책은 300초에 한 번 이하(`ROAM_DEFAULTS`). 구경 목적지는 출발점에서 최대 360pt, 산책 목적지는 현재 모니터의 허용 rect 전체에서 랜덤 |
 | 내가 뭐 하면 와서 좀 쳐다보는 듯이 | **활동이 있으면 한 번 다가와 멈춰 본다** | 최근 20초 안에 커서가 움직였으면 그 순간의 커서 위치를 **한 번만** 읽어 그쪽으로 걷다가 창이 커서에 닿기 한참 전에 멈추고 6초 바라본다(review) |
 | 화면을 자유 분방하게 | **모니터 전체를 산책한다** | 현재 모니터에서 논리 창이 통째로 들어가는 허용 rect 전체에서 랜덤 지점을 골라 걸어가고, 잠깐 선 뒤 **그 자리에서 쉰다**(자동 귀가 없음 — 사용자 요구 2026-09-09) |
+| 랜덤하게 마우스를 몇 초(10초 이상) 따라다니기 | **가끔 10~20초 follow 에피소드** | 휴식 끝에 활동 중이면 확률(`follow_p`)로 시작. 시작 때 고정한 마감까지 매 step 커서의 최신 좌표에서 `150 + radius` 떨어진 자리로 천천히(45pt/s) 다가가고, 그 안이면 서서 바라본다. 끝나면 요약을 보이고 그 자리에서 쉰다(R12) |
+| 모니터 간 스스로 건너다니기, 점프해서 | **다른 화면의 안전한 자리로 점프** | 산책 계획 때 다른 화면이 있으면 확률(`jump_p`)로 그 화면 허용 rect 의 랜덤 착지로: 제자리 `jumping` + 창 fade-out → 전송 직전 재검사 → 한 step 에 위치 교체 → fade-in → 잠깐 선 뒤 그 자리에서 쉰다. 한 화면 안에서는 점프 없음(R13) |
 
 그리고 **사용자가 언제나 우선이다.** 잡거나, 마우스를 올리거나, 메뉴·설정 창을 열거나,
 사용량이 급증하거나, 시스템의 '동작 줄이기'가 켜져 있거나, 틱이 오래 멈췄다 돌아오면
@@ -74,11 +78,17 @@
 ## 3. 행동
 
 ```
-   rest(지금 있는 자리) ─휴식 끝─┬─ 활동 있고 cooldown 지남 ─▶ out ─도착─▶ look(6s, review) ─▶ rest (그 자리)
-                                ├─ 산책 허용(cooldown 지남) ─▶ out ─도착─▶ look(2s, idle)   ─▶ rest (그 자리)
+   rest(지금 있는 자리) ─휴식 끝─┬─ 활동 있고 follow cooldown 지남, 확률 follow_p ─▶ follow(10~20s, 커서 최신 좌표 추적)
+                                │        ─마감─▶ look(6s, review) ─▶ rest (그 자리)
+                                ├─ 활동 있고 cooldown 지남 ─▶ out ─도착─▶ look(6s, review) ─▶ rest (그 자리)
+                                ├─ 산책 허용(cooldown 지남) ─┬─ 다른 화면 있고 jump cooldown 지남, 확률 jump_p
+                                │                            │   ─▶ jump(off: jumping+fade-out ─재검사·전송─▶ land: fade-in)
+                                │                            │        ─▶ look(2s, idle) ─▶ rest (착지 화면, 그 자리)
+                                │                            └─ ─▶ out ─도착─▶ look(2s, idle) ─▶ rest (그 자리)
                                 └─ 아니면 휴식 재추첨
-   out/look 어디서든: enabled=False · dragging · blocked · busy · 틱 공백>5s · 경로가 커서에 닿음
-                     ─▶ 그 자리에 즉시 정지, rest, 휴식 재추첨 (순간이동·재개·귀가 없음)
+   follow 중 커서가 다른 화면에 3s 머물면(에피소드당 1회) 같은 jump 경로로 건너가 follow 를 이어 간다.
+   out/look/follow/jump 어디서든: enabled=False · dragging · blocked · busy · 틱 공백>5s · 경로가 커서에 닿음(out)
+                     ─▶ 그 자리에 즉시 정지, rest, 휴식 재추첨 (순간이동·재개·귀가 없음; 점프는 전송 전이면 원래 화면, 뒤면 착지 화면)
 ```
 
 **좌표는 창 중심**이다(전역 스크린 포인트, y 위). `radius` 는 창 전체의 외접원 반지름
@@ -98,6 +108,21 @@
 너무 가깝거나(60pt 미만) 커서에 `150 + radius` 안으로 붙거나 걷는 선분이 커서를 `radius + 24pt`
 안으로 스치는 후보는 버리고 다음 후보를 뽑는다 — 최대 6번(`wander_tries`), 다 실패하면 휴식을
 다시 추첨한다(즉시 재시도 없음). 도착해 잠깐 선 뒤 그 자리에서 쉰다.
+
+**따라다니기(follow)** 는 구경과 달리 커서를 매 step 다시 읽는다. 목표는 커서에서 `150 + radius`
+떨어진, 펫 쪽의 자리(현재 화면 허용 rect 로 클램프). 그 자리보다 안쪽(+20pt)이면 서서 바라보고(review),
+밖이면 45pt/s 로 다가간다. 마감(10~20초, 시작 때 `rng.uniform` 한 번으로 고정)이 오면 구경 도착처럼
+6초 바라본 뒤 그 자리에서 쉰다. 커서가 없어지면 그 자리 정지(자연 완료 아님). 커서가 경로에 들어오거나
+펫 위로 오면 그 step 은 움직이지 않는다 — 커서는 언제든 펫 위로 올 수 있으므로 '거리 항상 보장' 이
+아니라 '자기 이동으로 배제 영역에 들어가지 않음' 이 규칙이다.
+
+**점프(jump)** 는 산책 계획의 한 갈래다. 어댑터가 매 tick 현재 화면을 포함한 모든 화면을
+`RoamScreen(id, frame, bounds)` 로 주면(§4), 다른 화면이 있고 점프 쿨다운이 지났을 때 확률 `jump_p` 로
+화면 하나를 고르고 그 화면 허용 rect 에서 착지 후보를 뽑는다(커서와 `150 + radius` 안이면 다음 후보, 최대
+6번, 없으면 같은 화면 산책). 출발 효과(`jumping` 한 바퀴 0.75s, 창 alpha 1→0.15, 위치 불변) → 전송 직전
+재검사(대상 화면이 아직 있고, 착지가 그 화면의 최신 rect 안이고, 최신 커서가 착지의 `radius + 24pt` 밖) →
+한 step 에 원자적 위치 교체 → 착지 효과(0.5s, alpha 0.15→1) → 잠깐 선 뒤 착지 화면에서 쉰다. 재검사에
+걸리면 취소하고 지금 자리에 선다. 한 화면 안에서는 점프하지 않는다. 자동 점프는 `home` 을 바꾸지 않는다.
 
 **빈도.** 휴식 45~90초(균등 난수) 뒤에 출발을 "고려" 한다. 구경은 직전 구경 뒤 180초, 산책은
 직전 산책 뒤 300초가 지나야 한다. 거리 상수: 구경 목적지는 출발점에서 최대 360pt
@@ -138,15 +163,26 @@ ROAM_DEFAULTS = {
     "gap_s": 5.0,                             # 이보다 긴 틱 공백이면 그 자리 정지
     "min_trip_px": 60.0, "arrive_px": 2.0,
 }
-RoamOut = namedtuple("RoamOut", "pos anim moved away phase")
-#   pos=(x, y) 창 중심 / anim=None|"running-left"|"running-right"|"review" /
-#   moved=이 step 에 pos 변함 / away=|pos−home|>arrive_px (자동 계획·표시 복원엔 미사용, 어댑터 roam_resync 만 참조) / phase="rest"|"out"|"look"
+# follow_p 0.35 / follow_min_s 10 / follow_max_s 20 / follow_cooldown_s 420 / follow_speed 45 / follow_slack_px 20 /
+# follow_turn_px 8 / follow_cross_s 3 / follow_min_left_s 5 / follow_max_jumps 1 /
+# jump_enabled True / jump_p 0.5 / jump_cooldown_s 600 / jump_tries 6 / jump_prep_s 0.75 / jump_land_s 0.5
+RoamOut = namedtuple("RoamOut", "pos anim moved away phase effect", defaults=(None,))
+#   pos=(x, y) 창 중심 / anim=None|"running-left"|"running-right"|"review"|"jumping" /
+#   moved=이 step 에 pos 변함 / away=|pos−home|>arrive_px (자동 계획·표시 복원엔 미사용, 어댑터 roam_resync 만 참조) /
+#   phase="rest"|"out"|"look"|"follow"|"jump" / effect=None|"takeoff"|"landing"(어댑터가 창 alpha 로 그림; 끝 필드, 기본 None)
+RoamScreen = namedtuple("RoamScreen", "id frame bounds")
+#   id=안정 식별자(어댑터: NSScreenNumber) / frame=(x0,y0,x1,y1) 실제 화면 rect — 커서 소속 판정 /
+#   bounds=(x0,y0,x1,y1) 논리 full 창 중심 허용 rect — 착지·pos 제약. 둘을 분리해 쓴다(bounds 를 radius 로 넓혀 frame 을 짐작하지 않음)
 
 class Roamer:
     def __init__(self, home, now, rng=None, cfg=None, radius=0.0)   # cfg 는 ROAM_DEFAULTS 위에 얹는 부분 dict
-    # 읽기: pos, home, phase, kind ∈ {None, "approach", "wander"}, radius(갱신 가능), cfg, away
+    # 읽기: pos, home, phase, kind ∈ {None, "approach", "wander", "follow"}, radius(갱신 가능), cfg, away,
+    #       screen(현재 화면 id — screens 를 받기 전엔 None)
     def step(self, now, cursor, bounds, *, enabled=True, dragging=False,
-             blocked=False, busy=False, activity=False) -> RoamOut
+             blocked=False, busy=False, activity=False, screens=()) -> RoamOut
+    # screens=RoamScreen 목록(현재 화면 포함). 비면 bounds 의 단일 화면(점프 없음); 있으면 현재 화면은 모델이
+    # pos 로 확정하고(frame 에 담는 화면, 없으면 bounds 최근접; 첫 수신·set_home/release 뒤·id 소실 때 재해석)
+    # 그 bounds 를 쓴다 — bounds 인자는 호환용
     def set_home(self, pos, now)          # 수동 배치: pos = home = pos, 그 자리 정지, 휴식 재추첨
     def release(self, now, pos, moved)    # 드래그/클릭 끝: moved → set_home / 아니면 pos 만 맞추고 정지·휴식
     # settled (읽기): 마지막 rest 가 자연 완료였는가 — §9.1 D4 참조 (2차 요구에서 추가)
@@ -159,10 +195,16 @@ class Roamer:
   복구(창이 정상 `bounds` 밖에 남았을 때 안으로 들이는 것)다. 쉬는 중 `gap_s` 보다 긴 공백이
   오면 다시 추첨한다(깨어나자마자 출발하지 않게).
 - **R2 출발.** rest 에서 `now >= next_at` 이고 `enabled and not dragging and not blocked and
-  not busy` 일 때, 순서대로: (a) `active(now)` 이고 `cursor` 가 있고 `now >= approach_ok_at` →
+  not busy` 일 때, 순서대로: (a0) `active(now)` 이고 `cursor` 가 있고 `follow_p > 0` 이고 `now >= follow_ok_at`
+  → `rng.uniform(0, 1) < follow_p` 면 follow 시작(R12), `follow_ok_at = now + follow_cooldown_s`;
+  (a) `active(now)` 이고 `cursor` 가 있고 `now >= approach_ok_at` →
   구경 계획(R3), 성공 시 `approach_ok_at = now + approach_cooldown_s`; (b) 산책이 켜져 있고
-  (`wander_enabled`; 예전 `wander_radius == 0` 도 끔) `now >= wander_ok_at` → 산책 계획(R4), 성공 시
-  `wander_ok_at = now + wander_cooldown_s`; (c) 아니면 휴식 재추첨. 귀가 leg 는 없다. **쉬는 동안 플래그가 하나라도
+  (`wander_enabled`; 예전 `wander_radius == 0` 도 끔) `now >= wander_ok_at` → 다른 화면이 있고 `jump_enabled`
+  이고 `now >= jump_ok_at` 이면 `rng.uniform(0, 1) < jump_p` 로 점프 계획(R13)을 먼저, 아니면(또는 착지 후보가
+  없으면) 산책 계획(R4), 성공 시 `wander_ok_at = now + wander_cooldown_s`; (c) 아니면 휴식 재추첨. 귀가 leg 는
+  없다. 자격이 안 되면 그 선택의 난수는 뽑지 않는다: `follow_p=0` 이면 follow 선택 `uniform(0, 1)` 이 없고,
+  `jump_enabled=False`(또는 다른 화면 없음)면 점프 선택 난수(확률·화면 index·착지)가 없다 — 옛 fixture 의 호출 수가
+  그대로인 이유. `jump_p=0` 은 자격이 있으면 `uniform(0, 1)` 을 한 번 소비하고 거절된다. 휴식 재추첨의 난수는 기존대로. **쉬는 동안 플래그가 하나라도
   참이면 매 step 휴식을 다시 추첨한다** — 조작이 이어지는 동안 마감이 계속 뒤로 밀리므로,
   조작이 *끝난* 시점부터 온전한 휴식이 확보되고 지나간 마감을 따라잡아 곧바로 출발하는
   일이 없다. **계획한 step 에는 움직이지 않는다.**
@@ -197,6 +239,25 @@ class Roamer:
   `active(now) = now − last_active <= activity_window_s`. 초기 `last_active = −inf`.
 - **R10 release.** `moved=True` → `set_home(pos)`. `moved=False` → `pos` 만 넘겨받은 값으로
   맞추고 집은 그대로, 그 자리 정지, 휴식 재추첨.
+- **R12 따라다니기(follow).** 시작: `follow_until = now + rng.uniform(follow_min_s, follow_max_s)`(고정), 점프 횟수 0.
+  매 step: `cursor` 없음 → 그 자리 정지(`settled=False`); `now >= follow_until` → look(review, `look_s`) → rest
+  `settled=True`; 커서 소속 화면(`frame`)이 없음(빈틈) → 그 step 정지·바라봄·체류 해제; 다른 화면 → 그 화면 id 에
+  묶인 체류 시계(대상이 바뀌면 리셋), 체류 ≥ `follow_cross_s` ∧ 남은 시간 ≥ `follow_min_left_s` ∧ 점프 횟수 <
+  `follow_max_jumps` ∧ `jump_enabled` ∧ `now >= jump_ok_at` 이면 그 화면 rect 로 클램프한 커서 여백 자리로 점프
+  (R13, 착지 뒤 follow 계속; 마감이 전송 전에 오면 원래 화면에서, 뒤에 오면 착지 화면에서 자연 완료), 아니면 현재
+  rect 로 클램프한 목표. 같은 화면: `d = |cursor − pos|`, `d <= stop + follow_slack_px` → 서서 review; 목표 =
+  커서 + (pos − 커서)/d · stop 을 rect 로 클램프; 선분 `[pos, 목표]` 가 커서와 `radius + cursor_margin_px` 안이면
+  그 step 정지; 아니면 `follow_speed · dt`. anim 은 목표 x 차이가 `follow_turn_px` 를 넘을 때만 좌우 전환.
+- **R13 점프(jump).** 계획: 다른 화면 중 `int(rng.uniform(0, n))`(상한 클램프) 번째, 그 rect 에서 시도당 uniform
+  2회로 착지 후보(커서와 `stop` 안이면 다음), 최대 `jump_tries`, 없으면 같은 화면 산책. 시작: phase `jump` 단계
+  `off`, anim `jumping`, effect `takeoff`, `jump_at = now + jump_prep_s`, `jump_ok_at = now + jump_cooldown_s`,
+  대상 id·착지 고정, pos 불변. `jump_at` 에 재검사: 대상 id 가 목록에 있고 착지가 그 **최신** rect 안이고 최신
+  커서가 착지의 `radius + cursor_margin_px` 밖 → `pos = 착지`, `screen = 대상 id`(moved=True, effect `landing`,
+  anim None, `land_until = now + jump_land_s`); 아니면 그 자리 정지. `land_until` 뒤: 산책이면 look(idle,
+  `wander_pause_s`) → rest `settled=True`, follow 였으면 phase `follow`(횟수 +1). R7/R8 은 어느 단계에서든
+  그대로(전송 전이면 원래 화면, 뒤면 착지 화면에 남음). 다음 R8 은 착지 화면 `bounds` 로 판정하며, 어댑터의
+  `win.screen()` 이 바로 바뀌는지에 기대지 않는다. 자동 점프는 `home` 을 바꾸지 않는다 — R8 의 home 클램프도
+  home 이 어느 화면 rect 안에 있으면 건너뛴다.
 - **R11 저장 금지.** 상태기계는 파일을 모른다. 어댑터는 자동 이동으로 바뀐 좌표를 설정에
   쓰지 않는다.
 
@@ -283,7 +344,7 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 | hover(접기 버튼 표시 중) | 출발 안 함, 이동 중이면 그 자리 정지. 커서가 떠난 뒤 온전한 휴식부터 | R2, R7 `blocked` |
 | 드래그 | 어느 phase 든 정지. 놓으면 `_moved` 일 때만 새 집·저장 | R7, R10, `mouseUp_` |
 | 클릭(안 움직임) | 정지·휴식, 집과 저장값은 그대로 | R10, 게이트 `test_click_during_auto_away…` |
-| 더블클릭(점프) 재생 중 | 출발 안 함 / 이동 중 정지 | `blocked` |
+| 더블클릭(점프 인사) 재생 중 | 출발 안 함 / 이동 중 정지 (우리가 켠 `jumping` 은 `roam_anim` 이라 blocked 가 아니다) | `blocked` |
 | 우클릭 메뉴 | `menu_open` + `roam_hold` 로 busy → 정지. 틱이 멈춘 공백이 5초를 넘어도 같은 결과 | R7 |
 | 설정 창 열림 | busy → 정지, 닫힌 뒤 휴식하고 새 계획 | R7 |
 | spike | busy — 패닉 중엔 돌아다니지 않는다 | R7 |
@@ -291,10 +352,13 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 | 동작 줄이기 | `enabled=False` → 그 자리 정지, 이후 정지. 메뉴 항목 비활성 | R7 |
 | 커서가 경로에 들어옴 | out leg 에서 그 자리 정지, 우회 없음 | R5 |
 | 화면 밖 | 목표는 항상 창 전체가 화면 안에 남는 rect 안 | R3, R4, `roam_bounds` |
-| 화면 구성 변경 (축소·모니터 탈착) | `bounds` 는 매 틱 새로 읽는다. 창이 밖에 남으면 안으로 들이고 하던 이동은 접는다 | R8 |
-| 다중 모니터, 커서가 다른 화면 | 목표가 집 화면 가장자리로 클램프 → 가장자리에서 본다 | R3 |
+| 화면 구성 변경 (축소·모니터 탈착) | `screens`/`bounds` 는 매 틱 새로 읽는다. 창이 밖에 남으면 안으로 들이고 하던 이동은 접는다. 점프 대상 화면이 사라지거나 줄면 전송 직전 취소 | R8, R13 |
+| 다중 모니터, 커서가 다른 화면 (구경) | 목표가 현재 화면 가장자리로 클램프 → 가장자리에서 본다 | R3 |
+| 다중 모니터, 커서가 다른 화면 (follow) | 가장자리에서 보다가 그 화면에 3초 머물면 에피소드당 한 번 점프해 이어 간다. 빈틈 커서는 대기 | R12 |
+| 다중 모니터, 산책 | 가끔(`jump_p`) 다른 화면의 허용 rect 로 점프. 한 화면이면 점프 없음. 착지 뒤 그 화면에서 쉼, `home` 불변 | R13 |
+| 점프 중 조작 | 전송 전이면 원래 화면에 정지, 뒤면 착지 화면에 정지. 창 alpha 는 정지 tick 에 1 로 복원 | R7, `roam_apply_effect` |
 | 음수 좌표 화면 | rect 산술뿐, 부호 가정 없음 | 게이트 `test_nonzero_negative_monitor…` |
-| 창보다 작은 화면 | `bounds` 가 뒤집힘 → 아무것도 안 함 | R8 |
+| 창보다 작은 화면 | 그 화면은 `screens` 에서 제외된다(어댑터와 `step` 입구 모두). 남은 유효 화면이 없고 fallback `bounds` 도 뒤집혀 있으면 대기(아무것도 안 함) | R8, R13 |
 | 잠자기 → 깨어남 | 공백이면 그 자리 정지·휴식 재추첨; 이동량은 어차피 `max_dt_s` 상한 | R1, R5, R7 |
 | 인사(waving) | 걷기·구경 중엔 override 가 차서 안 켜짐; 산책 멈춤 중엔 켜질 수 있음 | 인사 조건 `override is None` |
 | 자동 좌표 저장 | 없음 | R11 |
@@ -358,16 +422,16 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 
 | 모드 | 언제 | 그리는 것 |
 |---|---|---|
-| `folded` | 걷는 동안(out), 산책 멈춤(look·wander), 사용자가 접어 둔 채 쉴 때 | 펫만 (hover 면 ⌄ 버튼) |
-| `summary` | 구경 도착(look·approach) 뒤, 래치가 살아 있는 동안 | 펫 + 한 줄 요약 필 |
+| `folded` | 이동 중(out·jump·follow), 산책 멈춤(look·wander), 사용자가 접어 둔 채 쉴 때 | 펫만 (hover 면 ⌄ 버튼) |
+| `summary` | 구경/follow 도착(look·approach / look·follow) 뒤, 래치가 살아 있는 동안 | 펫 + 한 줄 요약 필 |
 | `full` | 요약에서 사용자가 펼쳤을 때, 또는 사용자가 펼쳐 둔 채 쉴 때 | 기존 게이지 필 전체 |
 
 `RoamDisplay` 의 상태는 둘뿐이다 — `summary`(래치), `expanded`(요약 중 펼침). 규칙, 우선순위 순:
 
 - **D0 명시적 중단·비활성이 먼저.** `interrupted`(설정 창·메뉴·spike·틱 공백) 또는 `enabled=False`
   → 둘 다 끈다. 같은 호출에 도착이 실려 있어도 중단이 이긴다.
-- **D1 걷기.** phase 가 out → 둘 다 끈다(걷는 동안엔 접는다).
-- **D2 도착.** phase 가 look 이고 kind 가 approach → `summary=True`. 출발 때 이미 도착 거리 안이라 걷지 않는
+- **D1 이동.** phase 가 out·jump·follow → 둘 다 끈다(이동 중엔 접는다).
+- **D2 도착.** phase 가 look 이고 kind 가 approach 또는 follow → `summary=True`. 출발 때 이미 도착 거리 안이라 걷지 않는
   제자리 구경도 같다.
 - **D3 자연 완료.** phase 가 rest 이고 `settled` 이면 → 둘 다 끈다(그 자리에서 평소 선택 복원, 집이든 아니든).
 - **D4 hover 정지는 중단이 아니다.** rest 인데 `settled=False`(hover·클릭으로 멈춘 것)이면 래치를 **유지**한다 —

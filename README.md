@@ -71,6 +71,8 @@ python3 claude_pet.py --report   # terminal report only, no GUI
 - **Roams on its own now and then** — rests in place; when the mouse is moving it walks over once and watches
   for a moment, otherwise it picks a random spot anywhere on the screen, walks there and rests where it arrives
   (it does not come back). It never walks onto the cursor and stops where it is if you grab it or open the menu or Settings
+- **Sometimes follows the mouse** for 10–20 seconds, slowly and at a distance, then looks at you and rests where it stopped.
+  **With more than one monitor it hops between them** now and then: a little jump, a fade, and it lands on a safe spot of the other screen
 - **Folds the gauges while walking** so only the pet moves. On arrival it shows a small one-line **summary** of session and weekly %;
   click the ⌄ button to expand the full gauges. When it is done watching it goes back to whatever you had collapsed or expanded
 - **Grab & drag** — runs in the drag direction; **double-click** = jump + **instant usage refresh** (cache-busting refetch)
@@ -99,8 +101,9 @@ The per-model gauge **auto-detects** the top tier from the logs (fable → mytho
 - **Weekly reset day/time**: if the app says "resets Sat 8:00 PM", set Saturday/20:00. Rolling 7 days if unset.
 - Model keyword (auto recommended), spike sensitivity, mouse-greeting on/off, Admin API key, monthly budget
 
-- **Roam the screen**: toggle with the check item in the right-click menu (on by default). If macOS Accessibility
-  **Reduce Motion** is on, the pet does not move. Positions it wanders to are not saved; only where you drag it is remembered.
+- **Roam the screen**: toggle with the check item in the right-click menu (on by default); it also covers following the
+  mouse and hopping between monitors. If macOS Accessibility **Reduce Motion** is on, the pet does not move.
+  Positions it wanders or hops to are not saved; only where you drag it is remembered.
 
 All settings, size, and position are saved in `~/.claude_pet.json`.
 

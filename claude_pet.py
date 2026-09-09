@@ -8,6 +8,7 @@ Claude Pet — Codex Pets 스타일 투명 오버레이 펫 + Claude 토큰 사�
 - 한도 도달 정도에 따라 펫 모션이 변함 (모션별 고유 속도/반복 설정)
     <50%  idle(평온)  /  50~85% waiting(초조)  /  ≥85% failed(패닉)
     드래그하면 방향에 맞춰 running-left/right, 더블클릭 waving, 리셋 감지 시 jumping
+    스스로 돌아다님: 걷기 running-left/right, 구경·따라다니기 review, 모니터 사이 점프 jumping
 
 실행:
   pip3 install pyobjc-framework-Cocoa   # 최초 1회
@@ -5094,7 +5095,8 @@ def gauge_rows(stats):
 # 펫이 스스로 화면을 돌아다니는 규칙. AppKit 을 모른다: 시간·커서·경계·플래그를
 # 전부 인자로 받고 "어디에 있어야 하고 어떤 애니메이션이어야 하는가" 만 값으로
 # 돌려준다. 창을 옮기고 override 를 켜는 것은 run_gui() 안의 어댑터(roam_tick)다.
-# 설계 문서: docs-design/quiet-companion.md. 게이트: tests/test_companion_motion.py.
+# 설계 문서: docs-design/quiet-companion.md (따라다니기·모니터 점프: docs-design/companion-play-20260909.md).
+# 게이트: tests/test_companion_motion.py, tests/test_free_roaming.py, tests/test_companion_play.py.
 #
 # 좌표는 **창 중심**의 스크린 포인트(y 는 위로). radius 는 창 전체의 외접원 반지름
 # (hypot(W/2, H/2)) 이라, "커서까지 radius + 여백" 은 창의 어느 픽셀도 커서에
@@ -5120,15 +5122,41 @@ ROAM_DEFAULTS = {
     "max_dt_s": 0.25,                         # step 당 이동 시간 상한 — 늦은 tick 이 순간이동이 되지 않게
     "gap_s": 5.0,                             # 이보다 긴 공백(잠자기·메뉴)이면 그 자리에 서고 휴식
     "min_trip_px": 60.0, "arrive_px": 2.0,
+    # 따라다니기(follow): 가끔 10~20 초 동안 움직이는 커서의 최신 좌표를 여백을 두고 천천히 쫓는다
+    "follow_p": 0.35,                         # 자격(활동 중·커서·쿨다운 경과)일 때 follow 를 고를 확률 — 계획 step 에서 uniform(0, 1) 1회
+    "follow_min_s": 10.0, "follow_max_s": 20.0,   # 에피소드 길이 rng.uniform(min, max); 시작 때 고정, 10 초 미만 없음
+    "follow_cooldown_s": 420.0,               # follow 최소 간격(실제 시작 뒤). 초기값은 now — 첫 정상 휴식부터 자격
+    "follow_speed": 45.0,                     # pt/s, 걷기보다 느리게
+    "follow_slack_px": 20.0,                  # 여백(approach_stop + radius) 안쪽 이 폭에서는 서서 바라본다 (떨림 방지)
+    "follow_turn_px": 8.0,                    # 좌우 방향 전환 히스테리시스
+    "follow_cross_s": 3.0,                    # 커서가 같은 다른 화면에 이만큼 머물러야 건너간다 (대상 화면 ID 에 묶인 체류)
+    "follow_min_left_s": 5.0,                 # 남은 에피소드가 이보다 짧으면 건너가지 않는다
+    "follow_max_jumps": 1,                    # 에피소드당 점프 상한 — 왕복 없음
+    # 모니터 사이 점프(jump): 산책 계획 때 다른 화면의 안전한 착지 후보로 건너간다
+    "jump_enabled": True,
+    "jump_p": 0.5,                            # 다른 화면이 있고 쿨다운이 지났을 때 산책이 점프가 될 확률 — uniform(0, 1) 1회
+    "jump_cooldown_s": 600.0,                 # 점프 최소 간격(실제 시작 뒤). 초기값은 now
+    "jump_tries": 6,                          # 착지 후보 재추첨 상한 (시도당 uniform x, y 2회)
+    "jump_prep_s": 0.75,                      # 출발 효과: jumping 스프라이트 한 바퀴(5 프레임 × 150 ms) + 창 fade-out, pos 불변
+    "jump_land_s": 0.5,                       # 착지 효과: 애니메이션 없음 + 창 fade-in
 }
 
-# pos   = (x, y) 지금 창 중심 (항상 채움)
-# anim  = None | "running-left" | "running-right" | "review"
-# moved = 이 step 에 pos 가 바뀌었는가
-# away  = |pos − home| > arrive_px — 수동 재시작 위치에서 떨어져 있는가. 자동 계획(_plan)과 표시 복원(RoamDisplay)
-#         은 이 값을 쓰지 않는다. 어댑터의 roam_resync 만 참조한다(나가 있으면 pos 를, 집이면 창 중심을 기준으로 재정렬)
-# phase = "rest" | "out" | "look"
-RoamOut = namedtuple("RoamOut", "pos anim moved away phase")
+# pos    = (x, y) 지금 창 중심 (항상 채움)
+# anim   = None | "running-left" | "running-right" | "review" | "jumping"
+# moved  = 이 step 에 pos 가 바뀌었는가
+# away   = |pos − home| > arrive_px — 수동 재시작 위치에서 떨어져 있는가. 자동 계획(_plan)과 표시 복원(RoamDisplay)
+#          은 이 값을 쓰지 않는다. 어댑터의 roam_resync 만 참조한다(나가 있으면 pos 를, 집이면 창 중심을 기준으로 재정렬)
+# phase  = "rest" | "out" | "look" | "follow" | "jump"
+# effect = None | "takeoff" | "landing" — 점프의 출발/착지 효과. 어댑터가 창 alpha 로 그린다. 끝에 붙은 필드라
+#          다섯 인자로 만드는 옛 호출도 그대로 된다(기본값 None)
+RoamOut = namedtuple("RoamOut", "pos anim moved away phase effect", defaults=(None,))
+
+# 화면 레코드 — 어댑터가 매 tick 현재 화면을 포함한 모든 화면을 준다.
+#   id     = 안정 식별자 (어댑터: NSScreenNumber)
+#   frame  = (x0, y0, x1, y1) 실제 화면 rect — 커서가 어느 화면에 있는지는 이걸로 판정한다
+#   bounds = (x0, y0, x1, y1) 논리 full 창이 통째로 들어가는 중심 허용 rect — 착지·pos 는 이 안에서만.
+# 둘은 분리해 쓴다: bounds 를 radius 로 넓혀 frame 을 짐작하면 화면 사이 빈틈의 커서를 이웃 화면으로 오인한다.
+RoamScreen = namedtuple("RoamScreen", "id frame bounds")
 
 
 def _roam_dist(a, b):
@@ -5153,26 +5181,78 @@ def _roam_seg_dist(p, a, b):
     return _roam_dist(p, (ax + vx * u, ay + vy * u))
 
 
-class Roamer:
-    """펫의 자율 이동 상태기계 — rest → out → look → rest (그 자리에서).
+def _roam_inside(p, rect):
+    x0, y0, x1, y1 = rect
+    return x0 <= p[0] <= x1 and y0 <= p[1] <= y1
 
-    · rest  지금 있는 자리에서 쉰다. 휴식이 끝나면 활동이 있고 cooldown 이 지났을 때
-            구경(approach)을, 아니면 산책(wander)을 계획한다. 계획한 step 에는 움직이지
-            않는다. 쉬는 동안 조작(아래 플래그)이 있으면 휴식 시각을 그때부터 다시 잰다.
-    · out   목표를 향해 walk_speed 로 걷는다. 목표는 출발 때 한 번 정하고 다시
-            계산하지 않는다(커서를 쫓지 않는다).
-    · look  구경이면 review 애니메이션으로 look_s 동안, 산책이면 idle 로 잠깐 선다.
-            끝나면 **그 자리에서** 쉰다 — 집으로 돌아가는 leg 는 없다.
-    home 은 사용자가 드래그로 놓은 '재시작 위치' 일 뿐이다: 자동 이동은 home 을 바꾸지도,
-    home 으로 되돌아가지도 않는다. 산책 목적지는 어댑터가 준 bounds(현재 모니터에서 논리
-    full 창이 통째로 들어가는 중심 허용 rect) 전체에서 균등 랜덤이다.
+
+def _roam_valid_rect(rect):
+    """뒤집히지 않은 rect 인가 — 뒤집힌 bounds 는 창이 그 화면보다 크다는 뜻이다."""
+    x0, y0, x1, y1 = rect
+    return x0 <= x1 and y0 <= y1
+
+
+def _roam_rect_dist(p, rect):
+    """점 p 에서 rect 까지의 거리 (안이면 0)."""
+    return _roam_dist(p, _roam_clamp(p, rect))
+
+
+def _roam_screen_at(screens, p):
+    """p 를 실제 frame 에 담는 화면의 id. 화면 사이 빈틈이면 None."""
+    for scr in screens:
+        if _roam_inside(p, scr.frame):
+            return scr.id
+    return None
+
+
+def _roam_find_screen(screens, sid):
+    for scr in screens:
+        if scr.id == sid:
+            return scr
+    return None
+
+
+class Roamer:
+    """펫의 자율 이동 상태기계 — rest → (out | follow | jump) → look → rest (그 자리에서).
+
+    · rest   지금 있는 자리에서 쉰다. 휴식이 끝나면 활동이 있고 cooldown 이 지났을 때
+             가끔(follow_p) 따라다니기(follow)를, 아니면 구경(approach)을, 아니면 산책
+             (wander — 다른 화면이 있으면 가끔(jump_p) 점프)을 계획한다. 계획한 step 에는
+             움직이지 않는다. 쉬는 동안 조작(아래 플래그)이 있으면 휴식 시각을 다시 잰다.
+    · out    목표를 향해 walk_speed 로 걷는다. 목표는 출발 때 한 번 정하고 다시
+             계산하지 않는다(커서를 쫓지 않는다).
+    · follow 시작 때 고정한 마감(follow_min_s~follow_max_s)까지 매 step 커서의 최신 좌표를
+             쫓는다: 커서에서 approach_stop + radius 만큼 떨어진 자리를 목표로 follow_speed
+             로 다가가고, 그 안쪽(+follow_slack_px)이면 서서 바라본다(review). 커서가 다른
+             화면에 follow_cross_s 이상 머물면 에피소드당 한 번 같은 jump 경로로 건너가
+             이어 간다. 마감이 오면 구경 도착처럼 look(review) 뒤 그 자리에서 쉰다.
+             커서가 없어지면 그 자리 정지(자연 완료 아님).
+    · jump   다른 화면으로 건너간다: off(jumping 애니메이션 + takeoff 효과, jump_prep_s,
+             pos 불변) → 전송 직전 재검사(대상 화면이 아직 있고 착지가 그 최신 bounds 안이며
+             최신 커서가 착지의 배제 영역 밖) → 한 step 에 원자적 위치 교체(moved) →
+             land(landing 효과, jump_land_s) → 산책이면 look, follow 였으면 follow 계속.
+             재검사에 걸리면 취소하고 지금 자리에 선다. 한 화면 안에서는 점프하지 않는다.
+    · look   구경/follow 는 review 애니메이션으로 look_s 동안, 산책은 idle 로 잠깐 선다.
+             끝나면 **그 자리에서** 쉰다 — 집으로 돌아가는 leg 는 없다.
+    home 은 사용자가 드래그로 놓은 '재시작 위치' 일 뿐이다: 자동 이동(점프 포함)은 home 을
+    바꾸지도, home 으로 되돌아가지도 않는다. 산책 목적지는 현재 화면 bounds(논리 full 창이
+    통째로 들어가는 중심 허용 rect) 전체에서, 착지는 고른 다른 화면의 bounds 안에서 균등 랜덤이다.
+
+    화면: step 의 screens(RoamScreen 목록, 현재 화면 포함)가 비어 있지 않으면 현재 화면은
+    이 모델이 확정한다(screen 속성) — pos 를 frame 에 담는 화면, 없으면 bounds 가 가장
+    가까운 화면. 처음 screens 를 받을 때, 수동 배치(set_home/release) 뒤, 현재 id 가 목록에서
+    사라졌을 때 다시 해석한다. 착지 뒤 현재 화면은 착지 화면이고 다음 경계 검사(R8)도 그
+    bounds 를 쓴다 — 어댑터의 win.screen() 이 곧바로 바뀌는지에 기대지 않는다. screens 가
+    비어 있으면 bounds 인자의 단일 화면이다(점프 없음).
 
     **모든 phase 에서 사용자가 우선이다.** enabled=False(설정 off·Reduce Motion),
     dragging, blocked(hover·남의 애니메이션), busy(설정 창·메뉴·spike), 그리고
     gap_s 보다 긴 tick 공백은 **그 자리에 즉시 서고** 휴식을 새로 추첨한다 —
-    집으로 순간이동하지도, 옛 목표를 이어 걷지도 않는다. 걷는 leg 는 out 하나뿐이고,
-    매 step 현재 커서와 [pos, 목표] 선분의 거리가 radius + 여백보다 작으면
-    그 자리에 서고 휴식한다(우회하지 않는다). 자동 이동은 좌표를 저장하지 않는다.
+    집으로 순간이동하지도, 옛 목표를 이어 걷지도 않는다(전송 전이면 원래 화면, 뒤면 착지
+    화면에 남는다). 걷기(out)에서 현재 커서와 [pos, 목표] 선분의 거리가 radius + 여백보다
+    작으면 그 자리에 서고 휴식한다(우회하지 않는다). 커서는 언제든 펫 위로 올 수 있으므로
+    보장하는 것은 두 가지다: 펫이 **자기 이동으로** 커서의 배제 영역에 들어가지 않고, 커서가
+    경로·자리에 침범한 tick 에는 움직이지 않는다. 자동 이동은 좌표를 저장하지 않는다.
     """
 
     def __init__(self, home, now, rng=None, cfg=None, radius=0.0):
@@ -5197,9 +5277,25 @@ class Roamer:
         self._look_until = float(now)
         self._approach_ok_at = float(now)
         self._wander_ok_at = float(now)
+        self._follow_ok_at = float(now)      # 첫 정상 휴식부터 자격 — 초기 제외 기간 없음
+        self._jump_ok_at = float(now)
         self._last_active = float("-inf")
         self._sample = None
         self._sample_at = float("-inf")
+        # 화면 — screens 를 받기 전엔 None (단일 화면 bounds 모드)
+        self.screen = None
+        # follow 에피소드: 마감(시작 때 고정), 이번 에피소드의 점프 횟수, 다른 화면 체류 (id, since)
+        self._follow_until = float(now)
+        self._follow_jumps = 0
+        self._cross = None
+        # jump: 단계 "off"|"land", 대상 화면 id, 착지점, 전송 시각, 착지 효과 끝, 착지 뒤 갈 곳("look"|"follow")
+        self._jump_stage = None
+        self._jump_screen = None
+        self._jump_to = None
+        self._jump_at = float(now)
+        self._land_until = float(now)
+        self._jump_next = None
+        self._effect = None
         self._arm(float(now))
 
     # ── 읽기 ──
@@ -5208,7 +5304,7 @@ class Roamer:
         return _roam_dist(self.pos, self.home) > self.cfg["arrive_px"]
 
     def _out(self, moved):
-        return RoamOut(self.pos, self._anim, bool(moved), self.away, self.phase)
+        return RoamOut(self.pos, self._anim, bool(moved), self.away, self.phase, self._effect)
 
     # ── 내부 전이 ──
     def _arm(self, now):
@@ -5227,7 +5323,17 @@ class Roamer:
         self.settled = bool(settled)
         self._target = None
         self._anim = None
+        self._clear_play()
         self._arm(now)
+
+    def _clear_play(self):
+        """follow 체류·jump 진행·효과를 버린다 (정지·look 전이에서)."""
+        self._cross = None
+        self._jump_stage = None
+        self._jump_screen = None
+        self._jump_to = None
+        self._jump_next = None
+        self._effect = None
 
     def _begin(self, kind, target, now):
         """목표를 향한 leg 를 시작한다 (kind = "approach" | "wander")."""
@@ -5241,12 +5347,59 @@ class Roamer:
 
     def _watch(self, now):
         self.phase = "look"
-        if self.kind == "approach":
+        self._clear_play()
+        if self.kind in ("approach", "follow"):
             self._anim = "review"
             self._look_until = now + self.cfg["look_s"]
         else:
             self._anim = None
             self._look_until = now + self.cfg["wander_pause_s"]
+
+    def _stand(self):
+        """follow 중 그 자리에서 커서를 바라본다 (이 step 은 움직이지 않는다)."""
+        self._anim = "review"
+        return self._out(False)
+
+    def _start_jump(self, now, sid, landing, next_phase):
+        """다른 화면으로 건너가기 시작: 출발 효과 동안 pos 불변, 대상 화면과 착지점은 고정."""
+        self.phase = "jump"
+        self._target = None
+        self._cross = None
+        self._jump_stage = "off"
+        self._jump_screen = sid
+        self._jump_to = (float(landing[0]), float(landing[1]))
+        self._jump_next = next_phase
+        self._jump_at = now + self.cfg["jump_prep_s"]
+        self._jump_ok_at = now + self.cfg["jump_cooldown_s"]
+        self._anim = "jumping"
+        self._effect = "takeoff"
+
+    def _plan_landing(self, scr, cursor):
+        """다른 화면 scr 의 bounds 전체에서 균등 랜덤 착지 후보. 시도마다 uniform 을 x, y 로 정확히 두 번.
+
+        커서와 approach_stop + radius 안이면 버린다. jump_tries 안에 없으면 None — 호출자가
+        같은 화면 산책으로 넘어간다.
+        """
+        x0, y0, x1, y1 = scr.bounds
+        stop = self.cfg["approach_stop"] + self.radius
+        for _ in range(int(self.cfg["jump_tries"])):
+            x = self.rng.uniform(x0, x1)
+            y = self.rng.uniform(y0, y1)
+            target = _roam_clamp((x, y), scr.bounds)
+            if cursor is not None and _roam_dist(target, cursor) < stop:
+                continue
+            return target
+        return None
+
+    def _standoff(self, cursor, rect):
+        """커서에서 approach_stop + radius 만큼 떨어진, 펫 쪽의 자리를 rect 로 클램프한 것."""
+        stop = self.cfg["approach_stop"] + self.radius
+        d = _roam_dist(cursor, self.pos)
+        if d <= 0.0:
+            ux, uy = -1.0, 0.0
+        else:
+            ux, uy = (self.pos[0] - cursor[0]) / d, (self.pos[1] - cursor[1]) / d
+        return _roam_clamp((cursor[0] + ux * stop, cursor[1] + uy * stop), rect)
 
     def _note(self, now, cursor, activity):
         """활동 기록. 커서는 cursor_sample_s 마다 한 번만 직전 샘플과 비교한다."""
@@ -5308,15 +5461,45 @@ class Roamer:
             return target
         return None
 
-    def _plan(self, now, cursor, bounds):
-        if (self._active(now) and cursor is not None
-                and now >= self._approach_ok_at):
+    def _plan(self, now, cursor, bounds, screens):
+        """휴식 끝. 우선순위: follow(가끔) > approach > wander(다른 화면이 있으면 가끔 jump) > 휴식 재추첨.
+
+        새 행동 선택 난수는 여기서 뽑는다: follow 자격이면 uniform(0, 1) 1회(+ 고르면 길이 1회),
+        점프 자격이면 uniform(0, 1) 1회(+ 고르면 화면 index 1회와 착지 후보 시도당 2회).
+        follow_p=0 이면 follow 선택 난수를, jump_enabled=False(또는 다른 화면 없음)면 점프 선택
+        난수를 생략한다 — 옛 fixture 의 호출 수가 그대로인 이유. jump_p=0 은 자격이 있으면 확률
+        난수 1회를 소비하고 거절된다. 휴식 재추첨(_arm)의 난수는 기존대로다.
+        """
+        active = self._active(now) and cursor is not None
+        if (active and self.cfg["follow_p"] > 0 and now >= self._follow_ok_at
+                and self.rng.uniform(0, 1) < self.cfg["follow_p"]):
+            self.kind = "follow"
+            self.phase = "follow"
+            self._target = None
+            self._anim = None
+            self._follow_until = now + self.rng.uniform(self.cfg["follow_min_s"],
+                                                        self.cfg["follow_max_s"])
+            self._follow_ok_at = now + self.cfg["follow_cooldown_s"]
+            self._follow_jumps = 0
+            self._cross = None
+            return
+        if active and now >= self._approach_ok_at:
             target = self._plan_approach(cursor, bounds)
             if target is not None:
                 self._approach_ok_at = now + self.cfg["approach_cooldown_s"]
                 self._begin("approach", target, now)
                 return
         if self._wander_on() and now >= self._wander_ok_at:
+            others = [s for s in screens if s.id != self.screen]
+            if (others and self.cfg.get("jump_enabled", True) and now >= self._jump_ok_at
+                    and self.rng.uniform(0, 1) < self.cfg["jump_p"]):
+                i = min(int(self.rng.uniform(0, len(others))), len(others) - 1)
+                landing = self._plan_landing(others[i], cursor)
+                if landing is not None:
+                    self._wander_ok_at = now + self.cfg["wander_cooldown_s"]
+                    self.kind = "wander"
+                    self._start_jump(now, others[i].id, landing, "look")
+                    return
             target = self._plan_wander(cursor, bounds)
             if target is not None:
                 self._wander_ok_at = now + self.cfg["wander_cooldown_s"]
@@ -5326,19 +5509,129 @@ class Roamer:
         self.settled = True
         self._arm(now)
 
+    def _resolve_screen(self, screens, bounds):
+        """현재 화면과 그 bounds. screens 가 비면 bounds 인자의 단일 화면이다."""
+        if not screens:
+            return bounds
+        if _roam_find_screen(screens, self.screen) is None:
+            sid = _roam_screen_at(screens, self.pos)
+            if sid is None:
+                sid = min(screens, key=lambda s: _roam_rect_dist(self.pos, s.bounds)).id
+            self.screen = sid
+        return _roam_find_screen(screens, self.screen).bounds
+
+    def _clamp_home(self, bounds, screens):
+        """화면 구성이 바뀌어 pos 를 들일 때 home 도 들인다 — 단, home 이 어느 화면 bounds 안에
+        멀쩡히 있으면 그대로 둔다(점프로 다른 화면에 있는 동안 home 을 착지 화면으로 옮기지 않는다)."""
+        if screens and any(_roam_inside(self.home, s.bounds) for s in screens):
+            return
+        self.home = _roam_clamp(self.home, bounds)
+
+    def _step_jump(self, now, cursor, screens):
+        if self._jump_next == "follow":
+            if cursor is None:
+                self._stop(now)                        # follow 의 점프: 커서가 없으면 취소
+                return self._out(False)
+            if now >= self._follow_until:
+                self._watch(now)                       # 마감이 먼저다 — 전송 전이면 원래 화면에서 자연 완료
+                return self._out(False)
+        if self._jump_stage == "off":
+            if now < self._jump_at:
+                return self._out(False)
+            scr = _roam_find_screen(screens, self._jump_screen)
+            landing = self._jump_to
+            clearance = self.radius + self.cfg["cursor_margin_px"]
+            if (scr is None or not _roam_inside(landing, scr.bounds)
+                    or (cursor is not None and _roam_dist(cursor, landing) < clearance)):
+                self._stop(now)                        # 대상 화면이 사라졌거나 줄었거나 커서가 착지를 덮었다
+                return self._out(False)
+            self.pos = landing
+            self.screen = scr.id
+            self._jump_stage = "land"
+            self._land_until = now + self.cfg["jump_land_s"]
+            self._anim = None
+            self._effect = "landing"
+            return self._out(True)
+        if now < self._land_until:
+            return self._out(False)
+        if self._jump_next == "follow":
+            self._follow_jumps += 1
+            self._clear_play()
+            self.phase = "follow"                      # 마감 전이면 새 화면에서 이어 간다
+            return self._out(False)
+        self._watch(now)                               # 산책 점프: 잠깐 멈춘 뒤 그 자리에서 쉰다
+        return self._out(False)
+
+    def _step_follow(self, now, dt, cursor, bounds, screens):
+        if cursor is None:
+            self._stop(now)                            # 커서가 없다: 취소 (자연 완료 아님)
+            return self._out(False)
+        if now >= self._follow_until:
+            self._watch(now)                           # 마감 — 구경 도착처럼 바라본 뒤 그 자리에서 쉰다
+            return self._out(False)
+        stop = self.cfg["approach_stop"] + self.radius
+        clearance = self.radius + self.cfg["cursor_margin_px"]
+        if screens:
+            cs = _roam_screen_at(screens, cursor)
+            if cs is None:
+                self._cross = None                     # 화면 사이 빈틈: 안전 대기, 체류 시계 해제
+                return self._stand()
+            if cs != self.screen:
+                if self._cross is None or self._cross[0] != cs:
+                    self._cross = (cs, now)            # 대상 화면이 바뀌면 체류를 새로 잰다
+                elif (now - self._cross[1] >= self.cfg["follow_cross_s"]
+                      and self._follow_jumps < int(self.cfg["follow_max_jumps"])
+                      and self._follow_until - now >= self.cfg["follow_min_left_s"]
+                      and self.cfg.get("jump_enabled", True) and now >= self._jump_ok_at):
+                    scr = _roam_find_screen(screens, cs)
+                    landing = self._standoff(cursor, scr.bounds)
+                    if _roam_dist(landing, cursor) >= clearance:
+                        self._start_jump(now, cs, landing, "follow")
+                        return self._out(False)
+            else:
+                self._cross = None
+        d = _roam_dist(cursor, self.pos)
+        if d <= stop + self.cfg["follow_slack_px"]:
+            return self._stand()                       # 여백 안: 서서 바라본다 (커서가 들어와도 움직이지 않는다)
+        target = self._standoff(cursor, bounds)
+        if _roam_seg_dist(cursor, self.pos, target) < clearance:
+            return self._stand()                       # 가는 길이 커서를 스친다: 이 step 은 서 있는다
+        remaining = _roam_dist(self.pos, target)
+        if remaining <= self.cfg["arrive_px"]:
+            return self._stand()                       # 클램프된 가장자리에 닿았다
+        dx = target[0] - self.pos[0]
+        if abs(dx) > self.cfg["follow_turn_px"] or self._anim not in ("running-left", "running-right"):
+            self._anim = "running-right" if dx >= 0 else "running-left"
+        stride = self.cfg["follow_speed"] * dt
+        if stride <= 0.0:
+            return self._out(False)
+        if remaining <= stride:
+            self.pos = target
+            return self._out(True)
+        ux, uy = (target[0] - self.pos[0]) / remaining, (target[1] - self.pos[1]) / remaining
+        self.pos = (self.pos[0] + ux * stride, self.pos[1] + uy * stride)
+        return self._out(True)
+
     # ── 공개 API ──
     def step(self, now, cursor, bounds, *, enabled=True, dragging=False,
-             blocked=False, busy=False, activity=False):
+             blocked=False, busy=False, activity=False, screens=()):
         """한 tick. cursor=(x, y)|None, bounds=(x0, y0, x1, y1)=허용되는 창 중심 rect.
 
         blocked = "지금 출발하지 마"(hover, 남의 override 재생 중).
         busy    = "출발 금지"(설정 창·메뉴·spike). 이동 중이면 둘 다 그 자리 정지.
+        screens = RoamScreen 목록(현재 화면 포함). 뒤집힌 bounds 의 화면은 여기서 걸러 낸다.
+                  비어 있으면 bounds 의 단일 화면이고 점프는 없다. 비어 있지 않으면 현재 화면은
+                  이 모델이 확정하고(screen) 그 bounds 를 쓴다 — bounds 인자는 호환용이다.
         """
         now = float(now)
         gap = now - self._last_now
         dt = min(max(gap, 0.0), self.cfg["max_dt_s"])
         self._last_now = now
         self._note(now, cursor, activity)
+        # 창보다 작은 화면(bounds 뒤집힘)은 목적지도 착지도 아니다 — 어댑터가 빼지만 여기서도 다시 거른다.
+        # 남는 화면이 없으면 bounds 인자의 단일 화면(뒤집혀 있으면 아래 valid 검사가 아무것도 하지 않게 한다).
+        screens = tuple(s for s in (screens or ()) if _roam_valid_rect(s.bounds))
+        bounds = self._resolve_screen(screens, bounds)
         x0, y0, x1, y1 = bounds
         valid = not (x0 > x1 or y0 > y1)               # 뒤집힌 경계 = 창이 화면보다 크다
         hold = (not enabled) or dragging or blocked or busy
@@ -5353,26 +5646,27 @@ class Roamer:
                 self._arm(now)                         # 깨어나자마자 출발하지 않게
             if not valid:
                 return self._out(False)
-            if not (x0 <= self.pos[0] <= x1 and y0 <= self.pos[1] <= y1):
+            if not _roam_inside(self.pos, bounds):
                 self.pos = _roam_clamp(self.pos, bounds)   # 화면이 바뀌어 밖에 남은 창을 들인다
-                self.home = _roam_clamp(self.home, bounds)
+                self._clamp_home(bounds, screens)
                 return self._out(True)
             if now < self._next_at:
                 return self._out(False)
-            self._plan(now, cursor, bounds)
+            self._plan(now, cursor, bounds, screens)
             return self._out(False)                    # 계획한 step 에는 움직이지 않는다
 
         if hold or gap > self.cfg["gap_s"] or not valid:
             # 사용자 우선: 그 자리 정지, 순간이동 없음. 경계가 뒤집혀도 같은 처리다 —
             # 목표를 남겨 두면 화면이 돌아왔을 때 오래된 경로를 이어 걷게 된다.
+            # 점프 중이면 전송 전엔 원래 화면, 뒤엔 착지 화면에 그대로 남는다.
             self._stop(now)
             return self._out(False)
 
-        if not (x0 <= self.pos[0] <= x1 and y0 <= self.pos[1] <= y1):
-            # 화면 구성이 바뀌어 창이 허용 범위 밖에 남았다. 자동 이동이 하는 유일한
-            # '점프' 다: 창 전체가 다시 보이도록 안으로 들이고, 하던 이동은 접는다.
+        if not _roam_inside(self.pos, bounds):
+            # 화면 구성이 바뀌어 창이 허용 범위 밖에 남았다. 창 전체가 다시 보이도록 안으로
+            # 들이고, 하던 이동은 접는다 (계획된 점프와 달리 '복구' 다).
             self.pos = _roam_clamp(self.pos, bounds)
-            self.home = _roam_clamp(self.home, bounds)
+            self._clamp_home(bounds, screens)
             self._stop(now)
             return self._out(True)
 
@@ -5380,6 +5674,12 @@ class Roamer:
             if now >= self._look_until:
                 self._stop(now, settled=True)          # 구경/산책 멈춤이 끝났다 — 그 자리에서 쉰다
             return self._out(False)
+
+        if self.phase == "jump":
+            return self._step_jump(now, cursor, screens)
+
+        if self.phase == "follow":
+            return self._step_follow(now, dt, cursor, bounds, screens)
 
         # out — 목표를 향해 걷는 leg
         leg = _roam_clamp(self._target, bounds)
@@ -5405,6 +5705,7 @@ class Roamer:
         """수동 배치(드래그 끝·크기 변경): 여기가 집이고 지금 자리다. 휴식부터."""
         self.home = (float(pos[0]), float(pos[1]))
         self.pos = self.home
+        self.screen = None                             # 수동 배치: 다음 step 에 새 pos 로 화면을 다시 고른다
         self._last_now = float(now)
         self._stop(float(now), settled=True)
 
@@ -5415,6 +5716,7 @@ class Roamer:
             self.set_home(pos, now)
             return
         self.pos = (float(pos[0]), float(pos[1]))
+        self.screen = None
         self._last_now = float(now)
         self._stop(float(now))
 
@@ -5431,15 +5733,15 @@ DISPLAY_SUMMARY = "summary"     # 구경 도착: 작은 사용량 요약
 class RoamDisplay:
     """Roamer 의 phase 를 표시 모드로 옮기는 순수 상태. 상태는 둘뿐이다.
 
-    summary  = 구경(approach) 도착으로 켜진 요약 래치. 걷기 시작·자연 완료(구경 만료)·명시적 중단이 끈다.
-               hover 로 멈춘 것은 중단이 아니라 래치를 유지한다 — 요약을 펼치려면 커서를
-               올려야 하기 때문이다. 도착 자리에서의 구경은 "hover 로 멈춤" 과 "6초가 끝남"
-               이 둘 다 rest 라, Roamer.settled 로 구별한다: settled=False(정지)면 유지,
-               True(자연 완료)면 평소 선택으로 복원.
+    summary  = 구경(approach)·따라다니기(follow) 도착(look)으로 켜진 요약 래치. 걷기·점프·follow
+               시작, 자연 완료(구경 만료), 명시적 중단이 끈다. hover 로 멈춘 것은 중단이 아니라
+               래치를 유지한다 — 요약을 펼치려면 커서를 올려야 하기 때문이다. 도착 자리에서의
+               구경은 "hover 로 멈춤" 과 "6초가 끝남" 이 둘 다 rest 라, Roamer.settled 로 구별한다:
+               settled=False(정지)면 유지, True(자연 완료)면 평소 선택으로 복원.
     expanded = 요약 중 사용자가 기존 펼치기 조작으로 전체 게이지를 연 상태. show_panel 은
                건드리지 않으므로 자연 완료·중단 뒤엔 그 자리에서 평소 선택이 그대로 돌아온다.
 
-    note() 의 우선순위: 명시적 중단/비활성 > 걷기 > 구경 도착 > 자연 완료 휴식(그 자리).
+    note() 의 우선순위: 명시적 중단/비활성 > 이동(걷기·점프·follow) > 구경/follow 도착 > 자연 완료 휴식(그 자리).
     """
 
     def __init__(self):
@@ -5458,9 +5760,9 @@ class RoamDisplay:
         if interrupted or not enabled:
             self.reset()
             return
-        if phase == "out":
-            self.reset()
-        elif phase == "look" and kind == "approach":
+        if phase in ("out", "jump", "follow"):
+            self.reset()                               # 이동 중엔 접는다
+        elif phase == "look" and kind in ("approach", "follow"):
             self.summary = True
         elif phase == "rest" and settled:
             self.reset()                               # 자연 완료 → 그 자리에서 평소 선택 (집이든 아니든)
@@ -5477,8 +5779,8 @@ class RoamDisplay:
         return not show_panel
 
     def mode(self, phase, show_panel):
-        if phase == "out":
-            return DISPLAY_FOLDED                  # 걷는 동안엔 무조건 접는다
+        if phase in ("out", "jump", "follow"):
+            return DISPLAY_FOLDED                  # 걷기·점프·follow 동안엔 무조건 접는다
         if self.summary:
             return DISPLAY_FULL if self.expanded else DISPLAY_SUMMARY
         if phase == "look":
@@ -6422,11 +6724,47 @@ def run_gui():
     def roam_bounds():
         """논리 full 창 전체가 화면(visibleFrame) 안에 남는, 논리 중심의 허용 rect."""
         scr = win.screen() or NSScreen.mainScreen()
+        return roam_screen_bounds(scr)
+
+    def roam_screen_bounds(scr):
         vf = scr.visibleFrame()
         w_, h_ = roam_env()
         return (vf.origin.x + w_ / 2, vf.origin.y + h_ / 2,
                 vf.origin.x + vf.size.width - w_ / 2,
                 vf.origin.y + vf.size.height - h_ / 2)
+
+    def roam_screen_id(scr):
+        """안정 화면 식별자: NSScreenNumber. 없으면(가짜 화면) frame 튜플 — 화면마다 다르다."""
+        desc = getattr(scr, "deviceDescription", None)
+        num = desc().get("NSScreenNumber") if desc is not None else None
+        if num is not None:
+            return int(num)
+        f = scr.frame()
+        return (float(f.origin.x), float(f.origin.y), float(f.size.width), float(f.size.height))
+
+    def roam_screens():
+        """모든 화면의 RoamScreen(id, 실제 frame, 중심 허용 bounds). 창보다 작은 화면은 뺀다.
+
+        frame 은 커서 소속 판정용(메뉴 막대 포함 실제 rect), bounds 는 착지·pos 제약용 —
+        상태기계가 둘을 분리해서 쓴다. 현재 화면은 상태기계가 pos 로 확정한다.
+        """
+        out = []
+        for scr in NSScreen.screens():
+            b = roam_screen_bounds(scr)
+            if b[0] > b[2] or b[1] > b[3]:
+                continue
+            f = scr.frame()
+            out.append(RoamScreen(roam_screen_id(scr),
+                                  (f.origin.x, f.origin.y,
+                                   f.origin.x + f.size.width, f.origin.y + f.size.height), b))
+        return tuple(out)
+
+    def roam_current_bounds():
+        """상태기계가 확정한 현재 화면의 bounds. 아직 없으면(첫 tick 전) 창이 있는 화면."""
+        for scr in roam_screens():
+            if scr.id == roamer.screen:
+                return scr.bounds
+        return roam_bounds()
 
     def roam_env_update():
         """geom() 이 바뀐 직후(크기 조절·필 행 수·펫 교체)에 호출한다. 호출자가 실제 창을
@@ -6519,7 +6857,7 @@ def run_gui():
         roamer.radius = math.hypot(w_ / 2, h_ / 2)
         now = _time.monotonic()
         cx, cy = roamer.pos if roamer.away else window_center()
-        x0, y0, x1, y1 = roam_bounds()
+        x0, y0, x1, y1 = roam_current_bounds()      # 점프로 다른 화면에 있으면 그 화면 기준
         if x0 <= x1 and y0 <= y1:
             cx, cy = min(max(cx, x0), x1), min(max(cy, y0), y1)
         if roamer.away:
@@ -6527,6 +6865,25 @@ def run_gui():
         else:
             roamer.set_home((cx, cy), now)
         place_window_center((cx, cy))
+
+    def roam_apply_effect(now, effect):
+        """점프의 출발/착지 효과를 창 alpha 로 그린다. takeoff: 1 → 0.15 (jump_prep_s 동안),
+        landing: 0.15 → 1 (jump_land_s 동안), 그 외(정상 완료·모든 취소 tick)엔 1 로 복원.
+        값이 바뀔 때만 창을 건드린다 — 효과가 없던 tick 에는 호출이 없다."""
+        fx = roam_clock.setdefault("fx", {"effect": None, "since": now, "alpha": 1.0})
+        if effect != fx["effect"]:
+            fx["effect"], fx["since"] = effect, now
+        if effect == "takeoff":
+            f = min(1.0, (now - fx["since"]) / max(roamer.cfg["jump_prep_s"], 1e-6))
+            alpha = 1.0 - 0.85 * f
+        elif effect == "landing":
+            f = min(1.0, (now - fx["since"]) / max(roamer.cfg["jump_land_s"], 1e-6))
+            alpha = 0.15 + 0.85 * f
+        else:
+            alpha = 1.0
+        if abs(alpha - fx["alpha"]) > 1e-3:
+            fx["alpha"] = alpha
+            win.setAlphaValue_(alpha)
 
     def roam_tick():
         """Roamer 한 step 을 돌리고 창/애니메이션에 반영한다 → 다시 그릴지."""
@@ -6545,7 +6902,9 @@ def run_gui():
         roam_clock["last"] = now
         mp = NSEvent.mouseLocation()
         out = roamer.step(now, (mp.x, mp.y), roam_bounds(), enabled=enabled,
-                          dragging=bool(state["dragging"]), blocked=blocked, busy=busy)
+                          dragging=bool(state["dragging"]), blocked=blocked, busy=busy,
+                          screens=roam_screens())
+        roam_apply_effect(now, out.effect)
         disp = state.get("roam_display")
         if disp is not None:
             # 표시 계층: 걷는 동안 접기, 구경 도착 요약, 자연 완료·명시적 중단 시 그 자리에서 평소 선택 복원.

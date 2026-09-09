@@ -71,6 +71,8 @@ python3 claude_pet.py --report   # solo informe en terminal, sin GUI
 - **Pasea por su cuenta de vez en cuando** — descansa en su sitio; cuando el ratón se está moviendo se acerca una vez y
   mira un momento, y si no, elige un punto al azar en cualquier parte de la pantalla, camina hasta allí y descansa donde llega
   (no vuelve al sitio anterior). Nunca camina sobre el cursor y se detiene donde está si la agarras o abres el menú o los Ajustes
+- **A veces sigue al ratón** durante 10–20 segundos, despacio y a distancia, luego te mira y descansa donde se detuvo.
+  **Con más de un monitor salta entre ellos** de vez en cuando: un pequeño brinco, un desvanecimiento y aterriza en un lugar seguro de la otra pantalla
 - **Pliega los medidores al caminar** y solo se mueve la mascota. Al llegar muestra un pequeño **resumen** de una línea con el % de sesión y semanal;
   pulsa el botón ⌄ para desplegar los medidores completos. Cuando termina de mirar, recupera lo que tenías plegado o desplegado
 - **Agarrar y arrastrar** — corre en la dirección del arrastre; **doble clic** = salto + **actualización de uso inmediata** (recarga ignorando la caché)
@@ -99,8 +101,9 @@ El medidor por modelo **detecta automáticamente** el nivel superior en los regi
 - **Día/hora de reinicio semanal**: si la app dice "se reinicia sáb 20:00", pon sábado/20:00. 7 días rodantes si no se define.
 - Palabra clave de modelo (auto recomendado), sensibilidad de picos, saludo del ratón on/off, clave de Admin API, presupuesto mensual
 
-- **Pasear por la pantalla**: se activa o desactiva con la casilla del menú de clic derecho (activado por defecto). Si en Accesibilidad de macOS
-  está activado **Reducir movimiento**, la mascota no se mueve. Las posiciones a las que pasea no se guardan; solo se recuerda donde la dejas al arrastrarla.
+- **Pasear por la pantalla**: se activa o desactiva con la casilla del menú de clic derecho (activado por defecto); también cubre seguir al ratón
+  y saltar entre monitores. Si en Accesibilidad de macOS está activado **Reducir movimiento**, la mascota no se mueve.
+  Las posiciones a las que pasea o salta no se guardan; solo se recuerda donde la dejas al arrastrarla.
 
 Todos los ajustes, tamaño y posición se guardan en `~/.claude_pet.json`.
 
