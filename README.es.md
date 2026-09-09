@@ -68,10 +68,11 @@ python3 claude_pet.py --report   # solo informe en terminal, sin GUI
 
 - **Quieta por defecto** — primer fotograma congelado; solo respira/parpadea una vez cada 25s
 - **Cuando el ratón se acerca** — saluda con la mano (30s de enfriamiento)
-- **Pasea por su cuenta de vez en cuando** — descansa en su sitio y, cuando el ratón se está moviendo, se acerca una vez,
-  mira un momento y vuelve. Nunca camina sobre el cursor y se detiene donde está si la agarras o abres el menú o los Ajustes
+- **Pasea por su cuenta de vez en cuando** — descansa en su sitio; cuando el ratón se está moviendo se acerca una vez y
+  mira un momento, y si no, elige un punto al azar en cualquier parte de la pantalla, camina hasta allí y descansa donde llega
+  (no vuelve al sitio anterior). Nunca camina sobre el cursor y se detiene donde está si la agarras o abres el menú o los Ajustes
 - **Pliega los medidores al caminar** y solo se mueve la mascota. Al llegar muestra un pequeño **resumen** de una línea con el % de sesión y semanal;
-  pulsa el botón ⌄ para desplegar los medidores completos. Al volver, recupera lo que tenías plegado o desplegado
+  pulsa el botón ⌄ para desplegar los medidores completos. Cuando termina de mirar, recupera lo que tenías plegado o desplegado
 - **Agarrar y arrastrar** — corre en la dirección del arrastre; **doble clic** = salto + **actualización de uso inmediata** (recarga ignorando la caché)
 - **Cuando el consumo de tokens se dispara** — pulso de color de alerta + cara de pánico + ▲pico en el medidor:
   - 🔴 pico de sesión / 🟣 pico de modelo (Fable/Opus) / 🟠 pico semanal

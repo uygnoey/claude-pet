@@ -68,10 +68,11 @@ python3 claude_pet.py --report   # terminal report only, no GUI
 
 - **Idle by default** — first frame frozen; a breath/blink only once every 25s
 - **When the mouse comes close** — waves hello (30s cooldown)
-- **Roams on its own now and then** — rests in place, and when the mouse is moving it walks over once,
-  watches for a moment, and returns. It never walks onto the cursor and stops where it is if you grab it or open the menu or Settings
+- **Roams on its own now and then** — rests in place; when the mouse is moving it walks over once and watches
+  for a moment, otherwise it picks a random spot anywhere on the screen, walks there and rests where it arrives
+  (it does not come back). It never walks onto the cursor and stops where it is if you grab it or open the menu or Settings
 - **Folds the gauges while walking** so only the pet moves. On arrival it shows a small one-line **summary** of session and weekly %;
-  click the ⌄ button to expand the full gauges. On return it goes back to whatever you had collapsed or expanded
+  click the ⌄ button to expand the full gauges. When it is done watching it goes back to whatever you had collapsed or expanded
 - **Grab & drag** — runs in the drag direction; **double-click** = jump + **instant usage refresh** (cache-busting refetch)
 - **When token usage spikes** — warning-color pulse + panic face + ▲spike on the gauge:
   - 🔴 session spike / 🟣 model (Fable/Opus) spike / 🟠 weekly spike

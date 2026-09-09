@@ -5111,7 +5111,8 @@ ROAM_DEFAULTS = {
     "approach_stop": 150.0,                   # 커서와 창 외접원 사이 최소 거리 (radius 를 더해 중심 기준으로 쓴다)
     "approach_max": 360.0,                    # 한 번 이동 상한 — 더 멀면 여기까지만 가서 멀리서 본다
     "look_s": 6.0,                            # 바라보기(review) 지속
-    "wander_radius": 160.0,                   # 집 기준 산책 반경, 0 이면 산책 없음(구경 전용)
+    "wander_enabled": True,                   # 산책: 현재 모니터의 허용 rect 전체에서 랜덤 목적지
+    "wander_tries": 6,                        # 산책 후보 재추첨 상한(너무 가깝거나 커서·경로와 겹치면 다음 후보)
     "wander_pause_s": 2.0,
     "activity_window_s": 20.0,                # 최근 이 시간 안에 커서 이동/활동 힌트가 있으면 '활동 중'
     "cursor_move_px": 12.0, "cursor_sample_s": 1.0,   # 1 Hz 샘플 사이 이보다 작은 이동은 무시
@@ -5124,8 +5125,9 @@ ROAM_DEFAULTS = {
 # pos   = (x, y) 지금 창 중심 (항상 채움)
 # anim  = None | "running-left" | "running-right" | "review"
 # moved = 이 step 에 pos 가 바뀌었는가
-# away  = |pos − home| > arrive_px
-# phase = "rest" | "out" | "look" | "home"
+# away  = |pos − home| > arrive_px — 수동 재시작 위치에서 떨어져 있는가. 자동 계획(_plan)과 표시 복원(RoamDisplay)
+#         은 이 값을 쓰지 않는다. 어댑터의 roam_resync 만 참조한다(나가 있으면 pos 를, 집이면 창 중심을 기준으로 재정렬)
+# phase = "rest" | "out" | "look"
 RoamOut = namedtuple("RoamOut", "pos anim moved away phase")
 
 
@@ -5152,22 +5154,24 @@ def _roam_seg_dist(p, a, b):
 
 
 class Roamer:
-    """펫의 자율 이동 상태기계 — rest → out → look → home → rest.
+    """펫의 자율 이동 상태기계 — rest → out → look → rest (그 자리에서).
 
-    · rest  집(사용자가 놓은 자리)에서 쉰다. 휴식이 끝나면 활동이 있고 cooldown 이
-            지났을 때 구경(approach)을, 아니면 산책(wander)을, 아니면 나가 있으면
-            귀가를 계획한다. 계획한 step 에는 움직이지 않는다. 쉬는 동안 조작(아래
-            플래그)이 있으면 휴식 시각을 그때부터 다시 잰다.
+    · rest  지금 있는 자리에서 쉰다. 휴식이 끝나면 활동이 있고 cooldown 이 지났을 때
+            구경(approach)을, 아니면 산책(wander)을 계획한다. 계획한 step 에는 움직이지
+            않는다. 쉬는 동안 조작(아래 플래그)이 있으면 휴식 시각을 그때부터 다시 잰다.
     · out   목표를 향해 walk_speed 로 걷는다. 목표는 출발 때 한 번 정하고 다시
             계산하지 않는다(커서를 쫓지 않는다).
     · look  구경이면 review 애니메이션으로 look_s 동안, 산책이면 idle 로 잠깐 선다.
-    · home  집으로 걷는다.
+            끝나면 **그 자리에서** 쉰다 — 집으로 돌아가는 leg 는 없다.
+    home 은 사용자가 드래그로 놓은 '재시작 위치' 일 뿐이다: 자동 이동은 home 을 바꾸지도,
+    home 으로 되돌아가지도 않는다. 산책 목적지는 어댑터가 준 bounds(현재 모니터에서 논리
+    full 창이 통째로 들어가는 중심 허용 rect) 전체에서 균등 랜덤이다.
 
     **모든 phase 에서 사용자가 우선이다.** enabled=False(설정 off·Reduce Motion),
     dragging, blocked(hover·남의 애니메이션), busy(설정 창·메뉴·spike), 그리고
     gap_s 보다 긴 tick 공백은 **그 자리에 즉시 서고** 휴식을 새로 추첨한다 —
-    집으로 순간이동하지도, 옛 목표를 이어 걷지도 않는다. 걷는 두 leg(out/home)
-    모두 매 step 현재 커서와 [pos, 목표] 선분의 거리가 radius + 여백보다 작으면
+    집으로 순간이동하지도, 옛 목표를 이어 걷지도 않는다. 걷는 leg 는 out 하나뿐이고,
+    매 step 현재 커서와 [pos, 목표] 선분의 거리가 radius + 여백보다 작으면
     그 자리에 서고 휴식한다(우회하지 않는다). 자동 이동은 좌표를 저장하지 않는다.
     """
 
@@ -5181,7 +5185,7 @@ class Roamer:
         self.pos = self.home
         self.phase = "rest"
         self.kind = None                  # None | "approach" | "wander"
-        # 마지막으로 rest 가 된 이유가 '자연 완료' 인가. 생성·제자리 구경 만료·귀가 도착·
+        # 마지막으로 rest 가 된 이유가 '자연 완료' 인가. 생성·구경/산책 멈춤 만료·
         # 휴식 끝 재추첨·수동 배치(set_home)면 True, hold·공백·guard·경계·단순 클릭으로
         # 그 자리에 선 것이면 False. 표시 계층이 "구경 중 hover 로 멈춘 것" 과 "구경이
         # 끝난 것" 을 이 값으로 구별한다.
@@ -5215,7 +5219,7 @@ class Roamer:
     def _stop(self, now, settled=False):
         """그 자리에 선다. 목표·종류·애니메이션을 버리고 휴식으로.
 
-        settled=True 는 '자연 완료'(구경 만료·귀가 도착·수동 배치), False 는 hold·공백·
+        settled=True 는 '자연 완료'(구경/산책 멈춤 만료·수동 배치), False 는 hold·공백·
         guard·경계·단순 클릭으로 멈춘 것. 값은 self.settled 로 읽힌다.
         """
         self.phase = "rest"
@@ -5226,21 +5230,14 @@ class Roamer:
         self._arm(now)
 
     def _begin(self, kind, target, now):
-        """leg 를 시작한다. kind="home" 은 집으로 가는 leg."""
-        if kind == "home":
-            self.kind = None
-            self._target = None
-            self.phase = "home"
-            leg = self.home
-        else:
-            self.kind = kind
-            self._target = target
-            if _roam_dist(target, self.pos) <= self.cfg["arrive_px"]:
-                self._watch(now)                      # 제자리 구경
-                return
-            self.phase = "out"
-            leg = target
-        self._anim = "running-right" if leg[0] >= self.pos[0] else "running-left"
+        """목표를 향한 leg 를 시작한다 (kind = "approach" | "wander")."""
+        self.kind = kind
+        self._target = target
+        if _roam_dist(target, self.pos) <= self.cfg["arrive_px"]:
+            self._watch(now)                          # 제자리 구경
+            return
+        self.phase = "out"
+        self._anim = "running-right" if target[0] >= self.pos[0] else "running-left"
 
     def _watch(self, now):
         self.phase = "look"
@@ -5281,17 +5278,35 @@ class Roamer:
             return self.pos
         return target
 
+    def _wander_on(self):
+        # wander_enabled 가 스위치다. 예전 키 wander_radius 를 0 으로 준 설정도 '끔' 으로 읽는다
+        # (반경 자체는 더 이상 쓰지 않는다 — 목적지는 bounds 전체에서 고른다).
+        return bool(self.cfg.get("wander_enabled", True)) and self.cfg.get("wander_radius", 1.0) != 0
+
     def _plan_wander(self, cursor, bounds):
-        ang = self.rng.uniform(0.0, 2.0 * math.pi)
-        dist = self.rng.uniform(self.cfg["min_trip_px"], self.cfg["wander_radius"])
-        target = _roam_clamp((self.home[0] + math.cos(ang) * dist,
-                              self.home[1] + math.sin(ang) * dist), bounds)   # 집 기준
-        if _roam_dist(target, self.pos) < self.cfg["min_trip_px"]:
-            return None
-        if (cursor is not None
-                and _roam_dist(target, cursor) < self.cfg["approach_stop"] + self.radius):
-            return None                                # 사용자 작업 위로 걸어 들어가지 않는다
-        return target
+        """bounds 전체에서 균등 랜덤 목적지. 시도마다 rng.uniform 을 x, y 로 정확히 두 번 쓴다.
+
+        후보를 버리는 조건: 너무 가깝다(min_trip_px 미만) / 커서에 approach_stop + radius
+        안으로 붙는다 / 걷는 선분이 커서와 radius + cursor_margin_px 안으로 스친다(출발
+        직후 guard 로 취소될 경로). wander_tries 안에 통과 후보가 없으면 None — 호출자가
+        휴식을 다시 추첨하고, 즉시 재시도는 없다.
+        """
+        x0, y0, x1, y1 = bounds
+        stop = self.cfg["approach_stop"] + self.radius
+        clearance = self.radius + self.cfg["cursor_margin_px"]
+        for _ in range(int(self.cfg["wander_tries"])):
+            x = self.rng.uniform(x0, x1)
+            y = self.rng.uniform(y0, y1)
+            target = _roam_clamp((x, y), bounds)
+            if _roam_dist(target, self.pos) < self.cfg["min_trip_px"]:
+                continue
+            if cursor is not None:
+                if _roam_dist(target, cursor) < stop:
+                    continue                           # 사용자 작업 위로 걸어 들어가지 않는다
+                if _roam_seg_dist(cursor, self.pos, target) < clearance:
+                    continue                           # 가는 길에 커서를 스친다
+            return target
+        return None
 
     def _plan(self, now, cursor, bounds):
         if (self._active(now) and cursor is not None
@@ -5301,16 +5316,13 @@ class Roamer:
                 self._approach_ok_at = now + self.cfg["approach_cooldown_s"]
                 self._begin("approach", target, now)
                 return
-        if self.cfg["wander_radius"] > 0 and now >= self._wander_ok_at:
+        if self._wander_on() and now >= self._wander_ok_at:
             target = self._plan_wander(cursor, bounds)
             if target is not None:
                 self._wander_ok_at = now + self.cfg["wander_cooldown_s"]
                 self._begin("wander", target, now)
                 return
-        if self.away:
-            self._begin("home", None, now)             # 멈춰 섰던 자리에서 천천히 귀가
-            return
-        self.kind = None                               # 할 일이 없다 — 자연스럽게 쉰다
+        self.kind = None                               # 할 일이 없다 — 그 자리에서 쉰다 (귀가 없음)
         self.settled = True
         self._arm(now)
 
@@ -5366,14 +5378,11 @@ class Roamer:
 
         if self.phase == "look":
             if now >= self._look_until:
-                if self.away:
-                    self._begin("home", None, now)
-                else:
-                    self._stop(now, settled=True)      # 제자리 구경이 끝났다
+                self._stop(now, settled=True)          # 구경/산책 멈춤이 끝났다 — 그 자리에서 쉰다
             return self._out(False)
 
-        # out / home — 걷는 두 leg
-        leg = _roam_clamp(self._target if self.phase == "out" else self.home, bounds)
+        # out — 목표를 향해 걷는 leg
+        leg = _roam_clamp(self._target, bounds)
         if (cursor is not None and _roam_seg_dist(cursor, self.pos, leg)
                 < self.radius + self.cfg["cursor_margin_px"]):
             self._stop(now)                            # 커서를 가로지르지 않는다
@@ -5383,10 +5392,7 @@ class Roamer:
         if remaining <= max(stride, self.cfg["arrive_px"]):
             moved = leg != self.pos
             self.pos = leg
-            if self.phase == "out":
-                self._watch(now)
-            else:
-                self._stop(now, settled=True)          # 귀가 완료
+            self._watch(now)
             return self._out(moved)
         if stride <= 0.0:
             return self._out(False)
@@ -5425,15 +5431,15 @@ DISPLAY_SUMMARY = "summary"     # 구경 도착: 작은 사용량 요약
 class RoamDisplay:
     """Roamer 의 phase 를 표시 모드로 옮기는 순수 상태. 상태는 둘뿐이다.
 
-    summary  = 구경(approach) 도착으로 켜진 요약 래치. 걷기 시작·귀환·명시적 중단이 끈다.
+    summary  = 구경(approach) 도착으로 켜진 요약 래치. 걷기 시작·자연 완료(구경 만료)·명시적 중단이 끈다.
                hover 로 멈춘 것은 중단이 아니라 래치를 유지한다 — 요약을 펼치려면 커서를
-               올려야 하기 때문이다. 집에서의 제자리 구경은 "hover 로 멈춤" 과 "6초가 끝남"
-               이 둘 다 rest/집 이라, Roamer.settled 로 구별한다: settled=False(정지)면 유지,
+               올려야 하기 때문이다. 도착 자리에서의 구경은 "hover 로 멈춤" 과 "6초가 끝남"
+               이 둘 다 rest 라, Roamer.settled 로 구별한다: settled=False(정지)면 유지,
                True(자연 완료)면 평소 선택으로 복원.
     expanded = 요약 중 사용자가 기존 펼치기 조작으로 전체 게이지를 연 상태. show_panel 은
-               건드리지 않으므로 귀환·중단 뒤엔 평소 선택이 그대로 돌아온다.
+               건드리지 않으므로 자연 완료·중단 뒤엔 그 자리에서 평소 선택이 그대로 돌아온다.
 
-    note() 의 우선순위: 명시적 중단/비활성 > 걷기 > 구경 도착 > 집에서 휴식.
+    note() 의 우선순위: 명시적 중단/비활성 > 걷기 > 구경 도착 > 자연 완료 휴식(그 자리).
     """
 
     def __init__(self):
@@ -5448,16 +5454,16 @@ class RoamDisplay:
     def note(self, phase, kind, away, *, interrupted=False, enabled=True, settled=True):
         """매 tick, Roamer.step 직후. interrupted = 설정 창·메뉴·spike·공백 (dragging 은 아님:
         클릭의 mouseDown 도 한 tick dragging 을 세우므로, 진짜 드래그는 release(moved) 가 reset 한다).
-        settled = Roamer.settled — 집에서 rest 인데 자연 완료가 아니면(hover·클릭 정지) 래치를 유지한다."""
+        settled = Roamer.settled — rest 인데 자연 완료가 아니면(hover·클릭 정지) 래치를 유지한다."""
         if interrupted or not enabled:
             self.reset()
             return
-        if phase in ("out", "home"):
+        if phase == "out":
             self.reset()
         elif phase == "look" and kind == "approach":
             self.summary = True
-        elif phase == "rest" and not away and settled:
-            self.reset()                               # 집에서 자연스럽게 쉰다 → 평소 선택
+        elif phase == "rest" and settled:
+            self.reset()                               # 자연 완료 → 그 자리에서 평소 선택 (집이든 아니든)
 
     def toggle(self, show_panel):
         """기존 펼치기 조작(꺾쇠 버튼·메뉴 '접기/펴기') → 새 show_panel.
@@ -5471,7 +5477,7 @@ class RoamDisplay:
         return not show_panel
 
     def mode(self, phase, show_panel):
-        if phase in ("out", "home"):
+        if phase == "out":
             return DISPLAY_FOLDED                  # 걷는 동안엔 무조건 접는다
         if self.summary:
             return DISPLAY_FULL if self.expanded else DISPLAY_SUMMARY
@@ -6542,7 +6548,7 @@ def run_gui():
                           dragging=bool(state["dragging"]), blocked=blocked, busy=busy)
         disp = state.get("roam_display")
         if disp is not None:
-            # 표시 계층: 걷는 동안 접기, 구경 도착 요약, 귀환·명시적 중단 시 평소 선택 복원.
+            # 표시 계층: 걷는 동안 접기, 구경 도착 요약, 자연 완료·명시적 중단 시 그 자리에서 평소 선택 복원.
             # hover(blocked)·dragging 은 중단이 아니다 — 요약을 펼치려면 커서를 올려야 한다.
             disp.note(out.phase, roamer.kind, out.away,
                       interrupted=(not enabled) or busy or gap > roamer.cfg["gap_s"],

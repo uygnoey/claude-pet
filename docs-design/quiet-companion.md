@@ -1,7 +1,9 @@
 # 조용한 동행(quiet companion): 펫의 자율 이동
 
 > 목표: 펫이 화면을 **스스로** 돌아다니되 정신 사납지 않게 — 평소엔 제자리에서 쉬고,
-> 사용자가 뭔가 하고 있으면 **한 번** 다가와 멈춰서 바라보고, 천천히 제자리로 돌아온다.
+> 사용자가 뭔가 하고 있으면 **한 번** 다가와 멈춰서 바라보고, 그 자리에서 쉰다. (2026-09-09 부터
+> 자동 귀가 없음·산책은 모니터 전체 — `docs-design/free-roaming-20260909.md`; 그 변경의 검증·리뷰 기록은
+> `docs-design/free-roaming-verification-20260909.md` / `docs-design/free-roaming-review-20260909.md`.)
 >
 > 상태: **구현됨 (미배포, 미커밋)**. 순수 상태기계 `Roamer` 와 `run_gui()` 안의 어댑터.
 > 게이트: `tests/test_companion_motion.py` (독립 Verifier 소유). **승인·검증 결과의 단일 기준은
@@ -19,9 +21,9 @@
 
 | 원문 | 성질 | 어떻게 |
 |---|---|---|
-| 너무 정신 사납게는 말고 | **오래 쉰다** | 집(사용자가 놓은 자리)에서 45~90초 쉬고, 구경은 180초에 한 번 이하, 산책은 300초에 한 번 이하(`ROAM_DEFAULTS`). 구경 목적지는 출발점에서 최대 360pt, 산책 목적지는 집 반경 160pt 안 |
+| 너무 정신 사납게는 말고 | **오래 쉰다** | 지금 있는 자리에서 45~90초 쉬고, 구경은 180초에 한 번 이하, 산책은 300초에 한 번 이하(`ROAM_DEFAULTS`). 구경 목적지는 출발점에서 최대 360pt, 산책 목적지는 현재 모니터의 허용 rect 전체에서 랜덤 |
 | 내가 뭐 하면 와서 좀 쳐다보는 듯이 | **활동이 있으면 한 번 다가와 멈춰 본다** | 최근 20초 안에 커서가 움직였으면 그 순간의 커서 위치를 **한 번만** 읽어 그쪽으로 걷다가 창이 커서에 닿기 한참 전에 멈추고 6초 바라본다(review) |
-| 화면을 자유 분방하게 | **가끔 짧게 산책한다** | 집 반경 160pt 안의 임의 지점까지 갔다가 돌아온다 (Coordinator 지침: 구경 중심, 산책은 보수적으로) |
+| 화면을 자유 분방하게 | **모니터 전체를 산책한다** | 현재 모니터에서 논리 창이 통째로 들어가는 허용 rect 전체에서 랜덤 지점을 골라 걸어가고, 잠깐 선 뒤 **그 자리에서 쉰다**(자동 귀가 없음 — 사용자 요구 2026-09-09) |
 
 그리고 **사용자가 언제나 우선이다.** 잡거나, 마우스를 올리거나, 메뉴·설정 창을 열거나,
 사용량이 급증하거나, 시스템의 '동작 줄이기'가 켜져 있거나, 틱이 오래 멈췄다 돌아오면
@@ -72,12 +74,11 @@
 ## 3. 행동
 
 ```
-   rest(집 또는 멈춰 선 자리) ─휴식 끝─┬─ 활동 있고 cooldown 지남 ─▶ out ─도착─▶ look(6s, review) ─▶ home ─도착─▶ rest
-                                      ├─ 산책 허용 ────────────▶ out ─도착─▶ look(2s, idle)   ─▶ home ─도착─▶ rest
-                                      ├─ 집이 아니면 ────────────────────────────────────────▶ home ─도착─▶ rest
-                                      └─ 아니면 휴식 재추첨
-   out/look/home 어디서든: enabled=False · dragging · blocked · busy · 틱 공백>5s · 경로가 커서에 닿음
-                          ─▶ 그 자리에 즉시 정지, rest, 휴식 재추첨 (순간이동·재개 없음)
+   rest(지금 있는 자리) ─휴식 끝─┬─ 활동 있고 cooldown 지남 ─▶ out ─도착─▶ look(6s, review) ─▶ rest (그 자리)
+                                ├─ 산책 허용(cooldown 지남) ─▶ out ─도착─▶ look(2s, idle)   ─▶ rest (그 자리)
+                                └─ 아니면 휴식 재추첨
+   out/look 어디서든: enabled=False · dragging · blocked · busy · 틱 공백>5s · 경로가 커서에 닿음
+                     ─▶ 그 자리에 즉시 정지, rest, 휴식 재추첨 (순간이동·재개·귀가 없음)
 ```
 
 **좌표는 창 중심**이다(전역 스크린 포인트, y 위). `radius` 는 창 전체의 외접원 반지름
@@ -93,19 +94,22 @@
 커서가 그보다 360pt 넘게 멀면 360pt 만 가서 **멀리서 본다.** 이미 그 거리 안이면 걷지 않고
 제자리에서 바라본다.
 
-**산책(wander)** 은 집 기준 반경 160pt 의 임의 지점. 커서 근처(`150 + radius`)에 떨어지는
-지점은 버린다.
+**산책(wander)** 은 현재 모니터의 허용 rect 전체에서 균등 랜덤 지점(x, y 각각 `rng.uniform`).
+너무 가깝거나(60pt 미만) 커서에 `150 + radius` 안으로 붙거나 걷는 선분이 커서를 `radius + 24pt`
+안으로 스치는 후보는 버리고 다음 후보를 뽑는다 — 최대 6번(`wander_tries`), 다 실패하면 휴식을
+다시 추첨한다(즉시 재시도 없음). 도착해 잠깐 선 뒤 그 자리에서 쉰다.
 
 **빈도.** 휴식 45~90초(균등 난수) 뒤에 출발을 "고려" 한다. 구경은 직전 구경 뒤 180초, 산책은
 직전 산책 뒤 300초가 지나야 한다. 거리 상수: 구경 목적지는 출발점에서 최대 360pt
-(`approach_max`), 산책 목적지는 집 반경 160pt 안(`wander_radius`), 이동 속도 55pt/s
+(`approach_max`), 산책 목적지는 현재 모니터 허용 rect 전체(`wander_enabled`, 후보 재추첨 `wander_tries`), 이동 속도 55pt/s
 (`walk_speed`). 걸리는 벽시계 시간은 틱 간격과 `max_dt_s` 에 달려 있어 여기서 보장하지
 않는다. 실제 사용에서의 빈도는 측정하지 않았다.
 
 **정지 규칙이 "집으로" 가 아니라 "그 자리" 인 이유.** 메뉴를 열었는데 펫이 집으로 걸어가면
 사용자 조작보다 펫의 사정이 앞선다. 동작 줄이기가 켜졌는데 집으로 뛰면 "움직이지 말라" 는
-설정에서 한 번 더 뛰는 셈이다. 그래서 어느 경우든 그 자리에 서고, 쉰 뒤 새로 계획한다 —
-계획에는 "집이 아니면 귀가" 가 들어 있으므로 결국 천천히 돌아온다.
+설정에서 한 번 더 뛰는 셈이다. 그래서 어느 경우든 그 자리에 서고, 쉰 뒤 **그 자리에서** 새로
+계획한다. 자동 귀가는 없다(2026-09-09 사용자 요구) — 집(`home`)은 드래그로 놓은 재시작 위치라는
+정보로만 남는다.
 
 ---
 
@@ -124,7 +128,8 @@ ROAM_DEFAULTS = {
     "approach_stop": 150.0,                   # 커서와 창 외접원 사이 최소 거리 (+ radius = 중심 기준)
     "approach_max": 360.0,                    # 한 번 이동 상한
     "look_s": 6.0,                            # 바라보기 지속
-    "wander_radius": 160.0,                   # 집 기준 산책 반경, 0 이면 산책 없음
+    "wander_enabled": True,                   # 산책 on/off (예전 키 wander_radius == 0 도 끔으로 읽는다)
+    "wander_tries": 6,                        # 산책 후보 재추첨 상한
     "wander_pause_s": 2.0,
     "activity_window_s": 20.0,
     "cursor_move_px": 12.0, "cursor_sample_s": 1.0,
@@ -135,7 +140,7 @@ ROAM_DEFAULTS = {
 }
 RoamOut = namedtuple("RoamOut", "pos anim moved away phase")
 #   pos=(x, y) 창 중심 / anim=None|"running-left"|"running-right"|"review" /
-#   moved=이 step 에 pos 변함 / away=|pos−home|>arrive_px / phase="rest"|"out"|"look"|"home"
+#   moved=이 step 에 pos 변함 / away=|pos−home|>arrive_px (자동 계획·표시 복원엔 미사용, 어댑터 roam_resync 만 참조) / phase="rest"|"out"|"look"
 
 class Roamer:
     def __init__(self, home, now, rng=None, cfg=None, radius=0.0)   # cfg 는 ROAM_DEFAULTS 위에 얹는 부분 dict
@@ -149,15 +154,15 @@ class Roamer:
 
 ### 규칙
 
-- **R1 rest.** 생성·정지·귀가 시 `next_at = now + rng.uniform(rest_min_s, rest_max_s)`.
+- **R1 rest.** 생성·정지·look 종료 시 `next_at = now + rng.uniform(rest_min_s, rest_max_s)`.
   `next_at` 전에는 어떤 step 도 `moved=True` 를 내지 않는다 — 단 하나의 예외는 R8 의 화면
   복구(창이 정상 `bounds` 밖에 남았을 때 안으로 들이는 것)다. 쉬는 중 `gap_s` 보다 긴 공백이
   오면 다시 추첨한다(깨어나자마자 출발하지 않게).
 - **R2 출발.** rest 에서 `now >= next_at` 이고 `enabled and not dragging and not blocked and
   not busy` 일 때, 순서대로: (a) `active(now)` 이고 `cursor` 가 있고 `now >= approach_ok_at` →
-  구경 계획(R3), 성공 시 `approach_ok_at = now + approach_cooldown_s`; (b) `wander_radius > 0`
-  이고 `now >= wander_ok_at` → 산책 계획(R4), 성공 시 `wander_ok_at = now + wander_cooldown_s`;
-  (c) `away` 면 집으로 가는 leg; (d) 아니면 휴식 재추첨. **쉬는 동안 플래그가 하나라도
+  구경 계획(R3), 성공 시 `approach_ok_at = now + approach_cooldown_s`; (b) 산책이 켜져 있고
+  (`wander_enabled`; 예전 `wander_radius == 0` 도 끔) `now >= wander_ok_at` → 산책 계획(R4), 성공 시
+  `wander_ok_at = now + wander_cooldown_s`; (c) 아니면 휴식 재추첨. 귀가 leg 는 없다. **쉬는 동안 플래그가 하나라도
   참이면 매 step 휴식을 다시 추첨한다** — 조작이 이어지는 동안 마감이 계속 뒤로 밀리므로,
   조작이 *끝난* 시점부터 온전한 휴식이 확보되고 지나간 마감을 따라잡아 곧바로 출발하는
   일이 없다. **계획한 step 에는 움직이지 않는다.**
@@ -165,18 +170,20 @@ class Roamer:
   제자리 구경. 아니면 `travel = min(d − stop, approach_max)`, 그 방향으로 `travel` 간 점을
   `bounds` 로 클램프. 클램프 뒤 `|target − cursor| < stop/2` 면 실패, `|target − pos| < min_trip_px`
   면 제자리 구경. **커서는 이 순간 한 번만 읽는다.**
-- **R4 산책 계획.** `ang = rng.uniform(0, 2π)`, `dist = rng.uniform(min_trip_px, wander_radius)`,
-  `target = home + (cos, sin)·dist` 를 클램프. `|target − pos| < min_trip_px` 이거나 커서와
-  `stop` 안이면 실패. 반경은 **집** 기준이다.
-- **R5 걷기 (out/home 공통).** `dt = min(now − last_now, max_dt_s)`. leg 목표(`target` 또는
-  `home`)를 `bounds` 로 클램프한 뒤, **현재 커서와 [pos, 목표] 선분의 거리가 `radius +
+- **R4 산책 계획.** 최대 `wander_tries` 회: `x = rng.uniform(x0, x1)`, `y = rng.uniform(y0, y1)`
+  (시도당 정확히 두 번 호출; `bounds` 가 허용 rect 자체라 클램프는 방어용). 후보 거부:
+  `|target − pos| < min_trip_px`, 커서와 `stop` 안, 선분 `[pos, target]` 이 커서와
+  `radius + cursor_margin_px` 안. 첫 통과 후보 채택, 없으면 `None` → 휴식 재추첨(즉시 재시도 없음).
+  집 반경 제한은 없다.
+- **R5 걷기 (out).** `dt = min(now − last_now, max_dt_s)`. leg 목표(`target`)를 `bounds` 로
+  클램프한 뒤, **현재 커서와 [pos, 목표] 선분의 거리가 `radius +
   cursor_margin_px` 보다 작으면 그 자리 정지(R7).** 아니면 `walk_speed · dt` 만큼 넘치지 않게
   옮긴다. `anim` 은 leg 시작 때 한 번: 목표가 오른쪽이면 `"running-right"`, 아니면
-  `"running-left"`. 남은 거리가 이번 걸음(또는 `arrive_px`) 이하면 목표에 놓고: out 이면 look,
-  home 이면 rest.
+  `"running-left"`. 남은 거리가 이번 걸음(또는 `arrive_px`) 이하면 목표에 놓고 look 으로 간다(도착).
+  걷는 leg 는 out 하나뿐이다.
 - **R6 look.** 구경은 `anim="review"` 로 `look_s`, 산책은 `anim=None` 으로 `wander_pause_s`.
-  끝나면 `away` 면 집 leg, 아니면 rest.
-- **R7 정지 (모든 phase).** out/look/home 에서 `enabled=False`·`dragging`·`blocked`·`busy`
+  끝나면 항상 **그 자리에서** rest(`settled=True`). 귀가 leg 는 없다.
+- **R7 정지 (모든 phase).** out/look 에서 `enabled=False`·`dragging`·`blocked`·`busy`
   중 하나라도 참이거나, `now − last_now > gap_s` 이거나, `bounds` 가 뒤집혀 있으면
   **그 자리에 즉시 선다**: `phase="rest"`, 목표·종류·애니메이션 폐기, 휴식 재추첨.
   순간이동도 재개도 없다. 이 판정은 경계 검사보다 **먼저** 온다 — 뒤집힌 경계에서 목표를
@@ -282,7 +289,7 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 | spike | busy — 패닉 중엔 돌아다니지 않는다 | R7 |
 | 크기 조절 / 필 행 수 변경 / 펫 교체 | 하던 이동 정지, `radius` 갱신, 창 전체가 화면 안에 남게 재배치 | `roam_resync`, R10 |
 | 동작 줄이기 | `enabled=False` → 그 자리 정지, 이후 정지. 메뉴 항목 비활성 | R7 |
-| 커서가 경로에 들어옴 | out/home 어느 leg 든 그 자리 정지, 우회 없음 | R5 |
+| 커서가 경로에 들어옴 | out leg 에서 그 자리 정지, 우회 없음 | R5 |
 | 화면 밖 | 목표는 항상 창 전체가 화면 안에 남는 rect 안 | R3, R4, `roam_bounds` |
 | 화면 구성 변경 (축소·모니터 탈착) | `bounds` 는 매 틱 새로 읽는다. 창이 밖에 남으면 안으로 들이고 하던 이동은 접는다 | R8 |
 | 다중 모니터, 커서가 다른 화면 | 목표가 집 화면 가장자리로 클램프 → 가장자리에서 본다 | R3 |
@@ -351,7 +358,7 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 
 | 모드 | 언제 | 그리는 것 |
 |---|---|---|
-| `folded` | 걷는 동안(out/home), 산책 멈춤(look·wander), 사용자가 접어 둔 채 쉴 때 | 펫만 (hover 면 ⌄ 버튼) |
+| `folded` | 걷는 동안(out), 산책 멈춤(look·wander), 사용자가 접어 둔 채 쉴 때 | 펫만 (hover 면 ⌄ 버튼) |
 | `summary` | 구경 도착(look·approach) 뒤, 래치가 살아 있는 동안 | 펫 + 한 줄 요약 필 |
 | `full` | 요약에서 사용자가 펼쳤을 때, 또는 사용자가 펼쳐 둔 채 쉴 때 | 기존 게이지 필 전체 |
 
@@ -359,13 +366,14 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 
 - **D0 명시적 중단·비활성이 먼저.** `interrupted`(설정 창·메뉴·spike·틱 공백) 또는 `enabled=False`
   → 둘 다 끈다. 같은 호출에 도착이 실려 있어도 중단이 이긴다.
-- **D1 걷기.** phase 가 out/home → 둘 다 끈다(걷는 동안엔 접는다).
-- **D2 도착.** phase 가 look 이고 kind 가 approach → `summary=True`. 집에서의 제자리 구경도 같다.
-- **D3 귀환.** phase 가 rest 이고 집에 있으면 → 둘 다 끈다(평소 선택 복원).
-- **D4 hover 정지는 중단이 아니다.** rest 인데 나가 있으면(hover 로 멈춘 것) 래치를 **유지**한다 —
-  요약을 펼치려면 커서를 올려야 하고, 그 순간 요약이 사라지면 펼칠 수 없다. 집에서의
-  제자리 구경은 hover 정지도 6초 만료도 rest/집이라 구별이 필요하다: `Roamer.settled`
-  (자연 완료=True: 생성·구경 만료·귀가 도착·휴식 끝 재추첨·`set_home`; 정지=False: hold·
+- **D1 걷기.** phase 가 out → 둘 다 끈다(걷는 동안엔 접는다).
+- **D2 도착.** phase 가 look 이고 kind 가 approach → `summary=True`. 출발 때 이미 도착 거리 안이라 걷지 않는
+  제자리 구경도 같다.
+- **D3 자연 완료.** phase 가 rest 이고 `settled` 이면 → 둘 다 끈다(그 자리에서 평소 선택 복원, 집이든 아니든).
+- **D4 hover 정지는 중단이 아니다.** rest 인데 `settled=False`(hover·클릭으로 멈춘 것)이면 래치를 **유지**한다 —
+  요약을 펼치려면 커서를 올려야 하고, 그 순간 요약이 사라지면 펼칠 수 없다. 도착 자리에서의
+  구경은 hover 정지도 6초 만료도 rest 라 구별이 필요하다: `Roamer.settled`
+  (자연 완료=True: 생성·구경/산책 멈춤 만료·휴식 끝 재추첨·`set_home`; 정지=False: hold·
   공백·guard·경계·단순 클릭 `release(moved=False)`)를 `note(..., settled=)` 로 넘기고, D3 는
   `settled` 일 때만 복원한다. 정지로 남은 요약은 다음 휴식 끝에 Roamer 가 할 일 없이 재추첨
   하면(settled=True) 평소 선택으로 돌아간다.
@@ -380,13 +388,13 @@ radius=hypot(W/2, H/2))`. 시계는 `time.monotonic()` — 인사가 쓰는 `tim
 
 흐름 하나를 끝까지, 두 갈래로:
 
-- **손대지 않으면**: 집에서 전체 게이지를 보던 사용자 → 출발하면 접힘 → 도착하면 요약(6초 구경)
-  → 6초 뒤 접힌 채 귀가 → 집에서 전체. 접어 두던 사용자는 마지막이 접힘으로 끝난다.
+- **손대지 않으면**: 전체 게이지를 보던 사용자 → 출발하면 접힘 → 도착하면 요약(6초 구경)
+  → 6초 뒤 **그 자리에서** 전체로 복원. 접어 두던 사용자는 접힘으로 끝난다. 귀가는 없다.
 - **⌄ 를 누르면**: 커서를 올리는 순간 hover 가 Roamer 를 **그 자리에 세운다**(`blocked` → rest,
   `settled=False`) — 6초 구경은 더 진행되지 않고, 요약 래치는 남는다. ⌄ → 전체, 다시 ⌄ → 요약.
-  커서가 떠나면 Roamer 는 조작이 끝난 시점부터 휴식(45~90초)을 다시 재고, 휴식 끝에 집이 아니면
-  귀가 leg 를 시작하며 그때(D1) 접힌다 → 집에서 평소 선택. 즉 클릭 뒤 "6초 뒤 귀가" 가 아니라
-  "커서가 떠난 뒤 휴식 한 번 지나고 귀가" 다.
+  커서가 떠나면 Roamer 는 조작이 끝난 시점부터 휴식(45~90초)을 다시 재고, 휴식 끝에 할 일이 없으면
+  자연 완료(`settled=True`)로 그 자리에서 평소 선택으로 돌아가며, 새 구경/산책이 시작되면 그때(D1)
+  접힌다. 어느 쪽이든 귀가는 없다.
 
 ### 9.2 요약 내용 — `roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key)`
 
