@@ -870,9 +870,9 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.22"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.23"                 # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
-UPDATE_CHECK_SEC = 6 * 3600         # 새 릴리즈 재확인 주기 (오래 떠 있어도 감지)
+UPDATE_CHECK_SEC = 3600             # 새 릴리즈 확인 주기(1시간). 시작 시엔 확인하지 않고 한 주기 뒤부터 — run_gui 참조
 _upd_cache = {"t": 0.0, "busy": False}
 
 # 교체 스크립트가 '새 앱이 정말 떴는지' 확인할 때 쓰는 시간들. 여기 상수로 두는
@@ -1006,6 +1006,12 @@ TR = {
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_roam": "Roam the screen",
     "menu_update": "⬆︎ Install v{v}",
+    "menu_check_update": "⬆︎ Check for updates…",
+    "upd_title": "Claude Pet update",
+    "upd_current": "You're on the latest version (v{v}).",
+    "upd_failed": "Could not check for updates. Try again later.",
+    "upd_install_failed": "The update could not be installed. Try again later.",
+    "upd_busy": "An update check is already running.",
     "menu_uninstall": "Uninstall completely…",
     "menu_pets": "Pet", "pet_default": "Cat 🐱",
     "pet_add": "➕ Add a pet… (open folder)",
@@ -1098,6 +1104,12 @@ TR = {
     "unin_devmode": ("설치된 앱이 아니라 소스에서 실행 중이라 지울 앱이 없습니다. "
                      "설정 파일은 삭제했습니다."),
     "menu_update": "⬆︎ 새 버전 v{v} 설치",
+    "menu_check_update": "⬆︎ 업데이트 확인…",
+    "upd_title": "Claude Pet 업데이트",
+    "upd_current": "최신 버전입니다 (v{v}).",
+    "upd_failed": "업데이트를 확인하지 못했습니다. 잠시 후 다시 시도하세요.",
+    "upd_install_failed": "업데이트를 설치하지 못했습니다. 잠시 후 다시 시도하세요.",
+    "upd_busy": "이미 업데이트를 확인하는 중입니다.",
     "settings_title": "Claude Pet 설정", "s_data_source": "데이터 소스",
     "s_mode_sub": "구독 (Claude Code 로그)", "s_mode_api": "API (Admin API 비용)",
     "s_model_kw": "모델 게이지 키워드", "s_auto_detect": "(auto=자동감지)",
@@ -1175,6 +1187,12 @@ TR = {
     "unin_devmode": ("インストール済みアプリではなくソースから実行中のため、"
                      "削除するアプリはありません。設定ファイルは削除しました。"),
     "menu_update": "⬆︎ 新バージョン v{v} をインストール",
+    "menu_check_update": "⬆︎ アップデートを確認…",
+    "upd_title": "Claude Pet アップデート",
+    "upd_current": "最新バージョンです (v{v})。",
+    "upd_failed": "アップデートを確認できませんでした。しばらくしてからもう一度お試しください。",
+    "upd_install_failed": "アップデートをインストールできませんでした。しばらくしてからもう一度お試しください。",
+    "upd_busy": "すでにアップデートを確認中です。",
     "settings_title": "Claude Pet 設定", "s_data_source": "データソース",
     "s_mode_sub": "サブスク (Claude Code ログ)", "s_mode_api": "API (Admin API コスト)",
     "s_model_kw": "モデルゲージのキーワード", "s_auto_detect": "(auto=自動検出)",
@@ -1257,6 +1275,12 @@ TR = {
     "unin_devmode": ("Se está ejecutando desde el código fuente, no como app "
                      "instalada. Se eliminaron los archivos de ajustes."),
     "menu_update": "⬆︎ Instalar v{v}",
+    "menu_check_update": "⬆︎ Buscar actualizaciones…",
+    "upd_title": "Actualización de Claude Pet",
+    "upd_current": "Ya tienes la última versión (v{v}).",
+    "upd_failed": "No se pudo comprobar si hay actualizaciones. Inténtalo más tarde.",
+    "upd_install_failed": "No se pudo instalar la actualización. Inténtalo más tarde.",
+    "upd_busy": "Ya se está comprobando si hay actualizaciones.",
     "settings_title": "Ajustes de Claude Pet", "s_data_source": "Fuente de datos",
     "s_mode_sub": "Suscripción (registros de Claude Code)", "s_mode_api": "API (coste de Admin API)",
     "s_model_kw": "Palabra clave del medidor de modelo", "s_auto_detect": "(auto = detección automática)",
@@ -6149,10 +6173,10 @@ def run_gui():
         """새 버전 확인 1회. 쿨다운을 확인 '전에' 찍지 않게 되면서, 확인이 도는
         동안 다음 새로고침이 같은 확인을 또 시작할 수 있다 → 한 번에 하나만."""
         if _upd_cache.get("busy"):
-            return
+            return None                          # 이미 확인 중 — 호출자가 '바쁨' 으로 읽는다
         _upd_cache["busy"] = True
         try:
-            poll_github_update(state)
+            return poll_github_update(state)     # 'update' | 'current' | 'failed'
         finally:
             _upd_cache["busy"] = False
 
@@ -6612,6 +6636,12 @@ def run_gui():
                 f"ClaudePet v{APP_VERSION}", None, "")
             vitem.setEnabled_(False)
             menu.addItem_(vitem)
+            # 업데이트 확인… — 지금 확인해서 새 버전이 있으면 바로 내려받아 설치·재실행(한 번에).
+            # 주기 확인(1시간)을 기다리지 않아도 되게 한다. 사용자 요구 2026-09-11.
+            chk = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                t("menu_check_update"), "checkUpdate:", "")
+            chk.setTarget_(handler)
+            menu.addItem_(chk)
             upd = state.get("update")
             if upd:   # 새 버전 있으면 최상단에 설치 항목
                 top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -7514,6 +7544,38 @@ def run_gui():
                         "quitApp:", None, False)
             threading.Thread(target=work, daemon=True).start()
 
+        def checkUpdate_(self, sender):
+            """우클릭 '업데이트 확인…': 지금 확인 → 새 버전이 있으면 바로 설치하고 재실행한다.
+
+            확인은 GitHub 의 최신 릴리즈 하나만 보므로, 몇 버전을 건너뛰든 중간 버전을 거치지
+            않고 곧장 최신으로 간다. 결과(최신임·확인 실패·설치 실패·이미 확인 중)는 알림 창 한
+            번으로 알린다 — NSAlert 는 메인 스레드에서만 띄운다.
+            """
+            def work():
+                status = _run_update_check()
+                if status == "update":
+                    upd = state.get("update")
+                    if upd and install_github_update(upd[1], expect_version=upd[0]):
+                        self.performSelectorOnMainThread_withObject_waitUntilDone_(
+                            "quitApp:", None, False)
+                        return
+                    msg = t("upd_install_failed")
+                elif status == "current":
+                    msg = t("upd_current", v=APP_VERSION)
+                elif status is None:
+                    msg = t("upd_busy")
+                else:
+                    msg = t("upd_failed")
+                self.performSelectorOnMainThread_withObject_waitUntilDone_(
+                    "showUpdateMessage:", msg, False)
+            threading.Thread(target=work, daemon=True).start()
+
+        def showUpdateMessage_(self, msg):
+            a = NSAlert.alloc().init()
+            a.setMessageText_(t("upd_title"))
+            a.setInformativeText_(str(msg))
+            a.runModal()
+
         def saveSettings_(self, sender):
             save_settings()
 
@@ -7633,7 +7695,8 @@ def run_gui():
                         return                             # 더 새 요청이 있다 → 버림
                     if prev and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
                         set_override("jumping")
-                    # 주기적 새 버전 확인 (오래 실행돼도 감지)
+                    # 주기적 새 버전 확인 — 마지막 확인(또는 앱 시작)에서 UPDATE_CHECK_SEC 가 지났을 때만.
+                    # 30초 새로고침에 얹혀 있으므로 실제 확인은 주기가 찬 뒤 첫 새로고침에서 일어난다.
                     if not state.get("update") and time.time() - _upd_cache["t"] > UPDATE_CHECK_SEC:
                         _run_update_check()
                 finally:
@@ -7690,8 +7753,10 @@ def run_gui():
     ticker.refresh_(None)
     set_override("waving")
 
-    # 시작 시 GitHub 릴리즈 확인 (백그라운드) → 새 버전이면 우클릭 메뉴에 노출
-    threading.Thread(target=_run_update_check, daemon=True).start()
+    # 새 릴리즈 확인은 시작 시 하지 않는다 — 사용자 요구(2026-09-11). 쿨다운의 기준점을 '지금'으로
+    # 찍어 두면 새로고침 워커가 UPDATE_CHECK_SEC(1시간) 뒤부터 주기적으로 확인한다. 새 버전이면
+    # 우클릭 메뉴에 노출되는 것은 그대로다.
+    _upd_cache["t"] = time.time()
 
     AppHelper.runEventLoop()
 

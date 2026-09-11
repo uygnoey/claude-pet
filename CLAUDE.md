@@ -1267,7 +1267,8 @@ in `RELEASE_NOTES.md`, and `git tag --sort=-v:refname | head -1`.
 
    **[ASK] Push the tag or publish the release only on the user's explicit, per-instance
    authorization.** This is the step that makes the release real: `check_github_update()`
-   polls the repo's latest release tag every 6 hours, so pushing it causes **every
+   polls the repo's latest release tag every hour (never at launch — the first check
+   comes one interval after start), so pushing it causes **every
    installed copy of the app** to start offering the update. That reaches users directly
    and cannot be recalled from anyone who has already fetched it — deleting the tag
    afterwards does not un-ship it.
