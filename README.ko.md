@@ -5,7 +5,7 @@
 Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
 macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
-> 🧪 현재 **v0.1 (beta)** — 실험 단계라 동작/표기가 바뀔 수 있어요.
+> 🧪 v0.24 — macOS 앱은 공증됐고, Windows 판은 베타(서명 없음)예요.
 
 ![Patch](preview.png)
 
@@ -34,14 +34,14 @@ macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
 이 펫은 **Claude Code의 사용량**을 보여주는 도구라, 사용량 데이터(로그·토큰) 자체가 Claude Code에서 나옵니다. 그래서 **구독 모드는 Claude Code 설치가 전제**입니다.
 
-- Claude Code가 없으면 게이지 대신 **"Claude Code 미설치"** 안내가 뜨고, **우클릭 → "⬇︎ Claude Code 설치…"** 를 누르면 터미널에서 공식 설치([`claude.ai/install.sh`](https://claude.ai/install.sh)) → 로그인까지 진행합니다.
+- Claude Code가 없으면 필 대신 **"Claude Code 미설치"** 안내가 뜨고, **우클릭 → "⬇︎ Claude Code 설치…"** 를 누르면 터미널에서 공식 설치([`claude.ai/install.sh`](https://claude.ai/install.sh)) → 로그인까지 진행합니다.
 - 설치돼 있는데 로그인만 안 된 경우엔 **우클릭 → "🔑 Claude Code 로그인…"** 으로 바로 로그인할 수 있습니다.
 - 설치/로그인이 끝나면 재시작 없이 다음 갱신에 자동으로 사용량이 표시됩니다.
 - 참고: **API 모드**(우클릭 → 설정 → Admin API 키)는 Claude Code 없이도 동작합니다.
 
 ### 업데이트
 
-앱이 시작할 때 GitHub 최신 릴리즈를 확인해, 새 버전이 있으면 **우클릭 → "⬆︎ 새 버전 설치"** 로 다운로드·교체·재실행까지 자동 처리합니다.
+실행 후 1시간마다(시작 시에는 확인하지 않음) GitHub 최신 릴리즈를 확인해, 새 버전이 있으면 **우클릭 → "⬆︎ 새 버전 설치"** 로 다운로드·교체·재실행까지 자동 처리합니다. **우클릭 → "⬆︎ 업데이트 확인…"** 을 누르면 지금 바로 확인해 최신 버전으로 한 번에 설치합니다.
 
 ---
 
@@ -71,7 +71,7 @@ Windows 10/11(64비트)에서도 같은 필·산책·설정·펫을 씁니다. �
 ./build_app.sh install     # 로컬 빌드+서명 → /Applications 설치+실행
 python3 claude_pet.py --report   # GUI 없이 터미널 리포트만
 
-./release.sh               # 배포용 자체포함 앱(py2app)+Developer ID 서명+공증+zip
+./release.sh build         # 배포용 자체포함 앱(py2app); sign / notarize / universal / dmg / publish 는 별도 서브커맨드
 ```
 `release.sh`는 최초 1회 공증 자격증명 등록이 필요합니다(스크립트 상단 주석 참고).
 

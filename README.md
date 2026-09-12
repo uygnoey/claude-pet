@@ -5,7 +5,7 @@
 A desktop pet — Patch floats on your screen and watches your Claude token usage, à la Codex Pets.
 Rendered natively on macOS (AppKit) — no window frame, no background, no ghosting.
 
-> 🧪 Currently **v0.1 (beta)** — experimental; behavior and labels may change.
+> 🧪 v0.24 — the macOS app is notarized; the Windows build is a beta (unsigned).
 
 ![Patch](preview.png)
 
@@ -34,14 +34,14 @@ The pet only reads **`~/.claude` (usage logs) and the OAuth token in your Keycha
 
 The pet is a HUD for **Claude Code usage** — the usage data (logs and token) comes from Claude Code itself. So **subscription mode requires Claude Code to be installed.**
 
-- If Claude Code isn't installed, the pet shows **"Claude Code not installed"** instead of gauges. **Right-click → "⬇︎ Install Claude Code…"** runs the official installer ([`claude.ai/install.sh`](https://claude.ai/install.sh)) in Terminal, then signs you in.
+- If Claude Code isn't installed, the pet shows **"Claude Code not installed"** instead of the pill. **Right-click → "⬇︎ Install Claude Code…"** runs the official installer ([`claude.ai/install.sh`](https://claude.ai/install.sh)) in Terminal, then signs you in.
 - If it's installed but not logged in, **right-click → "🔑 Sign in to Claude Code…"** starts the login.
 - Once done, usage appears on the next refresh — no restart needed.
 - Note: **API mode** (right-click → Settings → Admin API key) works without Claude Code.
 
 ### Updates
 
-On launch the app checks the latest GitHub release; if a newer version exists, **right-click → "⬆︎ Install new version"** downloads, replaces, and relaunches automatically.
+Every hour after launch (never at launch) the app checks the latest GitHub release; if a newer version exists, **right-click → "⬆︎ Install new version"** downloads, replaces, and relaunches automatically. **Right-click → "⬆︎ Check for updates…"** checks right now and installs straight to the latest version.
 
 ---
 
@@ -71,7 +71,7 @@ To build from source you need a **framework build of Python**:
 ./build_app.sh install     # local build+sign → install to /Applications and run
 python3 claude_pet.py --report   # terminal report only, no GUI
 
-./release.sh               # distributable self-contained app (py2app) + Developer ID sign + notarize + zip
+./release.sh build         # distributable self-contained app (py2app); sign / notarize / universal / dmg / publish are separate subcommands
 ```
 `release.sh` needs notarization credentials stored once (see the comment at the top of the script).
 

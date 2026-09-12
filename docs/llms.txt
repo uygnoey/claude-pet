@@ -2,12 +2,12 @@
 
 > Claude Pet is a free macOS desktop companion and Claude usage monitor, with public source on GitHub. Choose a pet, let it roam, and read usage percentages and reset countdowns from one small pill (number colour = source, label colour = how much is left). Roadmap: Codex usage first, then Gemini, Grok and other AI services in the same pill.
 
-Reference version: v0.24, published 2026-09-12. Reference updated: 2026-09-12.
+Reference version: v0.24, published 2026-09-13. Reference updated: 2026-09-12.
 Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.
 
 ## Key facts
 
-- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 beta from v0.24 (unsigned zip, claude-pet-win.zip). No separate Python installation is needed for the packaged apps.
+- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 beta from v0.24 (unsigned installer claude-pet-win-setup.exe and portable zip claude-pet-win.zip; SmartScreen: More info → Run anyway). No separate Python installation is needed for the packaged apps.
 - Install: Apple Silicon uses ClaudePet.dmg; Intel uses ClaudePet-universal.dmg. Open the disk image, move ClaudePet.app to Applications, and launch. ZIP alternatives are also published. The release describes the app as Apple-notarized.
 - Account: sign in to Claude Code first. Exact mode uses its existing OAuth credential from macOS Keychain to request Anthropic's server-computed account usage percentages and reset times.
 - Estimate: when server usage is unavailable, local fallback estimates activity recorded in Claude Code logs under ~/.claude. Web or desktop activity absent from those logs is not counted. Optional calibration applies to this estimate, not the server percentage.
@@ -27,6 +27,7 @@ Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated w
 - [Latest release](https://github.com/uygnoey/claude-pet/releases/latest)
 - [Apple Silicon DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg)
 - [Intel universal DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg)
+- [Windows beta installer](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe)
 - [Windows beta ZIP](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip)
 - [v0.24 source](https://github.com/uygnoey/claude-pet/blob/v0.24/claude_pet.py)
 
