@@ -36,9 +36,14 @@ MinVersion=10.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+
+[CustomMessages]
+english.StartupTask=Start {#MyAppName} when I sign in to Windows
+korean.StartupTask=Windows 로그인 시 {#MyAppName} 자동 실행
 
 [Tasks]
-Name: "startup"; Description: "Start {#MyAppName} when I sign in to Windows"; Flags: checkedonce
+Name: "startup"; Description: "{cm:StartupTask}"; Flags: checkedonce
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 
 [Files]

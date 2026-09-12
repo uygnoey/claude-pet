@@ -1356,6 +1356,70 @@ def claim_windows_app_identity():
         pass
 
 
+def seed_bundled_pets():
+    """동봉 펫 4종과 README 를 ~/.claude_pet 에 **없는 것만** 채운다 — macOS 판 seed_bundled_pet_assets 와 같은 성질.
+
+    · 완성본을 같은 드라이브의 임시 폴더(.seed-stage-<pid>)에 먼저 만들고, 덮어쓰지 않는 이름 바꾸기로 게시한다.
+      Windows 의 os.rename 은 대상이 있으면 FileExistsError 를 내므로(MoveFileEx 에 REPLACE_EXISTING 없음) 이것이
+      macOS 판의 RENAME_EXCL 에 해당한다. 부분 산출물은 게시되지 않고, 이미 있는 펫 폴더는 안을 보지 않고 건너뛴다.
+    · 소스는 게시 전에 검사한다(파일 3개가 정규 파일이고 _bad_pet_metadata 가 None). 조금이라도 어긋나면 그 펫은 게시하지
+      않는다. 실패는 조용히 넘기되 시작을 막지 않는다(디버그 로그에만 남긴다).
+    """
+    try:
+        src = cp._default_bundled_pet_dir()
+    except Exception:
+        return
+    dest = cp.USER_PET_HOME
+    if not src or not os.path.isdir(src):
+        cp._dbg("seed: bundled pets dir missing")
+        return
+    try:
+        os.makedirs(os.path.join(dest, "pets"), exist_ok=True)
+    except Exception as e:
+        cp._dbg("seed: cannot create dest", type(e).__name__)
+        return
+    stage = os.path.join(dest, f".seed-stage-{os.getpid()}")
+    shutil.rmtree(stage, ignore_errors=True)
+    published = []
+    try:
+        os.makedirs(os.path.join(stage, "pets"))
+        for name in cp.BUNDLED_PET_README:
+            s_, d_ = os.path.join(src, name), os.path.join(dest, name)
+            if os.path.lexists(d_) or not os.path.isfile(s_):
+                continue
+            st = os.path.join(stage, name)
+            shutil.copyfile(s_, st)
+            try:
+                os.rename(st, d_)
+                published.append(name)
+            except FileExistsError:
+                pass
+        for pid in cp.BUNDLED_PET_IDS:
+            s_, d_ = os.path.join(src, "pets", pid), os.path.join(dest, "pets", pid)
+            if os.path.lexists(d_):
+                continue
+            if not os.path.isdir(s_) or os.path.islink(s_):
+                continue
+            if any(not os.path.isfile(os.path.join(s_, f)) or os.path.islink(os.path.join(s_, f))
+                   for f in cp.BUNDLED_PET_FILES) or cp._bad_pet_metadata(s_, pid):
+                cp._dbg("seed: bundled pet rejected", pid)
+                continue
+            st = os.path.join(stage, "pets", pid)
+            os.makedirs(st)
+            for f in cp.BUNDLED_PET_FILES:
+                shutil.copyfile(os.path.join(s_, f), os.path.join(st, f))
+            try:
+                os.rename(st, d_)
+                published.append("pets/" + pid)
+            except FileExistsError:
+                pass
+    except Exception as e:
+        cp._dbg("seed: failed", type(e).__name__)
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+    cp._dbg("seed: published", published)
+
+
 def app_icon():
     """macOS 앱 아이콘과 같은 그림. claudepet.ico 는 release/icon.icns 의 1024px 그림을 16~256px 로 담은 것."""
     p = os.path.join(_HERE, "claudepet.ico")
@@ -1391,6 +1455,7 @@ def main():
         code = windows_ui_lang()
         if code:
             cp.set_lang(code)
+    seed_bundled_pets()                        # 동봉 펫·README 를 ~/.claude_pet 에 없는 것만 (macOS 판과 같은 시점: 첫 메뉴 전)
     try:                                       # 펫 폴더 안내 README — 없거나 비어 있으면 (macOS 판 run_gui 와 같음)
         os.makedirs(cp.USER_PETS_DIR, exist_ok=True)
         cp._write_pets_readme(cp.USER_PETS_DIR)
