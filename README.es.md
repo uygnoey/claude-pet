@@ -5,7 +5,7 @@
 Una mascota de escritorio: Patch flota en tu pantalla y vigila tu uso de tokens de Claude, al estilo de Codex Pets.
 Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estelas.
 
-> 🧪 Actualmente **v0.1 (beta)** — experimental; el comportamiento y las etiquetas pueden cambiar.
+> 🧪 v0.24 — la app de macOS está notarizada; la versión de Windows es beta (sin firmar).
 
 ![Patch](preview.png)
 
@@ -34,14 +34,14 @@ La mascota solo lee **`~/.claude` (registros de uso) y el token OAuth de tu Llav
 
 La mascota es un HUD del **uso de Claude Code**: los datos de uso (registros y token) provienen del propio Claude Code. Por eso el **modo suscripción requiere tener Claude Code instalado.**
 
-- Si Claude Code no está instalado, la mascota muestra **"Claude Code no instalado"** en lugar de los medidores. **Clic derecho → "⬇︎ Instalar Claude Code…"** ejecuta el instalador oficial ([`claude.ai/install.sh`](https://claude.ai/install.sh)) en Terminal y luego inicia sesión.
+- Si Claude Code no está instalado, la mascota muestra **"Claude Code no instalado"** en lugar de la píldora. **Clic derecho → "⬇︎ Instalar Claude Code…"** ejecuta el instalador oficial ([`claude.ai/install.sh`](https://claude.ai/install.sh)) en Terminal y luego inicia sesión.
 - Si está instalado pero sin sesión, **clic derecho → "🔑 Iniciar sesión en Claude Code…"** inicia el acceso.
 - Al terminar, el uso aparece en la siguiente actualización, sin reiniciar.
 - Nota: el **modo API** (clic derecho → Ajustes → clave de Admin API) funciona sin Claude Code.
 
 ### Actualizaciones
 
-Al arrancar, la app comprueba la última versión en GitHub; si hay una nueva, **clic derecho → "⬆︎ Instalar nueva versión"** la descarga, reemplaza y reinicia automáticamente.
+Cada hora tras el arranque (nunca al arrancar) la app comprueba la última versión en GitHub; si hay una nueva, **clic derecho → "⬆︎ Instalar nueva versión"** la descarga, reemplaza y reinicia automáticamente. **Clic derecho → "⬆︎ Buscar actualizaciones…"** comprueba ahora mismo e instala directamente la última versión.
 
 ---
 
@@ -71,7 +71,7 @@ Para compilar necesitas un **Python compilado como framework**:
 ./build_app.sh install     # build+firma local → instala en /Applications y ejecuta
 python3 claude_pet.py --report   # solo informe en terminal, sin GUI
 
-./release.sh               # app autocontenida distribuible (py2app) + firma Developer ID + notarización + zip
+./release.sh build         # app autocontenida distribuible (py2app); sign / notarize / universal / dmg / publish son subcomandos aparte
 ```
 `release.sh` requiere registrar las credenciales de notarización una vez (ver el comentario al inicio del script).
 
