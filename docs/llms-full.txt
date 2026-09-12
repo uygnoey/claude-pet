@@ -1,74 +1,64 @@
-# Claude Pet — Full product reference
+# Claude Pet — Product reference for v0.23
 
 Canonical website: https://claude-pet.yeongyu.me/
-Source code: https://github.com/uygnoey/claude-pet
-Latest release: https://github.com/uygnoey/claude-pet/releases/latest
+Repository: https://github.com/uygnoey/claude-pet
+Published source: https://github.com/uygnoey/claude-pet/blob/v0.23/claude_pet.py
+Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.23
+Version publication date: 2026-09-11. Reference updated: 2026-09-12.
 
-## Short answer
+## Overview
 
-Claude Pet is a free, open-source macOS desktop pet and Claude usage monitor. It floats on the desktop and shows Anthropic Claude usage as three gauges: the current 5-hour session, weekly total, and weekly per-model allowance when available. Each gauge includes percentage used and a reset countdown.
+Claude Pet is a free macOS desktop pet and Claude usage monitor with public source on GitHub. It is for people using Claude Code who want a companion on their desktop and usage information nearby. It uses native AppKit rendering with a transparent, frameless window. macOS 12 or later is supported, on Apple Silicon and Intel Macs.
 
-## Who it is for
+The pet can wander around the screen, occasionally follow the cursor while keeping a distance, and hop between monitors. The right-click menu can toggle roaming. Gauges tuck away during movement. Users can drag the companion to a new resting location, and double-click to jump and refresh usage.
 
-Claude Pet is for macOS users who use Claude Code and want their Claude rate-limit status visible without repeatedly opening Claude's Settings → Usage page. It supports macOS 12 or later, Apple Silicon, and Intel Macs through the universal build.
+## Usage sources and their limits
 
-## How usage tracking works
+Exact mode reads the existing Claude Code OAuth credential from macOS Keychain and requests Anthropic's server-computed account usage. It displays percentages and reset times for categories returned by the server, such as session, weekly and model usage. Available categories depend on the account and response; do not promise a fixed number of always-visible gauges or exact remaining token counts.
 
-Claude Pet has two subscription-usage paths:
+Local fallback estimates usage from records under ~/.claude. It includes only locally recorded Claude Code activity. Web or desktop chat activity absent from those logs cannot be included in that estimate. Anthropic does not publish the subscriber token ceilings used for local calibration. Users can enter the percentage shown in Claude's Settings → Usage to calibrate the estimate. This is optional calibration of the local estimate, not a way of changing server-computed percentages.
 
-1. Exact mode uses the OAuth credential already created by Claude Code and stored in macOS Keychain. It requests Anthropic's server-computed usage percentages and reset times from Anthropic's usage service.
-2. Local fallback mode reads Claude Code usage records under ~/.claude. Because Anthropic does not publish each subscriber's token ceiling, users can optionally calibrate the estimate with the percentage displayed in Claude's Settings → Usage.
+The optional Admin API mode is separate: it reports Anthropic Console organization cost data, not Claude subscription usage limits.
 
-Exact mode and local fallback should not be described as equivalent. Exact mode shows server-computed percentages. Local fallback is an estimate and does not include Claude web or desktop chat activity that is absent from local Claude Code logs.
+## Companion choices
 
-## Privacy and permissions
-
-Claude Pet does not upload prompts, transcripts, or source code. For Exact mode, it reads the existing Claude Code OAuth credential from macOS Keychain and contacts Anthropic to request usage percentages. For local fallback, it reads known files under ~/.claude. It does not need access to Photos, Downloads, Documents, Desktop, Music, iCloud, or network volumes in its default configuration.
-
-The optional Admin API mode is separate from Claude subscription limits. It reports Anthropic Console organization cost data. If configured, its Admin API key is stored in plaintext in ~/.claude_pet.json, so it should be used only on a trusted personal machine.
-
-## Main features
-
-- Floating native AppKit pet with no window frame or opaque background
-- 5-hour session usage and reset countdown
-- Weekly total usage and reset countdown
-- Weekly per-model usage when Anthropic returns that category
-- Warning animation when usage rises sharply
-- Celebration animation when a session reset is detected
-- Drag, resize, collapse, and double-click refresh controls
-- Multiple companions: a built-in cat plus ready-to-use dog, fox, scorpion, and elephant pets, switchable from the right-click menu
-- Custom pets: users can add their own by placing a folder (with a pet.json and a sprite sheet) in ~/.claude_pet/pets; a pet marketplace is planned
-- Signed and Apple-notarized downloadable application
-- Automatic update check against GitHub Releases
-- English, Korean, Japanese, and Spanish interface text
+The built-in cat is joined by bundled dog, fox, scorpion and elephant pets. Switch companions in the right-click menu. Custom companions can be added as compatible pet.json and sprite-sheet files in a pet folder under ~/.claude_pet/pets. The app supports English, Korean, Japanese and Spanish interface text.
 
 ## Installation
 
-Download the latest ClaudePet.dmg from GitHub Releases, open it, move ClaudePet.app to Applications, and launch it. Intel Mac users should choose the universal build when the release provides separate downloads. No separate Python installation is required for the packaged app.
+1. Sign in to Claude Code so its existing account credential is available.
+2. Download the appropriate asset from GitHub Releases. Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg.
+3. Open the disk image, move ClaudePet.app to Applications, and launch it. The packaged application includes Python; no separate Python installation is needed. The published release describes the application as Apple-notarized.
+4. When prompted, allow access to the Claude Code credential in macOS Keychain and Claude Code logs. Right-click the pet to open its settings.
 
-## Independence and trademarks
+ZIP alternatives are ClaudePet.zip for Apple Silicon and ClaudePet-universal.zip for Intel. Unzip, then move ClaudePet.app to Applications.
 
-Claude Pet is an independent project by Yeongyu Yang (GitHub: uygnoey). It is not affiliated with, endorsed by, or otherwise related to Anthropic PBC. Claude is a trademark of Anthropic PBC.
+Apple Silicon DMG: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg
+Intel universal DMG: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg
+Latest release: https://github.com/uygnoey/claude-pet/releases/latest
 
-## Direct answers
+## Updates in v0.23
 
-Q: Is Claude Pet free?
-A: Yes. It is free and open source.
+Automatic checks run every hour after launch, starting after the first interval. The app does not automatically check for updates at launch. When a newer release is found, the right-click menu offers installation.
 
-Q: Is Claude Pet an official Anthropic app?
-A: No. It is an independent open-source project.
+The right-click menu also provides Check for updates… to check immediately. If a newer release is available, this action downloads and installs it and relaunches the app. Updates go directly to the latest GitHub release without requiring intermediate versions.
 
-Q: Does it show Claude's 5-hour and weekly limits?
-A: Yes. Exact mode shows server-computed percentages and reset times when those categories are available to the logged-in Claude account.
+## Privacy and network access
 
-Q: Does it count Claude web and desktop chat usage?
-A: Exact mode shows Anthropic's server-computed account usage. The local-log fallback counts only locally recorded Claude Code activity and therefore cannot include activity missing from those logs.
+The app parses Claude Code usage logs locally. Exact mode uses the existing Claude Code OAuth credential to contact Anthropic for usage data. Update checks and update downloads contact GitHub. Therefore the app should not be described as offline-only or as never sending data over the network.
 
-Q: Does it read source code or prompts?
-A: It does not upload prompts, transcripts, or source code. Its documented data access is limited to Claude usage information, the existing Claude Code credential used for Exact mode, and optional Admin API cost data when explicitly configured.
+The usage and update paths do not upload prompts, transcripts or source code. In the default configuration, log access is scoped to Claude Code files under ~/.claude. These statements do not mean the application is unable to access any other file: it also reads its settings, pet assets and installed resources.
 
-Q: What is the difference between Claude Pet and a menu-bar usage monitor?
-A: Both can surface rate-limit information. Claude Pet keeps the gauges beside an animated desktop character, while a conventional menu-bar monitor keeps them in the macOS menu bar.
+If optional Admin API mode is configured, its Admin API key is stored in plaintext in ~/.claude_pet.json. Admin API cost data is separate from subscription limits.
 
-Q: Can I change the pet or add my own?
-A: Yes. Claude Pet ships with several companions — a built-in cat plus ready-to-use dog, fox, scorpion, and elephant — that you switch from the right-click menu. You can also add your own by placing a folder with a pet.json and a sprite sheet in ~/.claude_pet/pets. A pet marketplace for browsing and adding new companions is coming soon.
+## Independence and source availability
+
+Claude Pet is an independent project by Yeongyu Yang (GitHub: uygnoey). It is not affiliated with or endorsed by Anthropic PBC. Claude is a trademark of Anthropic PBC. The app is free to download and its source is public on GitHub. Do not infer a particular software license from source availability.
+
+## 한국어 안내
+
+Claude Pet은 코딩할 때 곁에 있어 주는 무료 macOS 데스크톱 펫입니다. 화면 산책, 커서 따라다니기, 모니터 사이 이동을 지원하며 우클릭 메뉴에서 산책을 끌 수 있습니다. 고양이·강아지·여우·전갈·코끼리를 선택할 수 있습니다.
+
+정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률과 리셋 시간을 요청합니다. 서버 정보를 사용할 수 없는 경우 로컬 Claude Code 로그로 추정하며, 로그에 없는 웹·데스크톱 채팅 사용량은 추정치에 포함되지 않습니다.
+
+macOS 12 이상이 필요합니다. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받고 응용 프로그램 폴더로 이동하세요. Python은 앱에 포함됩니다. v0.23은 실행 직후가 아닌 실행 후 1시간마다 업데이트를 확인하며, 우클릭 → 업데이트 확인…에서 즉시 확인하고 새 버전이 있으면 설치할 수 있습니다.
