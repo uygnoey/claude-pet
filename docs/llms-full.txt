@@ -1,20 +1,20 @@
-# Claude Pet — Product reference for v0.23
+# Claude Pet — Product reference for v0.24
 
 Canonical website: https://claude-pet.yeongyu.me/
 Repository: https://github.com/uygnoey/claude-pet
-Published source: https://github.com/uygnoey/claude-pet/blob/v0.23/claude_pet.py
-Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.23
+Published source: https://github.com/uygnoey/claude-pet/blob/v0.24/claude_pet.py
+Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.24
 Version publication date: 2026-09-11. Reference updated: 2026-09-12.
 
 ## Overview
 
 Claude Pet is a free macOS desktop pet and Claude usage monitor with public source on GitHub. It is for people using Claude Code who want a companion on their desktop and usage information nearby. It uses native AppKit rendering with a transparent, frameless window. macOS 12 or later is supported, on Apple Silicon and Intel Macs.
 
-The pet can wander around the screen, occasionally follow the cursor while keeping a distance, and hop between monitors. The right-click menu can toggle roaming. Gauges tuck away during movement. Users can drag the companion to a new resting location, and double-click to jump and refresh usage.
+The pet can wander around the screen, occasionally follow the cursor while keeping a distance, and hop between monitors. The right-click menu can toggle roaming. usage pill tucks away during movement. Users can drag the companion to a new resting location, and double-click to jump and refresh usage.
 
 ## Usage sources and their limits
 
-Exact mode reads the existing Claude Code OAuth credential from macOS Keychain and requests Anthropic's server-computed account usage. It displays percentages and reset times for categories returned by the server, such as session, weekly and model usage. Available categories depend on the account and response; do not promise a fixed number of always-visible gauges or exact remaining token counts.
+Exact mode reads the existing Claude Code OAuth credential from macOS Keychain and requests Anthropic's server-computed account usage. It displays percentages and reset times for categories returned by the server, such as session, weekly and model usage. Available categories depend on the account and response; do not promise a fixed number of always-visible usage pill or exact remaining token counts.
 
 Local fallback estimates usage from records under ~/.claude. It includes only locally recorded Claude Code activity. Web or desktop chat activity absent from those logs cannot be included in that estimate. Anthropic does not publish the subscriber token ceilings used for local calibration. Users can enter the percentage shown in Claude's Settings → Usage to calibrate the estimate. This is optional calibration of the local estimate, not a way of changing server-computed percentages.
 
@@ -37,7 +37,7 @@ Apple Silicon DMG: https://github.com/uygnoey/claude-pet/releases/latest/downloa
 Intel universal DMG: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg
 Latest release: https://github.com/uygnoey/claude-pet/releases/latest
 
-## Updates in v0.23
+## Updates in v0.24
 
 Automatic checks run every hour after launch, starting after the first interval. The app does not automatically check for updates at launch. When a newer release is found, the right-click menu offers installation.
 
@@ -61,4 +61,4 @@ Claude Pet은 코딩할 때 곁에 있어 주는 무료 macOS 데스크톱 펫�
 
 정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률과 리셋 시간을 요청합니다. 서버 정보를 사용할 수 없는 경우 로컬 Claude Code 로그로 추정하며, 로그에 없는 웹·데스크톱 채팅 사용량은 추정치에 포함되지 않습니다.
 
-macOS 12 이상이 필요합니다. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받고 응용 프로그램 폴더로 이동하세요. Python은 앱에 포함됩니다. v0.23은 실행 직후가 아닌 실행 후 1시간마다 업데이트를 확인하며, 우클릭 → 업데이트 확인…에서 즉시 확인하고 새 버전이 있으면 설치할 수 있습니다.
+macOS 12 이상이 필요합니다. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받고 응용 프로그램 폴더로 이동하세요. Python은 앱에 포함됩니다. v0.24은 실행 직후가 아닌 실행 후 1시간마다 업데이트를 확인하며, 우클릭 → 업데이트 확인…에서 즉시 확인하고 새 버전이 있으면 설치할 수 있습니다.

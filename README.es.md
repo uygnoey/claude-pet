@@ -45,6 +45,17 @@ Al arrancar, la app comprueba la última versión en GitHub; si hay una nueva, *
 
 ---
 
+## Windows (beta)
+
+Windows 10/11 (64 bits) tiene la misma píldora, paseos, ajustes y mascotas. Con cada versión se publican dos archivos:
+
+- **`claude-pet-win-setup.exe`** — instalador. Se instala para el usuario actual (sin permisos de administrador), añade una entrada en el menú Inicio y otra en «Aplicaciones y características» para desinstalar, y ofrece **Iniciar Claude Pet al iniciar sesión**.
+- **`claude-pet-win.zip`** — versión portátil y de actualización. Descomprímelo donde quieras y ejecuta `ClaudePet\ClaudePet.exe`.
+
+**Sobre el aviso de SmartScreen.** La compilación para Windows aún no está firmada, así que la primera vez que ejecutes el instalador o `ClaudePet.exe` Windows muestra *«Windows protegió su PC»*. Pulsa **Más información** y luego **Ejecutar de todas formas**. Aparece una vez por archivo; es el aviso de que el editor es desconocido, no la detección de algo dañino. Si el navegador (Edge) bloquea la descarga por el mismo motivo, elige **Conservar** → **Conservar de todas formas**. La firma de código eliminará el aviso en una versión posterior.
+
+Inicia sesión en Claude Code en Windows primero (`claude`) y luego abre Claude Pet: el modo Exacto lee el archivo de credenciales de Claude Code y la estimación lee los registros en `%USERPROFILE%\.claude`. Tus propias mascotas van en `%USERPROFILE%\.claude_pet\pets\<nombre>\` (clic derecho → Mascotas → Añadir mascota… abre esa carpeta). El icono de la bandeja queda por defecto en el desbordamiento de la barra de tareas (`^`); arrástralo fuera para verlo siempre. Clic derecho → Desinstalar por completo… borra ajustes y registros; el programa se quita desde «Aplicaciones y características».
+
 ## Compilar desde el código (desarrolladores)
 
 Para compilar necesitas un **Python compilado como framework**:
@@ -73,28 +84,45 @@ python3 claude_pet.py --report   # solo informe en terminal, sin GUI
   (no vuelve al sitio anterior). Nunca camina sobre el cursor y se detiene donde está si la agarras o abres el menú o los Ajustes
 - **A veces sigue al ratón** durante 10–20 segundos, despacio y a distancia, luego te mira y descansa donde se detuvo.
   **Con más de un monitor salta entre ellos** de vez en cuando: un pequeño brinco, un desvanecimiento y aterriza en un lugar seguro de la otra pantalla
-- **Pliega los medidores al caminar** y solo se mueve la mascota. Al llegar muestra un pequeño **resumen** de una línea con el % de sesión y semanal;
-  pulsa el botón ⌄ para desplegar los medidores completos. Cuando termina de mirar, recupera lo que tenías plegado o desplegado
+- **Pliega la píldora al caminar** y solo se mueve la mascota. Al llegar muestra la píldora de uso un momento aunque la tengas
+  plegada, y cuando termina de mirar recupera lo que tenías
 - **Agarrar y arrastrar** — corre en la dirección del arrastre; **doble clic** = salto + **actualización de uso inmediata** (recarga ignorando la caché)
-- **Cuando el consumo de tokens se dispara** — pulso de color de alerta + cara de pánico + ▲pico en el medidor:
+- **Cuando el consumo de tokens se dispara** — pulso de color de alerta + cara de pánico, y ese medidor se pone rojo con ▲ en la píldora:
   - 🔴 pico de sesión / 🟣 pico de modelo (Fable/Opus) / 🟠 pico semanal
 - **Cuando detecta un reinicio de sesión** — salta de alegría
 
 ## Controles
 
 - **Rueda (sobre la mascota)**: cambiar tamaño (0.3×–2.0×, se guarda; por defecto 0.5×)
-- **Clic (botón ⌄)**: contraer/expandir el panel de medidores
+- **Clic (botón ⌄)**: mostrar/ocultar la píldora de uso
 - **Arrastrar**: mover (se guarda la posición)
-- **Clic derecho**: menú — Ajustes / Contraer / Pasear por la pantalla (activar/desactivar) / Restablecer tamaño / Salir
+- **Clic derecho**: menú — Ajustes / Mostrar u ocultar / Pasear por la pantalla (activar/desactivar) / Restablecer tamaño / Mascotas (elegir o añadir) / Desinstalar / Salir / Buscar actualizaciones
 
-## Tres medidores (modo suscripción)
+## La píldora de uso
 
-Sesión (5h) / total semanal / semanal por modelo — cada uno con %, tokens restantes y cuenta atrás de reinicio.
-El medidor por modelo **detecta automáticamente** el nivel superior en los registros (fable → mythos → opus).
+Una píldora pequeña junto a la mascota, en dos líneas:
+
+- **Línea 1 — uso**: `Sesión 42% · Semanal 17% · Fable 12%` — sesión (5h) / total semanal / semanal por modelo. El medidor
+  por modelo **detecta automáticamente** el nivel superior en los registros (fable → mythos → opus). En modo API muestra
+  el coste: `Hoy $3.21 · Este mes $27.50`.
+- **Línea 2 — reinicios**: `reinicio Sesión en 3h 42m · Semanal en 2d 3h` (con ventana móvil, semanal muestra `-`).
+- **El color del número dice de dónde sale**: esmeralda = modo Exacto (% calculado por el servidor), ámbar = estimación
+  por registros (los valores llevan ≈), coral = coste de API. Si el token de Claude Code ha caducado, la línea estimada
+  termina en ⚠.
+- **El color de la etiqueta dice cuánto queda**: blanco, amarillo desde el 50 %, rojo desde el 85 % — y rojo con ▲ mientras
+  ese medidor se dispara.
+- El texto usa la tipografía **Pretendard** incluida en la app (SIL Open Font License), así se ve igual en cualquier equipo.
+
+## Tus propias mascotas
+
+Clic derecho → **Mascotas** lista el gato integrado y cada carpeta de `~/.claude_pet/pets/`; **Añadir mascota…** abre esa
+carpeta con un README que describe el formato. Una mascota es una carpeta con `pet.json` + `spritesheet.webp` (el README
+tiene la disposición de la hoja). La lista se vuelve a leer cada vez que abres el menú, así que una carpeta nueva aparece sin
+reiniciar. También se reconoce un zip extraído un nivel de más (`pets/nombre/nombre/pet.json`), y `__MACOSX` se ignora.
 
 ## Ajustes (clic derecho → Ajustes)
 
-- **Fuente de datos**: suscripción (registros de Claude Code) / API (coste de Admin API — hoy, este mes, medidor de presupuesto mensual)
+- **Fuente de datos**: suscripción (registros de Claude Code) / API (coste de Admin API — hoy y este mes; con un presupuesto mensual la píldora muestra `Este mes $27.50 / $50` y la etiqueta «Este mes» pasa a amarillo/rojo según la parte usada, mientras los importes siguen en coral)
 - **🔧 Calibración (¡lo más importante!)**: los límites de tokens son privados de Anthropic, nadie los conoce.
   En su lugar, escribe el % que aparece en **Ajustes > Uso** de la app de Claude y guarda — la app despeja
   `límite = uso actual ÷ %`. Solo se aplican los campos que introduzcas.

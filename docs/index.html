@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <meta property="og:image:width" content="520">
 <meta property="og:image:height" content="472">
-<meta property="og:image:alt" content="Claude Pet mascot with session, weekly, and per-model token usage gauges">
+<meta property="og:image:alt" content="Claude Pet mascot with its usage pill: session, weekly and per-model percentages">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="ko_KR">
 <meta property="og:locale:alternate" content="ja_JP">
@@ -27,7 +27,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Claude Pet — Free macOS desktop companion &amp; Claude usage monitor">
 <meta name="twitter:description" content="A free, source-available macOS desktop pet for Claude Code users. Choose a companion, let it roam, and see Claude usage percentages and reset countdowns.">
-<meta name="twitter:image:alt" content="Illustrative Claude Pet mascot and usage gauges">
+<meta name="twitter:image:alt" content="Claude Pet mascot and its usage pill">
 <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <script type="application/ld+json">
 {
@@ -37,13 +37,13 @@
       "@type": "SoftwareApplication",
       "@id": "https://claude-pet.yeongyu.me/#app",
       "name": "Claude Pet",
-      "description": "A free, source-available macOS desktop pet for Claude Code users. Choose a companion, let it roam, and see Claude usage percentages and reset countdowns.",
+      "description": "A free, source-available desktop pet for Claude Code users on macOS (Windows beta). Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.",
       "url": "https://claude-pet.yeongyu.me/",
       "image": "https://claude-pet.yeongyu.me/assets/preview.png",
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "AI usage monitor",
-      "operatingSystem": "macOS 12.0 or later (Apple Silicon and Intel)",
-      "softwareVersion": "0.23",
+      "operatingSystem": "macOS 12.0 or later (Apple Silicon and Intel); Windows 10/11 (beta)",
+      "softwareVersion": "0.24",
       "softwareRequirements": "macOS 12.0 or later and a Claude Code login",
       "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg",
       "installUrl": "https://github.com/uygnoey/claude-pet/releases/latest",
@@ -57,14 +57,15 @@
       "isAccessibleForFree": true,
       "screenshot": "https://claude-pet.yeongyu.me/assets/preview.png",
       "featureList": [
-        "Claude usage percentages and reset countdowns when available",
+        "One compact usage pill: session, weekly and per-model percentages with reset countdowns",
         "Server-reported usage with a separate local-log estimate fallback",
         "Optional screen roaming, cursor following, and monitor hopping",
         "Cat, dog, fox, scorpion and elephant companions",
         "Hourly update checks after launch and manual update installation",
-        "Native AppKit rendering with a transparent, frameless window"
+        "Native AppKit rendering with a transparent, frameless window",
+        "Windows 10/11 beta build (unsigned zip) with the same pill, roaming and settings"
       ],
-      "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v0.23",
+      "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v0.24",
       "softwareHelp": {
         "@type": "CreativeWork",
         "url": "https://github.com/uygnoey/claude-pet#readme"
@@ -119,7 +120,7 @@
           "name": "Which platforms does Claude Pet support?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."
+            "text": "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 there is a Windows 10/11 beta as an unsigned zip with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting."
           }
         },
         {
@@ -151,7 +152,7 @@
           "name": "How can I check Claude's 5-hour and weekly usage limits on a Mac?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its floating gauges show session, weekly total, per-model usage when available, and reset countdowns."
+            "text": "Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its small pill shows session, weekly total, per-model usage when available, and reset countdowns."
           }
         },
         {
@@ -412,6 +413,15 @@
   .gauge-track{height:10px;border-radius:999px;background:var(--bg-soft);overflow:hidden;border:1px solid var(--card-border)}
   .gauge-fill{height:100%;border-radius:999px;transition:width 1s ease}
   .gauge-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-top:6px}
+  /* ---------- usage pill illustration (v0.24) ---------- */
+  .pill-demo{display:inline-block;background:#1C1C1F;color:#F2F2F7;border-radius:999px;padding:12px 26px;text-align:center;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  .pill-line1{font-size:18px;letter-spacing:.01em}
+  .pill-line2{font-size:13.5px;color:#98989F;margin-top:5px;font-weight:600}
+  .pill-demo .val{color:#50C878}
+  .pill-demo .lbl.warn{color:#FFD60A}
+  .pill-demo .lbl.bad{color:#FF453A}
+  .pill-legend{list-style:none;padding:0;margin:18px 0 0;display:grid;gap:6px;font-size:13.5px;color:var(--ink-soft)}
+  .roadmap{margin-top:14px;font-weight:600}
   .g-session{background:linear-gradient(90deg,var(--accent),var(--accent-dark))}
   .g-weekly{background:linear-gradient(90deg,var(--purple),#7457b0)}
   .g-model{background:linear-gradient(90deg,var(--orange),#c9762c)}
@@ -615,16 +625,17 @@
 <main>
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow"><span class="dot"></span><span>macOS · <span id="arch-support">Apple Silicon &amp; Intel</span> · <span id="app-version">v0.23</span></span></div>
+      <div class="eyebrow"><span class="dot"></span><span>macOS · <span id="arch-support">Apple Silicon &amp; Intel</span> · <span data-i18n="hero.winbeta">Windows beta</span> · <span id="app-version">v0.24</span></span></div>
       <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Claude Pet</span><span data-i18n="hero.title.post">, a little company while you code</span></h1>
       <p class="hero-sub" data-i18n="hero.sub">A free, source-available desktop pet for macOS. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip" data-i18n="hero.cta.windows">⬇ Windows beta (zip)</a>
         <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener" data-i18n="hero.cta.secondary">View source on GitHub</a>
       </div>
       <div class="dl-alt-row" id="dl-alt-row" style="display:none"><a id="dl-alt" href="https://github.com/uygnoey/claude-pet/releases/latest">Intel Mac? Download the universal build</a></div>
 
-      <p class="pet-hint"><a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg">Apple Silicon · DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg">Intel · Universal DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.23">v0.23 release notes</a></p>
+      <p class="pet-hint"><a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg">Apple Silicon · DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg">Intel · Universal DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.23">v0.23 release notes</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">Windows · ZIP (beta)</a></p>
 
       <div class="pet-stage">
         <img id="pet-sprite" src="assets/frames/idle/00.png" alt="Claude Pet mascot" draggable="false">
@@ -643,9 +654,9 @@
       </div>
       <div class="grid" id="feature-grid">
         <div class="card"><div class="icon">🌿</div><h3>A quiet companion</h3><p>Wanders around your screen, occasionally follows your cursor at a distance, and can hop between monitors. Turn roaming off from the right-click menu.</p></div>
-        <div class="card"><div class="icon">🫧</div><h3>Room to focus</h3><p>Gauges tuck away during roaming. Drag your companion to choose a new resting spot.</p></div>
+        <div class="card"><div class="icon">🫧</div><h3>Room to focus</h3><p>The usage pill tucks away during roaming. Drag your companion to choose a new resting spot.</p></div>
         <div class="card"><div class="icon">🐾</div><h3>Choose your pet</h3><p>Cat, dog, fox, scorpion or elephant. Switch companions from the right-click menu.</p></div>
-        <div class="card"><div class="icon">📊</div><h3>Know where you stand</h3><p>Read Claude usage percentages and reset countdowns without opening another window. Exact and estimated usage are different sources.</p></div>
+        <div class="card"><div class="icon">📊</div><h3>Know where you stand</h3><p>One small pill shows session, weekly and per-model % with reset countdowns. Number colour tells the source (green = server, amber = estimate), label colour tells how much is left.</p></div>
         <div class="card"><div class="icon">🎉</div><h3>A little celebration</h3><p>Your companion reacts when it detects a session reset. Double-click to jump and refresh usage.</p></div>
         <div class="card"><div class="icon">🔄</div><h3>Updates on your terms</h3><p>Checks GitHub every hour after launch. Right-click → Check for updates… checks immediately and installs a newer release if available.</p></div>
       </div>
@@ -677,23 +688,16 @@
         <h2 class="section-title" data-i18n="gauges.title">Your Claude limits, at a glance</h2>
         <p class="section-sub" data-i18n="gauges.sub">Session, weekly, and model usage when available. Exact mode shows server percentages and reset times; local fallback is an estimate. The illustration below uses example values.</p>
       </div>
-      <div class="gauge-panel">
-        <div class="gauge-row">
-          <div class="gauge-label"><span data-i18n="gauges.session">Session (5h)</span><span class="pct">62%</span></div>
-          <div class="gauge-track"><div class="gauge-fill g-session" style="width:62%"></div></div>
-          <div class="gauge-meta"><span data-i18n="gauges.remaining">Example usage</span><span data-i18n="gauges.reset1">resets in 2h 14m</span></div>
-        </div>
-        <div class="gauge-row">
-          <div class="gauge-label"><span data-i18n="gauges.weekly">Weekly total</span><span class="pct">41%</span></div>
-          <div class="gauge-track"><div class="gauge-fill g-weekly" style="width:41%"></div></div>
-          <div class="gauge-meta"><span data-i18n="gauges.remaining2">resets Sat 8:00 PM</span><span data-i18n="gauges.reset2">resets in 3d</span></div>
-        </div>
-        <div class="gauge-row">
-          <div class="gauge-label"><span data-i18n="gauges.model">Weekly · Opus</span><span class="pct">78%</span></div>
-          <div class="gauge-track"><div class="gauge-fill g-model" style="width:78%"></div></div>
-          <div class="gauge-meta"><span data-i18n="gauges.autodetect">When available for your account</span><span data-i18n="gauges.reset3">resets in 3d</span></div>
-        </div>
+      <div class="pill-demo" role="img" aria-label="Example of the usage pill">
+        <div class="pill-line1"><span class="lbl warn" data-i18n="gauges.session">Session</span> <span class="val">55%</span><span class="sep"> · </span><span class="lbl" data-i18n="gauges.weekly">Weekly</span> <span class="val">10%</span><span class="sep"> · </span><span class="lbl">Fable</span> <span class="val">18%</span></div>
+        <div class="pill-line2" data-i18n="gauges.reset1">reset Session in 59m · Weekly in 6d 20h</div>
       </div>
+      <ul class="pill-legend">
+        <li data-i18n="gauges.remaining">Number colour = where it comes from: emerald for server-computed (Exact mode), amber with ≈ for the local-log estimate, coral for API cost.</li>
+        <li data-i18n="gauges.remaining2">Label colour = how much is left: white, yellow from 50 %, red from 85 % — and red with ▲ while that gauge is spiking.</li>
+        <li data-i18n="gauges.autodetect">The per-model gauge picks the top tier found in your logs; the second line lists reset countdowns.</li>
+      </ul>
+      <p class="section-sub roadmap" data-i18n="gauges.roadmap">Coming next: the same pill will also show Codex usage first, then Gemini, Grok and other AI services.</p>
     </div>
   </section>
 
@@ -704,9 +708,9 @@
         <h2 class="section-title" data-i18n="preview.title">See it in action</h2>
       </div>
       <div class="shot-frame">
-        <img src="assets/preview.png" alt="Claude Pet gauges and mascot on a transparent background">
+        <img src="assets/preview.png" alt="Claude Pet mascot with its two-line usage pill on a transparent background">
       </div>
-      <p class="shot-caption" data-i18n="preview.caption">Earlier gauge-layout preview. The companion can tuck its gauges away while moving; this image is not a screenshot of every v0.23 state.</p>
+      <p class="shot-caption" data-i18n="preview.caption">The v0.24 pill on macOS in Exact mode. The session label is yellow because that gauge is past 50 %.</p>
     </div>
   </section>
 
@@ -715,12 +719,13 @@
       <div class="section-head">
         <div class="section-eyebrow" data-i18n="install.eyebrow">Install</div>
         <h2 class="section-title" data-i18n="install.title">Make room for a small companion</h2>
-        <p class="section-sub" data-i18n="install.sub">macOS 12+ · Apple Silicon and Intel · Free · Source on GitHub · Python is bundled in the notarized app.</p>
+        <p class="section-sub" data-i18n="install.sub">macOS 12+ · Apple Silicon and Intel · Windows 10/11 beta · Free · Source on GitHub · Python is bundled.</p>
       </div>
       <div class="steps" id="install-steps">
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Choose your Mac’s download</h4><p>Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Both are available on GitHub Releases.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Drag it to Applications</h4><p>Open the .dmg, drag ClaudePet to Applications, then launch it. No separate Python installation is needed.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Connect your Claude Code account</h4><p>Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Windows (beta)</h4><p>Download claude-pet-win.zip, unzip it and run ClaudePet\ClaudePet.exe. The build is unsigned, so SmartScreen warns the first time: More info → Run anyway. Sign in to Claude Code on Windows first.</p></div></div>
       </div>
       <div class="note-box">
         <span>🔒</span>
@@ -751,7 +756,7 @@
         <details><summary>How does Claude Pet track my Claude token usage?</summary><p>Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage.</p></details>
         <details><summary>Is Claude Pet affiliated with Anthropic?</summary><p>No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p></details>
         <details><summary>Does Claude Pet include web or desktop chat usage?</summary><p>Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage.</p></details>
-        <details><summary>How can I check Claude's 5-hour and weekly usage limits on a Mac?</summary><p>Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its floating gauges show session, weekly total, per-model usage when available, and reset countdowns.</p></details>
+        <details><summary>How can I check Claude's 5-hour and weekly usage limits on a Mac?</summary><p>Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its small pill shows session, weekly total, per-model usage when available, and reset countdowns.</p></details>
         <details><summary>Does Claude Pet send my prompts or source code anywhere?</summary><p>No. Claude Pet does not upload prompts, transcripts, or source code. Exact mode contacts Anthropic only to request usage percentages.</p></details>
       </div>
     </div>
@@ -775,9 +780,9 @@
     <div class="wrap">
       <div class="section-head">
         <div class="section-eyebrow">한국어 안내</div>
-        <h2 class="section-title">Claude 사용량을 알려 주는 macOS 데스크톱 펫</h2>
-        <p class="section-sub">Claude Pet은 코딩할 때 곁에 있어 주는 무료 앱이에요. 고양이·강아지·여우·전갈·코끼리 중에서 고르고, 화면 산책과 커서 따라다니기를 즐겨 보세요. Claude Code 로그인 후 계정 사용률과 리셋 시간을 확인할 수 있어요. 서버 데이터를 사용할 수 없을 때는 로컬 로그 추정치를 표시해요.</p>
-        <p class="section-sub">macOS 12 이상을 지원해요. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받으세요. <a href="#install">설치 안내</a> · <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.23">v0.23 다운로드와 변경 내역</a></p>
+        <h2 class="section-title">Claude 사용량을 알려 주는 데스크톱 펫 (macOS · Windows 베타)</h2>
+        <p class="section-sub">Claude Pet은 코딩할 때 곁에 있어 주는 무료 앱이에요. 고양이·강아지·여우·전갈·코끼리 중에서 고르고, 화면 산책과 커서 따라다니기를 즐겨 보세요. Claude Code 로그인 후 펫 옆의 작은 필 한 줄에 세션·주간·모델 사용률이, 둘째 줄에 리셋 시간이 보여요. 수치 색이 출처(서버 값은 에메랄드, 로그 추정은 앰버), 라벨 색이 잔여량(50%부터 노랑, 85%부터 빨강)을 알려 줘요. 다음으로 Codex 사용량을 먼저, 이어서 Gemini·Grok 등 다른 AI 토큰도 같은 필에 추가할 예정이에요.</p>
+        <p class="section-sub">macOS 12 이상을 지원해요. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받으세요. Windows 10/11은 베타 zip(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">claude-pet-win.zip</a>, 서명 없음)을 풀어 ClaudePet.exe를 실행하세요. <a href="#install">설치 안내</a> · <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 다운로드와 변경 내역</a></p>
       </div>
     </div>
   </section>
@@ -828,12 +833,15 @@ const I18N = {
     "sponsor.fine": "One-time or monthly — every bit helps.",
     "hero.title.pre": "Meet",
     "hero.title.post": ", a little company while you code",
-    "hero.sub": "A free, source-available desktop pet for macOS. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.",
+    "hero.sub": "A free, source-available desktop pet for macOS, with a Windows beta. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.",
+    "hero.winbeta": "Windows beta",
+    "hero.cta.windows": "⬇ Windows beta (zip)",
+    "hero.cta.alt.windows": "On Windows? Download the beta zip (unsigned)",
     "hero.cta.primary": "⬇ Download for macOS",
     "hero.cta.secondary": "View source on GitHub",
     "hero.cta.alt.intel": "Intel Mac? Download the universal build",
     "hero.cta.alt.arm": "Apple Silicon? Download the smaller Apple Silicon build",
-    "hero.cta.alt.other": "Claude Pet is a macOS app — browse all releases",
+    "hero.cta.alt.other": "Browse all releases (macOS builds and the Windows beta)",
     "hero.cta.alt.intelsoon": "Intel Mac? Find the universal build in GitHub Releases",
     "hero.pethint": "👋 hover to say hi · click to make it jump",
     "features.eyebrow": "Behavior",
@@ -850,24 +858,22 @@ const I18N = {
       ["assets/pets/scorpion.png", "Scorpion"],
       ["assets/pets/elephant.png", "Elephant"]
     ],
-    "gauges.eyebrow": "Usage gauges",
-    "gauges.title": "Your Claude limits, at a glance",
-    "gauges.sub": "Session, weekly, and model usage when available. Exact mode shows server percentages and reset times; local fallback is an estimate. The illustration below uses example values.",
-    "gauges.session": "Session (5h)",
-    "gauges.remaining": "Example usage",
-    "gauges.reset1": "resets in 2h 14m",
-    "gauges.weekly": "Weekly total",
-    "gauges.remaining2": "resets Sat 8:00 PM",
-    "gauges.reset2": "resets in 3d",
-    "gauges.model": "Weekly · Opus",
-    "gauges.autodetect": "When available for your account",
-    "gauges.reset3": "resets in 3d",
+    "gauges.eyebrow": "The usage pill",
+    "gauges.title": "Your Claude limits, in one small pill",
+    "gauges.sub": "One line for session, weekly and per-model usage, a second for reset countdowns. In API mode it shows today’s and this month’s cost instead. The illustration uses example values.",
+    "gauges.session": "Session",
+    "gauges.weekly": "Weekly",
+    "gauges.reset1": "reset Session in 59m · Weekly in 6d 20h",
+    "gauges.remaining": "Number colour = where it comes from: emerald for server-computed (Exact mode), amber with ≈ for the local-log estimate, coral for API cost.",
+    "gauges.remaining2": "Label colour = how much is left: white, yellow from 50 %, red from 85 % — and red with ▲ while that gauge is spiking.",
+    "gauges.autodetect": "The per-model gauge picks the top tier found in your logs; the second line lists reset countdowns.",
+    "gauges.roadmap": "Coming next: the same pill will also show Codex usage first, then Gemini, Grok and other AI services.",
     "preview.eyebrow": "Preview",
     "preview.title": "See it in action",
-    "preview.caption": "Earlier gauge-layout preview. The companion can tuck its gauges away while moving; this image is not a screenshot of every v0.23 state.",
+    "preview.caption": "The v0.24 pill on macOS in Exact mode. The session label is yellow because that gauge is past 50 %.",
     "install.eyebrow": "Install",
     "install.title": "Make room for a small companion",
-    "install.sub": "macOS 12+ · Apple Silicon and Intel · Free · Source on GitHub · Python is bundled in the notarized app.",
+    "install.sub": "macOS 12+ · Apple Silicon and Intel · Windows 10/11 beta · Free · Source on GitHub · Python is bundled.",
     "install.note": "Exact mode uses your Claude Code credential from Keychain to request usage from Anthropic. Local fallback reads Claude Code logs under <code>~/.claude</code>. Update checks contact GitHub.",
     "cal.eyebrow": "Calibration",
     "cal.title": "Exact when available, calibrated when needed",
@@ -880,16 +886,17 @@ const I18N = {
     "footer.releases": "Releases",
     features: [
       ["🌿", "A quiet companion", "Wanders around your screen, occasionally follows your cursor at a distance, and can hop between monitors. Turn roaming off from the right-click menu."],
-      ["🫧", "Room to focus", "Gauges tuck away during roaming. Drag your companion to choose a new resting spot."],
+      ["🫧", "Room to focus", "The usage pill tucks away during roaming. Drag your companion to choose a new resting spot."],
       ["🐾", "Choose your pet", "Cat, dog, fox, scorpion or elephant. Switch companions from the right-click menu."],
-      ["📊", "Know where you stand", "Read Claude usage percentages and reset countdowns without opening another window. Exact and estimated usage are different sources."],
+      ["📊", "Know where you stand", "One small pill shows session, weekly and per-model % with reset countdowns. Number colour tells the source (green = server, amber = estimate), label colour tells how much is left."],
       ["🎉", "A little celebration", "Your companion reacts when it detects a session reset. Double-click to jump and refresh usage."],
       ["🔄", "Updates on your terms", "Checks GitHub every hour after launch. Right-click → Check for updates… checks immediately and installs a newer release if available."]
     ],
     steps: [
       ["Choose your Mac’s download", "Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Both are available on GitHub Releases."],
       ["Drag it to Applications", "Open the .dmg, drag ClaudePet to Applications, then launch it. No separate Python installation is needed."],
-      ["Connect your Claude Code account", "Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings."]
+      ["Connect your Claude Code account", "Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings."],
+      ["Windows (beta)", "Download claude-pet-win.zip, unzip it and run ClaudePet\\ClaudePet.exe. The build is unsigned, so SmartScreen warns the first time: More info → Run anyway. Sign in to Claude Code on Windows first."]
     ],
     honesty: [
       "Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage.",
@@ -898,11 +905,11 @@ const I18N = {
     ],
     faq: [
       ["Is Claude Pet free?", "Yes. Claude Pet is completely free to download with source available on GitHub. You can download the notarized app from GitHub Releases or build it yourself from the source code."],
-      ["Which platforms does Claude Pet support?", "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build). It is rendered natively with AppKit, so there is no window frame, no background, and no ghosting."],
+      ["Which platforms does Claude Pet support?", "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 there is a Windows 10/11 beta as an unsigned zip with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting."],
       ["How does Claude Pet track my Claude token usage?", "Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage."],
       ["Is Claude Pet affiliated with Anthropic?", "No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic."],
       ["Does Claude Pet include web or desktop chat usage?", "Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage."],
-      ["How can I check Claude's 5-hour and weekly usage limits on a Mac?", "Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its floating gauges show session, weekly total, per-model usage when available, and reset countdowns."],
+      ["How can I check Claude's 5-hour and weekly usage limits on a Mac?", "Launch Claude Pet and allow access to the existing Claude Code credential in macOS Keychain. Its small pill shows session, weekly total, per-model usage when available, and reset countdowns."],
       ["Does Claude Pet send my prompts or source code anywhere?", "No. Claude Pet does not upload prompts, transcripts, or source code. Exact mode contacts Anthropic only to request usage percentages."]
     ]
   },
@@ -915,12 +922,15 @@ const I18N = {
     "sponsor.fine": "한 번만 또는 매달 — 어떤 금액이든 큰 힘이 돼요.",
     "hero.title.pre": "화면 위의 작은 친구,",
     "hero.title.post": "을 소개합니다",
-    "hero.sub": "코딩하는 동안 곁에 있어 주는 무료 소스 공개 macOS 펫이에요. Claude 사용량을 확인하고, 마음에 드는 친구가 화면을 산책하도록 해 보세요.",
+    "hero.sub": "코딩하는 동안 곁에 있어 주는 무료 소스 공개 macOS 펫이에요(Windows 베타 포함). Claude 사용량을 확인하고, 마음에 드는 친구가 화면을 산책하도록 해 보세요.",
+    "hero.winbeta": "Windows 베타",
+    "hero.cta.windows": "⬇ Windows 베타 (zip)",
+    "hero.cta.alt.windows": "Windows이세요? 베타 zip 다운로드(서명 없음)",
     "hero.cta.primary": "⬇ macOS용 다운로드",
     "hero.cta.secondary": "GitHub에서 소스 보기",
     "hero.cta.alt.intel": "Intel Mac이세요? universal 빌드 다운로드",
     "hero.cta.alt.arm": "Apple Silicon이세요? 더 가벼운 Apple Silicon 빌드 다운로드",
-    "hero.cta.alt.other": "Claude Pet은 macOS 전용 앱이에요 — 전체 릴리즈 보기",
+    "hero.cta.alt.other": "전체 릴리즈 보기 (macOS 빌드와 Windows 베타)",
     "hero.cta.alt.intelsoon": "Intel Mac용 universal 빌드는 GitHub Releases에서 확인하세요",
     "hero.pethint": "👋 마우스를 가까이 대면 인사해요 · 클릭하면 점프해요",
     "features.eyebrow": "행동 패턴",
@@ -937,24 +947,22 @@ const I18N = {
       ["assets/pets/scorpion.png", "전갈"],
       ["assets/pets/elephant.png", "코끼리"]
     ],
-    "gauges.eyebrow": "사용량 게이지",
-    "gauges.title": "Claude 한도를 한눈에",
-    "gauges.sub": "세션·주간·모델별 사용량은 제공되는 항목에 따라 표시돼요. 정확 모드는 서버 사용률과 리셋 시간을, 로컬 대체 모드는 추정치를 보여줘요. 아래 수치는 설명용 예시예요.",
-    "gauges.session": "세션 (5시간)",
-    "gauges.remaining": "사용량 예시",
-    "gauges.reset1": "2시간 14분 후 리셋",
-    "gauges.weekly": "주간 전체",
-    "gauges.remaining2": "토요일 오후 8시 리셋",
-    "gauges.reset2": "3일 후 리셋",
-    "gauges.model": "주간 · Opus",
-    "gauges.autodetect": "계정에서 제공되는 경우",
-    "gauges.reset3": "3일 후 리셋",
+    "gauges.eyebrow": "사용량 필",
+    "gauges.title": "Claude 한도를 작은 필 하나에",
+    "gauges.sub": "첫 줄에 세션·주간·모델별 사용률, 둘째 줄에 리셋 시간이 보여요. API 모드에서는 오늘·이번 달 비용을 보여줘요. 아래 수치는 설명용 예시예요.",
+    "gauges.session": "세션",
+    "gauges.weekly": "주간",
+    "gauges.reset1": "리셋 세션 59분 후 · 주간 6일 20시간 후",
+    "gauges.remaining": "수치 색 = 출처: 서버 계산(정확 모드)은 에메랄드, 로컬 로그 추정은 앰버(≈), API 비용은 코랄.",
+    "gauges.remaining2": "라벨 색 = 잔여량: 흰색, 50%부터 노랑, 85%부터 빨강 — 급증 중이면 ▲와 함께 빨강.",
+    "gauges.autodetect": "모델별 게이지는 로그에서 상위 티어를 자동으로 고르고, 둘째 줄이 리셋 시간을 알려 줘요.",
+    "gauges.roadmap": "다음 예정: 같은 필에 Codex 사용량을 가장 먼저, 이어서 Gemini·Grok과 다른 AI 서비스도 추가할 계획이에요.",
     "preview.eyebrow": "미리보기",
     "preview.title": "실제로 이렇게 생겼어요",
-    "preview.caption": "이전 게이지 화면 예시예요. 이동할 때 게이지를 접을 수 있으며, v0.23의 모든 상태를 나타내는 화면은 아니에요.",
+    "preview.caption": "v0.24의 필(macOS, 정확 모드). 세션이 50%를 넘어 라벨이 노란색이에요.",
     "install.eyebrow": "설치",
     "install.title": "작은 친구를 맞이해 보세요",
-    "install.sub": "macOS 12+ · Apple Silicon 및 Intel · 무료 소스 공개 · 공증된 앱에 Python이 포함돼요.",
+    "install.sub": "macOS 12+ · Apple Silicon 및 Intel · Windows 10/11 베타 · 무료 소스 공개 · Python이 포함돼요.",
     "install.note": "정확 모드는 키체인의 Claude Code 인증 정보로 Anthropic에 사용량을 요청해요. 로컬 대체 모드는 <code>~/.claude</code>의 Claude Code 로그를 읽고, 업데이트 확인은 GitHub에 연결해요.",
     "cal.eyebrow": "보정",
     "cal.title": "가능하면 정확하게, 필요하면 보정해서",
@@ -967,16 +975,17 @@ const I18N = {
     "footer.releases": "릴리즈",
     features: [
       ["🌿", "조용히 곁에서", "화면을 산책하고, 가끔 커서와 거리를 두고 따라오거나 모니터 사이를 건너요. 우클릭 메뉴에서 화면 돌아다니기를 끌 수 있어요."],
-      ["🫧", "집중할 공간", "산책할 때 게이지를 접어요. 드래그해서 쉬어 갈 자리를 정해 주세요."],
+      ["🫧", "집중할 공간", "산책할 때 사용량 필을 접어요. 드래그해서 쉬어 갈 자리를 정해 주세요."],
       ["🐾", "마음에 드는 친구", "고양이·강아지·여우·전갈·코끼리를 우클릭 메뉴에서 바꿀 수 있어요."],
-      ["📊", "사용량을 한눈에", "다른 창을 열지 않고 Claude 사용률과 리셋 시간을 확인해요. 정확 모드와 추정 모드는 서로 다른 데이터예요."],
+      ["📊", "사용량을 한눈에", "작은 필 하나에 세션·주간·모델별 %와 리셋 시간이 보여요. 수치 색은 출처(서버 값 초록, 추정 앰버), 라벨 색은 잔여량을 알려 줘요."],
       ["🎉", "작은 축하", "세션 리셋을 감지하면 반응해요. 더블클릭하면 점프하고 사용량을 새로고침해요."],
       ["🔄", "필요할 때 업데이트", "실행 후 1시간마다 GitHub를 확인해요. 우클릭 → 업데이트 확인…을 누르면 바로 확인하고 새 버전이 있으면 설치해요."]
     ],
     steps: [
       ["Mac에 맞는 파일 받기", "Apple Silicon은 ClaudePet.dmg, Intel은 ClaudePet-universal.dmg를 GitHub Releases에서 받으세요."],
       ["응용 프로그램으로 이동", "dmg를 열고 ClaudePet을 응용 프로그램 폴더로 옮겨 실행하세요. Python을 별도로 설치할 필요 없어요."],
-      ["Claude Code 계정 연결", "먼저 Claude Code에 로그인하세요. 첫 실행 시 키체인 인증 정보와 Claude Code 로그 접근을 허용하고, 펫을 우클릭해 설정하세요."]
+      ["Claude Code 계정 연결", "먼저 Claude Code에 로그인하세요. 첫 실행 시 키체인 인증 정보와 Claude Code 로그 접근을 허용하고, 펫을 우클릭해 설정하세요."],
+      ["Windows (베타)", "claude-pet-win.zip을 받아 풀고 ClaudePet\\ClaudePet.exe를 실행하세요. 서명이 없어 처음엔 SmartScreen 경고가 뜨니 추가 정보 → 실행을 누르세요. Windows에서도 먼저 Claude Code에 로그인하세요."]
     ],
     honesty: [
       "정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률을 요청해요. 로컬 대체 모드는 Claude Code 로그에 기록된 활동만 추정하며, 로그에 없는 웹·데스크톱 채팅은 포함하지 못해요. 보정은 서버 사용률이 아닌 추정치에 적용돼요.",
@@ -985,7 +994,7 @@ const I18N = {
     ],
     faq: [
       ["Claude Pet은 무료인가요?", "네, 무료로 다운로드할 수 있고 소스가 GitHub에 공개돼 있어요. GitHub Releases에서 공증된 앱을 받거나 소스 코드로 직접 빌드할 수 있어요."],
-      ["어떤 플랫폼을 지원하나요?", "macOS 12 이상에서 동작해요 (Apple Silicon · Intel은 v0.10부터 universal 빌드). AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
+      ["어떤 플랫폼을 지원하나요?", "macOS 12 이상에서 동작해요 (Apple Silicon · Intel은 v0.10부터 universal 빌드). v0.24부터는 Windows 10/11 베타(서명 없는 zip)도 있어 같은 필·산책·설정을 써요. macOS는 AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
       ["토큰 사용량은 어떻게 추적하나요?", "정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률을 요청해요. 로컬 대체 모드는 Claude Code 로그에 기록된 활동만 추정하며, 로그에 없는 웹·데스크톱 채팅은 포함하지 못해요. 보정은 서버 사용률이 아닌 추정치에 적용돼요."],
       ["Anthropic과 관련이 있나요?", "아니요. Claude Pet은 Yeongyu Yang(uygnoey)이 만든 독립 프로젝트예요. Claude는 Anthropic PBC의 상표이며, Claude Pet은 Anthropic과 제휴하거나 공식 지원을 받지 않아요."],
       ["웹/데스크톱 채팅 사용량도 포함되나요?", "정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률을 요청해요. 로컬 대체 모드는 Claude Code 로그에 기록된 활동만 추정하며, 로그에 없는 웹·데스크톱 채팅은 포함하지 못해요. 보정은 서버 사용률이 아닌 추정치에 적용돼요."]
@@ -1000,12 +1009,15 @@ const I18N = {
     "sponsor.fine": "一回だけでも毎月でも — どんな金額でも励みになります。",
     "hero.title.pre": "画面の上の小さな相棒、",
     "hero.title.post": "をご紹介",
-    "hero.sub": "コーディングのそばに、小さな相棒を。無料・ソース公開の macOS ペットで Claude の使用量を確認し、好きな仲間に画面を散歩してもらいましょう。",
+    "hero.sub": "コーディングのそばに、小さな相棒を。無料・ソース公開の macOS ペット（Windows ベータあり）で Claude の使用量を確認し、好きな仲間に画面を散歩してもらいましょう。",
+    "hero.winbeta": "Windows ベータ",
+    "hero.cta.windows": "⬇ Windows ベータ (zip)",
+    "hero.cta.alt.windows": "Windows ですか？ ベータ版 zip をダウンロード（未署名）",
     "hero.cta.primary": "⬇ macOS 版をダウンロード",
     "hero.cta.secondary": "GitHub でソースを見る",
     "hero.cta.alt.intel": "Intel Mac の方は universal ビルドをダウンロード",
     "hero.cta.alt.arm": "Apple Silicon の方はより軽い Apple Silicon ビルドをダウンロード",
-    "hero.cta.alt.other": "Claude Pet は macOS 専用アプリです — リリース一覧を見る",
+    "hero.cta.alt.other": "リリース一覧を見る（macOS ビルドと Windows ベータ）",
     "hero.cta.alt.intelsoon": "Intel Mac 用の universal ビルドは GitHub Releases で確認できます",
     "hero.pethint": "👋 マウスを近づけると挨拶 · クリックでジャンプ",
     "features.eyebrow": "ふるまい",
@@ -1022,9 +1034,16 @@ const I18N = {
       ["assets/pets/scorpion.png", "サソリ"],
       ["assets/pets/elephant.png", "ゾウ"]
     ],
-    "gauges.eyebrow": "使用量ゲージ",
-    "gauges.title": "Claude の上限をひと目で",
-    "gauges.sub": "提供されるセッション・週間・モデル別の使用量を表示。正確モードはサーバーの使用率とリセット時刻、ローカル代替モードは推定値です。以下の数値は説明用です。",
+    "gauges.eyebrow": "使用量ピル",
+    "gauges.title": "Claude の上限を小さなピル一つに",
+    "gauges.sub": "1行目にセッション・週間・モデル別の使用率、2行目にリセットまでの時間。API モードでは今日と今月のコストを表示します。以下の数値は説明用です。",
+    "gauges.session": "セッション",
+    "gauges.weekly": "週間",
+    "gauges.reset1": "リセット セッション 59分後 · 週間 6日20時間後",
+    "gauges.remaining": "数値の色 = 出どころ: サーバー計算（正確モード）はエメラルド、ローカルログ推定はアンバー（≈）、API コストはコーラル。",
+    "gauges.remaining2": "ラベルの色 = 残量: 白、50% から黄、85% から赤 — 急増中は ▲ 付きで赤。",
+    "gauges.autodetect": "モデル別ゲージはログから上位ティアを自動選択し、2行目がリセットまでの時間を示します。",
+    "gauges.roadmap": "次の予定: 同じピルに Codex の使用量をまず追加し、続いて Gemini・Grok など他の AI サービスも表示します。",
     "gauges.session": "セッション (5h)",
     "gauges.remaining": "使用量の例",
     "gauges.reset1": "2時間14分後にリセット",
@@ -1036,10 +1055,10 @@ const I18N = {
     "gauges.reset3": "3日後にリセット",
     "preview.eyebrow": "プレビュー",
     "preview.title": "実際はこんな感じです",
-    "preview.caption": "以前のゲージ表示の例です。移動中はゲージをたためます。この画像は v0.23 のすべての状態を示すものではありません。",
+    "preview.caption": "v0.24 のピル（macOS、正確モード）。セッションが 50% を超えているのでラベルが黄色です。",
     "install.eyebrow": "インストール",
     "install.title": "小さな相棒を迎えましょう",
-    "install.sub": "macOS 12+ · Apple Silicon と Intel · 無料・ソース公開 · 公証済みアプリに Python を同梱。",
+    "install.sub": "macOS 12+ · Apple Silicon と Intel · Windows 10/11 ベータ · 無料・ソース公開 · Python 同梱。",
     "install.note": "正確モードはキーチェーンの Claude Code 認証情報で Anthropic に使用量を要求します。ローカル代替モードは <code>~/.claude</code> のログを読み、更新確認は GitHub に接続します。",
     "cal.eyebrow": "キャリブレーション",
     "cal.title": "取得できるときは正確に、必要なときは補正",
@@ -1052,16 +1071,17 @@ const I18N = {
     "footer.releases": "リリース",
     features: [
       ["🌿", "そっと寄り添う", "画面を散歩し、ときどき距離を保ってカーソルを追い、モニター間を移動します。右クリックで散歩をオフにできます。"],
-      ["🫧", "集中する余白", "散歩中はゲージをたたみます。ドラッグして休む場所を選べます。"],
+      ["🫧", "集中する余白", "散歩中は使用量ピルをたたみます。ドラッグして休む場所を選べます。"],
       ["🐾", "相棒を選ぶ", "ネコ・イヌ・キツネ・サソリ・ゾウを右クリックメニューで切り替えられます。"],
-      ["📊", "使用量をひと目で", "別のウィンドウを開かず Claude の使用率とリセットまでの時間を確認。正確値と推定値は異なる情報源です。"],
+      ["📊", "使用量をひと目で", "小さなピル一つにセッション・週間・モデル別の % とリセットまでの時間。数値の色が出どころ（サーバー値は緑、推定はアンバー）、ラベルの色が残量を示します。"],
       ["🎉", "小さなお祝い", "セッションのリセットを検出すると反応します。ダブルクリックでジャンプし使用量を更新。"],
       ["🔄", "必要なときに更新", "起動後 1 時間ごとに GitHub を確認。右クリックの更新確認ですぐに確認し、新版があればインストールします。"]
     ],
     steps: [
       ["Mac に合うファイルを選ぶ", "Apple Silicon は ClaudePet.dmg、Intel は ClaudePet-universal.dmg を GitHub Releases から取得。"],
       ["アプリケーションへ移動", "dmg を開き ClaudePet をアプリケーションに移して起動。Python の別途インストールは不要です。"],
-      ["Claude Code アカウントを接続", "先に Claude Code にログイン。初回起動時にキーチェーンの認証情報とログへのアクセスを許可し、右クリックで設定します。"]
+      ["Claude Code アカウントを接続", "先に Claude Code にログイン。初回起動時にキーチェーンの認証情報とログへのアクセスを許可し、右クリックで設定します。"],
+      ["Windows（ベータ）", "claude-pet-win.zip をダウンロードして展開し、ClaudePet\\ClaudePet.exe を実行します。未署名のため初回は SmartScreen の警告が出ます: 詳細情報 → 実行。Windows でも先に Claude Code にサインインしてください。"]
     ],
     honesty: [
       "正確モードは既存の Claude Code 認証情報で Anthropic のアカウント使用率を要求します。ローカル代替モードはログに記録された活動のみを推定し、そこにない Web・デスクトップの利用は含められません。補正は推定値に適用されます。",
@@ -1070,7 +1090,7 @@ const I18N = {
     ],
     faq: [
       ["Claude Pet は無料ですか？", "はい。完全に無料でソースは GitHub に公開されています。GitHub Releases から公証済みアプリをダウンロードするか、ソースコードから自分でビルドできます。"],
-      ["対応プラットフォームは？", "macOS 12 以降の Apple Silicon と Intel Mac（v0.10 から、universal ビルド）で動作します。AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
+      ["対応プラットフォームは？", "macOS 12 以降の Apple Silicon と Intel Mac（v0.10 から、universal ビルド）で動作します。v0.24 からは Windows 10/11 ベータ（未署名の zip）もあり、同じピル・散歩・設定が使えます。macOS は AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
       ["トークン使用量はどうやって追跡していますか？", "正確モードは既存の Claude Code 認証情報で Anthropic のアカウント使用率を要求します。ローカル代替モードはログに記録された活動のみを推定し、そこにない Web・デスクトップの利用は含められません。補正は推定値に適用されます。"],
       ["Anthropic と関係がありますか？", "いいえ。Claude Pet は Yeongyu Yang（uygnoey）による独立プロジェクトです。Claude は Anthropic PBC の商標であり、Claude Pet は Anthropic と提携も公認もされていません。"],
       ["Web／デスクトップチャットの使用量も含まれますか？", "正確モードは既存の Claude Code 認証情報で Anthropic のアカウント使用率を要求します。ローカル代替モードはログに記録された活動のみを推定し、そこにない Web・デスクトップの利用は含められません。補正は推定値に適用されます。"]
@@ -1085,12 +1105,15 @@ const I18N = {
     "sponsor.fine": "Una vez o cada mes — todo suma.",
     "hero.title.pre": "Conoce a",
     "hero.title.post": ", compañía mientras programas",
-    "hero.sub": "Una mascota de escritorio gratuita y con código disponible para macOS. Consulta tu uso de Claude, elige una compañera y deja que pasee mientras trabajas.",
+    "hero.sub": "Una mascota de escritorio gratuita y con código disponible para macOS, con beta para Windows. Consulta tu uso de Claude, elige una compañera y deja que pasee mientras trabajas.",
+    "hero.winbeta": "Beta para Windows",
+    "hero.cta.windows": "⬇ Beta para Windows (zip)",
+    "hero.cta.alt.windows": "¿Windows? Descarga el zip beta (sin firmar)",
     "hero.cta.primary": "⬇ Descargar para macOS",
     "hero.cta.secondary": "Ver el código en GitHub",
     "hero.cta.alt.intel": "¿Mac Intel? Descarga la versión universal",
     "hero.cta.alt.arm": "¿Apple Silicon? Descarga la versión más ligera para Apple Silicon",
-    "hero.cta.alt.other": "Claude Pet es una app para macOS — ver todas las versiones",
+    "hero.cta.alt.other": "Ver todas las versiones (compilaciones para macOS y beta para Windows)",
     "hero.cta.alt.intelsoon": "¿Mac Intel? Busca la versión universal en GitHub Releases",
     "hero.pethint": "👋 pasa el cursor para saludar · haz clic para que salte",
     "features.eyebrow": "Comportamiento",
@@ -1107,9 +1130,16 @@ const I18N = {
       ["assets/pets/scorpion.png", "Escorpión"],
       ["assets/pets/elephant.png", "Elefante"]
     ],
-    "gauges.eyebrow": "Medidores de uso",
-    "gauges.title": "Tus límites de Claude, de un vistazo",
-    "gauges.sub": "Uso de sesión, semanal y por modelo cuando esté disponible. El modo exacto muestra porcentajes y reinicios del servidor; el modo local es una estimación. Los valores de abajo son ejemplos.",
+    "gauges.eyebrow": "La píldora de uso",
+    "gauges.title": "Tus límites de Claude en una píldora pequeña",
+    "gauges.sub": "Una línea con el uso de sesión, semanal y por modelo, y otra con las cuentas atrás de reinicio. En modo API muestra el coste de hoy y de este mes. Los valores son ejemplos.",
+    "gauges.session": "Sesión",
+    "gauges.weekly": "Semanal",
+    "gauges.reset1": "reinicio Sesión en 59m · Semanal en 6d 20h",
+    "gauges.remaining": "Color del número = de dónde sale: esmeralda si lo calcula el servidor (modo Exacto), ámbar con ≈ si es la estimación local, coral para el coste de API.",
+    "gauges.remaining2": "Color de la etiqueta = cuánto queda: blanco, amarillo desde el 50 %, rojo desde el 85 % — y rojo con ▲ mientras ese medidor se dispara.",
+    "gauges.autodetect": "El medidor por modelo elige el nivel superior de tus registros; la segunda línea lista los reinicios.",
+    "gauges.roadmap": "Próximamente: la misma píldora mostrará primero el uso de Codex y después Gemini, Grok y otros servicios de IA.",
     "gauges.session": "Sesión (5h)",
     "gauges.remaining": "Ejemplo de uso",
     "gauges.reset1": "se reinicia en 2h 14m",
@@ -1121,10 +1151,10 @@ const I18N = {
     "gauges.reset3": "se reinicia en 3d",
     "preview.eyebrow": "Vista previa",
     "preview.title": "Míralo en acción",
-    "preview.caption": "Ejemplo de una vista anterior de los medidores. La mascota puede ocultarlos al moverse; la imagen no representa todos los estados de v0.23.",
+    "preview.caption": "La píldora de v0.24 en macOS, modo Exacto. La etiqueta de sesión está en amarillo porque supera el 50 %.",
     "install.eyebrow": "Instalación",
     "install.title": "Haz sitio a una pequeña compañera",
-    "install.sub": "macOS 12+ · Apple Silicon e Intel · Gratis · Código en GitHub · Python incluido en la app notarizada.",
+    "install.sub": "macOS 12+ · Apple Silicon e Intel · Beta para Windows 10/11 · Gratis · Código en GitHub · Python incluido.",
     "install.note": "El modo exacto usa la credencial de Claude Code del Llavero para consultar el uso en Anthropic. El modo local lee registros en <code>~/.claude</code>. Las comprobaciones de actualización contactan con GitHub.",
     "cal.eyebrow": "Calibración",
     "cal.title": "Exacto cuando es posible, calibrado cuando hace falta",
@@ -1137,16 +1167,17 @@ const I18N = {
     "footer.releases": "Releases",
     features: [
       ["🌿", "Compañía tranquila", "Pasea por la pantalla, a veces sigue el cursor a cierta distancia y puede saltar entre monitores. Desactiva los paseos desde el menú contextual."],
-      ["🫧", "Espacio para concentrarte", "Los medidores se ocultan durante los paseos. Arrastra a tu compañera para elegir dónde descansará."],
+      ["🫧", "Espacio para concentrarte", "La píldora de uso se oculta durante los paseos. Arrastra a tu compañera para elegir dónde descansará."],
       ["🐾", "Elige tu mascota", "Gato, perro, zorro, escorpión o elefante. Cambia de compañera desde el menú contextual."],
-      ["📊", "Consulta tu uso", "Mira porcentajes y reinicios de Claude sin abrir otra ventana. Los modos exacto y estimado usan fuentes diferentes."],
+      ["📊", "Consulta tu uso", "Una píldora pequeña muestra el % de sesión, semanal y por modelo con los reinicios. El color del número dice la fuente (verde servidor, ámbar estimación) y el de la etiqueta cuánto queda."],
       ["🎉", "Una pequeña celebración", "Reacciona al detectar un reinicio de sesión. Haz doble clic para saltar y actualizar el uso."],
       ["🔄", "Actualiza cuando quieras", "Consulta GitHub cada hora después del inicio. La opción de buscar actualizaciones comprueba al instante e instala una versión nueva si está disponible."]
     ],
     steps: [
       ["Elige la descarga para tu Mac", "Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Ambas en GitHub Releases."],
       ["Muévela a Aplicaciones", "Abre el .dmg, arrastra ClaudePet a Aplicaciones y ejecútala. No necesitas instalar Python por separado."],
-      ["Conecta tu cuenta de Claude Code", "Inicia sesión en Claude Code primero. Al abrir la app, permite el acceso a su credencial del Llavero y a los registros cuando se solicite. Clic derecho para configurar."]
+      ["Conecta tu cuenta de Claude Code", "Inicia sesión en Claude Code primero. Al abrir la app, permite el acceso a su credencial del Llavero y a los registros cuando se solicite. Clic derecho para configurar."],
+      ["Windows (beta)", "Descarga claude-pet-win.zip, descomprímelo y ejecuta ClaudePet\\ClaudePet.exe. La compilación no está firmada, así que SmartScreen avisa la primera vez: Más información → Ejecutar de todas formas. Inicia sesión en Claude Code en Windows primero."]
     ],
     honesty: [
       "El modo exacto consulta los porcentajes de cuenta de Anthropic con la credencial existente de Claude Code. El modo local estima solo la actividad registrada en sus archivos; no incluye chats web o de escritorio ausentes de esos registros. La calibración afecta a la estimación, no al porcentaje del servidor.",
@@ -1155,7 +1186,7 @@ const I18N = {
     ],
     faq: [
       ["¿Claude Pet es gratis?", "Sí. Claude Pet es totalmente gratuito y con código disponible. Puedes descargar la app certificada (notarized) desde GitHub Releases o compilarla tú mismo desde el código fuente."],
-      ["¿Qué plataformas admite Claude Pet?", "Funciona en macOS 12 o posterior con Apple Silicon e Intel (desde v0.10, versión universal). Se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
+      ["¿Qué plataformas admite Claude Pet?", "Funciona en macOS 12 o posterior con Apple Silicon e Intel (desde v0.10, versión universal), y desde v0.24 hay una beta para Windows 10/11 (zip sin firmar) con la misma píldora, paseos y ajustes. En macOS se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
       ["¿Cómo rastrea mi uso de tokens de Claude?", "El modo exacto consulta los porcentajes de cuenta de Anthropic con la credencial existente de Claude Code. El modo local estima solo la actividad registrada en sus archivos; no incluye chats web o de escritorio ausentes de esos registros. La calibración afecta a la estimación, no al porcentaje del servidor."],
       ["¿Claude Pet está afiliado a Anthropic?", "No. Claude Pet es un proyecto independiente de Yeongyu Yang (uygnoey). Claude es una marca registrada de Anthropic PBC, y Claude Pet no está afiliado a Anthropic ni cuenta con su respaldo."],
       ["¿Incluye el uso del chat web o de escritorio?", "El modo exacto consulta los porcentajes de cuenta de Anthropic con la credencial existente de Claude Code. El modo local estima solo la actividad registrada en sus archivos; no incluye chats web o de escritorio ausentes de esos registros. La calibración afecta a la estimación, no al porcentaje del servidor."]
@@ -1272,8 +1303,9 @@ document.addEventListener("keydown", e => {
    WebGL GPU string (Chrome/Firefox) → compressed-texture formats (Safari masks
    the GPU string, but Apple GPUs expose ETC/s3tc_srgb and Intel GPUs don't). */
 const DL = {
+  win: "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip",
   arm: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg",
-  universal: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg", // Published in v0.23; works if the API is unavailable
+  universal: "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg", // Published since v0.23; works if the API is unavailable
   releases: "https://github.com/uygnoey/claude-pet/releases/latest"
 };
 let dlArch = "arm";
@@ -1286,7 +1318,8 @@ function applyDownloadLinks(){
   const showAlt = (href, key) => { altRow.style.display = ""; alt.href = href; alt.innerHTML = t[key]; };
   if(dlArch === "other"){
     mains.forEach(a => a.href = DL.releases);
-    showAlt(DL.releases, "hero.cta.alt.other");
+    if(/Windows/.test(navigator.userAgent)) showAlt(DL.win, "hero.cta.alt.windows");
+    else showAlt(DL.releases, "hero.cta.alt.other");
   }else if(dlArch === "intel"){
     if(DL.universal){
       mains.forEach(a => a.href = DL.universal);
@@ -1386,7 +1419,7 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e =
 });
 
 /* Refresh the release badge and asset URLs when GitHub is available.
-   Static content and default links describe the published v0.23 release. */
+   Static content and default links describe the published v0.24 release. */
 fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
   .then(r => r.ok ? r.json() : null)
   .then(rel => {

@@ -8,6 +8,19 @@ Rivals: absent/unwired API; move before rest; follow every cursor update;
 uncapped delayed tick; disabled movement; stale pre-drag origin; wander with
 no pause. Geometry/suppression integration gates are added after the contract
 has been acknowledged, and any missing red evidence remains explicitly open.
+
+Re-pinned for the staged v0.24 summary-pill unification (Verifier verifier-v024,
+2026-09-12): ``roam_summary`` rows are ``(label, pct, spiking, reset_text)`` and exact
+keeps three gauge rows; ``cost`` is ``(today, month | None, budget | None)``; ``full``
+and ``summary`` are one text-sized pill and the ``full`` window is the union crop, not
+the whole logical window. Round 2 (after the Reviewer's B1): ``RoamDisplay.toggle``
+during the latch *dismisses* the pill for that visit and returns the preference
+unchanged (``dismissed`` replaces round 1's clear-and-flip; there is no ``expanded``
+state); the adapter keeps every exact row except credits and memoises its text per
+input and 5-second window. Round 3: the colour roles are swapped — the label run
+carries the remaining-amount kind and the value run the source kind; only the cost
+assertion in the adapter test changes here. Evidence:
+docs-design/summary-unify-verification-20260912.md.
 """
 from __future__ import annotations
 
@@ -441,20 +454,32 @@ class CompanionPresentationTests(unittest.TestCase):
                     d.note(phase, kind, away)
                     self.assertEqual(d.mode(phase, preference), "folded")
 
-    def test_approach_summary_expansion_does_not_replace_manual_preference(self):
+    def test_approach_summary_toggle_dismisses_the_visit_and_keeps_the_preference(self):
+        """One pill: a toggle during the arrival latch folds the visiting pill for the
+        rest of that visit and leaves the stored preference alone — the visit ends the
+        way it began. Rivals: the round-1 toggle (cleared the latch and returned
+        ``not preference``, so a folded user ended every visit with the pill open, and
+        the next tick's re-latch hid the click); the v0.23 'expanded' toggle (preference
+        unchanged but the full panel shown); a re-latch that clears the dismissal."""
         for preference in (False, True):
             for away in (False, True):
                 with self.subTest(preference=preference, away=away):
                     d = self.display()
                     d.note("look", "approach", away)
                     self.assertEqual(d.mode("look", preference), "summary")
-                    self.assertEqual(d.toggle(preference), preference)
-                    self.assertEqual(d.mode("look", preference), "full")
-                    self.assertEqual(d.toggle(preference), preference)
-                    self.assertEqual(d.mode("look", preference), "summary")
+                    kept = d.toggle(preference)
+                    self.assertEqual(kept, preference)
+                    self.assertEqual(d.mode("look", kept), "folded")
+                    d.note("look", "approach", away)            # every tick re-notes
+                    self.assertEqual(d.mode("look", kept), "folded")
+                    self.assertEqual(d.toggle(kept), kept)
+                    self.assertEqual(d.mode("look", kept), "summary")
                     d.note("rest", None, True, settled=True)
-                    self.assertEqual(d.mode("rest", preference),
-                                     "full" if preference else "folded")
+                    self.assertEqual(d.mode("rest", kept),
+                                     "full" if kept else "folded")
+                    d.note("look", "approach", away)
+                    self.assertEqual(d.mode("look", kept), "summary",
+                                     "the next visit must arrive undismissed")
 
     def test_wander_pause_stays_folded_and_settlement_restores_manual_choice(self):
         for preference in (False, True):
@@ -466,13 +491,17 @@ class CompanionPresentationTests(unittest.TestCase):
             self.assertEqual(d.mode("rest", preference),
                              "full" if preference else "folded")
 
-    def test_hover_stop_away_keeps_summary_available_for_expansion(self):
+    def test_hover_stop_away_keeps_summary_until_the_user_dismisses_it(self):
         d = self.display()
         d.note("look", "approach", True)
         d.note("rest", None, True, settled=False)  # ordinary hover, not natural completion
         self.assertEqual(d.mode("rest", False), "summary")
+        self.assertFalse(d.toggle(False), "dismissing the visiting pill is not a preference flip")
+        self.assertEqual(d.mode("rest", False), "folded")
+        d.note("rest", None, True, settled=False)  # still hovering
+        self.assertEqual(d.mode("rest", False), "folded")
         self.assertFalse(d.toggle(False))
-        self.assertEqual(d.mode("rest", False), "full")
+        self.assertEqual(d.mode("rest", False), "summary")
 
     def test_in_place_arrival_distinguishes_hover_stop_from_normal_watch_expiry(self):
         api = pure_api(self, {"RoamDisplay", "Roamer"})
@@ -513,12 +542,13 @@ class CompanionPresentationTests(unittest.TestCase):
         self.assertFalse(r.settled, "ordinary click was confused with natural arrival completion")
         d.note(r.phase, r.kind, r.away, settled=r.settled)
         self.assertEqual(d.mode(r.phase, False), "summary")
-        self.assertFalse(d.toggle(False))
-        self.assertEqual(d.mode(r.phase, False), "full")
+        self.assertFalse(d.toggle(False), "a click on the visiting pill keeps the folded preference")
+        self.assertEqual(d.mode(r.phase, False), "folded")
         r.set_home((420, 360), 1.3)
         self.assertTrue(r.settled)
         d.reset()
         self.assertEqual(d.mode(r.phase, False), "folded")
+        self.assertTrue(d.toggle(False), "after the visit the toggle is the plain flip again")
 
     def test_explicit_interruption_or_disable_clears_summary_and_expansion(self):
         for flags in ({"interrupted": True}, {"enabled": False}):
@@ -563,23 +593,29 @@ class CompanionPresentationTests(unittest.TestCase):
         self.assertEqual(self.summary(mode="api", has_admin_key=True),
                          ("status", "loading"))
         self.assertEqual(self.summary(mode="api", has_admin_key=True, cost_today=0),
-                         ("cost", 0.0))
+                         ("cost", (0.0, None, None)))
         self.assertEqual(self.summary(mode="api", has_admin_key=True, cost_today=12.375,
                                       oauth=[("Weekly", 87.0, None)]),
-                         ("cost", 12.375))
+                         ("cost", (12.375, None, None)))
+        self.assertEqual(self.summary(mode="api", has_admin_key=True, cost_today=12.375,
+                                      cost_month=27.5, cost_budget=50),
+                         ("cost", (12.375, 27.5, 50.0)))
 
-    def test_summary_keeps_first_two_source_labels_and_values_in_order(self):
+    def test_summary_keeps_first_three_source_labels_and_values_in_order(self):
         rows = [("Current session", 17.25, None), ("週間", 63.5, None),
-                ("Fable", 91.0, None)]
+                ("Fable", 91.0, None), ("Credits", 3.0, None)]
         self.assertEqual(self.summary(oauth=rows),
-                         ("exact", [("Current session", 17.25), ("週間", 63.5)]))
+                         ("exact", [("Current session", 17.25, False, None),
+                                    ("週間", 63.5, False, None),
+                                    ("Fable", 91.0, False, None)]))
 
     def test_summary_onboarding_and_estimates_preserve_data_meaning(self):
         self.assertEqual(self.summary(onboard="install"), ("status", "onb_install"))
         self.assertEqual(self.summary(onboard="login"), ("status", "onb_login"))
         self.assertEqual(self.summary(stats={"session": {"pct": 0.0},
                                              "weekly": {"pct": 67.5}}),
-                         ("estimate", [("session", 0.0), ("weekly", 67.5)]))
+                         ("estimate", [("session", 0.0, False, None),
+                                       ("weekly", 67.5, False, None)]))
 
     def test_summary_invalid_values_are_not_reported_as_zero(self):
         for invalid in (None, True, False, -1.0, float("nan"), float("inf"), "32"):
@@ -588,21 +624,22 @@ class CompanionPresentationTests(unittest.TestCase):
                                               cost_today=invalid), ("status", "loading"))
                 self.assertEqual(self.summary(stats={"session": {"pct": invalid},
                                                      "weekly": {"pct": 23.75}}),
-                                 ("estimate", [("weekly", 23.75)]))
+                                 ("estimate", [("weekly", 23.75, False, None)]))
                 self.assertEqual(self.summary(oauth=[("Session", invalid, None)],
                                               stats={"session": {"pct": 99.0}}),
                                  ("status", "scanning"))
 
-    def test_exact_summary_filters_only_first_two_rows_without_replacement(self):
+    def test_exact_summary_filters_only_first_three_rows_without_replacement(self):
         rows = [("Session", float("nan"), None), ("週間", 41.0, None),
-                ("Fable", 93.0, None)]
-        self.assertEqual(self.summary(oauth=rows), ("exact", [("週間", 41.0)]))
+                ("Fable", 93.0, None), ("Credits", 7.0, None)]
+        self.assertEqual(self.summary(oauth=rows),
+                         ("exact", [("週間", 41.0, False, None), ("Fable", 93.0, False, None)]))
 
     def test_server_label_matching_translation_key_remains_an_exact_label(self):
         self.assertEqual(self.summary(oauth=[("session", 18.25, None)]),
-                         ("exact", [("session", 18.25)]))
+                         ("exact", [("session", 18.25, False, None)]))
         self.assertEqual(self.summary(stats={"session": {"pct": 18.25}}),
-                         ("estimate", [("session", 18.25)]))
+                         ("estimate", [("session", 18.25, False, None)]))
 
 
 class CompanionCropGeometryTests(unittest.TestCase):
@@ -624,8 +661,10 @@ class CompanionCropGeometryTests(unittest.TestCase):
              (184, 156, 112, 64), (-1010, 798), (138, 124, 160, 96), (-1056, 798)),
         ]
         for right, bottom, center, fold_crop, fold_origin, sum_crop, sum_origin in fixtures:
+            # full and summary are the same pill since v0.24, so both take the summary
+            # crop; the old full crop was the whole (0, 0, 300, 220) window.
             for mode, expected_crop, expected_origin in (
-                    ("full", (0, 0, 300, 220), (center[0] - 150, center[1] - 110)),
+                    ("full", sum_crop, sum_origin),
                     ("folded", fold_crop, fold_origin),
                     ("summary", sum_crop, sum_origin)):
                 with self.subTest(right=right, bottom=bottom, mode=mode):
@@ -647,6 +686,8 @@ class CompanionCropGeometryTests(unittest.TestCase):
                     self.assertLessEqual(cy + ch, 220)
                     if mode == "folded":
                         self.assertIsNone(f["pill"])
+                    else:
+                        self.assertIsNotNone(f["pill"])
 
     def test_native_compact_size_includes_button_but_not_full_panel_hitbox(self):
         api = self.api()
@@ -658,15 +699,18 @@ class CompanionCropGeometryTests(unittest.TestCase):
 
     def test_summary_text_width_is_bounded_and_origin_uses_same_side(self):
         api = self.api()
-        for right, expected_x in ((False, 4), (True, 140)):
-            for bottom, expected_y in ((False, 66), (True, 126)):
-                with self.subTest(right=right, bottom=bottom):
-                    self.assertEqual(tuple(api["roam_pill_rect"](
-                        "summary", right, bottom, 300, 80, 60, 152, text_w=130)),
-                        (expected_x, expected_y, 156, 30))
+        for mode in ("summary", "full"):
+            for right, expected_x in ((False, 4), (True, 140)):
+                for bottom, expected_y in ((False, 66), (True, 126)):
+                    with self.subTest(mode=mode, right=right, bottom=bottom):
+                        self.assertEqual(tuple(api["roam_pill_rect"](
+                            mode, right, bottom, 300, 80, 60, 152, text_w=130)),
+                            (expected_x, expected_y, 156, 30))
+        # The app's logical window is PILL_W + 8 wide (geom()), so the widest pill
+        # still keeps its 4pt margin on the pet's side.
         long_pill = api["roam_pill_rect"]("summary", True, False,
-                                           300, 80, 60, 152, text_w=900)
-        self.assertEqual(tuple(long_pill), (36, 66, 260, 30))
+                                           308, 80, 60, 152, text_w=900)
+        self.assertEqual(tuple(long_pill), (4, 66, 300, 30))
         self.assertIsNone(api["roam_pill_rect"]("folded", False, True,
                                                300, 80, 60, 152))
 
@@ -779,7 +823,7 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      NSEvent=SimpleNamespace(mouseLocation=lambda: SimpleNamespace(x=1200, y=350)),
                      NSMakeRect=fake_rect, NSMakePoint=lambda x, y: SimpleNamespace(x=x, y=y),
                      PW=80, PH=60, W=300, H=220, g={"scale": 0.5}, pill_h=lambda: 152,
-                     roam_summary_text=lambda: ("", 130), spike_info=lambda stats: None,
+                     roam_summary_text=lambda: ([], [], 130, 30), spike_info=lambda stats: None,
                      set_override=lambda name, **kw: state.update(override=name),
                      clear_sticky=lambda: state.update(override=None), cfg={},
                      merge_config_updates=lambda values: world["writes"].append(values))
@@ -817,40 +861,183 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         s["roam_tick"]()
         f = world["frame"]
         self.assertGreaterEqual(f.origin.x, 0)
-        self.assertEqual((f.size.width, f.size.height), (300, 220))
+        # The restored 'full' presentation is the text-sized pill's union crop
+        # (right layout, text_w=130, one line), never the whole 300x220 window.
+        self.assertEqual((f.size.width, f.size.height), (160, 98))
+        self.assertEqual(s["state"]["roam_mode"], "full")
 
     def test_actual_summary_formatter_distinguishes_estimate_from_exact(self):
-        api = pure_api(self, {"roam_summary", "roam_summary_line"})
+        """The GUI adapter's wiring around the pure formatter: every exact row except
+        credits (``_label_order`` 9) is handed on — a server model label that is not a
+        bare family word ("Claude Fable 5", order 5) must survive; reset texts are
+        pre-formatted into the second line; the spike flag lands on the exact session
+        row; the ⚠ suffix appears on an estimate after a token error; the height is
+        two lines when a reset line exists; the API budget reaches the cost segment;
+        and the text is memoised per input and 5-second window.
+
+        Rivals: credits row kept; the round-1 ``> 2`` filter (drops "Claude Fable 5");
+        no reset line at all; spike_first never passed; ⚠ on exact rows; one-line
+        height with a second line present; no memo (every tick re-measures); a memo
+        keyed without the auth error, the cost, the budget or the time window (stale
+        text after a refresh); a memo keyed without the language or the onboarding
+        state (stale labels after a language change, or the onboarding line lingering
+        after onboarding ends — ``t()`` reads the module-level ``L["lang"]``, so the
+        scope below supplies ``L`` the way the application's globals do)."""
+        from datetime import datetime, timezone
+        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H", "SUMMARY_H2"})
+        now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
         state = {"oauth": None, "stats": {"session": {"pct": 42}, "weekly": {"pct": 17}},
-                 "cost": None}
-        scope = dict(api, state=state, RUNTIME={"mode": "sub"}, F_SUMMARY=None,
-                     t=lambda key: {"session": "세션", "weekly": "주간"}.get(key, key),
-                     astr=lambda text, font: SimpleNamespace(size=lambda: SimpleNamespace(width=len(text))))
+                 "cost": None, "cost_month": None}
+        oauth_status = {"auth_error": False}
+        spikes = {"value": None}
+        clock = {"now": 1000.0}
+        measured = []
+        runtime = {"mode": "sub", "api_budget": None, "admin_key": None}
+        lang_table = {"lang": "ko"}   # the module-level L that t() reads; a memo input too
+
+        def astr(text, font):
+            measured.append(text)
+            return SimpleNamespace(size=lambda: SimpleNamespace(width=len(text)))
+
+        scope = dict(api, state=state, RUNTIME=runtime, L=lang_table, F_SUMMARY=None,
+                     F_SUMMARY_SUB=None,
+                     OAUTH_STATUS=oauth_status, datetime=datetime, timezone=timezone,
+                     spike_info=lambda stats: spikes["value"],
+                     fmt_countdown=lambda reset, at: "in 3h" if reset else "-",
+                     _label_order=lambda label: {"session": 0, "주간": 1, "Fable": 2,
+                                                 "Credits": 9}.get(label, 5),
+                     _summary_memo={"key": None, "value": None},
+                     _time=SimpleNamespace(time=lambda: clock["now"]),
+                     t=lambda key: {"session": "세션", "weekly": "주간", "reset_prefix": "reset ",
+                                    "today": "Today", "this_month": "This month"}.get(key, key),
+                     astr=astr)
         gui_functions(self, ("roam_summary_text",), scope)
-        self.assertEqual(scope["roam_summary_text"]()[0], "세션 ≈42% · 주간 ≈17%")
-        state["oauth"] = [("session", 42, None), ("주간", 17, None)]
-        self.assertEqual(scope["roam_summary_text"]()[0], "session 42% · 주간 17%")
+        text = scope["roam_summary_text"]
+
+        def lines():
+            main, sub, width, height = text()
+            return ("".join(t for t, _k in main), "".join(t for t, _k in sub), width, height)
+
+        def fresh():
+            """Defeat the memo the way a refresh does: a new stats object, a new window."""
+            state["stats"] = dict(state["stats"])
+            clock["now"] += 5
+
+        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17%", "", 17, api["SUMMARY_H"]))
+        # memo: the same inputs inside the 5-second window measure nothing again and
+        # return the very same object; a flipped auth error, a new stats object, or the
+        # next 5-second window each recompute.
+        first = text()
+        measured.clear()
+        clock["now"] += 4.9
+        self.assertIs(text(), first)
+        self.assertEqual(measured, [], "a second call in the same window re-measured the text")
+        oauth_status["auth_error"] = True
+        self.assertEqual(text()[0][-1], (" ⚠", "status"))
+        self.assertTrue(measured, "an auth-error flip must invalidate the memo")
+        measured.clear()
+        clock["now"] += 5
+        self.assertIsNot(text(), first)
+        self.assertTrue(measured, "the next 5-second window must recompute")
+        # The language and the onboarding state are memo inputs too — t() reads
+        # L["lang"], and roam_summary turns the onboarding state into a status line —
+        # so either changing inside the same 5-second window, with the same stats
+        # object, must recompute rather than hand back the memoised text.
+        before = text()
+        measured.clear()
+        lang_table["lang"] = "en"
+        self.assertIsNot(text(), before, "a language change inside the window returned the memoised text")
+        self.assertTrue(measured, "a language change must invalidate the memo")
+        before = text()
+        measured.clear()
+        state["onboard"] = "install"
+        self.assertIn("onb_install", lines()[0], "the onboarding state must reach the status line")
+        self.assertIsNot(text(), before, "an onboarding change inside the window returned the memoised text")
+        self.assertTrue(measured, "an onboarding change must invalidate the memo")
+        state["onboard"] = None
+        measured.clear()
+        self.assertEqual(lines()[0], "세션 ≈42% · 주간 ≈17% ⚠",
+                         "clearing the onboarding state must bring the gauges back")
+        self.assertTrue(measured, "clearing the onboarding state must invalidate the memo")
+        fresh()
+        state["stats"]["now"] = now
+        state["stats"]["session"] = {"pct": 42, "reset": now}
+        state["stats"]["weekly"] = {"pct": 17, "reset": now}
+        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17% ⚠", "reset 세션 in 3h", 19, api["SUMMARY_H2"]))
+        state["oauth"] = [("session", 42, None, None), ("주간", 17, None, None),
+                          ("Claude Fable 5", 12, None, None), ("Credits", 5, None, None)]
+        self.assertEqual(lines(), ("session 42% · 주간 17% · Claude Fable 5 12%", "", 41, api["SUMMARY_H"]),
+                         "only credits are dropped; a non-family model label is kept")
+        state["oauth"] = [("session", 42, now, None), ("주간", 17, None, "next Monday")]
+        self.assertEqual(lines()[1], "reset session in 3h · 주간 next Monday")
+        self.assertEqual(lines()[3], api["SUMMARY_H2"])
+        spikes["value"] = {"session": True}
+        fresh()
+        self.assertEqual(text()[0][0], ("▲session", "bad"))
+        self.assertNotIn("⚠", lines()[0])
+        # API mode: the budget from RUNTIME reaches the cost segment and colours the month.
+        runtime.update(mode="api", admin_key="k", api_budget=50)
+        state.update(cost=12.375, cost_month=27.5)
+        fresh()
+        main, sub, width, height = text()
+        self.assertEqual("".join(t for t, _k in main), "Today $12.38 · This month $27.50 / $50")
+        # Round 3 swapped the roles: the word "this month" carries the budget share
+        # colour and the amount is plain cost-coloured.
+        self.assertEqual(main[3:5], [("This month ", "warn"), ("$27.50", "cost")])
+        self.assertEqual(main[0:2], [("Today ", "value"), ("$12.38", "cost")])
+        self.assertEqual((sub, height), ([], api["SUMMARY_H"]))
+        runtime["api_budget"] = None
+        fresh()
+        self.assertEqual(lines()[0], "Today $12.38 · This month $27.50")
 
     def test_actual_summary_draw_keeps_long_text_inside_pill_padding(self):
+        """Rivals: runs drawn without fitting (overflow); the reset line drawn into a
+        one-line pill; the reset line above the gauges; fonts looked up by the wrong
+        kind; drawing with no pill rect."""
         draws = []
-        text = "A server-provided usage label that exceeds the small summary pill 42%"
+        long_label = "A server-provided usage label that exceeds the small summary pill"
         def astr(value, font):
             width = sum(10 if char.isupper() else 7 for char in value)
             return SimpleNamespace(size=lambda: SimpleNamespace(width=width, height=13),
-                    drawAtPoint_=lambda p: draws.append((value, p.x, p.x + width)))
-        api = pure_api(self, {"roam_summary", "roam_fit_text"})
-        scope = dict(api, state={"roam_rects": {"pill": (4, 66, 260, 30)}},
-                     roam_summary_text=lambda: (text, astr(text, None).size().width),
-                     astr=astr, F_SUMMARY=None, PILL_PAD=13,
+                    drawAtPoint_=lambda p: draws.append((value, p.x, p.x + width, p.y, font)))
+        content = {"main": [(long_label, "exact"), (" 42%", "value")], "sub": [], "h": 30}
+        pill = {"rect": (4, 66, 260, 30)}
+        api = pure_api(self, {"roam_summary", "roam_fit_runs", "SUMMARY_H2"})
+        scope = dict(api, view=SimpleNamespace(pillRect=lambda: pill["rect"]),
+                     roam_summary_text=lambda: (content["main"], content["sub"], 999, content["h"]),
+                     astr=astr, F_SUMMARY="main-font", F_SUMMARY_SUB="sub-font",
+                     F_SUMMARY_BY_KIND={"exact": "exact-font"},
+                     F_SUMMARY_SUB_BY_KIND={"sub": "sub-kind-font"}, PILL_PAD=13,
                      C_PILL=SimpleNamespace(set=lambda: None), NSMakeRect=fake_rect,
                      NSMakePoint=lambda x, y: SimpleNamespace(x=x, y=y),
                      NSBezierPath=SimpleNamespace(bezierPathWithRoundedRect_xRadius_yRadius_=
                                                  lambda *args: SimpleNamespace(fill=lambda: None)))
         gui_functions(self, ("draw_summary_pill",), scope)
         scope["draw_summary_pill"]()
-        self.assertEqual(len(draws), 1)
-        self.assertGreaterEqual(draws[0][1], 17, "summary text overflows the pill's left padding")
-        self.assertLessEqual(draws[0][2], 251, "summary text overflows the pill's right padding")
+        self.assertTrue(draws, "nothing was drawn")
+        self.assertGreaterEqual(min(d[1] for d in draws), 17, "summary text overflows the pill's left padding")
+        self.assertLessEqual(max(d[2] for d in draws), 251, "summary text overflows the pill's right padding")
+        self.assertTrue(draws[0][0].endswith("…"), "the overflowing label was not ellipsised")
+        self.assertEqual(draws[0][4], "exact-font")
+        draws.clear()
+        content.update(main=[("Session", "exact"), (" 42%", "value")],
+                       sub=[("reset ", "sub"), ("Session in 3h", "sub")], h=46)
+        pill["rect"] = (4, 66, 260, 46)
+        scope["draw_summary_pill"]()
+        self.assertEqual([d[0] for d in draws], ["Session", " 42%", "reset ", "Session in 3h"])
+        self.assertEqual(draws[1][4], "main-font")
+        self.assertEqual({d[4] for d in draws[2:]}, {"sub-kind-font"})
+        self.assertGreater(draws[2][3], draws[0][3],
+                           "the reset line must sit below the gauges (flipped coordinates)")
+        draws.clear()
+        pill["rect"] = (4, 66, 260, 30)
+        scope["draw_summary_pill"]()
+        self.assertEqual([d[0] for d in draws], ["Session", " 42%"],
+                         "a one-line pill must not draw the reset line")
+        draws.clear()
+        pill["rect"] = None
+        scope["draw_summary_pill"]()
+        self.assertEqual(draws, [])
 
     def test_fit_contract_uses_measured_longest_prefix_and_tiny_width(self):
         api = pure_api(self, {"roam_fit_text", "roam_summary_line", "SUMMARY_APPROX"})
@@ -861,9 +1048,9 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         self.assertEqual(fit("WiWi", 5, measure), "…")
         self.assertEqual(fit("WiWi", 4, measure), "")
         self.assertEqual(fit("", 0, measure), "")
-        self.assertEqual(api["roam_summary_line"]("estimate", [("session", 42)],
+        self.assertEqual(api["roam_summary_line"]("estimate", [("session", 42, False, None)],
                                                  lambda key: "세션"), "세션 ≈42%")
-        self.assertEqual(api["roam_summary_line"]("exact", [("session", 42)],
+        self.assertEqual(api["roam_summary_line"]("exact", [("session", 42, False, None)],
                                                  lambda key: "세션"), "session 42%")
 
 
@@ -1053,8 +1240,10 @@ def run_native_smoke():
                         raise AssertionError("approach arrival did not select the usage summary")
                     if not state.get("roam_rects", {}).get("pill"):
                         raise AssertionError("arrival summary has no native pill rectangle")
-                    if f.size.height >= initial_native_size[1]:
-                        raise AssertionError("arrival summary kept the full panel height")
+                    # full and summary are one pill since v0.24, so the arrival window
+                    # equals the expanded one; it must still be a crop of the logical window.
+                    if f.size.height >= state["roam_env"][1]:
+                        raise AssertionError("arrival summary window was not cropped below the logical window height")
                 px, py = view.petOrigin()
                 sample = {"t": clock["now"], "phase": roamer.phase,
                           "window": [float(f.origin.x), float(f.origin.y),

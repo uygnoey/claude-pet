@@ -26,7 +26,7 @@ never whether a number comes out right.
 
 ClaudePet is a macOS desktop pet that displays your Claude Code token usage. It is an
 `LSUIElement` app (no Dock icon, no menu bar item — it draws a borderless always-on-top
-window with an animated sprite and usage gauges), written in Python against PyObjC
+window with an animated sprite and a compact one- or two-line usage summary pill), written in Python against PyObjC
 (AppKit/Foundation), and shipped as a self-contained, Developer ID-signed and
 Apple-notarized `.app` bundle built with py2app.
 
@@ -68,6 +68,7 @@ invites the reader to reason from it.
 | `launcher.c` | Tiny Mach-O launcher — the bundle executable must be Mach-O to be code-signable. |
 | `entitlements.plist` | Hardened-runtime entitlements for signing. |
 | `frames/` | Sprite frames for the built-in pet, plus `frames-manifest.json`. |
+| `fonts/` | `Pretendard-SemiBold.ttf` (OFL 1.1, licence beside it; the TrueType build, because the CFF build rendered roughly at small sizes on Windows) — the summary pill's typeface, bundled so every machine draws the same glyphs (the intent is that the Windows port, developed on the `windows` branch, loads the same file). `setup.py` ships it as a resource with `ATSApplicationFontsPath`, `build_app.sh` copies it in both `build()` and `update()`, and `verify_release_artifact.py` refuses an artifact without it. |
 | `.claude_pet/` | The pets shipped **inside the app**: four `README*.md` plus `pets/{dog,elephant,fox,scorpion}/{pet.json,spritesheet.webp,preview.png}` — 16 tracked files. `setup.py` ships it as a resource and `build_app.sh` copies it in both `build()` and `update()`, so a code-only refresh does **not** leave the bundled tree stale. Distinct from `~/.claude_pet/`, the user's own directory this one seeds into. |
 | `make_icon.py` | Generates the app icon. |
 | `RELEASE_NOTES.md` | User-facing changelog, in Korean, newest first. Consumed by `release.sh` as the GitHub release body. |
@@ -449,6 +450,20 @@ evidence that its records are in the window.
 
 ---
 
+## User pets
+
+`discover_pets()` lists the built-in cat plus every folder under `~/.claude_pet/pets/` that
+`_is_pet_dir()` accepts, and it is called on every right-click and settings open, so a new folder
+appears without a restart. Two rules are worth knowing: a folder that is not a pet itself is
+searched **one level down** (`_nested_pet_dir()`), so a zip extracted as `pets/<name>/<name>/`
+still works — the entry keeps `id = <name>` (outer folder) with `dir` pointing at the inner one,
+exactly one candidate wins (or the one named like its parent), dot-folders and `__MACOSX`
+(`_PET_JUNK_DIRS`) are ignored, inner symlinks are not followed, and two levels down is not
+searched; and every text file the app reads or writes (`pet.json`, the pets README, the config,
+the debug log) is opened with an explicit `encoding="utf-8"`, because the Windows default
+(cp949) left a 0-byte README and would garble non-ASCII pet names — `_write_pets_readme()`
+therefore also rewrites an empty README, and `run_gui()` calls it at startup.
+
 ## Seeding the bundled pets
 
 `seed_bundled_pet_assets()` copies the app's own `.claude_pet/` tree into the user's
@@ -633,7 +648,8 @@ never one-sided. A rolling window slides continuously — every entry ages out o
 schedule — so no instant exists at which it resets. The old behaviour showed
 `first entry + 7 days`, which is merely when the *oldest currently-known* entry expires:
 a number that moves whenever the oldest entry changes, and that never matched Claude's
-own UI. `fmt_reset()` maps a falsy reset to the literal string `"-"`.
+own UI. On the pill's reset line the adapter formats each reset with `fmt_countdown()`, which maps
+a falsy reset to the literal string `"-"` — so a rolling weekly window reads `주간 -` there.
 
 If a user wants a real reset time, they set a weekly reset weekday in settings. Do not
 reintroduce a synthesized one.
@@ -711,66 +727,95 @@ session-reset greeting below — it means **the previous 30-second refresh**, no
 previous animation frame. The distinction matters: across 16 ms nothing changes, while
 across 30 s a session boundary can pass.
 
-### Estimate bugs are never fully invisible in exact mode — but be precise about where
+### The pill is one summary line, and where the estimate still reaches in exact mode
 
-The claim is true, and what stays clean is narrower than "the pill": the gauge
-**numbers** are server-derived, but three other visible paths are not. State it that
-way; both over-claims are easy to make.
+Since v0.24 the pet carries **one** pill, drawn by `draw_summary_pill()` from
+`roam_summary()` / `roam_summary_runs()`: a first line such as `세션 42% · 주간 17% ·
+Fable 12%` and, when any gauge has a reset time, a smaller second line with the reset
+times (`리셋 세션 3시간 43분 후 · 주간 2일 4시간 후` — the reset word once, then `<label> <countdown>`,
+consecutive duplicate countdowns collapsed).
+There are no gauge bars and no mode/version status line any more — the user unified the
+display on the roaming summary ("그거로 통일하자", 2026-09-12). `full` and `summary` in
+`RoamDisplay` are the **same pill**; they differ only in what switched it on (the user's
+`show_panel` preference vs. the arrival latch), and `folded` is pet-only. The pill is
+`SUMMARY_H` tall with one line and `SUMMARY_H2` with two; `pill_h()` is the two-line strip
+the logical window reserves.
 
-**Where the estimate does NOT reach in exact mode.** The gauge percentages are drawn by
-`draw_exact_pill()` from the server rows in `state["oauth"]`. Get the dispatch right,
-because it is a chain and not a pair: the pill draws `draw_api_pill()` when
-`RUNTIME["mode"] == "api"`, **`elif state["oauth"]`** `draw_exact_pill()`, and only below
-that reaches `draw_sub_pill()`, the renderer for estimate output. So the server rows win
-when they exist *and* the mode is not `api`. A weighting or parsing bug therefore
-**cannot** move the displayed percentages of a logged-in user. That is a statement about
-the **numbers**, not about the pill as a whole — the bar drawn under them is path 1
-below.
+What the line contains is decided by `roam_summary()`, a pure function that returns one
+`(kind, payload)` segment:
 
-**Where it does reach.** `compute_usage()` runs on every 30-second refresh regardless of
-whether exact data is available, and **three** paths carry its output into visible
-behaviour. Re-derive this list from the source before relying on it as complete: it has
-been wrong twice already — once listing two paths and missing the bar, once missing the
-greeting suppression now folded into path 2.
+| kind | when | line |
+| --- | --- | --- |
+| `exact` | `state["oauth"]` has rows | the first three **gauge** rows (session, weekly, per-model — the adapter drops credits via `_label_order`), server labels verbatim |
+| `estimate` | no server rows, logs present | session, weekly, and the model gauge from `compute_usage()`, each value prefixed with `SUMMARY_APPROX` (`≈`) |
+| `cost` | API mode with an Admin key | today's cost, then this month's when known |
+| `status` | otherwise | one translated status key (scanning, onboarding, missing key, loading) |
 
-1. **The session bar turns red — inside the exact pill itself.** `draw_exact_pill()`
-   computes `spiking = bool(spike_info(stats)) and i == 0` from `state["stats"]`, the
-   estimator's output, and fills that bar `COL_BAD` instead of `bar_color(pct)`. So an
-   estimator spike repaints a bar whose *number* came from the server. Two asymmetries
-   worth knowing: it is the **first row only** — the session row, since exact rows are
-   sorted by `_label_order()`, which ranks session `0` — and `spike_info()` is truthy for
-   a session, weekly, **or** opus spike, so a weekly spike reddens the session bar. The
-   `%` text beside it is untouched. (`draw_sub_pill()`, the estimate-mode renderer, is
-   the one that colours per gauge, via `sp.get(keys[i])`.)
+**Colour carries two things, on two different runs.** The *value* run says where the
+number came from: `SUMMARY_COLORS["exact"]` is emerald, `["estimate"]` amber, and API cost
+amounts are coral. The *label* run (session/weekly/model, today/this month) is white
+(`"value"`) and turns `"warn"` at 50 % and `"bad"` at 85 % — `summary_value_kind()`, the
+same thresholds the old bars used — or `"bad"` outright when that gauge is spiking, in which
+case the label is also prefixed with `SUMMARY_SPIKE` (`▲`). (The user first asked for the
+opposite assignment and then swapped it the same day: "텍스트랑 수치랑 색을 반대로 하자".) Note the asymmetry in exact mode: the adapter passes
+`spike_first=bool(spike_info(stats))`, so a weekly or per-model *estimator* spike marks the exact
+**session** label. The second line is `"sub"` (the dim text colour). In API mode the line is
+`오늘 $x · 이번 달 $y / $budget` with the words "이번 달" coloured by this month's share of the budget.
+The old status line's `⚠` survives as a trailing run appended by the adapter when the
+estimate is showing because the OAuth token was rejected (`OAUTH_STATUS["auth_error"]`).
+`roam_summary()` stays pure: the adapter pre-formats reset times with `fmt_countdown()` and
+passes them in (`reset_texts`, and `row[2]` for exact rows), passes `spike_first` for the exact
+session row, and keeps every server row except credits (`_label_order() >= 9`) so a model row
+whose label is not a bare family word still shows. The adapter, `roam_summary_text()`, memoises
+its result per input and 5-second window because it runs on every 20 Hz tick while the pill is
+visible.
+
+**Runs are the extension point.** `roam_summary_runs(segments, t)` turns a list of
+segments into two run lists, `(main, sub)`, each `[(text, kind), ...]`; the renderer draws
+each run in its kind's colour and `roam_fit_runs()` trims a line from the end when it
+exceeds the pill. Adding another
+provider (GPT, Gemini) means appending a segment — no drawing code changes.
+
+**Font.** The line is set in the bundled Pretendard SemiBold (`fonts/`, OFL 1.1). Inside
+the app bundle `ATSApplicationFontsPath` registers it; from source, `run_gui()` registers
+it with CoreText. If neither works the summary falls back to the system monospaced font.
+The Windows port on the `windows` branch is meant to load the same file through Qt so the two
+platforms draw identical glyphs; nothing in this tree depends on that.
+
+**Where the estimate still reaches in exact mode.** The numbers are server-derived, but three
+visible paths are not. Re-derive this list from the source before relying on it — it has
+been wrong before, including once in v0.24's own draft, which dropped path 1 while the
+bars went away.
+
+1. **The exact session label turns red with ▲ — inside the pill itself.** The adapter
+   passes `spike_first=bool(spike_info(stats))`, `roam_summary()` marks the exact session
+   row as spiking, and `_summary_segment_runs()` prefixes that label with `SUMMARY_SPIKE`
+   and colours it `"bad"`. The value beside it is untouched and still emerald. This is the
+   old red-session-bar path in its new clothes, and it keeps the old asymmetry: a weekly or
+   per-model *estimator* spike marks the exact **session** label.
 2. **Spike → the pet, and it outranks the server.** `current_mood()` consults
    `spike_info(state["stats"])` and returns `"failed"` *before* it reaches the exact-mode
    branch that derives a mood from the server percentage, so a false spike from the
-   estimator overrides a perfectly good server reading. Three further effects hang off
-   that same signal, which is why this is one path and not four: `tick_()` forces a
-   repaint for as long as a spike is live; the pet is tinted by a pulsing spike-coloured
-   overlay that exists on no other path; and the **mouse-proximity greeting is
-   suppressed**, since its guard includes `not spike_info(state["stats"])` — so a phantom
-   spike also stops the pet waving when you approach it.
+   estimator overrides a perfectly good server reading. Four further effects hang off
+   that same signal: `tick_()` forces a repaint for as long as a spike is live; the pet is
+   tinted by a pulsing spike-coloured overlay that exists on no other path; the
+   **mouse-proximity greeting is suppressed**, since its guard includes
+   `not spike_info(state["stats"])`; and `roam_tick()` folds a live spike into `busy`, so
+   the pet neither sets out on a walk nor keeps its arrival latch while a spike shows.
 3. **The session-reset greeting.** The refresh worker compares the previous refresh's
    `session["pct"]` against the current one and plays the jump animation when it crosses
    from above 5 to below 1. Both values come from `compute_usage()`; the OAuth rows are
    never consulted here, and the comparison carries no mode guard.
 
-**The exception — API mode.** Paths 1 and 2 are both suppressed there, but by **two
-independent mechanisms**, and collapsing them produces a plausible-sounding false
-statement. First, `spike_info()` returns `None` outright when `RUNTIME["mode"] == "api"`,
-which kills the signal itself: mood falls through to the exact branch, the overlay never
-draws, the greeting is no longer suppressed. Second — and this is the one to state
-carefully — **the session bar is not "restored to `bar_color(pct)`" in API mode; it is
-not drawn at all.** The dispatch above tests `RUNTIME["mode"] == "api"` *first*, so
-`draw_api_pill()` runs and `draw_exact_pill()` is never reached. **Path 3 has neither
-guard** and still fires in API mode. So the correct summary is: spikes affect the session
-bar and the pet in subscription mode only, while the session-reset jump is driven by the
-estimator in every mode.
+**The exception — API mode.** Paths 1 and 2 are suppressed there by one mechanism:
+`spike_info()` returns `None` outright when `RUNTIME["mode"] == "api"`, so `spike_first` is
+False (and the API line has no session row anyway), mood falls through to the exact
+branch, the overlay never draws, the greeting is no longer suppressed. Path 3 has no guard
+and still fires in API mode.
 
-The practical consequence: a parsing or weighting regression shows up as phantom spike
-alerts — a red session bar and an alarmed, tinted pet — and a pet celebrating a session
-reset that did not happen, not as wrong numbers on a logged-in user's gauges.
+The practical consequence: a parsing or weighting regression shows up as an alarmed,
+tinted pet and a pet celebrating a session reset that did not happen — never as wrong
+numbers on a logged-in user's pill, whose values are server-derived and drawn emerald.
 
 ---
 

@@ -87,6 +87,31 @@ def _default_pet_dir():
 PET_DIR = _default_pet_dir()
 PET_SCALE_DOWN = int(os.environ.get("CLAUDE_PET_SCALE_DOWN", 1))  # 1=원본 크기
 
+# 요약 필 글꼴 — Pretendard SemiBold(OFL 1.1, fonts/LICENSE-Pretendard.txt)를 앱에 내장한다.
+# 사용자 결정 2026-09-12: "한국어 폰트는 이제 pretendard를 내장해서 사용할 수 있도록 해" + "UI 는 맥과
+# Windows 100% 동일" — 두 플랫폼이 같은 파일로 같은 글리프를 그린다(라틴·숫자·기호도 이 글꼴).
+# 번들 안에서는 Info.plist 의 ATSApplicationFontsPath(=fonts)가 등록하고, 소스 실행에서는 run_gui 가
+# CoreText 로 프로세스 범위에 등록한다. 못 찾으면 시스템 모노 글꼴로 조용히 내려간다.
+SUMMARY_FONT_FILE = "Pretendard-SemiBold.ttf"   # TrueType 판(Pretendard 의 alternative/) — CFF(OTF)는 Windows 에서 작은 크기가 거칠게 보였다
+SUMMARY_FONT_NAME = "Pretendard-SemiBold"      # PostScript 이름 (NSFont.fontWithName_size_)
+
+
+def bundled_font_path():
+    """내장 요약 글꼴 파일 경로. 스크립트 옆 fonts/ → 앱 번들 Resources/fonts → None."""
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", SUMMARY_FONT_FILE)
+    if os.path.isfile(here):
+        return here
+    try:
+        from Foundation import NSBundle
+        rp = NSBundle.mainBundle().resourcePath()
+        if rp:
+            cand = os.path.join(str(rp), "fonts", SUMMARY_FONT_FILE)
+            if os.path.isfile(cand):
+                return cand
+    except Exception:
+        pass
+    return None
+
 # 유저가 직접 펫을 넣는 폴더. 여기 아래에 <이름>/ 폴더를 만들고 그 안에
 #   pet.json + spritesheet.webp
 # 두 파일을 넣으면 우클릭 → 펫 메뉴에 자동으로 나타난다. (앱 업데이트에도 안 지워짐)
@@ -773,7 +798,7 @@ def _pet_json_path(d):
 
 def _read_pet_json(d):
     try:
-        with open(_pet_json_path(d)) as f:
+        with open(_pet_json_path(d), encoding="utf-8") as f:   # pet.json 은 UTF-8 (Windows 기본은 cp949)
             return json.load(f)
     except Exception:
         return None
@@ -805,6 +830,9 @@ files in it, and it shows up in the right-click → Pet menu automatically.
         pet.json
         spritesheet.webp
 
+    zip 을 풀어 pets/dog/dog/pet.json 처럼 한 단계 더 깊어져도 인식합니다 (__MACOSX 는 무시).
+    A zip extracted one level too deep (pets/dog/dog/pet.json) is recognized too; __MACOSX is ignored.
+
 ── pet.json ──────────────────────────────────────────────────────
 {
   "id": "dog",
@@ -828,15 +856,47 @@ Transparent single-image sheet, spriteVersionNumber 2 convention:
 
 
 def _write_pets_readme(base):
-    """펫 폴더 포맷 안내를 폴더 안에 남긴다(없을 때만 생성)."""
+    """펫 폴더 포맷 안내를 폴더 안에 남긴다(없거나 비어 있을 때만 생성).
+
+    UTF-8 을 명시한다 — Windows 의 기본 인코딩(cp949)으로는 안내문의 문자 일부를 못 써서 0 바이트 파일만
+    남았다(실기기 관찰 2026-09-12). 그래서 비어 있는 README 는 없는 것으로 보고 다시 쓴다.
+    """
     path = os.path.join(base, "README.txt")
-    if os.path.exists(path):
-        return
     try:
-        with open(path, "w") as f:
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            return
+        with open(path, "w", encoding="utf-8") as f:
             f.write(_PETS_README)
     except Exception:
         pass
+
+
+_PET_JUNK_DIRS = ("__MACOSX",)   # zip 을 풀면 딸려 오는 부산물 — 펫 후보로 보지 않는다
+
+
+def _nested_pet_dir(d):
+    """pets/<이름>/ 자체가 펫 폴더가 아닐 때, 한 단계 아래의 펫 폴더 → 경로 또는 None.
+
+    zip 안에 이미 <이름>/ 폴더가 들어 있는 채로 "<이름>" 폴더에 풀면 pets/<이름>/<이름>/pet.json 이 된다
+    (사용자 사례 2026-09-12: hello-kitty/hello-kitty/, 옆에 __MACOSX/). 그 한 단계만 내려가 본다 —
+    점으로 시작하는 폴더와 __MACOSX 는 무시하고, 펫 폴더가 정확히 하나면 그것, 여럿이면 바깥 이름과 같은
+    것, 그래도 못 고르면 None(어느 것인지 짐작하지 않는다). 두 단계 이상은 보지 않는다.
+    """
+    try:
+        subs = sorted(os.listdir(d))
+    except Exception:
+        return None
+    cands = []
+    for sub in subs:
+        if sub.startswith(".") or sub in _PET_JUNK_DIRS:
+            continue
+        p = os.path.join(d, sub)
+        if os.path.isdir(p) and not os.path.islink(p) and _is_pet_dir(p):
+            cands.append(p)
+    if len(cands) == 1:
+        return cands[0]
+    same = [p for p in cands if os.path.basename(p) == os.path.basename(d)]
+    return same[0] if len(same) == 1 else None
 
 
 def discover_pets():
@@ -845,6 +905,8 @@ def discover_pets():
     · 내장 : 앱에 포함된 frames/ (PET_DIR) — 기존 고양이
     · 사용자: ~/.claude_pet/pets/<이름>/ 아래 각 폴더 (유저가 직접 넣음).
              예) pets/dog/ 안에 pet.json + spritesheet.webp
+             pets/dog/dog/ 처럼 한 단계 더 깊어도(zip 을 그대로 푼 경우) 인식한다 — _nested_pet_dir.
+             id 는 언제나 바깥 폴더 이름이고, dir 은 실제 pet.json 이 있는 폴더다.
     """
     pets = []
     seen = set()
@@ -856,11 +918,13 @@ def discover_pets():
     except Exception:
         names = []
     for name in names:
-        if name.startswith(".") or name in seen:
+        if name.startswith(".") or name in _PET_JUNK_DIRS or name in seen:
             continue
         d = os.path.join(USER_PETS_DIR, name)
         if not _is_pet_dir(d):
-            continue
+            d = _nested_pet_dir(d)
+            if d is None:
+                continue
         meta = _read_pet_json(d) or {}
         disp = meta.get("displayName") or meta.get("name") or name
         pets.append({"id": name, "name": str(disp), "dir": d})
@@ -870,7 +934,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.23"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.24"                 # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 3600             # 새 릴리즈 확인 주기(1시간). 시작 시엔 확인하지 않고 한 주기 뒤부터 — run_gui 참조
 _upd_cache = {"t": 0.0, "busy": False}
@@ -968,12 +1032,6 @@ def t(key, **kw):
         s = TR["en"].get(key, key)
     return s.format(**kw) if kw else s
 
-WEEKDAYS = {  # 짧은 요일명 (월=0 … 일=6)
-    "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    "ko": ["월", "화", "수", "목", "금", "토", "일"],
-    "ja": ["月", "火", "水", "木", "金", "土", "日"],
-    "es": ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"],
-}
 WEEKDAYS_FULL = {
     "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     "ko": ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"],
@@ -985,15 +1043,9 @@ TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
     "reset_done": "reset", "cd_days": "in {d}d {h}h", "cd_hm": "in {h}h {m}m",
-    "cd_m": "in {m}m", "reset_prefix": "reset ", "reset_at": "resets {wd} {h12}:{mm} {ampm}",
-    "am": "AM", "pm": "PM",
-    "used": "used", "left": "left", "spike_prefix": "▲spike ", "exact_mode": "Exact",
-    "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
-    "loading": "loading…", "today": "Today", "this_month": "This month", "budget": "Budget",
-    "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
-    "log_estimate": "(log estimate)",
+    "cd_m": "in {m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
+    "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
     "need_admin_key": "Right-click → Settings to enter an Admin API key",
-    "need_budget": "Set a monthly budget ($) in Settings to see this gauge",
     "scanning": "Scanning usage…",
     "onb_install": "Claude Code not installed",
     "onb_login": "Claude Code — sign-in needed",
@@ -1002,7 +1054,7 @@ TR = {
     "term_installing": "▶ Installing Claude Code…",
     "term_login": "▶ Signing in — a browser will open, please log in.",
     "term_done": "✅ Done. You can close this window; Claude Pet will show usage shortly.",
-    "menu_settings": "Settings…", "menu_toggle": "Collapse/expand gauges",
+    "menu_settings": "Settings…", "menu_toggle": "Show/hide the usage pill",
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_roam": "Roam the screen",
     "menu_update": "⬆︎ Install v{v}",
@@ -1072,15 +1124,9 @@ TR = {
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
     "reset_done": "리셋됨", "cd_days": "{d}일 {h}시간 후", "cd_hm": "{h}시간 {m}분 후",
-    "cd_m": "{m}분 후", "reset_prefix": "리셋 ", "reset_at": "({wd}) {ampm} {h12}:{mm}에 재설정",
-    "am": "오전", "pm": "오후",
-    "used": "사용", "left": "남음", "spike_prefix": "▲급증 ", "exact_mode": "정확 모드",
-    "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
-    "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "budget": "예산",
-    "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
-    "log_estimate": "(로그 추정)",
+    "cd_m": "{m}분 후", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
+    "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
     "need_admin_key": "우클릭 → 설정에서 Admin API 키를 입력하세요",
-    "need_budget": "설정에서 월 예산($)을 넣으면 게이지가 생겨요",
     "scanning": "사용량 스캔 중…",
     "onb_install": "Claude Code 미설치",
     "onb_login": "Claude Code 로그인 필요",
@@ -1089,7 +1135,7 @@ TR = {
     "term_installing": "▶ Claude Code를 설치합니다…",
     "term_login": "▶ 로그인합니다 — 브라우저가 열리면 로그인하세요.",
     "term_done": "✅ 완료됐습니다. 이 창은 닫아도 되며, 곧 Claude Pet에 사용량이 표시됩니다.",
-    "menu_settings": "설정…", "menu_toggle": "게이지 접기/펴기",
+    "menu_settings": "설정…", "menu_toggle": "사용량 필 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_roam": "화면 돌아다니기",
     "menu_uninstall": "완전 삭제…",
@@ -1155,15 +1201,9 @@ TR = {
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
     "reset_done": "リセット済み", "cd_days": "{d}日{h}時間後", "cd_hm": "{h}時間{m}分後",
-    "cd_m": "{m}分後", "reset_prefix": "リセット ", "reset_at": "{wd} {ampm}{h12}:{mm} にリセット",
-    "am": "午前", "pm": "午後",
-    "used": "使用", "left": "残り", "spike_prefix": "▲急増 ", "exact_mode": "正確モード",
-    "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
-    "loading": "取得中…", "today": "今日", "this_month": "今月", "budget": "予算",
-    "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
-    "log_estimate": "（ログ推定）",
+    "cd_m": "{m}分後", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
+    "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
     "need_admin_key": "右クリック → 設定で Admin API キーを入力してください",
-    "need_budget": "設定で月次予算($)を入れるとゲージが出ます",
     "scanning": "使用量をスキャン中…",
     "onb_install": "Claude Code 未インストール",
     "onb_login": "Claude Code ログインが必要",
@@ -1172,7 +1212,7 @@ TR = {
     "term_installing": "▶ Claude Code をインストールします…",
     "term_login": "▶ ログインします — ブラウザが開いたらログインしてください。",
     "term_done": "✅ 完了しました。このウィンドウは閉じて構いません。まもなく使用量が表示されます。",
-    "menu_settings": "設定…", "menu_toggle": "ゲージの折りたたみ",
+    "menu_settings": "設定…", "menu_toggle": "使用量ピルの表示/非表示",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_roam": "画面を歩き回る",
     "menu_uninstall": "完全に削除…",
@@ -1243,15 +1283,9 @@ TR = {
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
     "reset_done": "reiniciado", "cd_days": "en {d}d {h}h", "cd_hm": "en {h}h {m}m",
-    "cd_m": "en {m}m", "reset_prefix": "reinicio ", "reset_at": "reinicia {wd} {h12}:{mm} {ampm}",
-    "am": "AM", "pm": "PM",
-    "used": "usado", "left": "resta", "spike_prefix": "▲pico ", "exact_mode": "Exacto",
-    "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
-    "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "budget": "Presupuesto",
-    "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
-    "log_estimate": "(est. de registros)",
+    "cd_m": "en {m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
+    "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
     "need_admin_key": "Clic derecho → Ajustes para introducir una clave de Admin API",
-    "need_budget": "Pon un presupuesto mensual ($) en Ajustes para ver este medidor",
     "scanning": "Escaneando uso…",
     "onb_install": "Claude Code no instalado",
     "onb_login": "Claude Code: inicia sesión",
@@ -1260,7 +1294,7 @@ TR = {
     "term_installing": "▶ Instalando Claude Code…",
     "term_login": "▶ Iniciando sesión — se abrirá el navegador, inicia sesión.",
     "term_done": "✅ Listo. Puedes cerrar esta ventana; Claude Pet mostrará el uso en breve.",
-    "menu_settings": "Ajustes…", "menu_toggle": "Contraer/expandir medidores",
+    "menu_settings": "Ajustes…", "menu_toggle": "Mostrar/ocultar la píldora",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_roam": "Pasear por la pantalla",
     "menu_uninstall": "Desinstalar por completo…",
@@ -1356,7 +1390,7 @@ CONFIG_PATH = os.path.expanduser("~/.claude_pet.json")
 
 def load_config():
     try:
-        with open(CONFIG_PATH) as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
@@ -1389,7 +1423,7 @@ def save_config(cfg, expect_stamp=_UNCHECKED):
         d = os.path.dirname(CONFIG_PATH) or "."
         os.makedirs(d, exist_ok=True)
         fd, tmp = tempfile.mkstemp(prefix=".claude_pet.", suffix=".tmp", dir=d)
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(cfg, f)
             f.flush()
             os.fsync(f.fileno())
@@ -2104,7 +2138,7 @@ def _dbg(*a):
     if not os.environ.get("CLAUDE_PET_DEBUG"):
         return
     try:
-        with open(os.path.expanduser("~/claudepet_debug.log"), "a") as f:
+        with open(os.path.expanduser("~/claudepet_debug.log"), "a", encoding="utf-8") as f:
             f.write("%.3f " % time.time() + " ".join(str(x) for x in a) + "\n")
     except Exception:
         pass
@@ -2113,7 +2147,7 @@ def _dbg(*a):
 def _token_from_file():
     """~/.claude/.credentials.json (일부 설치는 키체인 대신 파일에 저장) — 무프롬프트."""
     try:
-        with open(os.path.expanduser("~/.claude/.credentials.json")) as f:
+        with open(os.path.expanduser("~/.claude/.credentials.json"), encoding="utf-8") as f:
             return (json.load(f).get("claudeAiOauth") or {}).get("accessToken")
     except Exception:
         return None
@@ -2546,7 +2580,7 @@ def _run_in_terminal(cmd):
     """
     import tempfile
     fd, path = tempfile.mkstemp(suffix=".command", prefix="claudepet-")
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write("#!/bin/bash\n" + cmd + '\nrm -f -- "$0"\n')
     os.chmod(path, 0o755)
     subprocess.Popen(["/usr/bin/open", "-a", "Terminal", path])
@@ -5056,22 +5090,6 @@ def fmt_countdown(reset, now):
     return t("cd_hm", h=h, m=m) if h else t("cd_m", m=m)
 
 
-def fmt_reset(reset, now):
-    """24h 이내면 '리셋 32분 후', 그 이상이면 '(토) 오후 7:59에 재설정' 형태 (언어별)."""
-    if not reset:
-        return "-"
-    secs = (reset - now).total_seconds()
-    if secs <= 0:
-        return t("reset_done")
-    if secs < 24 * 3600:
-        return t("reset_prefix") + fmt_countdown(reset, now)
-    local = reset.astimezone()
-    wd = WEEKDAYS[L["lang"]][local.weekday()]
-    ampm = t("am") if local.hour < 12 else t("pm")
-    h12 = local.hour % 12 or 12
-    return t("reset_at", wd=wd, ampm=ampm, h12=h12, mm=f"{local.minute:02d}")
-
-
 def worst_pct(stats):
     return max(stats["session"]["pct"], stats["weekly"]["pct"], stats["opus"]["pct"])
 
@@ -5087,33 +5105,22 @@ def mood_for(stats):
 
 # ─────────────────── 픽셀 지오메트리 (GUI/미리보기 공용) ───────────────────
 
-PILL_W = 260          # 상태 필(둥근 사각형 패널) 너비
-PILL_R = 18           # 라운드 반경
+PILL_W = 300          # 요약 필 최대 너비 — 실제 폭은 글자 폭에 맞춰 SUMMARY_MIN_W..PILL_W (roam_pill_rect)
 PILL_PAD = 13         # 필 내부 패딩
-ROW_H = 30            # 필 안 행 높이
-PILL_ROWS = 4         # 최대 행 수: 세션 / 주간 / 모델(Fable 등) / 크레딧
-STATUS_H = 16         # 하단 상태줄(모드 + 버전) 높이
-CUR_PILL = {"n": PILL_ROWS}   # 현재 표시 행 수 (행 수만큼만 필 높이 사용)
+PILL_ROWS = 4         # 서버 응답에서 받아 두는 최대 행 수: 세션 / 주간 / 모델(Fable 등) / 크레딧 (fetch_exact_usage)
 def pill_h():
-    return PILL_PAD * 2 + ROW_H * CUR_PILL["n"] - 6 + STATUS_H
+    """논리 창의 필 띠 높이 = 요약 필의 최대 높이(둘째 줄 포함). 표시는 요약 필 하나뿐이다 — 게이지 막대와
+    하단 상태줄이 있던 큰 필은 없앴다(사용자 결정 2026-09-12: "그거로 통일하자"). 실제 필은 내용에 따라
+    한 줄(SUMMARY_H) 또는 두 줄(SUMMARY_H2, 리셋 시각 줄)이며 띠 안에서 펫 쪽으로 붙는다(roam_pill_rect)."""
+    return SUMMARY_H2
 GAP = 6               # 펫-필 간격
 BTN_R = 13            # 접기 버튼 반지름
 
 PILL_BG = "#1C1C1F"
-TRACK = "#3A3A3F"
 TXT_MAIN = "#F2F2F7"
 TXT_SUB = "#98989F"
 COL_OK, COL_WARN, COL_BAD = "#32D74B", "#FFD60A", "#FF453A"
 
-
-def bar_color(pct):
-    return COL_OK if pct < 50 else (COL_WARN if pct < 85 else COL_BAD)
-
-
-def gauge_rows(stats):
-    model_label = str(stats.get("model_kw", "opus")).capitalize()
-    return [(t("session"), stats["session"]), (t("weekly"), stats["weekly"]),
-            (model_label, stats["opus"])]
 
 # ─────────────── 조용한 동행(quiet companion) — 순수 상태기계 ───────────────
 # 펫이 스스로 화면을 돌아다니는 규칙. AppKit 을 모른다: 시간·커서·경계·플래그를
@@ -5749,33 +5756,39 @@ class Roamer:
 # 사용자 요구: "이동 중엔 게이지는 접어서 넣어 두고, 와서 펼쳐 주거나 요약으로 작게".
 # 사용자의 접기 선택(state["show_panel"])은 자동 표시가 절대 덮어쓰지 않는다 — 화면에
 # 그릴 모드는 매번 RoamDisplay.mode(phase, show_panel) 로 유도한다.
-DISPLAY_FULL = "full"           # 기존 게이지 필 전체
+# 표시는 한 줄 요약 필 하나뿐이다. full 과 summary 는 **같은 필**(같은 글자, 같은 기하)이고, 무엇이
+# 켰는가만 다르다: full = 사용자의 평소 선택(show_panel), summary = 구경·follow 도착 래치(평소 선택이
+# 접기여도 잠시 보여 준다). folded = 펫만.
+DISPLAY_FULL = "full"           # 평소 선택으로 켜진 요약 필
 DISPLAY_FOLDED = "folded"       # 펫만 (걷는 동안, 산책 멈춤, 사용자의 접기 선택)
-DISPLAY_SUMMARY = "summary"     # 구경 도착: 작은 사용량 요약
+DISPLAY_SUMMARY = "summary"     # 도착 래치로 켜진 요약 필 — 그리기·기하는 full 과 같다
 
 
 class RoamDisplay:
-    """Roamer 의 phase 를 표시 모드로 옮기는 순수 상태. 상태는 둘뿐이다.
+    """Roamer 의 phase 를 표시 모드로 옮기는 순수 상태. 상태는 둘이다.
 
-    summary  = 구경(approach)·따라다니기(follow) 도착(look)으로 켜진 요약 래치. 걷기·점프·follow
-               시작, 자연 완료(구경 만료), 명시적 중단이 끈다. hover 로 멈춘 것은 중단이 아니라
-               래치를 유지한다 — 요약을 펼치려면 커서를 올려야 하기 때문이다. 도착 자리에서의
-               구경은 "hover 로 멈춤" 과 "6초가 끝남" 이 둘 다 rest 라, Roamer.settled 로 구별한다:
-               settled=False(정지)면 유지, True(자연 완료)면 평소 선택으로 복원.
-    expanded = 요약 중 사용자가 기존 펼치기 조작으로 전체 게이지를 연 상태. show_panel 은
-               건드리지 않으므로 자연 완료·중단 뒤엔 그 자리에서 평소 선택이 그대로 돌아온다.
+    summary   = 구경(approach)·따라다니기(follow) 도착(look)으로 켜진 요약 래치. 걷기·점프·follow
+                시작, 자연 완료(구경 만료), 명시적 중단이 끈다. hover 로 멈춘 것은 중단이 아니라 래치를
+                유지한다 — 요약을 보려면 커서를 올려야 하기 때문이다. 도착 자리에서의 구경은 "hover 로 멈춤"
+                과 "6초가 끝남" 이 둘 다 rest 라, Roamer.settled 로 구별한다: settled=False(정지)면 유지,
+                True(자연 완료)면 평소 선택으로 복원.
+    dismissed = 래치 중 사용자가 접기/펴기 조작으로 필을 접어 둔 상태(그 방문 동안만). 평소 선택(show_panel)은
+                건드리지 않으므로 자연 완료·중단 뒤엔 그 자리에서 평소 선택이 그대로 돌아온다. 래치가 꺼지면
+                같이 꺼진다. 표시가 요약 필 하나로 통일되면서(2026-09-12) 옛 expanded(요약 ↔ 큰 게이지)의
+                자리를 이것이 대신한다 — 접힌 평소 선택이 방문 한 번의 클릭으로 펼침으로 뒤집히면 안 된다.
 
     note() 의 우선순위: 명시적 중단/비활성 > 이동(걷기·점프·follow) > 구경/follow 도착 > 자연 완료 휴식(그 자리).
+    note() 는 매 tick 불리며 look 동안 summary 를 계속 켠다 — dismissed 는 그 안에서도 유지된다.
     """
 
     def __init__(self):
         self.summary = False
-        self.expanded = False
+        self.dismissed = False
 
     def reset(self):
-        """수동 배치(드래그 끝 moved, set_home, 펫 교체) 와 메뉴 시작: 둘 다 끈다."""
+        """수동 배치(드래그 끝 moved, set_home, 펫 교체) 와 메뉴 시작: 래치와 접어 둠을 둘 다 끈다."""
         self.summary = False
-        self.expanded = False
+        self.dismissed = False
 
     def note(self, phase, kind, away, *, interrupted=False, enabled=True, settled=True):
         """매 tick, Roamer.step 직후. interrupted = 설정 창·메뉴·spike·공백 (dragging 은 아님:
@@ -5792,13 +5805,13 @@ class RoamDisplay:
             self.reset()                               # 자연 완료 → 그 자리에서 평소 선택 (집이든 아니든)
 
     def toggle(self, show_panel):
-        """기존 펼치기 조작(꺾쇠 버튼·메뉴 '접기/펴기') → 새 show_panel.
+        """접기/펴기 조작(꺾쇠 버튼·메뉴 '접기/펴기') → 새 show_panel.
 
-        요약 래치 중이면 expanded 만 뒤집고 show_panel 은 그대로 돌려준다(평소 선택 불변).
+        래치 중이면 그 방문 동안의 접어 둠(dismissed)만 뒤집고 show_panel 은 그대로 돌려준다(평소 선택 불변).
         아니면 기존처럼 반전한다.
         """
         if self.summary:
-            self.expanded = not self.expanded
+            self.dismissed = not self.dismissed
             return show_panel
         return not show_panel
 
@@ -5806,7 +5819,7 @@ class RoamDisplay:
         if phase in ("out", "jump", "follow"):
             return DISPLAY_FOLDED                  # 걷기·점프·follow 동안엔 무조건 접는다
         if self.summary:
-            return DISPLAY_FULL if self.expanded else DISPLAY_SUMMARY
+            return DISPLAY_FOLDED if self.dismissed else DISPLAY_SUMMARY
         if phase == "look":
             return DISPLAY_FOLDED                  # 산책 멈춤: 조용히
         return DISPLAY_FULL if show_panel else DISPLAY_FOLDED
@@ -5819,14 +5832,21 @@ def _roam_valid_pct(value):
     return math.isfinite(value) and value >= 0
 
 
-def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key):
-    """요약 필 내용 → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
+def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_month=None,
+                 reset_texts=None, spike_first=False, cost_budget=None):
+    """요약 필 내용(Claude 구간) → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
 
     ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login / scanning
-    ("cost", float)      API 모드의 오늘 비용
-    ("exact", rows)      정확 모드: 앞 2행 중 유효 행 [(서버 라벨 원문, pct), ...]. 라벨은 그대로 그린다 —
-                         원문이 "session" 이어도 번역 키가 아니라 원문이다.
-    ("estimate", rows)   로그 추정: [("session", pct), ("weekly", pct)] 중 유효 행. 라벨은 키라 어댑터가 t() 로 옮긴다.
+    ("cost", (today, month, budget))   API 모드의 오늘·이달 비용과 월 예산. month/budget 은 없으면 None
+    ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 호출자는 크레딧 등 게이지가 아닌 행을
+                         빼고 넘긴다(어댑터 roam_summary_text 참조).
+    ("estimate", rows)   로그 추정: 세션·주간·모델 게이지 중 유효 행.
+    rows 의 원소는 (label, pct, spiking, reset_text):
+      label      exact 는 서버 라벨 원문(원문이 "session" 이어도 번역 키가 아니다), estimate 는 "session"/"weekly"
+                 (TR 키 — 어댑터가 t() 로 옮긴다) 또는 모델 라벨 원문(예: "Fable").
+      spiking    이 게이지의 급증 여부. estimate 는 stats["spikes"][gauge], exact 는 첫 행(세션)만 spike_first.
+      reset_text 리셋 시각 문구(호출자가 fmt_countdown 으로 만든 문자열) 또는 None. exact 행은 row[2] 를 그대로
+                 쓰고, estimate 는 reset_texts[gauge] 를 쓴다 — 이 함수는 시각을 계산하지 않는다(순수).
     정확 모드 행이 있는데 유효 행이 하나도 없으면 추정으로 내려가지 않고 상태를 준다.
     """
     if mode == "api":
@@ -5834,44 +5854,153 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key):
             return ("status", "need_admin_key")
         if not _roam_valid_pct(cost_today):
             return ("status", "loading")
-        return ("cost", float(cost_today))
+        month = float(cost_month) if _roam_valid_pct(cost_month) else None
+        budget = float(cost_budget) if _roam_valid_pct(cost_budget) and cost_budget > 0 else None
+        return ("cost", (float(cost_today), month, budget))
     if oauth:
-        rows = [(row[0], float(row[1])) for row in list(oauth)[:2]
-                if _roam_valid_pct(row[1])]
+        rows = []
+        for i, row in enumerate(list(oauth)[:3]):
+            if not _roam_valid_pct(row[1]):
+                continue
+            reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
+            rows.append((row[0], float(row[1]), bool(spike_first) and i == 0, reset_text))
         return ("exact", rows) if rows else ("status", "scanning")
     if onboard in ("install", "login"):
         return ("status", "onb_" + onboard)
     if stats:
         rows = []
-        for gauge in ("session", "weekly"):
+        spikes = stats.get("spikes") if isinstance(stats.get("spikes"), dict) else {}
+        resets = reset_texts if isinstance(reset_texts, dict) else {}
+        model_label = str(stats.get("model_kw") or "opus").capitalize()
+        for gauge, label in (("session", "session"), ("weekly", "weekly"), ("opus", model_label)):
             pct = ((stats.get(gauge) or {}).get("pct")
                    if isinstance(stats.get(gauge), dict) else None)
             if _roam_valid_pct(pct):
-                rows.append((gauge, float(pct)))
+                rows.append((label, float(pct), bool(spikes.get(gauge)), resets.get(gauge) or None))
         if rows:
             return ("estimate", rows)
     return ("status", "scanning")
 
 
 SUMMARY_APPROX = "≈"          # 로그 추정치 앞의 표식. 서버 값(exact)에는 붙이지 않는다
+# 요약 필 글자색 — 사용자 결정 2026-09-12(같은 날 "텍스트랑 수치랑 색을 반대로" 로 확정). **수치**가 출처를
+# 말한다: 정확 모드 에메랄드, 로그 추정 앰버, API 비용 코랄. **라벨**(세션·주간·모델, 오늘·이달)은 흰색이 기본이고
+# 잔여량에 따라 경고색(50% 이상)·위험색(85% 이상)으로, 급증이면 ▲와 함께 위험색으로 바뀐다.
+# 둘째 줄(리셋 시각)은 보조 글자색. 상태 문구는 기본 글자색.
+SUMMARY_COLORS = {
+    "exact": "#50C878",       # emerald — 정확 모드 수치
+    "estimate": "#FFB300",    # amber — 로그 추정 수치
+    "cost": "#FF7F50",        # coral — API 비용 금액
+    "value": TXT_MAIN,        # 라벨 기본(흰색)
+    "warn": COL_WARN,         # 라벨: 50% 이상
+    "bad": COL_BAD,           # 라벨: 85% 이상 또는 급증
+    "sub": TXT_SUB,           # 둘째 줄(리셋 시각)
+    "status": TXT_MAIN,
+}
+SUMMARY_SEP = " · "
+SUMMARY_SPIKE = "▲"           # 급증 행의 라벨 앞 표식 — 색이 이미 급증을 말하므로 글자(급증)는 붙이지 않는다
+
+
+def summary_value_kind(pct, spiking=False):
+    """잔여량 글자색 종류(라벨에 입힌다) — 옛 게이지 막대의 문턱(50/85)과 같다. 급증이면 위험색."""
+    if spiking or pct >= 85:
+        return "bad"
+    return "warn" if pct >= 50 else "value"
+
+
+def _summary_label(kind, label, tr):
+    return tr(label) if kind == "estimate" and label in ("session", "weekly") else label
 
 
 def roam_summary_line(kind, payload, tr):
-    """roam_summary 결과 → 요약 필 한 줄. tr 은 번역 콜러블(어댑터는 t).
+    """roam_summary 결과(구간 하나) → 요약 필 첫 줄의 평문(색 없음). tr 은 번역 콜러블(어댑터는 t).
 
-    exact    라벨 원문 그대로, 표식 없음:      "Session 42% · Weekly 17%"
-    estimate 라벨 키를 tr 로, 값 앞에 ≈:       "세션 ≈42% · 주간 ≈17%"
-    cost     tr("today") 와 달러 두 자리         "오늘 $1.23"
+    exact    라벨 원문 그대로, 표식 없음:      "Session 42% · Weekly 17% · Fable 12%"
+    estimate session/weekly 는 tr, 모델 라벨은 원문, 값 앞에 ≈:  "세션 ≈42% · 주간 ≈17% · Fable ≈12%"
+    급증 행은 라벨 앞에 ▲(SUMMARY_SPIKE).
+    cost     tr("today") 와 달러 두 자리, 이달이 있으면 이어서, 예산이 있으면 " / $예산":   "오늘 $1.23 · 이달 $27.50 / $50"
     status   tr(key)
     """
-    if kind == "exact":
-        return " · ".join(f"{label} {pct:.0f}%" for label, pct in payload)
-    if kind == "estimate":
-        return " · ".join(f"{tr(label)} {SUMMARY_APPROX}{pct:.0f}%"
-                          for label, pct in payload)
+    return "".join(text for text, _kind in roam_summary_runs([(kind, payload)], tr)[0])
+
+
+def roam_summary_reset_line(kind, payload, tr):
+    """둘째 줄 평문: tr("reset_prefix") 한 번 뒤에 "라벨 남은시간" 을 " · " 로, 같은 문구가 이어지면 한 번만. 없으면 ""."""
+    return "".join(text for text, _kind in roam_summary_runs([(kind, payload)], tr)[1])
+
+
+def _summary_segment_runs(kind, payload, tr):
+    """구간 하나 → (첫 줄 run 들, 둘째 줄 run 들)."""
+    if kind in ("exact", "estimate"):
+        main, sub, last_reset = [], [], None
+        approx = SUMMARY_APPROX if kind == "estimate" else ""
+        for label, pct, spiking, reset_text in payload:
+            if main:
+                main.append((SUMMARY_SEP, "status"))
+            shown = _summary_label(kind, label, tr)
+            # 라벨 = 잔여량 색(급증이면 ▲ + 위험색), 수치 = 출처 색(exact/estimate)
+            main.append(((SUMMARY_SPIKE if spiking else "") + shown, summary_value_kind(pct, spiking)))
+            main.append((f" {approx}{pct:.0f}%", kind))
+            if reset_text and reset_text != last_reset:
+                sub.append((SUMMARY_SEP, "sub") if sub else (tr("reset_prefix"), "sub"))
+                sub.append((f"{shown} {reset_text}", "sub"))
+            last_reset = reset_text or last_reset
+        return main, sub
     if kind == "cost":
-        return f"{tr('today')} ${payload:.2f}"
-    return tr(payload)
+        today, month, budget = (tuple(payload) + (None, None))[:3]
+        # 라벨(오늘·이달) = 잔여량 색 — 이달은 예산 대비(흰 → 노 → 빨), 금액 = 코랄, 예산이 있으면 " / $예산"
+        runs = [(f"{tr('today')} ", "value"), (f"${today:.2f}", "cost")]
+        if month is not None:
+            month_kind = summary_value_kind(min(100.0, month / budget * 100)) if budget else "value"
+            runs += [(SUMMARY_SEP, "status"), (f"{tr('this_month')} ", month_kind), (f"${month:.2f}", "cost")]
+            if budget:
+                runs.append((f" / ${budget:.0f}", "cost"))
+        return runs, []
+    return [(tr(payload), "status")], []
+
+
+def roam_summary_runs(segments, tr):
+    """구간 목록 → (첫 줄 run 들, 둘째 줄 run 들); run 은 (text, kind), kind 는 SUMMARY_COLORS 의 키.
+
+    첫 줄은 라벨(흰색 → 경고 → 위험, 잔여량)과 수치(출처 색) 조각, 둘째 줄은 리셋 시각(보조색). 구간 사이는 기본색
+    구분자. 지금은 Claude 구간 하나다 — GPT·Gemini 등 다른 제공자의 사용량은 (kind, payload) 구간을 뒤에
+    붙이면 같은 줄에 이어진다. 그리기(draw_summary_pill)와 폭 계산은 run 단위라 손댈 곳이 없다.
+    """
+    main, sub = [], []
+    for kind, payload in segments:
+        m, s_ = _summary_segment_runs(kind, payload, tr)
+        if not m:
+            continue
+        if main:
+            main.append((SUMMARY_SEP, "status"))
+        main.extend(m)
+        if s_:
+            if sub:
+                sub.append((SUMMARY_SEP, "sub"))
+            sub.extend(s_)
+    return main, sub
+
+
+def roam_fit_runs(runs, max_w, measure, ellipsis="…"):
+    """폭 max_w 안에 들어가는 run 목록. measure(s) 는 s 의 폭 (그 줄의 폰트 하나로 잰다 — 축소 없음).
+
+    다 들어가면 그대로. 아니면 뒤 run 부터 통째로 떼어 내고 마지막에 남은 run 을 roam_fit_text 로 말줄임한다.
+    """
+    def width(items):
+        return sum(measure(text) for text, _kind in items)
+    if width(runs) <= max_w:
+        return list(runs)
+    kept = list(runs)
+    while kept:
+        head, (text, kind) = kept[:-1], kept[-1]
+        room = max_w - width(head)
+        fitted = roam_fit_text(text, room, measure, ellipsis) if room > 0 else ""
+        if fitted:
+            return head + [(fitted, kind)]
+        kept = head
+        while kept and kept[-1][0] == SUMMARY_SEP:     # 구분자만 남기지 않는다
+            kept = kept[:-1]
+    return []
 
 
 def roam_fit_text(text, max_w, measure, ellipsis="…"):
@@ -5894,21 +6023,21 @@ def roam_fit_text(text, max_w, measure, ellipsis="…"):
 # bounds·집 전부 그대로다. 실제 NSWindow 는 그 창의 부분 사각형이고, 부분 사각형은 표시 모드
 # 에서만 유도되므로 펫의 전역 좌표(논리 원점 + (px, py))는 모드와 무관하게 같다. 접기·요약·
 # 펼침 전환에서 바뀌는 것은 창의 origin/size 뿐이다.
-SUMMARY_H = 30            # 요약 필 높이(한 줄)
+SUMMARY_H = 30            # 요약 필 높이(한 줄: 상태·비용, 또는 리셋 시각이 없을 때)
+SUMMARY_H2 = 46           # 요약 필 높이(두 줄: 게이지 + 리셋 시각)
 SUMMARY_MIN_W = 120       # 요약 필 최소 폭. 최대는 PILL_W
 
 
-def roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w=0):
+def roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w=0, text_h=SUMMARY_H):
     """표시 모드의 필 사각형 (논리 창 flipped 좌표: 좌상단 원점). "folded" 면 None.
 
-    full    기존 pillLeft/pillTop 과 같은 자리·크기.
-    summary 글자 폭에 맞춘 작은 필을 펫 쪽에 정렬해 펫 위/아래에 붙인다.
+    full 과 summary 는 같은 필이다: 글자 폭에 맞춘(SUMMARY_MIN_W..PILL_W) 필을 펫 쪽에 정렬해 펫 위/아래에
+    붙인다. 높이는 text_h(한 줄 SUMMARY_H 또는 두 줄 SUMMARY_H2, 띠 높이 pill_h 를 넘지 않음). 펫이 아래쪽이면
+    띠 안에서 아래 맞춤(펫에 붙음), 위쪽이면 펫 바로 아래.
     """
-    if mode == DISPLAY_FULL:
-        return (W - PILL_W - 4 if right else 4, 4 if bottom else PH + GAP, PILL_W, pill_h)
-    if mode == DISPLAY_SUMMARY:
+    if mode in (DISPLAY_FULL, DISPLAY_SUMMARY):
         w = min(PILL_W, max(SUMMARY_MIN_W, text_w + 2 * PILL_PAD))
-        h = SUMMARY_H
+        h = min(pill_h, text_h)
         return (W - w - 4 if right else 4, pill_h + 4 - h if bottom else PH + GAP, w, h)
     return None
 
@@ -5921,12 +6050,12 @@ def _roam_union(rects):
     return (x0, y0, x1 - x0, y1 - y0)
 
 
-def roam_frame(center, mode, right, bottom, W, H, PW, PH, pill_h, scale, text_w=0):
+def roam_frame(center, mode, right, bottom, W, H, PW, PH, pill_h, scale, text_w=0, text_h=SUMMARY_H):
     """논리 full 창 → 표시 모드에 맞는 실제 창.
 
     center 는 논리 창 중심(스크린 좌표, y 위). 반환 dict:
-      crop   (cx, cy, cw, ch)  논리 창 flipped 좌표의 부분 사각형. full 은 창 전체,
-                               folded 는 펫 ∪ 꺾쇠 버튼, summary 는 펫 ∪ 버튼 ∪ 요약 필 을 2pt 넓힌 것
+      crop   (cx, cy, cw, ch)  논리 창 flipped 좌표의 부분 사각형. folded 는 펫 ∪ 꺾쇠 버튼,
+                               full/summary 는 펫 ∪ 버튼 ∪ 요약 필 을 2pt 넓힌 것
       origin (x, y)            실제 창 원점(AppKit, y 위)
       size   (w, h)
       sprite / button / pill   실제 창 flipped 좌표의 사각형. folded 의 pill 은 None
@@ -5938,17 +6067,15 @@ def roam_frame(center, mode, right, bottom, W, H, PW, PH, pill_h, scale, text_w=
     bx = px - BTN_R * 2 - 2 if right else px + PW + 2
     by = py + int(26 * scale)
     button = (bx, by, BTN_R * 2, BTN_R * 2)
-    pill = roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w)
-    if mode == DISPLAY_FULL:
-        crop = (0, 0, W, H)
-    else:
-        parts = [sprite, button] + ([pill] if pill is not None else [])
-        ux, uy, uw, uh = _roam_union(parts)
-        x0 = max(0, ux - 2)
-        y0 = max(0, uy - 2)
-        x1 = min(W, ux + uw + 2)
-        y1 = min(H, uy + uh + 2)
-        crop = (x0, y0, x1 - x0, y1 - y0)
+    pill = roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w, text_h)
+    # 실제 창은 언제나 펫 ∪ 버튼 (∪ 필) 을 2pt 넓힌 부분 사각형이다 — 필이 하나뿐이라 full 도 예외가 아니다.
+    parts = [sprite, button] + ([pill] if pill is not None else [])
+    ux, uy, uw, uh = _roam_union(parts)
+    x0 = max(0, ux - 2)
+    y0 = max(0, uy - 2)
+    x1 = min(W, ux + uw + 2)
+    y1 = min(H, uy + uh + 2)
+    crop = (x0, y0, x1 - x0, y1 - y0)
     cx, cy, cw, ch = crop
     return {
         "crop": crop,
@@ -6006,7 +6133,6 @@ def run_gui():
         return NSColor.colorWithCalibratedRed_green_blue_alpha_(r, g_, b, a)
 
     C_PILL = hexcolor(PILL_BG, 0.96)
-    C_TRACK = hexcolor(TRACK)
     C_MAIN = hexcolor(TXT_MAIN)
     C_SUB = hexcolor(TXT_SUB)
     C_BTNL = hexcolor("#2E2E33")
@@ -6014,22 +6140,39 @@ def run_gui():
     def mono(size, bold=False):
         return NSFont.monospacedSystemFontOfSize_weight_(size, 0.4 if bold else 0.0)
 
-    F_BOLD = {NSFontAttributeName: mono(12, True),
-              NSForegroundColorAttributeName: C_MAIN}
-    F_BIG = {NSFontAttributeName: mono(15, True),
-             NSForegroundColorAttributeName: C_MAIN}
-    F_SUB = {NSFontAttributeName: mono(9.5),
-             NSForegroundColorAttributeName: C_SUB}
-    F_SUMMARY = {NSFontAttributeName: mono(11, True),      # 구경 도착 요약 필 한 줄
+    def register_bundled_font():
+        """내장 Pretendard 를 이 프로세스에 등록한다(소스 실행용; 번들에선 plist 가 이미 했다 → 중복 등록
+        오류는 무시). 등록 뒤 fontWithName 이 None 이면 내장 실패 — 호출자가 모노 글꼴로 내려간다."""
+        path = bundled_font_path()
+        if not path:
+            return None
+        try:
+            from CoreText import CTFontManagerRegisterFontsForURL, kCTFontManagerScopeProcess
+            from Foundation import NSURL
+            CTFontManagerRegisterFontsForURL(NSURL.fileURLWithPath_(path),
+                                             kCTFontManagerScopeProcess, None)
+        except Exception:
+            pass
+        return NSFont.fontWithName_size_(SUMMARY_FONT_NAME, 11)
+
+    def summary_font(size):
+        f = NSFont.fontWithName_size_(SUMMARY_FONT_NAME, size) if _summary_font_ok["ok"] else None
+        return f if f is not None else mono(size, True)
+
+    _summary_font_ok = {"ok": register_bundled_font() is not None}
+    _dbg("summary font:", SUMMARY_FONT_NAME if _summary_font_ok["ok"] else "fallback mono")
+
+    F_SUMMARY = {NSFontAttributeName: summary_font(11),    # 요약 필 한 줄 — 유일한 필 글꼴 (Pretendard SemiBold)
                  NSForegroundColorAttributeName: C_MAIN}
-    F_ALERT = {NSFontAttributeName: mono(9.5, True),
-               NSForegroundColorAttributeName: hexcolor(COL_BAD)}
-    F_TINY = {NSFontAttributeName: mono(8.5),
-              NSForegroundColorAttributeName: hexcolor("#5A5A60")}
-    F_STATUS = {NSFontAttributeName: mono(10),
-                NSForegroundColorAttributeName: hexcolor("#7A7A82")}
-    F_CHEV = {NSFontAttributeName: NSFont.boldSystemFontOfSize_(12),
-              NSForegroundColorAttributeName: C_SUB}
+    # 구간별 글자색(SUMMARY_COLORS)을 입힌 요약 글꼴. kind 가 표에 없으면 기본 글자색.
+    F_SUMMARY_BY_KIND = {kind: {NSFontAttributeName: summary_font(11),
+                                NSForegroundColorAttributeName: hexcolor(color)}
+                         for kind, color in SUMMARY_COLORS.items()}
+    F_SUMMARY_SUB = {NSFontAttributeName: summary_font(9.5),   # 둘째 줄(리셋 시각)
+                     NSForegroundColorAttributeName: hexcolor(SUMMARY_COLORS["sub"])}
+    F_SUMMARY_SUB_BY_KIND = {kind: {NSFontAttributeName: summary_font(9.5),
+                                    NSForegroundColorAttributeName: hexcolor(color)}
+                             for kind, color in SUMMARY_COLORS.items()}
 
     def astr(s, attrs):
         return NSAttributedString.alloc().initWithString_attributes_(s, attrs)
@@ -6222,140 +6365,6 @@ def run_gui():
         return mood_for(stats) if stats else "idle"
 
     # ── 필 그리기 헬퍼 (클래스 밖: PyObjC 셀렉터 변환 회피) ──
-    def draw_sub_right(txt, base, ry, gx0, label_w):
-        """서브텍스트 우측 정렬 — 라벨과 겹치면 폰트를 줄여 맞춘다(언어별 길이 대응)."""
-        x_left = gx0 + PILL_PAD + 2 + label_w + 10
-        x_right = gx0 + PILL_W - PILL_PAD
-        avail = x_right - x_left
-        s = astr(txt, base)
-        w = s.size().width
-        if avail > 20 and w > avail:
-            f = base[NSFontAttributeName]
-            scale = max(0.68, avail / w)
-            fa = dict(base)
-            fa[NSFontAttributeName] = NSFont.fontWithDescriptor_size_(
-                f.fontDescriptor(), f.pointSize() * scale)
-            s = astr(txt, fa)
-            w = s.size().width
-        s.drawAtPoint_(NSMakePoint(x_right - w, ry))
-
-    def draw_sub_pill(gx0, gy0, stats):
-        sp = stats.get("spikes") or {}
-        keys = ["session", "weekly", "opus"]
-        for i, (label, gg) in enumerate(gauge_rows(stats)):
-            ry = gy0 + PILL_PAD + i * ROW_H
-            lbl = astr(label, F_BOLD)
-            lbl.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
-            spiking = sp.get(keys[i])
-            txt = (f"{gg['pct']:.0f}% · {t('left')} {fmt_tokens(gg['left'])}"
-                   f" · {fmt_reset(gg['reset'], stats['now'])}")
-            if spiking:
-                txt = t("spike_prefix") + txt
-            draw_sub_right(txt, F_ALERT if spiking else F_SUB, ry, gx0, lbl.size().width)
-            bx0 = gx0 + PILL_PAD + 2
-            bw = PILL_W - PILL_PAD * 2 - 4
-            C_TRACK.set()
-            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(bx0, ry + 17, bw, 6), 3, 3).fill()
-            hexcolor(COL_BAD if spiking else bar_color(gg["pct"])).set()
-            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(bx0, ry + 17,
-                           max(8, bw * gg["pct"] / 100), 6), 3, 3).fill()
-        # (하단 모드/버전 상태줄은 draw_status_line에서 통합 처리)
-
-    def draw_exact_pill(gx0, gy0, rows):
-        """정확 모드: OAuth/CLI에서 받은 서버 계산 % 표시 (보정 불필요)."""
-        stats = state["stats"]
-        now_utc = datetime.now(timezone.utc)
-        for i, (label, pct, rdt, rtxt) in enumerate(rows[:PILL_ROWS]):
-            ry = gy0 + PILL_PAD + i * ROW_H
-            lbl = astr(label, F_BOLD)
-            lbl.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
-            if rdt is not None:
-                reset_s = fmt_reset(rdt, now_utc)
-            elif rtxt:
-                reset_s = t("reset_prefix") + rtxt
-            else:
-                reset_s = ""
-            txt = f"{pct:.0f}% {t('used')}" + (f" · {reset_s}" if reset_s else "")
-            draw_sub_right(txt, F_SUB, ry, gx0, lbl.size().width)
-            bx0 = gx0 + PILL_PAD + 2
-            bw = PILL_W - PILL_PAD * 2 - 4
-            C_TRACK.set()
-            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(bx0, ry + 17, bw, 6), 3, 3).fill()
-            spiking = bool(spike_info(stats)) and i == 0
-            hexcolor(COL_BAD if spiking else bar_color(pct)).set()
-            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(bx0, ry + 17, max(8, bw * pct / 100), 6), 3, 3).fill()
-        # (하단 모드/버전 상태줄은 draw_status_line에서 통합 처리)
-
-    def draw_api_pill(gx0, gy0):
-        if not RUNTIME.get("admin_key"):
-            m = astr(t("need_admin_key"), F_SUB)
-            ms = m.size()
-            m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
-                                       gy0 + (pill_h() - ms.height) / 2))
-            return
-        today = state["cost"]
-        month = state["cost_month"]
-        ry = gy0 + PILL_PAD
-        astr(t("today"), F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry))
-        tv = astr(t("loading") if today is None else f"${today:.2f}", F_BIG)
-        ts = tv.size()
-        tv.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ts.width, ry - 3))
-        ry += ROW_H
-        astr(t("this_month"), F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry))
-        m2 = astr(t("loading") if month is None else f"${month:.2f}", F_BIG)
-        m2s = m2.size()
-        m2.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - m2s.width, ry - 3))
-        ry += ROW_H
-        budget = float(RUNTIME.get("api_budget") or 0)
-        if budget > 0 and month is not None:
-            pct = min(100.0, month / budget * 100)
-            astr(t("budget"), F_BOLD).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry - 2))
-            sub = astr(f"{pct:.0f}% · {t('left')} ${max(0, budget - month):.0f} / ${budget:.0f}", F_SUB)
-            ss = sub.size()
-            sub.drawAtPoint_(NSMakePoint(gx0 + PILL_W - PILL_PAD - ss.width, ry))
-            bx0 = gx0 + PILL_PAD + 2
-            bw = PILL_W - PILL_PAD * 2 - 4
-            C_TRACK.set()
-            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(bx0, ry + 17, bw, 6), 3, 3).fill()
-            hexcolor(bar_color(pct)).set()
-            NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(bx0, ry + 17, max(8, bw * pct / 100), 6), 3, 3).fill()
-        else:
-            hint = astr(t("need_budget"), F_TINY)
-            hint.drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, ry + 2))
-
-    def draw_onboard_pill(gx0, gy0, kind):
-        """Claude Code 미설치/미로그인 안내. 이유 한 줄 + '우클릭' 힌트 한 줄."""
-        reason = t("onb_install") if kind == "install" else t("onb_login")
-        hint = t("menu_install_cc") if kind == "install" else t("menu_login_cc")
-        cy = gy0 + pill_h() / 2
-        r = astr(reason, F_BOLD)         # 이유(굵게) 위, 실행 힌트(작게) 아래
-        rs = r.size()
-        r.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - rs.width) / 2, cy - rs.height - 1))
-        h = astr(hint, F_SUB)
-        hs = h.size()
-        h.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - hs.width) / 2, cy + 3))
-
-    def draw_status_line(gx0, gy0):
-        """필 하단 한 줄: 왼쪽=모드, 오른쪽=버전 (겹침 없이 깔끔하게)."""
-        if RUNTIME["mode"] == "api":
-            mode = "API"
-        elif state["oauth"]:
-            mode = t("exact_mode")
-        else:
-            est = t("log_estimate").strip("()（）")
-            mode = est + (" ⚠" if OAUTH_STATUS.get("auth_error") else "")
-        y = gy0 + pill_h() - 14
-        astr(mode, F_STATUS).drawAtPoint_(NSMakePoint(gx0 + PILL_PAD + 2, y))
-        ver = astr(f"v{APP_VERSION}", F_STATUS)
-        ver.drawAtPoint_(NSMakePoint(
-            gx0 + PILL_W - PILL_PAD - ver.size().width, y))
-
     class PetView(NSView):
         def isFlipped(self):
             return True
@@ -6393,21 +6402,15 @@ def run_gui():
         # 아래 네 위치는 **실제 창** flipped 좌표다. 표시 계층이 crop 을 적용해 두었으면
         # (state["roam_rects"]) 그 값을 쓰고, 없으면 실제 창 = 논리 창이라 기존 계산과 같다.
         # drawRect_·mouseUp_ 버튼 판정·인사 pet_center 가 모두 여기를 거치므로 자동으로 맞는다.
-        def pillTop(self):
-            """필의 y (flipped 좌표). 펫이 아래쪽이면 필이 위."""
+        def pillRect(self):
+            """요약 필 사각형(실제 창 flipped 좌표). 표시 계층이 아직 안 돌았으면 논리 창 = 실제 창이라
+            같은 규칙(roam_pill_rect)으로 지금 글자 폭에 맞춰 계산한다. folded 면 None."""
             rects = state.get("roam_rects")
-            if rects and rects.get("pill"):
-                return rects["pill"][1]
-            return 4 if self.petOnBottom() else PH + GAP
-
-        def pillLeft(self):
-            """필의 x — 펫이 있는 쪽으로 정렬."""
-            rects = state.get("roam_rects")
-            if rects and rects.get("pill"):
-                return rects["pill"][0]
-            if self.petOnRight():
-                return W - PILL_W - 4    # 펫 오른쪽 → 필도 오른쪽 정렬
-            return 4                     # 펫 왼쪽 → 필도 왼쪽 정렬
+            if rects:
+                return rects.get("pill")
+            _main, _sub, text_w, text_h = roam_summary_text()
+            return roam_pill_rect(roam_mode_now(), self.petOnRight(), self.petOnBottom(),
+                                  W, PW, PH, pill_h(), text_w, text_h)
 
         def petOrigin(self):
             rects = state.get("roam_rects")
@@ -6436,35 +6439,11 @@ def run_gui():
             fr = 0 if state["resting"] else state["frame"] % len(seq)
             img = seq[fr]
 
-            # ── 상태 필 (펫 위치 기준 상하 플립 + 좌우 정렬) ──
+            # ── 요약 필 (펫 위치 기준 상하 플립 + 좌우 정렬) ──
             # 무엇을 그릴지는 사용자의 접기 선택이 아니라 표시 계층이 유도한 모드가 정한다:
-            # 걷는 동안 접힘, 구경 도착 뒤 요약, 펼쳤거나 평소 선택이 펼침이면 전체.
-            mode = roam_mode_now()
-            if mode == DISPLAY_SUMMARY:
+            # 걷는 동안 접힘, 그 밖엔(평소 선택이 펼침이거나 도착 래치) 한 줄 요약 필.
+            if roam_mode_now() in (DISPLAY_FULL, DISPLAY_SUMMARY):
                 draw_summary_pill()
-            elif mode == DISPLAY_FULL:
-                gx0 = self.pillLeft()
-                gy0 = self.pillTop()
-                C_PILL.set()
-                NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                    NSMakeRect(gx0, gy0, PILL_W, pill_h()), PILL_R, PILL_R).fill()
-
-                if RUNTIME["mode"] == "api":
-                    draw_api_pill(gx0, gy0)
-                elif state["oauth"]:
-                    draw_exact_pill(gx0, gy0, state["oauth"])  # 정확 모드
-                elif state.get("onboard"):
-                    # stats 는 항상 truthy(0% 딕셔너리)라 stats 분기보다 먼저 와야 한다.
-                    draw_onboard_pill(gx0, gy0, state["onboard"])
-                elif stats:
-                    draw_sub_pill(gx0, gy0, stats)
-                else:
-                    m = astr(t("scanning"), F_SUB)
-                    ms = m.size()
-                    m.drawAtPoint_(NSMakePoint(gx0 + (PILL_W - ms.width) / 2,
-                                               gy0 + (pill_h() - ms.height) / 2))
-                if (stats or state["oauth"]) and not state.get("onboard"):
-                    draw_status_line(gx0, gy0)   # 하단: 모드 + 버전
 
             # ── 펫 ──
             px, py = self.petOrigin()
@@ -6493,11 +6472,10 @@ def run_gui():
                 ring.stroke()
                 # 꺾쇠: 필이 열리는/닫히는 방향을 가리키도록 직접 그림
                 pill_below = not self.petOnBottom()   # 필이 펫 아래에 붙는 배치
-                # 열려 있으면 '접는' 방향(필 반대쪽), 닫혀 있으면 '펼치는' 방향(필 쪽).
-                # 요약 중엔 '펼치는' 방향 — 누르면 전체 게이지가 된다.
-                is_full = roam_mode_now() == DISPLAY_FULL
-                point_down = (pill_below and not is_full) or \
-                             (not pill_below and is_full)
+                # 열려 있으면(평소 선택이든 도착 래치든) '접는' 방향(필 반대쪽), 닫혀 있으면 '펼치는' 방향(필 쪽).
+                is_open = roam_mode_now() in (DISPLAY_FULL, DISPLAY_SUMMARY)
+                point_down = (pill_below and not is_open) or \
+                             (not pill_below and is_open)
                 cx, cy = bx + BTN_R, by + BTN_R
                 wdt, hgt = 5.5, 3.0
                 chev = NSBezierPath.bezierPath()
@@ -6571,7 +6549,7 @@ def run_gui():
             loc = self.convertPoint_fromView_(event.locationInWindow(), None)
             bx, by = self.btnOrigin()
             if (loc.x - bx - BTN_R) ** 2 + (loc.y - by - BTN_R) ** 2 <= (BTN_R + 6) ** 2:
-                # 요약 중엔 요약 ↔ 전체만 오가고 평소 선택은 그대로(RoamDisplay.toggle).
+                # 요약(래치) 중엔 그 방문 동안 접기 ↔ 펴기만 오가고 평소 선택은 그대로(RoamDisplay.toggle).
                 # 판정은 클릭 시점의 실제 창 좌표로 했고, 창 성장은 다음 틱이 한다.
                 toggle = state.get("roam_toggle")
                 state["show_panel"] = (toggle() if toggle is not None
@@ -6812,38 +6790,83 @@ def run_gui():
             return DISPLAY_FULL if state["show_panel"] else DISPLAY_FOLDED
         return mode
 
-    def roam_summary_text():
-        """요약 필 한 줄(원문)과 그 폭. exact 라벨은 원문 그대로, estimate 는 t() + ≈.
+    _summary_memo = {"key": None, "value": None}
 
-        말줄임은 하지 않는다 — 실제 필 폭을 아는 draw_summary_pill 이 같은 폰트로 맞춘다.
-        여기서 잰 폭은 roam_frame 의 text_w 가 되고, roam_pill_rect 가 PILL_W 로 캡한다.
+    def roam_summary_text():
+        """요약 필 내용 → (첫 줄 run 들, 둘째 줄 run 들, 폭, 높이). exact 라벨은 원문, estimate 는 t() + ≈.
+
+        말줄임은 하지 않는다 — 실제 필 폭을 아는 draw_summary_pill 이 같은 폰트로 맞춘다. 여기서 잰 폭은
+        roam_frame 의 text_w 가 되고(roam_pill_rect 가 PILL_W 로 캡), 높이는 둘째 줄이 있으면 SUMMARY_H2.
+        정확 모드 행은 크레딧(_label_order 9)만 빼고 앞 3행을 넘긴다 — 서버의 모델 라벨이 "Claude Fable 5" 처럼
+        패밀리 단어가 아니어도 모델 행이 사라지지 않게. 리셋 시각은 여기서 fmt_countdown 으로 문자열로 만든다
+        (roam_summary 는 시각을 계산하지 않는다). 토큰 만료(401 지속)로 추정치로 내려간 상태는 첫 줄 끝 ⚠.
+        매 tick(20 Hz) 불리므로 같은 입력·같은 5초 창 안에서는 메모한 값을 돌려준다(글자 폭 측정 비용).
         """
-        kind, payload = roam_summary(RUNTIME["mode"], state["oauth"], state["stats"],
-                                     state.get("onboard"), state["cost"],
-                                     bool(RUNTIME.get("admin_key")))
-        txt = roam_summary_line(kind, payload, t)
-        return txt, astr(txt, F_SUMMARY).size().width
+        stats = state["stats"]
+        oauth = state["oauth"]
+        key = (RUNTIME["mode"], L["lang"], state.get("onboard"), id(stats), id(oauth), state["cost"],
+               state["cost_month"], RUNTIME.get("api_budget"), bool(OAUTH_STATUS.get("auth_error")),
+               int(_time.time() / 5))
+        if _summary_memo["key"] == key:
+            return _summary_memo["value"]
+        if oauth:
+            now_utc = datetime.now(timezone.utc)
+            rows = []
+            for label, pct, rdt, rtxt in oauth:
+                if _label_order(label) >= 9:
+                    continue
+                reset_s = fmt_countdown(rdt, now_utc) if rdt is not None else (rtxt or None)
+                rows.append((label, pct, reset_s))
+            oauth = rows
+        resets = None
+        if stats and isinstance(stats.get("now"), datetime):
+            resets = {g: fmt_countdown((stats.get(g) or {}).get("reset"), stats["now"])
+                      for g in ("session", "weekly", "opus") if isinstance(stats.get(g), dict)}
+        segment = roam_summary(RUNTIME["mode"], oauth, stats, state.get("onboard"), state["cost"],
+                               bool(RUNTIME.get("admin_key")), state["cost_month"],
+                               reset_texts=resets, spike_first=bool(spike_info(stats)),
+                               cost_budget=float(RUNTIME.get("api_budget") or 0))
+        main, sub = roam_summary_runs([segment], t)
+        if segment[0] == "estimate" and OAUTH_STATUS.get("auth_error"):
+            main.append((" ⚠", "status"))
+        w_main = sum(astr(text, F_SUMMARY).size().width for text, _kind in main)
+        w_sub = sum(astr(text, F_SUMMARY_SUB).size().width for text, _kind in sub)
+        value = (main, sub, max(w_main, w_sub), (SUMMARY_H2 if sub else SUMMARY_H))
+        _summary_memo["key"], _summary_memo["value"] = key, value
+        return value
+
+    def _draw_runs(runs, fonts_by_kind, fallback, x, w, cy):
+        """run 들을 가로 가운데 정렬로, 세로는 cy 를 중심으로 그린다."""
+        parts = [astr(text, fonts_by_kind.get(kind, fallback)) for text, kind in runs]
+        total = sum(p.size().width for p in parts)
+        cx = x + (w - total) / 2
+        for p in parts:
+            sz = p.size()
+            p.drawAtPoint_(NSMakePoint(cx, cy - sz.height / 2))
+            cx += sz.width
 
     def draw_summary_pill():
-        """구경 도착 요약: 펫에 붙은 작은 둥근 필 한 줄. 상태줄·버전 없음.
+        """요약 필: 펫에 붙은 둥근 필. 첫 줄 = 라벨(잔여량 색)+수치(출처 색), 둘째 줄 = 리셋 시각(보조색).
 
-        문자열이 필의 안쪽 폭(패딩 제외)을 넘으면 같은 폰트로 재면서 말줄임한다 — 폰트를
-        줄이지 않으므로 측정과 그리기가 같은 F_SUMMARY 로 일치한다.
+        run 들이 필의 안쪽 폭(패딩 제외)을 넘으면 같은 폰트로 재면서 뒤에서부터 덜어내고 말줄임한다 — 폰트를
+        줄이지 않으므로 측정과 그리기가 같은 글꼴로 일치한다.
         """
-        rects = state.get("roam_rects")
-        pill = rects.get("pill") if rects else None
+        pill = view.pillRect()
         if not pill:
             return
         x, y, w, h = pill
         C_PILL.set()
         NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
             NSMakeRect(x, y, w, h), h / 2, h / 2).fill()
-        txt, _tw = roam_summary_text()
-        txt = roam_fit_text(txt, w - 2 * PILL_PAD,
-                            lambda value: astr(value, F_SUMMARY).size().width)
-        s = astr(txt, F_SUMMARY)
-        sz = s.size()
-        s.drawAtPoint_(NSMakePoint(x + (w - sz.width) / 2, y + (h - sz.height) / 2))
+        main, sub, _tw, _th = roam_summary_text()
+        inner = w - 2 * PILL_PAD
+        main = roam_fit_runs(main, inner, lambda v: astr(v, F_SUMMARY).size().width)
+        if sub and h >= SUMMARY_H2:
+            sub = roam_fit_runs(sub, inner, lambda v: astr(v, F_SUMMARY_SUB).size().width)
+            _draw_runs(main, F_SUMMARY_BY_KIND, F_SUMMARY, x, w, y + 15)
+            _draw_runs(sub, F_SUMMARY_SUB_BY_KIND, F_SUMMARY_SUB, x, w, y + h - 12)
+        else:
+            _draw_runs(main, F_SUMMARY_BY_KIND, F_SUMMARY, x, w, y + h / 2)
 
     def roam_apply_display(phase):
         """표시 모드 → crop/rect → 실제 창 크기·원점. 경로·집은 건드리지 않는다 → 다시 그릴지."""
@@ -6851,10 +6874,10 @@ def run_gui():
         if disp is None:
             return False
         mode = disp.mode(phase, state["show_panel"])
-        text_w = roam_summary_text()[1] if mode == DISPLAY_SUMMARY else 0.0
+        text_w, text_h = (roam_summary_text()[2:] if mode != DISPLAY_FOLDED else (0.0, SUMMARY_H))
         w_, h_ = roam_env()
         lay = roam_frame(roamer.pos, mode, view.petOnRight(), view.petOnBottom(),
-                         w_, h_, PW, PH, pill_h(), g["scale"], text_w)
+                         w_, h_, PW, PH, pill_h(), g["scale"], text_w, text_h)
         crop = tuple(lay["crop"])
         changed = crop != state.get("roam_crop") or mode != state.get("roam_mode")
         if changed:
@@ -6975,29 +6998,6 @@ def run_gui():
         view.setNeedsDisplay_(True)
         cfg["scale"] = round(g["scale"], 3)
         merge_config_updates({"scale": cfg["scale"]})      # 이 경로가 가진 키만
-        roam_env_update()
-        roam_resync()
-
-    def cur_rows_n():
-        if RUNTIME["mode"] == "api":
-            return 3
-        if state["oauth"]:
-            return max(1, len(state["oauth"]))   # 정확 모드: 실제 행 수(Fable 유무)
-        return 3                                 # 구독 게이지 3종
-
-    def apply_pill_rows():
-        """표시 행 수가 바뀌면 필 높이/창 크기 갱신 (상단 고정)."""
-        nonlocal PW, PH, W, H
-        n = cur_rows_n()
-        if n == CUR_PILL["n"]:
-            return
-        CUR_PILL["n"] = n
-        lx, ly = roam_logical_origin()      # 실제 창이 접혀 있어도 논리 full 창 기준
-        top = ly + roam_env()[1]
-        PW, PH, W, H = geom()
-        win.setFrame_display_(NSMakeRect(lx, top - H, W, H), True)
-        view.setFrame_(NSMakeRect(0, 0, W, H))
-        view.setNeedsDisplay_(True)
         roam_env_update()
         roam_resync()
 
@@ -7599,7 +7599,6 @@ def run_gui():
     # ── 타이머 ──
     class Ticker(NSObject):
         def tick_(self, timer):
-            apply_pill_rows()          # Fable 유무 등에 따라 필 높이 자동 조정
             mood = current_mood()
             if mood != state["last_mood"]:
                 state["last_mood"] = mood
@@ -7742,6 +7741,14 @@ def run_gui():
     state["roam_release"] = _roam_release
     state["roam_toggle"] = lambda: roam_display.toggle(state["show_panel"])
     state["roam_interrupt"] = roam_display.reset
+
+    # 펫 폴더 안내 README 는 시작 때도 채운다(없거나 비어 있을 때만). '펫 추가…' 를 누르기 전에도
+    # 폴더를 직접 열어 본 사용자가 안내를 볼 수 있어야 하고, 예전 판이 남긴 0 바이트 파일도 여기서 고쳐진다.
+    try:
+        os.makedirs(USER_PETS_DIR, exist_ok=True)
+        _write_pets_readme(USER_PETS_DIR)
+    except Exception:
+        pass
 
     handler = Handler.alloc().init()
     ticker = Ticker.alloc().init()

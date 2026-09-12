@@ -43,9 +43,28 @@ write_plist() {
     <key>CFBundleExecutable</key><string>ClaudePet</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <key>ATSApplicationFontsPath</key><string>fonts</string>
 </dict>
 </plist>
 PLIST
+}
+
+# 내장 글꼴(fonts/: Pretendard SemiBold + OFL 라이선스)을 번들에 새로 넣는다. 옆에 완성본을
+# 먼저 만든 뒤 제자리로 바꾼다 — 목적지를 내용이 완성되기 전에 부수지 않는다(copy_pet_assets 와 같은 이유).
+copy_fonts() {
+  local res="$1/Contents/Resources"
+  local final="$res/fonts"
+  local stage="$res/fonts.new.$$"
+  mkdir -p "$res"
+  rm -rf "$stage"
+  if ! cp -R fonts "$stage"; then
+    rm -rf "$stage"; return 1
+  fi
+  if [ ! -f "$stage/Pretendard-SemiBold.ttf" ] || [ ! -f "$stage/LICENSE-Pretendard.txt" ]; then
+    rm -rf "$stage"; return 1
+  fi
+  rm -rf "$final"
+  mv "$stage" "$final"
 }
 
 # 동봉 펫 자산(.claude_pet)을 번들 안에 통째로 새로 넣는다. 앱은 시작할 때
@@ -308,6 +327,9 @@ build_body() {
   fi
   if ! cp -R frames "$APP/Contents/Resources/frames"; then
     echo "❌ frames 를 번들에 넣지 못했습니다"; return 1
+  fi
+  if ! copy_fonts "$APP"; then
+    echo "❌ 글꼴(fonts)을 번들에 넣지 못했습니다"; return 1
   fi
   # 동봉 펫 자산(.claude_pet: README 4개 + pets/<4종>) — 앱이 시작할 때
   # ~/.claude_pet 에 없는 것만 채워 넣는다. 빠지면 새 사용자에게 펫이 안 생긴다.
@@ -610,6 +632,7 @@ update_installed() {
   fi
   if ! cp claude_pet.py "$stage/Contents/Resources/claude_pet.py" \
      || ! copy_pet_assets "$stage" \
+     || ! copy_fonts "$stage" \
      || ! write_plist "$stage" \
      || ! APP="$stage" sign_app; then
     rm -rf "$stage"
