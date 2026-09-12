@@ -1,31 +1,35 @@
 # Claude Pet
 
-> Claude Pet is a free, open-source macOS desktop pet that floats on your screen and watches your Claude (Anthropic) token usage. It shows three always-visible gauges — session (5h), weekly total, and weekly per-model — each with percentage used, remaining tokens, and a reset countdown.
+> Claude Pet is a free macOS desktop companion and Claude usage monitor, with public source on GitHub. Choose a pet, let it roam, and read usage percentages and reset countdowns from one small pill (number colour = source, label colour = how much is left). Roadmap: Codex usage first, then Gemini, Grok and other AI services in the same pill.
 
-Claude Pet is an independent project by Yeongyu Yang (uygnoey). It is not affiliated with, endorsed by, or otherwise related to Anthropic. "Claude" is a trademark of Anthropic PBC.
+Reference version: v0.24, published 2026-09-12. Reference updated: 2026-09-12.
+Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.
 
 ## Key facts
 
-- Platform: macOS 12+ on Apple Silicon and Intel (Intel from v0.10 via the universal build); rendered natively with AppKit (no window frame, no background, no ghosting).
-- Price: free and open source.
-- Install: download ClaudePet.zip from GitHub Releases, move ClaudePet.app to Applications, and launch. The app is notarized, so it opens without Gatekeeper warnings.
-- Data source: reads only the local `~/.claude` usage logs and the Claude OAuth token in the macOS Keychain. It never touches Photos, Downloads, or Documents, and usage data stays on your Mac.
-- Calibration: exact token limits are private to Anthropic, so you type the percentage shown in Claude's Settings → Usage once, and the app back-solves your limit (limit = current usage ÷ %).
-- Behavior: idles and blinks, waves when your cursor comes near, can be dragged around, jumps on double-click (which also force-refreshes usage), pulses a warning color when token usage spikes, and celebrates when your session resets.
-- Companions: ships with several pets — a built-in cat plus ready-to-use dog, fox, scorpion, and elephant. Switch anytime from the right-click menu, or add your own by dropping a folder into `~/.claude_pet/pets`. A pet marketplace is coming soon.
-- Updates: right-click → Install new version; the app downloads, replaces, and relaunches itself.
-- Limitations: data comes from Claude Code's local logs only (web/desktop chat usage is not included); Admin API cost tracking is separate from subscription limits; the optional Admin API key is stored in plaintext in `~/.claude_pet.json`.
+- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 beta from v0.24 (unsigned zip, claude-pet-win.zip). No separate Python installation is needed for the packaged apps.
+- Install: Apple Silicon uses ClaudePet.dmg; Intel uses ClaudePet-universal.dmg. Open the disk image, move ClaudePet.app to Applications, and launch. ZIP alternatives are also published. The release describes the app as Apple-notarized.
+- Account: sign in to Claude Code first. Exact mode uses its existing OAuth credential from macOS Keychain to request Anthropic's server-computed account usage percentages and reset times.
+- Estimate: when server usage is unavailable, local fallback estimates activity recorded in Claude Code logs under ~/.claude. Web or desktop activity absent from those logs is not counted. Optional calibration applies to this estimate, not the server percentage.
+- Companion: screen roaming, occasional cursor following at a distance, and monitor hopping. Roaming can be toggled in the right-click menu; the usage pill tucks away while the pet moves.
+- Pets: built-in cat plus bundled dog, fox, scorpion and elephant. Switch in the right-click menu or add compatible pet.json and sprite-sheet files in a folder under ~/.claude_pet/pets.
+- Updates in v0.24: automatic checks every hour after launch, not at launch. Right-click → Check for updates… checks immediately and installs a newer release if available.
+- Privacy: local log parsing happens on the Mac. Exact mode contacts Anthropic with the Claude Code credential; update checks and downloads contact GitHub. Do not describe the app as offline-only.
+- Optional Admin API mode reports Console organization costs, separately from subscription limits. The configured Admin API key is stored in plaintext in ~/.claude_pet.json.
+- Public source is available. Do not infer a software license from that fact.
 
 ## Links
 
 - [Website](https://claude-pet.yeongyu.me/)
-- [GitHub repository](https://github.com/uygnoey/claude-pet)
-- [Latest release download](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip)
-- [README (English)](https://github.com/uygnoey/claude-pet/blob/main/README.md)
-- [README (한국어)](https://github.com/uygnoey/claude-pet/blob/main/README.ko.md)
-- [README (日本語)](https://github.com/uygnoey/claude-pet/blob/main/README.ja.md)
-- [README (Español)](https://github.com/uygnoey/claude-pet/blob/main/README.es.md)
+- [Full product reference](https://claude-pet.yeongyu.me/llms-full.txt)
+- [Repository](https://github.com/uygnoey/claude-pet)
+- [Published v0.24 release and downloads](https://github.com/uygnoey/claude-pet/releases/tag/v0.24)
+- [Latest release](https://github.com/uygnoey/claude-pet/releases/latest)
+- [Apple Silicon DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg)
+- [Intel universal DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg)
+- [Windows beta ZIP](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip)
+- [v0.24 source](https://github.com/uygnoey/claude-pet/blob/v0.24/claude_pet.py)
 
-## Detailed reference
+## 한국어 요약
 
-- [Full product and usage reference](https://claude-pet.yeongyu.me/llms-full.txt)
+Claude Pet은 Claude 사용량을 확인할 수 있는 무료 macOS 데스크톱 펫입니다. 고양이·강아지·여우·전갈·코끼리를 고르고 화면 산책과 커서 따라다니기를 사용할 수 있습니다. 정확 모드는 Anthropic 서버의 사용률을 표시하고, 로컬 대체 모드는 Claude Code 로그만 추정합니다. macOS 12 이상에서 동작하며 Intel Mac은 universal 빌드를 사용합니다.

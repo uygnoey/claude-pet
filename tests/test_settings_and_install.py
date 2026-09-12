@@ -3207,8 +3207,8 @@ class PackagingContractTests(unittest.TestCase):
         )
 
         setup_mutant = setup_source.replace(
-            '"resources": ["frames", ".claude_pet"],',
-            '"resources": ["frames"],',
+            '"resources": ["frames", ".claude_pet", "fonts"],',
+            '"resources": ["frames", "fonts"],',
             1,
         )
         self.assertNotEqual(setup_mutant, setup_source)

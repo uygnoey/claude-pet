@@ -40,10 +40,10 @@ REPO = Path(__file__).resolve().parents[1]
 BUILD_SCRIPT = REPO / "build_app.sh"
 APP_SOURCE = REPO / "claude_pet.py"
 REVIEWED_BUILD_APP_SHA256 = (
-    "83eca429c7742a3254715a9f8c063289e79553b01a36124c1402c579cea600d6"
+    "db8e1ff994a05614daa72c21c5e4436ff7e218ce5286cb4c95590a3f306dd96b"
 )
 REVIEWED_APP_SOURCE_SHA256 = (
-    "57b24a286e92404cb2514c84a35e156f6eaeba29070885bcb2cde04515544a0b"
+    "6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4"
 )
 
 
@@ -313,6 +313,22 @@ if action == "seed":
     (payload / "pets/dog/pet.json").write_text('{"id":"dog"}\n')
     raise SystemExit(0)
 
+if action == "fonts":
+    # Stand-in for build_app.sh's copy_fonts(): the staged bundle gets a fonts/
+    # directory with the two files the real function insists on.  Nothing is
+    # copied from the repository, so the harness stays inside the temp root.
+    app = checked(arguments[0])
+    fonts = checked(app / "Contents/Resources/fonts")
+    if fonts.is_symlink() or fonts.is_file():
+        fonts.unlink()
+    elif fonts.exists():
+        shutil.rmtree(fonts)
+    fonts.mkdir(parents=True)
+    # TrueType magic (00 01 00 00): the same file shape verify_release_artifact.py accepts.
+    (fonts / "Pretendard-SemiBold.ttf").write_bytes(b"\x00\x01\x00\x00 stub font\n")
+    (fonts / "LICENSE-Pretendard.txt").write_text("OFL stub\n")
+    raise SystemExit(0)
+
 if action == "write-plist":
     app = checked(arguments[0])
     mode = os.environ.get("TEST_PLIST_MODE", "correct")
@@ -455,6 +471,7 @@ cat() { safe_op cat "$@"; }
 kill() { [ "$1" = "-0" ] || return 97; return 0; }
 
 copy_pet_assets() { "$TEST_PYTHON" "$TEST_HELPER" seed "$1"; }
+copy_fonts() { "$TEST_PYTHON" "$TEST_HELPER" fonts "$1"; }
 write_plist() { "$TEST_PYTHON" "$TEST_HELPER" write-plist "$1"; }
 sign_app() { "$TEST_PYTHON" "$TEST_HELPER" append sign; }
 stop_pet() { "$TEST_PYTHON" "$TEST_HELPER" append stop; }

@@ -17,7 +17,8 @@ setup(
             "iconfile": "release/icon.icns",
             # frames: 내장 고양이 스프라이트 / .claude_pet: 동봉 펫 자산 트리
             # (앱이 시작할 때 ~/.claude_pet 에 없는 것만 채워 넣는다)
-            "resources": ["frames", ".claude_pet"],
+            # fonts: 요약 필 글꼴 Pretendard(OFL) — ATSApplicationFontsPath 가 앱 시작 때 등록한다
+            "resources": ["frames", ".claude_pet", "fonts"],
             "plist": {
                 "CFBundleName": "ClaudePet",
                 "CFBundleDisplayName": "Claude Pet",
@@ -26,6 +27,7 @@ setup(
                 "CFBundleShortVersionString": APP_VERSION,
                 "LSUIElement": True,
                 "NSHighResolutionCapable": True,
+                "ATSApplicationFontsPath": "fonts",
             },
             # certifi: HTTPS 인증서 검증용 CA 번들(특히 CA 없는 python.org 빌드 대비)
             "packages": ["objc", "certifi"],

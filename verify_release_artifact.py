@@ -25,7 +25,7 @@ verify_pet_payload.py 와의 분업:
 
 사용법:
   verify_release_artifact.py scan <artifact.zip|artifact.dmg>
-  verify_release_artifact.py app <app_path> --expect-version 0.23 --arches arm64,x86_64
+  verify_release_artifact.py app <app_path> --expect-version 0.24 --arches arm64,x86_64
   verify_release_artifact.py assets <올릴 파일…>
 """
 import argparse
@@ -118,6 +118,23 @@ def check_app(app_path, expect_version, arches):
     if got != want:
         print("[gate] rejected: the bundled claude_pet.py is not this "
               f"checkout's ({got[:12]}… != {want[:12]}…)")
+        return False
+    # 내장 글꼴(요약 필의 Pretendard). 없으면 앱은 시스템 모노 글꼴로 조용히 내려가므로 여기서 잡는다 —
+    # 서명·공증은 글꼴이 들었는지 말해 주지 않는다.
+    font = os.path.join(app_path, "Contents", "Resources", "fonts", "Pretendard-SemiBold.ttf")
+    lic = os.path.join(app_path, "Contents", "Resources", "fonts", "LICENSE-Pretendard.txt")
+    for p, what in ((font, "the bundled font"), (lic, "the font licence")):
+        if os.path.islink(p) or not os.path.isfile(p):
+            print(f"[gate] rejected: {what} is missing from Contents/Resources/fonts")
+            return False
+    try:
+        with open(font, "rb") as fh:
+            magic = fh.read(4)
+    except OSError as exc:
+        print(f"[gate] rejected: could not read the bundled font ({exc})")
+        return False
+    if magic != b"\x00\x01\x00\x00":
+        print("[gate] rejected: the bundled font is not a TrueType file")
         return False
     cp = _load_app()
     ok = cp.validate_update_app(app_path, expect_version,

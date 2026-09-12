@@ -45,6 +45,17 @@ On launch the app checks the latest GitHub release; if a newer version exists, *
 
 ---
 
+## Windows (beta)
+
+Windows 10/11 (64-bit) gets the same pill, roaming, settings and pets. Two files are published with every release:
+
+- **`claude-pet-win-setup.exe`** — installer. Installs for the current user (no admin rights), adds a Start Menu entry and an "Apps & features" uninstall entry, and offers **Start Claude Pet when I sign in**.
+- **`claude-pet-win.zip`** — portable/update build. Unzip anywhere and run `ClaudePet\ClaudePet.exe`.
+
+**About the SmartScreen warning.** The Windows build is not code-signed yet, so the first time you run the installer or `ClaudePet.exe`, Windows shows *"Windows protected your PC"*. Click **More info**, then **Run anyway**. This appears once per file; it is Windows' notice that the publisher is unknown, not a detection of anything harmful. If your browser or Edge flags the download the same way, choose **Keep** → **Keep anyway**. Code signing will remove the warning in a later release.
+
+Sign in to Claude Code on Windows first (`claude`), then launch Claude Pet: Exact mode reads the Claude Code credential file and the estimate reads Claude Code logs under `%USERPROFILE%\.claude`. Your own pets go in `%USERPROFILE%\.claude_pet\pets\<name>\` (right-click → Pets → Add a pet… opens it). The tray icon sits in the taskbar overflow (`^`) by default; drag it out to keep it visible. Right-click → Uninstall completely… removes the settings and logs; the installer's uninstaller (Apps & features) removes the program.
+
 ## Build from source (developers)
 
 To build from source you need a **framework build of Python**:
@@ -73,28 +84,43 @@ python3 claude_pet.py --report   # terminal report only, no GUI
   (it does not come back). It never walks onto the cursor and stops where it is if you grab it or open the menu or Settings
 - **Sometimes follows the mouse** for 10–20 seconds, slowly and at a distance, then looks at you and rests where it stopped.
   **With more than one monitor it hops between them** now and then: a little jump, a fade, and it lands on a safe spot of the other screen
-- **Folds the gauges while walking** so only the pet moves. On arrival it shows a small one-line **summary** of session and weekly %;
-  click the ⌄ button to expand the full gauges. When it is done watching it goes back to whatever you had collapsed or expanded
+- **Folds the pill while walking** so only the pet moves. On arrival it shows the usage pill for a moment even if you
+  keep it folded, then goes back to whatever you had
 - **Grab & drag** — runs in the drag direction; **double-click** = jump + **instant usage refresh** (cache-busting refetch)
-- **When token usage spikes** — warning-color pulse + panic face + ▲spike on the gauge:
+- **When token usage spikes** — warning-color pulse + panic face, and that gauge turns red with ▲ in the pill:
   - 🔴 session spike / 🟣 model (Fable/Opus) spike / 🟠 weekly spike
 - **When a session reset is detected** — jumps for joy
 
 ## Controls
 
 - **Scroll (over the pet)**: resize (0.3×–2.0×, saved; default 0.5×)
-- **Click (⌄ button)**: collapse/expand the gauge panel
+- **Click (⌄ button)**: show/hide the usage pill
 - **Drag**: move (position saved)
-- **Right-click**: menu — Settings / Collapse / Roam the screen (on/off) / Reset size / Quit
+- **Right-click**: menu — Settings / Show or hide the pill / Roam the screen (on/off) / Reset size / Pets (pick or add your own) / Uninstall / Quit / Check for updates
 
-## Three gauges (subscription mode)
+## The usage pill
 
-Session (5h) / weekly total / weekly per-model — each with %, remaining tokens, reset countdown.
-The per-model gauge **auto-detects** the top tier from the logs (fable → mythos → opus).
+One small pill next to the pet, two lines:
+
+- **Line 1 — usage**: `Session 42% · Weekly 17% · Fable 12%` — session (5h) / weekly total / weekly per-model. The per-model
+  gauge **auto-detects** the top tier from the logs (fable → mythos → opus). In API mode it shows cost instead:
+  `Today $3.21 · This month $27.50`.
+- **Line 2 — resets**: `reset Session in 3h 42m · Weekly in 2d 3h` (weekly shows `-` on a rolling window).
+- **Number colour says where it comes from**: emerald = Exact mode (server-computed %), amber = log estimate (values
+  carry ≈), coral = API cost. If the Claude Code token has expired, the estimate line ends with ⚠.
+- **Label colour says how much is left**: white, yellow from 50 %, red from 85 % — and red with ▲ while that gauge is spiking.
+- The text is set in the bundled **Pretendard** typeface (SIL Open Font License), so it looks the same on every machine.
+
+## Your own pets
+
+Right-click → **Pets** lists the built-in cat plus every folder under `~/.claude_pet/pets/`; **Add a pet…** opens that
+folder with a README describing the format. A pet is a folder holding `pet.json` + `spritesheet.webp` (the README has the
+sheet layout). The list is re-read every time you open the menu, so a new folder shows up without restarting. A zip
+extracted one level too deep (`pets/name/name/pet.json`) is recognized too, and `__MACOSX` is ignored.
 
 ## Settings (right-click → Settings)
 
-- **Data source**: subscription (Claude Code logs) / API (Admin API cost — today, this month, monthly-budget gauge)
+- **Data source**: subscription (Claude Code logs) / API (Admin API cost — today and this month; with a monthly budget set the pill reads `This month $27.50 / $50` and the "This month" label turns yellow/red by the share used while the amounts stay coral)
 - **🔧 Calibration (most important!)**: the token limits are private to Anthropic, so nobody knows them.
   Instead, type the % shown in the Claude app's **Settings > Usage** and save — the app back-solves
   `limit = current usage ÷ %`. Only the fields you enter are applied.

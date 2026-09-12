@@ -4,6 +4,15 @@ The subject is ``verify_release_artifact`` delegation and its local code-leaf
 check.  Signing/notarization is represented by a fake ``validate_update_app``;
 no signing tool, release shell, installed application, or external path is
 ever invoked.
+
+Staged v0.24 (Verifier verifier-v024, 2026-09-12): the gate also refuses a bundle
+without ``Contents/Resources/fonts/Pretendard-SemiBold.ttf`` (a regular file whose
+first four bytes are the TrueType magic ``00 01 00 00``; round 3 replaced the CFF
+``.otf``, whose ``OTTO`` magic is now refused) and ``LICENSE-Pretendard.txt``.  The app falls back
+to the system font *silently* when the file is missing, and a signature says who
+built the bundle, not what is inside, so this is the only place a py2app resource
+regression would be caught.  The fixture font is a four-byte magic plus padding —
+nothing is copied from ``fonts/``.
 """
 
 import hashlib
@@ -45,7 +54,12 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
         self.td = Path(os.path.realpath(REAL_MKDTEMP()))
         self.addCleanup(shutil.rmtree, self.td, True)
 
-    def make_app(self, name="ClaudePet.app", code="checkout"):
+    FONT_FILE = "Pretendard-SemiBold.ttf"
+    LICENCE_FILE = "LICENSE-Pretendard.txt"
+    TRUETYPE = b"\x00\x01\x00\x00" + b"\0" * 60     # sfnt 1.0 magic, then padding
+    CFF = b"OTTO" + b"\0" * 60                       # the round-2 build, refused since round 3
+
+    def make_app(self, name="ClaudePet.app", code="checkout", fonts="ok"):
         app = self.td / name
         resources = app / "Contents" / "Resources"
         resources.mkdir(parents=True)
@@ -64,7 +78,52 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
             os.symlink(target, leaf)
         else:
             raise ValueError(code)
+        self.make_fonts(resources, fonts)
         return app, leaf
+
+    def make_fonts(self, resources, fonts):
+        """``fonts`` names one shape of Contents/Resources/fonts; never the repo's file."""
+        folder = resources / "fonts"
+        font = folder / self.FONT_FILE
+        licence = folder / self.LICENCE_FILE
+        if fonts == "absent-dir":
+            return
+        folder.mkdir()
+        if fonts == "ok":
+            font.write_bytes(self.TRUETYPE)
+            licence.write_text("SIL Open Font License 1.1 (stub)\n", encoding="utf-8")
+        elif fonts == "no-font":
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "no-licence":
+            font.write_bytes(self.TRUETYPE)
+        elif fonts == "cff":
+            font.write_bytes(self.CFF)
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "otf-only":
+            # the round-2 bundle: the CFF file under its old name, no .ttf at all
+            (folder / "Pretendard-SemiBold.otf").write_bytes(self.CFF)
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "ttf-bytes-under-otf-name":
+            (folder / "Pretendard-SemiBold.otf").write_bytes(self.TRUETYPE)
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "empty":
+            font.write_bytes(b"")
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "font-is-dir":
+            font.mkdir()
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "font-symlink":
+            target = self.td / (resources.parent.parent.name + "-real-font.ttf")
+            target.write_bytes(self.TRUETYPE)
+            os.symlink(target, font)
+            licence.write_text("stub\n", encoding="utf-8")
+        elif fonts == "licence-symlink":
+            font.write_bytes(self.TRUETYPE)
+            target = self.td / (resources.parent.parent.name + "-real-licence.txt")
+            target.write_text("stub\n", encoding="utf-8")
+            os.symlink(target, licence)
+        else:
+            raise ValueError(fonts)
 
     def check_with_fake(self, app, version="0.20", arches=("arm64",)):
         fake = FakeClaudePet()
@@ -162,6 +221,40 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
             fake.calls,
             [(str(app), "0.20",
               {"expect_arches": ("arm64", "x86_64")})])
+
+    def test_bundle_without_the_font_or_with_a_non_truetype_file_is_rejected_before_validator(self):
+        """Rivals: no font check at all (the pre-change gate — every shape below
+        reached the validator and passed); an ``exists`` check that accepts a
+        directory, a symlink or a 0-byte placeholder; the round-2 gate (``OTTO``
+        magic under the ``.otf`` name — it accepts ``cff`` here and, together with
+        the positive control in the next test, is separated from a gate that refuses
+        everything); a magic check that accepts any bytes under the ``.ttf`` name;
+        the licence not required."""
+        shapes = ("absent-dir", "no-font", "no-licence", "cff", "otf-only",
+                  "ttf-bytes-under-otf-name", "empty", "font-is-dir", "font-symlink",
+                  "licence-symlink")
+        for shape in shapes:
+            with self.subTest(fonts=shape):
+                app, leaf = self.make_app("%s-ClaudePet.app" % shape, fonts=shape)
+                self.assertEqual(sha256(leaf), sha256(CHECKOUT_SOURCE),
+                                 "the code leaf is valid, so only the font can refuse")
+                result, fake = self.check_with_fake(app)
+                self.assertEqual(
+                    (result, fake.calls), (False, []),
+                    "a bundle with fonts/%s reached the updater validator" % shape)
+
+    def test_font_check_runs_after_the_code_leaf_check_and_needs_only_the_magic(self):
+        """The two local checks are independent gates: stale code is refused even with
+        a perfect fonts/ folder, and a valid font is judged by its first four bytes
+        alone (the fixture is not the real 2.6 MB file), so the gate cannot depend on
+        the repository's ``fonts/`` being present on the build machine."""
+        app, _leaf = self.make_app("stale-fonts-ok-ClaudePet.app", code="stale", fonts="ok")
+        self.assertEqual(self.check_with_fake(app)[0], False)
+        app, _leaf = self.make_app("ok-ClaudePet.app", fonts="ok")
+        font = app / "Contents" / "Resources" / self.FONT_FILE
+        self.assertFalse(font.exists(), "the font must live under Resources/fonts, not Resources")
+        result, fake = self.check_with_fake(app)
+        self.assertEqual((result, len(fake.calls)), (True, 1))
 
 
 if __name__ == "__main__":
