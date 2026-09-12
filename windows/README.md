@@ -28,3 +28,19 @@ python claude_pet.py --report               # GUI 없이 사용량 보고 (macOS
   서명은 사용자 결정 뒤 별도 단계로 추가됩니다.
 - 로그 위치는 `%USERPROFILE%\.claude\projects`, 정확 모드는 `%USERPROFILE%\.claude\.credentials.json` 을 읽습니다(내용을 저장하거나 전송하지 않습니다).
 - 설정 파일은 macOS 와 같은 `%USERPROFILE%\.claude_pet.json`, 펫 폴더는 `%USERPROFILE%\.claude_pet\` 입니다.
+
+
+## 배포 zip 만들기 (3단계)
+
+Windows 에서, 저장소 루트, venv 활성화 후:
+
+```
+pip install -r windows\requirements.txt
+python windows\build_win.py
+```
+
+`dist-win\ClaudePet\ClaudePet.exe` 가 만들어지고 `release\claude-pet-win.zip` 으로 묶이며, 이어서 Inno Setup 으로
+`release\claude-pet-win-setup.exe`(설치 파일: 사용자별 설치, 시작 메뉴, 로그인 시 자동 실행 옵션, 프로그램 추가/제거)를
+만든다. Inno Setup 6 이 필요하다: `winget install --id JRSoftware.InnoSetup -e`. 사용자는 zip 을 풀어
+`ClaudePet\ClaudePet.exe` 를 실행한다(서명이 없어 첫 실행 때 SmartScreen 의 "추가 정보 → 실행"). 번들 안에는 코어와
+같은 자리에 `frames\`, `fonts\`(Pretendard), `.claude_pet\`, `claudepet.ico`, 그리고 `fcntl` shim 이 들어간다.

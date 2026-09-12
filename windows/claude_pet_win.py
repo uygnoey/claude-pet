@@ -6,7 +6,7 @@ macOS 판 `claude_pet.py` 를 **그대로 import** 해 사용량 추정기·정�
 Windows 에서 필요한 것만 구현한다:
 
   · 창: 프레임 없음 · 투명 배경 · 항상 위 · 작업표시줄 버튼 없음(Tool) · 트레이 아이콘
-  · 그리기: 스프라이트(내장 PNG 폴더 또는 pet.json + spritesheet.webp) · 게이지 필 · 상태줄 · 접기 버튼 · 요약 필
+  · 그리기: 스프라이트(내장 PNG 폴더 또는 pet.json + spritesheet.webp) · 한 줄 요약 필(유일한 필, macOS 판과 같은 run/색) · 접기 버튼
   · 마우스: 드래그(놓으면 x/y 저장 — macOS 와 같은 정책) · 더블클릭(점프 + 즉시 새로고침) · 호버 인사 · 우클릭 메뉴
   · 자율 이동 어댑터: QScreen → RoamScreen(id/frame/bounds), 창 중심 ↔ 실제 창(crop), 점프 효과(창 불투명도),
     시스템 애니메이션 설정(= macOS 의 동작 줄이기), '화면 돌아다니기' 메뉴 토글
@@ -252,28 +252,32 @@ class PetWindow(QWidget):
         return pw, ph, w, h
 
     def _fonts(self):
-        """macOS 판 F_* 와 같은 크기·역할. 글꼴은 MONO_FAMILIES 순서로 있는 것을 쓴다."""
-        fam = QFontDatabase.systemFont(QFontDatabase.FixedFont).family()
-        have = set(QFontDatabase.families())
-        for cand in MONO_FAMILIES:
-            if cand in have:
-                fam = cand
-                break
+        """요약 필 글꼴 — 내장 Pretendard SemiBold(macOS 판과 같은 파일). 못 찾으면 MONO_FAMILIES 순서로 내려간다."""
+        fam = None
+        path = cp.bundled_font_path()
+        if path:
+            fid = QFontDatabase.addApplicationFont(path)
+            fams = QFontDatabase.applicationFontFamilies(fid) if fid >= 0 else []
+            fam = fams[0] if fams else None
+        if not fam:
+            have = set(QFontDatabase.families())
+            fam = next((c for c in MONO_FAMILIES if c in have),
+                       QFontDatabase.systemFont(QFontDatabase.FixedFont).family())
         self.font_family = fam
         cp._dbg("win font family", fam)                 # CLAUDE_PET_DEBUG=1 → ~/claudepet_debug.log
-
-        def mono(size, bold=False):
+        def summary_font(size):
             f = QFont(fam, 1)
             f.setPointSizeF(size)
-            f.setWeight(QFont.DemiBold if bold else QFont.Normal)   # macOS weight 0.4 ≈ semibold(600)
+            f.setWeight(QFont.DemiBold)                 # Pretendard SemiBold = 600 (macOS weight 0.4 와 같은 급)
+            # macOS(CoreText)처럼: 힌팅 없음 + 회색조 안티앨리어싱. 실기기 1:1 비교(2026-09-12, 2560×1440 100%,
+            # ClearType 켜짐)에서 "글자가 깨져 보인다" 의 실체는 CFF(OTF)+힌팅 조합의 들쭉날쭉한 한글 획 굵기였고,
+            # TTF + PreferNoHinting 으로 획이 고르게 펴졌다. 서브픽셀 색테는 세 판 모두 0건이라 NoSubpixelAntialias 는
+            # 효과가 측정되지 않았지만, 반투명 창에서 회색조 AA 를 명시해 두는 것이 CoreText 와 같은 모델이라 유지한다.
+            f.setHintingPreference(QFont.PreferNoHinting)
+            f.setStyleStrategy(QFont.StyleStrategy(QFont.PreferAntialias | QFont.NoSubpixelAntialias))
             return f
-        self.F_BOLD = mono(12, True)
-        self.F_BIG = mono(15, True)
-        self.F_SUB = mono(9.5)
-        self.F_ALERT = mono(9.5, True)
-        self.F_TINY = mono(8.5)
-        self.F_STATUS = mono(10)
-        self.F_SUMMARY = mono(11, True)
+        self.F_SUMMARY = summary_font(11)               # 첫 줄
+        self.F_SUMMARY_SUB = summary_font(9.5)          # 둘째 줄(리셋 시각)
 
     def _screen(self):
         return self.screen() or QApplication.primaryScreen()
@@ -380,19 +384,49 @@ class PetWindow(QWidget):
         return mode
 
     def roam_summary_text(self):
-        kind, payload = cp.roam_summary(cp.RUNTIME["mode"], self.state["oauth"], self.state["stats"],
-                                        self.state.get("onboard"), self.state["cost"],
-                                        bool(cp.RUNTIME.get("admin_key")))
-        txt = cp.roam_summary_line(kind, payload, cp.t)
-        return txt, float(self._text_w(txt, self.F_SUMMARY))
+        """요약 필 내용 → (첫 줄 run, 둘째 줄 run, 폭, 높이) — macOS 판 roam_summary_text 와 같은 규칙(크레딧만 제외,
+        fmt_countdown, ⚠ 꼬리, 예산, 같은 입력·같은 5초 창 메모)."""
+        st = self.state
+        stats = st["stats"]
+        oauth = st["oauth"]
+        key = (cp.RUNTIME["mode"], id(stats), id(oauth), st["cost"], st["cost_month"],
+               cp.RUNTIME.get("api_budget"), bool(cp.OAUTH_STATUS.get("auth_error")), int(time.time() / 5))
+        memo = getattr(self, "_summary_memo", None)
+        if memo and memo[0] == key:
+            return memo[1]
+        if oauth:
+            now_utc = datetime.now(timezone.utc)
+            rows = []
+            for label, pct, rdt, rtxt in oauth:
+                if cp._label_order(label) >= 9:
+                    continue
+                reset_s = cp.fmt_countdown(rdt, now_utc) if rdt is not None else (rtxt or None)
+                rows.append((label, pct, reset_s))
+            oauth = rows
+        resets = None
+        if stats and isinstance(stats.get("now"), datetime):
+            resets = {g: cp.fmt_countdown((stats.get(g) or {}).get("reset"), stats["now"])
+                      for g in ("session", "weekly", "opus") if isinstance(stats.get(g), dict)}
+        segment = cp.roam_summary(cp.RUNTIME["mode"], oauth, stats, st.get("onboard"), st["cost"],
+                                  bool(cp.RUNTIME.get("admin_key")), st["cost_month"],
+                                  reset_texts=resets, spike_first=bool(spike_info(stats)),
+                                  cost_budget=float(cp.RUNTIME.get("api_budget") or 0))
+        main, sub = cp.roam_summary_runs([segment], cp.t)
+        if segment[0] == "estimate" and cp.OAUTH_STATUS.get("auth_error"):
+            main.append((" ⚠", "status"))
+        w_main = sum(self._text_w(text, self.F_SUMMARY) for text, _k in main)
+        w_sub = sum(self._text_w(text, self.F_SUMMARY_SUB) for text, _k in sub)
+        value = (main, sub, float(max(w_main, w_sub)), (cp.SUMMARY_H2 if sub else cp.SUMMARY_H))
+        self._summary_memo = (key, value)
+        return value
 
     def roam_apply_display(self, phase):
         """표시 모드 → crop/rect → 실제 창 크기·원점. 경로·집은 건드리지 않는다 → 다시 그릴지."""
         mode = self.roam_display.mode(phase, self.state["show_panel"])
-        text_w = self.roam_summary_text()[1] if mode == cp.DISPLAY_SUMMARY else 0.0
+        text_w, text_h = (self.roam_summary_text()[2:] if mode != cp.DISPLAY_FOLDED else (0.0, cp.SUMMARY_H))
         w_, h_ = self.roam_env()
         lay = cp.roam_frame(self.roamer.pos, mode, self.pet_on_right(), self.pet_on_bottom(),
-                            w_, h_, self.PW, self.PH, cp.pill_h(), self.scale, text_w)
+                            w_, h_, self.PW, self.PH, cp.pill_h(), self.scale, text_w, text_h)
         crop = tuple(lay["crop"])
         changed = crop != self.state.get("roam_crop") or mode != self.state.get("roam_mode")
         if changed:
@@ -475,11 +509,13 @@ class PetWindow(QWidget):
         return self.window_center()[1] >= vf.top() + vf.height() / 2
 
     def pill_rect(self):
+        """요약 필 사각형(실제 창 좌표). 표시 계층이 아직 안 돌았으면 논리 창 = 실제 창이라 같은 규칙으로 계산. folded 면 None."""
         rects = self.state.get("roam_rects")
-        if rects and rects.get("pill"):
-            return rects["pill"]
-        return (self.W - cp.PILL_W - 4 if self.pet_on_right() else 4,
-                4 if self.pet_on_bottom() else self.PH + cp.GAP, cp.PILL_W, cp.pill_h())
+        if rects:
+            return rects.get("pill")
+        _m, _s, text_w, text_h = self.roam_summary_text()
+        return cp.roam_pill_rect(self.roam_mode_now(), self.pet_on_right(), self.pet_on_bottom(),
+                                 self.W, self.PW, self.PH, cp.pill_h(), text_w, text_h)
 
     def pet_origin(self):
         rects = self.state.get("roam_rects")
@@ -534,10 +570,6 @@ class PetWindow(QWidget):
         s = pending.get("stats")
         if prev and s and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
             self.set_override("jumping")
-        n = self._rows_n()
-        if n != cp.CUR_PILL["n"]:
-            cp.CUR_PILL["n"] = n
-            self.state["relayout"] = True
         return True
 
     def _relayout(self):
@@ -638,14 +670,6 @@ class PetWindow(QWidget):
                         self._pending = values
         threading.Thread(target=work, daemon=True).start()
 
-    def _rows_n(self):
-        if cp.RUNTIME["mode"] == "api":
-            return 3
-        if self.state["oauth"]:
-            return max(1, len(self.state["oauth"]))
-        return 3
-
-    # ── 그리기 ──
     def _color(self, h, a=1.0):
         c = QColor(h)
         c.setAlphaF(a)
@@ -661,134 +685,35 @@ class PetWindow(QWidget):
     def _text_w(self, s, font):
         return QFontMetrics(font).horizontalAdvance(s)
 
-    def _sub_right(self, p, txt, font, color, ry, gx0, label_w):
-        """서브텍스트 우측 정렬 — macOS 판 draw_sub_right 와 같은 규칙.
-
-        문자열은 그대로 두고, 라벨과 겹치면 폰트만 max(0.68, avail/w) 배로 줄인다. 잘라내거나 말줄임하지
-        않는다. 세로도 macOS 와 같이 줄 상자의 위를 ry 에 둔다.
-        """
-        x_left = gx0 + cp.PILL_PAD + 2 + label_w + 10
-        x_right = gx0 + cp.PILL_W - cp.PILL_PAD
-        avail = x_right - x_left
-        f = QFont(font)
-        w = self._text_w(txt, f)
-        if avail > 20 and w > avail:
-            f.setPointSizeF(font.pointSizeF() * max(0.68, avail / w))
-            w = self._text_w(txt, f)
-        self._text(p, x_right - w, ry, txt, f, color)
-
-    def _bar(self, p, bx0, by, bw, pct, color):
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(cp.TRACK))
-        p.drawRoundedRect(QRectF(bx0, by, bw, 6), 3, 3)
-        p.setBrush(QColor(color))
-        p.drawRoundedRect(QRectF(bx0, by, max(8, bw * pct / 100), 6), 3, 3)
-
-    def _draw_sub_pill(self, p, gx0, gy0, stats):
-        sp = stats.get("spikes") or {}
-        keys = ["session", "weekly", "opus"]
-        for i, (label, gg) in enumerate(cp.gauge_rows(stats)):
-            ry = gy0 + cp.PILL_PAD + i * cp.ROW_H
-            lw = self._text(p, gx0 + cp.PILL_PAD + 2, ry - 2, label, self.F_BOLD, cp.TXT_MAIN)
-            spiking = sp.get(keys[i])
-            txt = (f"{gg['pct']:.0f}% · {cp.t('left')} {cp.fmt_tokens(gg['left'])}"
-                   f" · {cp.fmt_reset(gg['reset'], stats['now'])}")
-            if spiking:
-                txt = cp.t("spike_prefix") + txt
-            self._sub_right(p, txt, self.F_ALERT if spiking else self.F_SUB,
-                            cp.COL_BAD if spiking else cp.TXT_SUB, ry, gx0, lw)
-            self._bar(p, gx0 + cp.PILL_PAD + 2, ry + 17, cp.PILL_W - cp.PILL_PAD * 2 - 4,
-                      gg["pct"], cp.COL_BAD if spiking else cp.bar_color(gg["pct"]))
-
-    def _draw_exact_pill(self, p, gx0, gy0, rows):
-        """정확 모드: 서버 계산 % — macOS 판 draw_exact_pill 과 같은 문자열·좌표."""
-        now_utc = datetime.now(timezone.utc)
-        stats = self.state["stats"]
-        for i, (label, pct, rdt, rtxt) in enumerate(rows[:cp.PILL_ROWS]):
-            ry = gy0 + cp.PILL_PAD + i * cp.ROW_H
-            lw = self._text(p, gx0 + cp.PILL_PAD + 2, ry - 2, label, self.F_BOLD, cp.TXT_MAIN)
-            if rdt is not None:
-                reset_s = cp.fmt_reset(rdt, now_utc)
-            elif rtxt:
-                reset_s = cp.t("reset_prefix") + rtxt
-            else:
-                reset_s = ""
-            txt = f"{pct:.0f}% {cp.t('used')}" + (f" · {reset_s}" if reset_s else "")
-            self._sub_right(p, txt, self.F_SUB, cp.TXT_SUB, ry, gx0, lw)
-            spiking = bool(spike_info(stats)) and i == 0
-            self._bar(p, gx0 + cp.PILL_PAD + 2, ry + 17, cp.PILL_W - cp.PILL_PAD * 2 - 4,
-                      pct, cp.COL_BAD if spiking else cp.bar_color(pct))
-
-    def _draw_api_pill(self, p, gx0, gy0):
-        """API 모드: 오늘/이달 비용, 예산 막대 — macOS 판 draw_api_pill 과 같은 문자열·좌표."""
-        if not cp.RUNTIME.get("admin_key"):
-            self._draw_centered(p, gx0, gy0, cp.t("need_admin_key"), self.F_SUB, cp.TXT_SUB)
-            return
-        today = self.state["cost"]
-        month = self.state["cost_month"]
-        ry = gy0 + cp.PILL_PAD
-        self._text(p, gx0 + cp.PILL_PAD + 2, ry, cp.t("today"), self.F_BOLD, cp.TXT_MAIN)
-        tv = cp.t("loading") if today is None else f"${today:.2f}"
-        self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(tv, self.F_BIG), ry - 3, tv, self.F_BIG, cp.TXT_MAIN)
-        ry += cp.ROW_H
-        self._text(p, gx0 + cp.PILL_PAD + 2, ry, cp.t("this_month"), self.F_BOLD, cp.TXT_MAIN)
-        m2 = cp.t("loading") if month is None else f"${month:.2f}"
-        self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(m2, self.F_BIG), ry - 3, m2, self.F_BIG, cp.TXT_MAIN)
-        ry += cp.ROW_H
-        budget = float(cp.RUNTIME.get("api_budget") or 0)
-        if budget > 0 and month is not None:
-            pct = min(100.0, month / budget * 100)
-            self._text(p, gx0 + cp.PILL_PAD + 2, ry - 2, cp.t("budget"), self.F_BOLD, cp.TXT_MAIN)
-            sub = f"{pct:.0f}% · {cp.t('left')} ${max(0, budget - month):.0f} / ${budget:.0f}"
-            self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(sub, self.F_SUB), ry, sub, self.F_SUB, cp.TXT_SUB)
-            self._bar(p, gx0 + cp.PILL_PAD + 2, ry + 17, cp.PILL_W - cp.PILL_PAD * 2 - 4, pct, cp.bar_color(pct))
-        else:
-            self._text(p, gx0 + cp.PILL_PAD + 2, ry + 2, cp.t("need_budget"), self.F_TINY, "#5A5A60")
-
-    def _draw_centered(self, p, gx0, gy0, s, font, color):
-        w = self._text_w(s, font)
-        h = QFontMetrics(font).height()
-        self._text(p, gx0 + (cp.PILL_W - w) / 2, gy0 + (cp.pill_h() - h) / 2, s, font, color)
-
-    def _draw_onboard(self, p, gx0, gy0, kind):
-        reason = cp.t("onb_install") if kind == "install" else cp.t("onb_login")
-        hint = cp.t("menu_install_cc") if kind == "install" else cp.t("menu_login_cc")
-        cy = gy0 + cp.pill_h() / 2
-        rw = self._text_w(reason, self.F_BOLD)
-        rh = QFontMetrics(self.F_BOLD).height()
-        self._text(p, gx0 + (cp.PILL_W - rw) / 2, cy - rh - 1, reason, self.F_BOLD, cp.TXT_MAIN)
-        hw = self._text_w(hint, self.F_SUB)
-        self._text(p, gx0 + (cp.PILL_W - hw) / 2, cy + 3, hint, self.F_SUB, cp.TXT_SUB)
-
-    def _draw_status(self, p, gx0, gy0):
-        st = self.state
-        if cp.RUNTIME["mode"] == "api":
-            mode = "API"
-        elif st["oauth"]:
-            mode = cp.t("exact_mode")
-        else:
-            mode = cp.t("log_estimate").strip("()（）") + (" ⚠" if cp.OAUTH_STATUS.get("auth_error") else "")
-        y = gy0 + cp.pill_h() - 14
-        self._text(p, gx0 + cp.PILL_PAD + 2, y, mode, self.F_STATUS, "#7A7A82")
-        ver = f"v{cp.APP_VERSION}"
-        self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(ver, self.F_STATUS), y, ver,
-                   self.F_STATUS, "#7A7A82")
+    def _draw_runs(self, p, runs, font, x, w, cy):
+        """run 들을 가로 가운데, 세로 cy 중심으로 — run 마다 제 색(SUMMARY_COLORS)."""
+        widths = [self._text_w(text, font) for text, _kind in runs]
+        cx = x + (w - sum(widths)) / 2
+        lh = QFontMetrics(font).height()
+        p.setFont(font)
+        for (text, kind), tw in zip(runs, widths):
+            p.setPen(QColor(cp.SUMMARY_COLORS.get(kind, cp.TXT_MAIN)))
+            p.drawText(QRectF(cx, cy - lh / 2, tw + 2, lh), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextSingleLine, text)
+            cx += tw
 
     def _draw_summary_pill(self, p):
-        """구경 도착 요약: 펫에 붙은 작은 둥근 필 한 줄. 상태줄·버전 없음. 폰트 축소 없이 말줄임 (macOS 판 규칙)."""
-        rects = self.state.get("roam_rects")
-        pill = rects.get("pill") if rects else None
+        """요약 필: 첫 줄 = 라벨(출처 색)+수치(잔여량 색), 둘째 줄 = 리셋 시각(보조색). 폰트 축소 없이 말줄임 (macOS 판 규칙)."""
+        pill = self.pill_rect()
         if not pill:
             return
         x, y, w, h = pill
         p.setPen(Qt.NoPen)
         p.setBrush(self._color(cp.PILL_BG, 0.96))
         p.drawRoundedRect(QRectF(x, y, w, h), h / 2, h / 2)
-        txt, _tw = self.roam_summary_text()
-        txt = cp.roam_fit_text(txt, w - 2 * cp.PILL_PAD, lambda v: self._text_w(v, self.F_SUMMARY))
-        p.setFont(self.F_SUMMARY)
-        p.setPen(QColor(cp.TXT_MAIN))
-        p.drawText(QRectF(x, y, w, h), Qt.AlignCenter | Qt.TextSingleLine, txt)
+        main, sub, _tw, _th = self.roam_summary_text()
+        inner = w - 2 * cp.PILL_PAD
+        main = cp.roam_fit_runs(main, inner, lambda v: self._text_w(v, self.F_SUMMARY))
+        if sub and h >= cp.SUMMARY_H2:
+            sub = cp.roam_fit_runs(sub, inner, lambda v: self._text_w(v, self.F_SUMMARY_SUB))
+            self._draw_runs(p, main, self.F_SUMMARY, x, w, y + 15)
+            self._draw_runs(p, sub, self.F_SUMMARY_SUB, x, w, y + h - 12)
+        else:
+            self._draw_runs(p, main, self.F_SUMMARY, x, w, y + h / 2)
 
     def paintEvent(self, event):
         st = self.state
@@ -801,25 +726,8 @@ class PetWindow(QWidget):
         img = seq[0 if st["resting"] else st["frame"] % len(seq)]
 
         mode = self.roam_mode_now()
-        if mode == cp.DISPLAY_SUMMARY:
+        if mode in (cp.DISPLAY_FULL, cp.DISPLAY_SUMMARY):
             self._draw_summary_pill(p)
-        elif mode == cp.DISPLAY_FULL:
-            gx0, gy0, gw, gh = self.pill_rect()
-            p.setPen(Qt.NoPen)
-            p.setBrush(self._color(cp.PILL_BG, 0.96))
-            p.drawRoundedRect(QRectF(gx0, gy0, cp.PILL_W, cp.pill_h()), cp.PILL_R, cp.PILL_R)
-            if cp.RUNTIME["mode"] == "api":
-                self._draw_api_pill(p, gx0, gy0)
-            elif st["oauth"]:
-                self._draw_exact_pill(p, gx0, gy0, st["oauth"])
-            elif st.get("onboard"):
-                self._draw_onboard(p, gx0, gy0, st["onboard"])
-            elif stats:
-                self._draw_sub_pill(p, gx0, gy0, stats)
-            else:
-                self._draw_centered(p, gx0, gy0, cp.t("scanning"), self.F_SUB, cp.TXT_SUB)
-            if (stats or st["oauth"]) and not st.get("onboard"):
-                self._draw_status(p, gx0, gy0)
 
         px, py = self.pet_origin()
         pet_rect = QRect(int(px), int(py), self.PW, self.PH)
@@ -838,8 +746,8 @@ class PetWindow(QWidget):
             p.setBrush(self._color(cp.PILL_BG, 0.96))
             p.drawEllipse(QRectF(bx, by, r * 2, r * 2))
             pill_below = not self.pet_on_bottom()
-            is_full = mode == cp.DISPLAY_FULL
-            point_down = (pill_below and not is_full) or (not pill_below and is_full)
+            is_open = mode in (cp.DISPLAY_FULL, cp.DISPLAY_SUMMARY)
+            point_down = (pill_below and not is_open) or (not pill_below and is_open)
             cx, cy = bx + r, by + r
             wdt, hgt = 5.5, 3.0
             path = QPainterPath()
@@ -862,6 +770,8 @@ class PetWindow(QWidget):
 
     def mousePressEvent(self, e):
         if e.button() == Qt.RightButton:
+            # 누를 때 연다(macOS 판 rightMouseDown_ 과 같음). '뗄 때 열기 + activateWindow()' 는 실기기에서 메뉴가
+            # 그려져도 항목이 마우스·키보드 어느 쪽으로도 눌리지 않았다(A/B 2026-09-12) — 다시 넣지 말 것.
             self._context_menu(e.globalPosition().toPoint())
             return
         if e.button() != Qt.LeftButton:
@@ -1078,7 +988,7 @@ class PetWindow(QWidget):
         home = os.path.expanduser("~")
         shown = "\n".join("  • " + (p.replace(home, "~", 1) if p.startswith(home) else p) for p in items) \
             or "  • (없음 / none)"
-        box = QMessageBox(QMessageBox.Critical, cp.t("unin_title"), cp.t("unin_body", items=shown))
+        box = self._msgbox(QMessageBox.Critical, cp.t("unin_title"), cp.t("unin_body", items=shown))
         cancel = box.addButton(cp.t("unin_cancel"), QMessageBox.RejectRole)
         ok = box.addButton(cp.t("unin_ok"), QMessageBox.DestructiveRole)
         box.setDefaultButton(cancel)
@@ -1091,7 +1001,9 @@ class PetWindow(QWidget):
                 os.remove(p)
             except Exception as e:
                 err = e
-        QMessageBox.information(None, cp.t("unin_title"), cp.t("unin_fail") if err else cp.t("unin_devmode"))
+        box = self._msgbox(QMessageBox.Information, cp.t("unin_title"), cp.t("unin_fail") if err else cp.t("unin_devmode"))
+        box.addButton(QMessageBox.Ok)
+        box.exec()
 
     def _run_update_check(self):
         """새 버전 확인 1회, 한 번에 하나만 (macOS 판 _run_update_check)."""
@@ -1125,7 +1037,9 @@ class PetWindow(QWidget):
         webbrowser.open(f"https://github.com/{cp.GITHUB_REPO}/releases/latest")
 
     def _show_update_message(self, msg):
-        QMessageBox.information(None, cp.t("upd_title"), str(msg))
+        box = self._msgbox(QMessageBox.Information, cp.t("upd_title"), msg)
+        box.addButton(QMessageBox.Ok)
+        box.exec()
 
     # ── 설정 창 (macOS 판 open_settings / open_advanced_limits / save_settings 와 같은 좌표·계약) ──
     def _open_settings(self):
@@ -1179,8 +1093,17 @@ class PetWindow(QWidget):
             return                      # 본 창이 없으면 열지 않는다(고아 방지)
         AdvancedLimitsDialog(self, parent).show()
 
+    def _msgbox(self, icon, title, text, parent=None):
+        """항상 위에 뜨는 알림 창 — 펫 창(항상 위) 아래에 숨지 않게 (macOS 판 NSAlert 는 모달로 앞에 온다)."""
+        box = QMessageBox(icon, title, str(text), QMessageBox.NoButton, parent)
+        box.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        box.setWindowIcon(app_icon())
+        return box
+
     def settings_error(self, msg):
-        QMessageBox.warning(self.ui.get("panel"), cp.t("s_err_title"), str(msg))
+        box = self._msgbox(QMessageBox.Warning, cp.t("s_err_title"), msg, self.ui.get("panel"))
+        box.addButton(QMessageBox.Ok)
+        box.exec()
 
     def save_settings(self):
         ui = self.ui
@@ -1246,10 +1169,11 @@ class SettingsDialog(QDialog):
     PWID, PHT = 420, 612
 
     def __init__(self, win):
-        super().__init__(None, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        super().__init__(None, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowStaysOnTopHint)
         self.win = win
         t, R, cfg = cp.t, cp.RUNTIME, win.cfg
         self.setWindowTitle(t("settings_title"))
+        self.setWindowIcon(app_icon())
         self.setFixedSize(self.PWID, self.PHT)
 
         def label(text, x, y, w=150, h=20):
@@ -1374,10 +1298,11 @@ class AdvancedLimitsDialog(QDialog):
     AW, AH = 500, 190
 
     def __init__(self, win, parent):
-        super().__init__(parent, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        super().__init__(parent, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowStaysOnTopHint)
         self.win = win
         t, R = cp.t, cp.RUNTIME
         self.setWindowTitle(t("s_limit_advanced"))
+        self.setWindowIcon(app_icon())
         self.setFixedSize(self.AW, self.AH)
 
         def alabel(text, x, yy, w=150, h=20):
@@ -1412,12 +1337,37 @@ class AdvancedLimitsDialog(QDialog):
         e.accept()
 
 
+APP_USER_MODEL_ID = "me.yeongyu.claudepet"   # macOS 번들 식별자와 같은 값
+
+
+def claim_windows_app_identity():
+    """작업표시줄이 이 프로세스의 창들을 'Python'(pythonw.exe 의 아이콘·이름)이 아니라 이 앱으로 묶게 한다.
+
+    Windows 는 창을 실행 파일 단위로 묶고 그 실행 파일의 아이콘을 쓴다. 소스 실행(pythonw)에서는 설정 창을 열면
+    작업표시줄에 Python 아이콘이 떴다(사용자 지적 2026-09-12). 프로세스에 명시적 AppUserModelID 를 주면 창마다 지정한
+    아이콘(app_icon)과 제목으로 묶인다. 패키징된 ClaudePet.exe 는 실행 파일에 아이콘이 들어 있지만 같은 ID 를 유지한다.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except Exception:
+        pass
+
+
+def app_icon():
+    """macOS 앱 아이콘과 같은 그림. claudepet.ico 는 release/icon.icns 의 1024px 그림을 16~256px 로 담은 것."""
+    p = os.path.join(_HERE, "claudepet.ico")
+    return QIcon(p) if os.path.isfile(p) else QIcon()
+
+
 def make_tray(app, win):
     """작업표시줄 버튼이 없으므로 트레이 아이콘이 보이기/숨기기·종료의 진입로가 된다 (사용자 결정: 유지)."""
     if not QSystemTrayIcon.isSystemTrayAvailable():
         return None
-    icon = QIcon(win.frames["idle"][0].scaled(QSize(64, 64), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-    tray = QSystemTrayIcon(icon, app)
+    # 아이콘은 macOS 앱 아이콘(release/icon.icns)에서 만든 같은 그림(windows/claudepet.ico) — 사용자 요구: 아이콘도 동일.
+    tray = QSystemTrayIcon(app_icon(), app)
     tray.setToolTip(f"ClaudePet v{cp.APP_VERSION}")
     m = QMenu()
     m.addAction(cp.t("menu_toggle"), win._toggle_panel)
@@ -1430,14 +1380,22 @@ def make_tray(app, win):
 
 
 def main():
+    claim_windows_app_identity()              # QApplication 보다 먼저 — 창이 만들어지기 전에 묶음 ID 가 있어야 한다
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    app.setApplicationName("Claude Pet")
+    app.setWindowIcon(app_icon())             # 설정 창·알림 창의 제목줄·작업표시줄 아이콘도 같은 그림
     cfg = cp.load_config()
     cp.apply_config(cfg)
     if not cp.RUNTIME.get("lang"):            # 저장된 언어가 없으면 Windows UI 언어를 따른다
         code = windows_ui_lang()
         if code:
             cp.set_lang(code)
+    try:                                       # 펫 폴더 안내 README — 없거나 비어 있으면 (macOS 판 run_gui 와 같음)
+        os.makedirs(cp.USER_PETS_DIR, exist_ok=True)
+        cp._write_pets_readme(cp.USER_PETS_DIR)
+    except Exception:
+        pass
     pets = cp.discover_pets()
     if not pets:
         print(f"스프라이트를 찾지 못했습니다: {cp.PET_DIR}", file=sys.stderr)

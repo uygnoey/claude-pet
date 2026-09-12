@@ -180,3 +180,19 @@ D2Coding, OFL). 그러면 macOS 앱의 글꼴이 바뀌므로 macOS 릴리즈가
 **오프스크린 확인(2026-09-12, Mac, `win_parity_smoke.py`)**: 정확·추정·API(키 없음/있음) 필 렌더링, 메뉴 항목 순서
 (업데이트 항목 포함), 설정 창 420×612·고급 창 500×190 생성과 `adv_value` 계약(창 없음 → "", 열림 → 입력값, 닫힘 → ""),
 scale 0.5→0.6 시 창 크기 변화와 `{"scale": 0.6}` 저장 호출. 실기기 확인은 다음 라운드.
+
+
+## 요약 필 통일 (2026-09-12, 코어 변경과 동시)
+
+사용자 결정: 펫 위 표시를 자율 이동 뒤의 요약 필 하나로 통일하고("그거로 통일하자"), 모델·API 사용량을 더하며,
+라벨은 출처 색(정확 에메랄드 / 추정 앰버 / API 비용 코랄), 수치는 흰색에서 잔여량(50%·85%)과 급증(▲)에 따라
+경고색·위험색으로, 리셋 시각은 둘째 줄에, 글꼴은 Pretendard 내장. 구현은 코어(`claude_pet.py`)의 순수 함수
+(`roam_summary` · `roam_summary_runs` · `summary_value_kind` · `roam_fit_runs` · `roam_pill_rect`)에 있고, 이 포트는
+그 결과를 그리기만 한다 — `_draw_summary_pill` 이 run 단위로 `SUMMARY_COLORS` 를 입히고, `_fonts` 가
+`cp.bundled_font_path()` 의 같은 OTF 를 `QFontDatabase.addApplicationFont` 로 올린다(없으면 `MONO_FAMILIES`).
+옛 게이지 그리기(`_draw_sub_pill` 등)와 행 수 재배치(`_rows_n`/`CUR_PILL`)는 포트에서도 제거했다.
+
+의존: 이 포트 변경은 main 의 코어 커밋(v0.24 준비) 뒤에 `git merge main` 으로 같은 코어를 받은 다음에야
+Windows 에서 실행된다(워크트리 코어가 옛 판이면 `bundled_font_path` 가 없어 시작하지 못한다). Mac offscreen
+확인(2026-09-12, `win_unify_smoke.py`): 정확(두 줄, 라벨 에메랄드·수치 흰/노/빨)·추정(앰버·▲·⚠·≈)·API(코랄 한 줄)·
+호버 버튼 렌더링. 실기기 확인은 merge·푸시 뒤 한 라운드.
