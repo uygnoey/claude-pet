@@ -15,16 +15,22 @@ Windows 에서 필요한 것만 구현한다:
 RoamScreen.frame/bounds 도 같은 축으로 만든다. roam_frame 이 주는 crop/sprite/button/pill 은 창 내부 좌표라
 (macOS 의 flipped 뷰와 같은 y-down) 그대로 쓰고, 실제 창 원점만 여기서 y-down 으로 계산한다.
 
-2단계 범위 밖(다음): 설정 창(% 보정 등), 업데이트 교체, 펫 시딩, PyInstaller 패키징.
+UI 는 macOS 판과 100% 같아야 한다(사용자 요구 2026-09-12): 필·행·막대·상태줄·버튼·요약 필·설정 창·우클릭 메뉴는
+macOS 판의 같은 상수·같은 문자열·같은 좌표로 그린다. 폰트만 플랫폼 제약(SF Mono 는 Windows 에 없다) — MONO_FAMILIES 참조.
+3단계 범위(다음): 업데이트 내려받아 교체(지금은 릴리즈 페이지만 연다), 펫 시딩, PyInstaller 패키징, 제거 시 앱 폴더 삭제.
 `claude_pet.py` 와 macOS 빌드·릴리즈 스크립트는 이 파일로 바뀌지 않는다.
 
 실행: `pythonw windows\\claude_pet_win.py` (저장소 루트에서, Python 3.13 + PySide6 + Pillow)
 """
 import math
 import os
+import shutil
+import subprocess
 import sys
 import threading
 import time
+import webbrowser
+from datetime import datetime, timezone
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -65,15 +71,22 @@ def _import_core():
 cp = _import_core()  # AppKit 은 run_gui 안에서만 import 되므로 GUI 없이 코어를 쓸 수 있다 (설계 문서 §0)
 
 from PIL import Image  # noqa: E402
-from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer  # noqa: E402
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal  # noqa: E402
 from PySide6.QtGui import (QAction, QColor, QCursor, QFont, QFontDatabase, QFontMetrics,  # noqa: E402
                            QIcon, QImage, QPainter, QPainterPath, QPen, QPixmap)
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget  # noqa: E402
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QLabel, QLineEdit,  # noqa: E402
+                               QMenu, QMessageBox, QPushButton, QSystemTrayIcon, QWidget)
 
 TICK_MS = 50                 # macOS 판 TICK = 0.05 와 같은 20 Hz
 NEAR_PX = 100                # 인사 판정 거리 — macOS 판과 동일
 GREET_COOLDOWN = float(getattr(cp, "GREET_COOLDOWN", 20.0))
 BTN_LINE = "#2E2E33"
+# macOS 판은 NSFont.monospacedSystemFontOfSize_weight_ (= SF Mono, bold 는 weight 0.4 ≈ semibold).
+# SF Mono 는 Windows 에 배포할 수 없으므로 있으면 쓰고, 없으면 자간이 가장 비슷한 순서로 고른다.
+# 두 플랫폼에 같은 글꼴을 번들하면 여기 한 줄만 바꾼다 (QFontDatabase.addApplicationFont 뒤 그 이름을 앞에).
+MONO_FAMILIES = ("SF Mono", "Cascadia Mono", "Consolas")
+CLAUDE_INSTALL_URL_WIN = "https://claude.ai/install.ps1"   # macOS 판 install.sh 의 Windows 판
+UNINSTALL_PATHS_WIN = (cp.CONFIG_PATH, cp.CONFIG_PATH + ".lock", os.path.expanduser("~/claudepet_debug.log"))
 SPI_GETCLIENTAREAANIMATION = 0x1042
 
 
@@ -182,7 +195,7 @@ def windows_ui_lang():
 
 # ─────────────────────────── 펫 창 ───────────────────────────
 class PetWindow(QWidget):
-    SUB_SHRINK_FLOOR = 0.85      # 서브텍스트 폰트 축소 하한 — 한글 받침이 뭉개지지 않는 선
+    update_msg = Signal(str)     # 업데이트 확인 결과 — 워커 스레드에서 emit, GUI 스레드에서 알림 창
 
     def __init__(self, frames, cfg, pets):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -210,6 +223,8 @@ class PetWindow(QWidget):
         self._refresh_gen = 0
         self._refresh_lock = threading.Lock()
         self._pending = None
+        self.ui = {}                 # 설정 창 위젯 — macOS 판 ui 딕셔너리와 같은 키
+        self.update_msg.connect(self._show_update_message)
         self._fonts()
         self.PW, self.PH, self.W, self.H = self.geom()
         self.resize(self.W, self.H)
@@ -237,17 +252,20 @@ class PetWindow(QWidget):
         return pw, ph, w, h
 
     def _fonts(self):
-        fixed = QFontDatabase.systemFont(QFontDatabase.FixedFont)
-        fam = fixed.family()
-        for cand in ("Cascadia Mono", "Consolas", fam):
-            if cand in QFontDatabase.families():
+        """macOS 판 F_* 와 같은 크기·역할. 글꼴은 MONO_FAMILIES 순서로 있는 것을 쓴다."""
+        fam = QFontDatabase.systemFont(QFontDatabase.FixedFont).family()
+        have = set(QFontDatabase.families())
+        for cand in MONO_FAMILIES:
+            if cand in have:
                 fam = cand
                 break
+        self.font_family = fam
+        cp._dbg("win font family", fam)                 # CLAUDE_PET_DEBUG=1 → ~/claudepet_debug.log
 
         def mono(size, bold=False):
             f = QFont(fam, 1)
             f.setPointSizeF(size)
-            f.setBold(bold)
+            f.setWeight(QFont.DemiBold if bold else QFont.Normal)   # macOS weight 0.4 ≈ semibold(600)
             return f
         self.F_BOLD = mono(12, True)
         self.F_BIG = mono(15, True)
@@ -643,41 +661,21 @@ class PetWindow(QWidget):
     def _text_w(self, s, font):
         return QFontMetrics(font).horizontalAdvance(s)
 
-    def _sub_right(self, p, candidates, font, color, ry, gx0, label_w):
-        """서브텍스트 우측 정렬. macOS 판 draw_sub_right 와 같은 자리에 그리되 맞추는 방법이 다르다.
+    def _sub_right(self, p, txt, font, color, ry, gx0, label_w):
+        """서브텍스트 우측 정렬 — macOS 판 draw_sub_right 와 같은 규칙.
 
-        Windows 의 모노 글꼴과 한글 대체 글꼴은 macOS 보다 넓어서, 라벨이 길면(예: 'Fable') 폰트를
-        0.68 배까지 줄여도 넘치고 받침이 잘린다. 그래서 (1) 호출자가 준 후보 문자열을 긴 것부터 시도하되
-        버리기 전에 그 후보를 SUB_SHRINK_FLOOR 까지만 줄여 보고, (2) 다 넘치면 마지막 후보를 하한으로 줄인 뒤
-        말줄임한다. 세로는 실제 글꼴(대체 글꼴 포함) 높이로 행 안에 가운데 맞춘다.
+        문자열은 그대로 두고, 라벨과 겹치면 폰트만 max(0.68, avail/w) 배로 줄인다. 잘라내거나 말줄임하지
+        않는다. 세로도 macOS 와 같이 줄 상자의 위를 ry 에 둔다.
         """
-        if isinstance(candidates, str):
-            candidates = [candidates]
         x_left = gx0 + cp.PILL_PAD + 2 + label_w + 10
         x_right = gx0 + cp.PILL_W - cp.PILL_PAD
-        avail = max(20.0, x_right - x_left)
+        avail = x_right - x_left
         f = QFont(font)
-        txt = candidates[-1]
-        for cand in candidates:
-            w = self._text_w(cand, font)
-            if w <= avail:
-                txt, f = cand, QFont(font)
-                break
-            scale = avail / w
-            if scale >= self.SUB_SHRINK_FLOOR:
-                f = QFont(font)
-                f.setPointSizeF(font.pointSizeF() * scale)
-                if self._text_w(cand, f) <= avail:
-                    txt = cand
-                    break
-        else:
-            f = QFont(font)
-            f.setPointSizeF(max(font.pointSizeF() * self.SUB_SHRINK_FLOOR, 6.0))
-            if self._text_w(txt, f) > avail:
-                txt = QFontMetrics(f).elidedText(txt, Qt.ElideRight, int(avail))
-        p.setFont(f)
-        p.setPen(QColor(color))
-        p.drawText(QRectF(x_left, ry, avail, 16), Qt.AlignRight | Qt.AlignVCenter | Qt.TextSingleLine, txt)
+        w = self._text_w(txt, f)
+        if avail > 20 and w > avail:
+            f.setPointSizeF(font.pointSizeF() * max(0.68, avail / w))
+            w = self._text_w(txt, f)
+        self._text(p, x_right - w, ry, txt, f, color)
 
     def _bar(self, p, bx0, by, bw, pct, color):
         p.setPen(Qt.NoPen)
@@ -693,22 +691,17 @@ class PetWindow(QWidget):
             ry = gy0 + cp.PILL_PAD + i * cp.ROW_H
             lw = self._text(p, gx0 + cp.PILL_PAD + 2, ry - 2, label, self.F_BOLD, cp.TXT_MAIN)
             spiking = sp.get(keys[i])
-            pct = f"{gg['pct']:.0f}%"
-            left = f"{cp.t('left')} {cp.fmt_tokens(gg['left'])}"
-            reset_s = cp.fmt_reset(gg['reset'], stats['now'])
-            short_reset = cp.fmt_countdown(gg['reset'], stats['now']) if gg['reset'] else reset_s
-            prefix = cp.t("spike_prefix") if spiking else ""
-            # 후보 순서(정보 우선, 뜻 보존): 전체 → 짧은 리셋 → 남음만(라벨 유지) → 리셋만 → % 만.
-            # '남음' 이라는 말을 빼고 숫자만 남기면 macOS 판과 달리 남은 양인지 쓴 양인지 모호해지므로 넣지 않는다.
-            cands = [f"{prefix}{pct} · {left} · {reset_s}", f"{prefix}{pct} · {left} · {short_reset}",
-                     f"{prefix}{pct} · {left}", f"{prefix}{pct} · {short_reset}", f"{prefix}{pct}"]
-            self._sub_right(p, cands, self.F_ALERT if spiking else self.F_SUB,
+            txt = (f"{gg['pct']:.0f}% · {cp.t('left')} {cp.fmt_tokens(gg['left'])}"
+                   f" · {cp.fmt_reset(gg['reset'], stats['now'])}")
+            if spiking:
+                txt = cp.t("spike_prefix") + txt
+            self._sub_right(p, txt, self.F_ALERT if spiking else self.F_SUB,
                             cp.COL_BAD if spiking else cp.TXT_SUB, ry, gx0, lw)
             self._bar(p, gx0 + cp.PILL_PAD + 2, ry + 17, cp.PILL_W - cp.PILL_PAD * 2 - 4,
                       gg["pct"], cp.COL_BAD if spiking else cp.bar_color(gg["pct"]))
 
     def _draw_exact_pill(self, p, gx0, gy0, rows):
-        from datetime import datetime, timezone
+        """정확 모드: 서버 계산 % — macOS 판 draw_exact_pill 과 같은 문자열·좌표."""
         now_utc = datetime.now(timezone.utc)
         stats = self.state["stats"]
         for i, (label, pct, rdt, rtxt) in enumerate(rows[:cp.PILL_ROWS]):
@@ -716,21 +709,41 @@ class PetWindow(QWidget):
             lw = self._text(p, gx0 + cp.PILL_PAD + 2, ry - 2, label, self.F_BOLD, cp.TXT_MAIN)
             if rdt is not None:
                 reset_s = cp.fmt_reset(rdt, now_utc)
-                short_reset = cp.fmt_countdown(rdt, now_utc)
             elif rtxt:
                 reset_s = cp.t("reset_prefix") + rtxt
-                short_reset = rtxt
             else:
-                reset_s = short_reset = ""
-            used = f"{pct:.0f}% {cp.t('used')}"
-            cands = [used + (f" · {reset_s}" if reset_s else ""),
-                     f"{pct:.0f}%" + (f" · {reset_s}" if reset_s else ""),
-                     f"{pct:.0f}%" + (f" · {short_reset}" if short_reset else ""),
-                     f"{pct:.0f}%"]
-            self._sub_right(p, cands, self.F_SUB, cp.TXT_SUB, ry, gx0, lw)
+                reset_s = ""
+            txt = f"{pct:.0f}% {cp.t('used')}" + (f" · {reset_s}" if reset_s else "")
+            self._sub_right(p, txt, self.F_SUB, cp.TXT_SUB, ry, gx0, lw)
             spiking = bool(spike_info(stats)) and i == 0
             self._bar(p, gx0 + cp.PILL_PAD + 2, ry + 17, cp.PILL_W - cp.PILL_PAD * 2 - 4,
                       pct, cp.COL_BAD if spiking else cp.bar_color(pct))
+
+    def _draw_api_pill(self, p, gx0, gy0):
+        """API 모드: 오늘/이달 비용, 예산 막대 — macOS 판 draw_api_pill 과 같은 문자열·좌표."""
+        if not cp.RUNTIME.get("admin_key"):
+            self._draw_centered(p, gx0, gy0, cp.t("need_admin_key"), self.F_SUB, cp.TXT_SUB)
+            return
+        today = self.state["cost"]
+        month = self.state["cost_month"]
+        ry = gy0 + cp.PILL_PAD
+        self._text(p, gx0 + cp.PILL_PAD + 2, ry, cp.t("today"), self.F_BOLD, cp.TXT_MAIN)
+        tv = cp.t("loading") if today is None else f"${today:.2f}"
+        self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(tv, self.F_BIG), ry - 3, tv, self.F_BIG, cp.TXT_MAIN)
+        ry += cp.ROW_H
+        self._text(p, gx0 + cp.PILL_PAD + 2, ry, cp.t("this_month"), self.F_BOLD, cp.TXT_MAIN)
+        m2 = cp.t("loading") if month is None else f"${month:.2f}"
+        self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(m2, self.F_BIG), ry - 3, m2, self.F_BIG, cp.TXT_MAIN)
+        ry += cp.ROW_H
+        budget = float(cp.RUNTIME.get("api_budget") or 0)
+        if budget > 0 and month is not None:
+            pct = min(100.0, month / budget * 100)
+            self._text(p, gx0 + cp.PILL_PAD + 2, ry - 2, cp.t("budget"), self.F_BOLD, cp.TXT_MAIN)
+            sub = f"{pct:.0f}% · {cp.t('left')} ${max(0, budget - month):.0f} / ${budget:.0f}"
+            self._text(p, gx0 + cp.PILL_W - cp.PILL_PAD - self._text_w(sub, self.F_SUB), ry, sub, self.F_SUB, cp.TXT_SUB)
+            self._bar(p, gx0 + cp.PILL_PAD + 2, ry + 17, cp.PILL_W - cp.PILL_PAD * 2 - 4, pct, cp.bar_color(pct))
+        else:
+            self._text(p, gx0 + cp.PILL_PAD + 2, ry + 2, cp.t("need_budget"), self.F_TINY, "#5A5A60")
 
     def _draw_centered(self, p, gx0, gy0, s, font, color):
         w = self._text_w(s, font)
@@ -796,7 +809,7 @@ class PetWindow(QWidget):
             p.setBrush(self._color(cp.PILL_BG, 0.96))
             p.drawRoundedRect(QRectF(gx0, gy0, cp.PILL_W, cp.pill_h()), cp.PILL_R, cp.PILL_R)
             if cp.RUNTIME["mode"] == "api":
-                self._draw_centered(p, gx0, gy0, "API", self.F_SUB, cp.TXT_SUB)   # 비용 표시는 설정 창과 함께
+                self._draw_api_pill(p, gx0, gy0)
             elif st["oauth"]:
                 self._draw_exact_pill(p, gx0, gy0, st["oauth"])
             elif st.get("onboard"):
@@ -921,24 +934,52 @@ class PetWindow(QWidget):
 
     # ── 우클릭 메뉴 / 트레이 ──
     def _context_menu(self, gpos):
+        """우클릭 메뉴 — macOS 판 rightMouseDown_ 과 같은 항목·순서·상태.
+
+        [설치/로그인] [업데이트] 설정… · 접기/펴기 · 화면 돌아다니기(✓) · 크기 원래대로 · 펫 ▸ · ─ · 제거 · 종료 · ─ ·
+        ClaudePet vX(비활성) · 업데이트 확인…  (맨 위 두 항목은 해당 상태일 때만, 각각 구분선과 함께)
+        """
+        self.roam_display.reset()              # macOS 판 roam_interrupt: 요약 래치 해제
         m = QMenu(self)
+        top = []
+        upd = self.state.get("update")
+        if upd:
+            top.append((cp.t("menu_update", v=upd[0]), self._do_update))
+        ob = self.state.get("onboard")
+        if ob:
+            top.insert(0, (cp.t("menu_install_cc"), self._install_claude) if ob == "install"
+                       else (cp.t("menu_login_cc"), self._login_claude))
+        for title, fn in top:
+            m.addAction(title, fn)
+            m.addSeparator()
+        m.addAction(cp.t("menu_settings"), self._open_settings)
         m.addAction(cp.t("menu_toggle"), self._toggle_panel)
-        pets = QMenu(cp.t("menu_pets"), m)
-        for pinfo in self.pets:
-            a = QAction(pinfo["name"], pets, checkable=True)
-            a.setChecked(pinfo["id"] == self.cfg.get("pet", "default"))
-            a.triggered.connect(lambda checked=False, pid=pinfo["id"]: self._set_pet(pid))
-            pets.addAction(a)
-        m.addMenu(pets)
         roam = QAction(cp.t("menu_roam"), m, checkable=True)
         roam.setChecked(bool(cp.RUNTIME.get("roam")))
         roam.setEnabled(not self.state["reduce_motion"])     # 동작 줄이기(애니메이션 끔)면 비활성
         roam.triggered.connect(self._toggle_roam)
         m.addAction(roam)
+        m.addAction(cp.t("menu_reset_size"), self._reset_scale)
+        pet_list = cp.discover_pets()          # 우클릭 때마다 다시 스캔 → 새로 넣은 펫 즉시 반영
+        if pet_list:
+            self.pets = pet_list
+            cur_pet = self.cfg.get("pet") or pet_list[0]["id"]
+            pets = QMenu(cp.t("menu_pets"), m)
+            for pinfo in pet_list:
+                a = QAction(pinfo["name"], pets, checkable=True)
+                a.setChecked(pinfo["id"] == cur_pet)
+                a.triggered.connect(lambda checked=False, pid=pinfo["id"]: self._set_pet(pid))
+                pets.addAction(a)
+            pets.addSeparator()
+            pets.addAction(cp.t("pet_add"), self._add_pet)
+            m.addMenu(pets)
+        m.addSeparator()
+        m.addAction(cp.t("menu_uninstall"), self._uninstall)
+        m.addAction(cp.t("menu_quit"), QApplication.instance().quit)
         m.addSeparator()
         v = m.addAction(f"ClaudePet v{cp.APP_VERSION}")
         v.setEnabled(False)
-        m.addAction(cp.t("menu_quit"), QApplication.instance().quit)
+        m.addAction(cp.t("menu_check_update"), self._check_update)
         # 메뉴는 동기 루프라 그동안 틱이 멈춘다. 자동 이동은 막고, 닫힌 뒤 첫 틱이 '그 자리 정지' 로 처리하게 표시를 남긴다.
         self.state["menu_open"] = True
         try:
@@ -978,6 +1019,397 @@ class PetWindow(QWidget):
         self.cfg["pet"] = pet_id
         cp.merge_config_updates({"pet": pet_id})
         self.update()
+
+    # ── 크기 (macOS 판 scrollWheel_ / set_scale) ──
+    def wheelEvent(self, e):
+        d = e.pixelDelta().y() if not e.pixelDelta().isNull() else e.angleDelta().y() / 120.0 * 10.0
+        self.set_scale(self.scale + d * 0.004)
+
+    def set_scale(self, value):
+        new = max(0.3, min(2.0, value))
+        if abs(new - self.scale) < 1e-4:
+            return
+        self.scale = new
+        self._relayout()                       # 논리 full 창 기준으로 geom 을 다시 잡는다 (macOS 판과 같음)
+        self.cfg["scale"] = round(new, 3)
+        cp.merge_config_updates({"scale": self.cfg["scale"]})   # 이 경로가 가진 키만
+        self.update()
+
+    def _reset_scale(self):
+        self.set_scale(0.5)
+
+    # ── 메뉴 동작 (macOS 판 Handler 와 같은 이름 순서) ──
+    def _add_pet(self):
+        try:
+            os.makedirs(cp.USER_PETS_DIR, exist_ok=True)
+            cp._write_pets_readme(cp.USER_PETS_DIR)   # 포맷 안내 + 예시 pet.json (없을 때만)
+        except Exception:
+            pass
+        os.startfile(cp.USER_PETS_DIR)
+
+    def _run_in_console(self, lines):
+        """새 PowerShell 창에서 실행 — macOS 판 _run_in_terminal(Terminal.app) 의 Windows 판."""
+        script = "; ".join(lines)
+        subprocess.Popen(["powershell", "-NoExit", "-Command", script],
+                         creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))
+
+    @staticmethod
+    def _ps_echo(s):
+        return "Write-Host '" + str(s).replace("'", "''") + "'"
+
+    def _install_claude(self):
+        """Claude Code 설치 → 이어서 로그인까지 새 콘솔에서 (macOS 판 start_claude_install)."""
+        self._run_in_console([self._ps_echo(cp.t("term_installing")),
+                              f"irm {CLAUDE_INSTALL_URL_WIN} | iex",
+                              "Write-Host ''", self._ps_echo(cp.t("term_login")),
+                              '& "$env:USERPROFILE\\.local\\bin\\claude.exe" auth login',
+                              "Write-Host ''", self._ps_echo(cp.t("term_done"))])
+
+    def _login_claude(self):
+        binp = (shutil.which("claude") or shutil.which("claude.exe")
+                or os.path.expanduser("~/.local/bin/claude.exe"))
+        self._run_in_console([self._ps_echo(cp.t("term_login")),
+                              "& '" + binp.replace("'", "''") + "' auth login",
+                              "Write-Host ''", self._ps_echo(cp.t("term_done"))])
+
+    def _uninstall(self):
+        """제거 — macOS 판 uninstallApp_ 과 같은 확인 창(취소가 기본 버튼). 앱 폴더 삭제는 3단계 패키징과 함께."""
+        items = [p for p in UNINSTALL_PATHS_WIN if os.path.lexists(p)]
+        home = os.path.expanduser("~")
+        shown = "\n".join("  • " + (p.replace(home, "~", 1) if p.startswith(home) else p) for p in items) \
+            or "  • (없음 / none)"
+        box = QMessageBox(QMessageBox.Critical, cp.t("unin_title"), cp.t("unin_body", items=shown))
+        cancel = box.addButton(cp.t("unin_cancel"), QMessageBox.RejectRole)
+        ok = box.addButton(cp.t("unin_ok"), QMessageBox.DestructiveRole)
+        box.setDefaultButton(cancel)
+        box.exec()
+        if box.clickedButton() is not ok:
+            return
+        err = None
+        for p in items:
+            try:
+                os.remove(p)
+            except Exception as e:
+                err = e
+        QMessageBox.information(None, cp.t("unin_title"), cp.t("unin_fail") if err else cp.t("unin_devmode"))
+
+    def _run_update_check(self):
+        """새 버전 확인 1회, 한 번에 하나만 (macOS 판 _run_update_check)."""
+        if cp._upd_cache.get("busy"):
+            return None
+        cp._upd_cache["busy"] = True
+        try:
+            return cp.poll_github_update(self.state)     # 'update' | 'current' | 'failed'
+        finally:
+            cp._upd_cache["busy"] = False
+
+    def _check_update(self):
+        """우클릭 '업데이트 확인…'. 결과는 알림 창 한 번. 내려받아 교체하는 부분은 3단계(Windows 업데이터) — 그때까지는
+        새 버전이 있으면 릴리즈 페이지를 연다."""
+        def work():
+            status = self._run_update_check()
+            if status == "update":
+                upd = self.state.get("update")
+                webbrowser.open(f"https://github.com/{cp.GITHUB_REPO}/releases/latest")
+                msg = cp.t("menu_update", v=upd[0]) if upd else cp.t("upd_install_failed")
+            elif status == "current":
+                msg = cp.t("upd_current", v=cp.APP_VERSION)
+            elif status is None:
+                msg = cp.t("upd_busy")
+            else:
+                msg = cp.t("upd_failed")
+            self.update_msg.emit(msg)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _do_update(self):
+        webbrowser.open(f"https://github.com/{cp.GITHUB_REPO}/releases/latest")
+
+    def _show_update_message(self, msg):
+        QMessageBox.information(None, cp.t("upd_title"), str(msg))
+
+    # ── 설정 창 (macOS 판 open_settings / open_advanced_limits / save_settings 와 같은 좌표·계약) ──
+    def _open_settings(self):
+        self.roam_display.reset()              # 설정 창은 명시적 중단: 요약 래치 해제
+        if self.ui.get("panel"):
+            self.ui["panel"].raise_()
+            self.ui["panel"].activateWindow()
+            return
+        dlg = SettingsDialog(self)
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+
+    def adv_value(self, key):
+        """고급 창의 입력값. 창이 없으면 빈 문자열 = '기존 한도 유지' (macOS 판 adv_value)."""
+        w = self.ui.get(key)
+        return w.text() if w else ""
+
+    def close_advanced(self):
+        if self.ui.get("adv_closing"):
+            return
+        self.ui["adv_closing"] = True
+        try:
+            p = self.ui.get("adv_panel")
+            if p:
+                p.blockSignals(True)
+                p.hide()
+                p.deleteLater()
+            self.ui["adv_panel"] = None
+            for k in ADV_FIELD_KEYS:
+                self.ui[k] = None
+        finally:
+            self.ui["adv_closing"] = False
+
+    def close_main_panel(self):
+        """본 창을 닫는 유일한 경로. 자식을 먼저 정리한다 (macOS 판 close_main_panel)."""
+        self.close_advanced()
+        p = self.ui.get("panel")
+        if p:
+            p.blockSignals(True)
+            p.hide()
+            p.deleteLater()
+        self.ui["panel"] = None        # 다음에 열 때 새 언어로 재구성
+
+    def open_advanced_limits(self):
+        if self.ui.get("adv_panel"):
+            self.ui["adv_panel"].raise_()
+            return
+        parent = self.ui.get("panel")
+        if not parent:
+            return                      # 본 창이 없으면 열지 않는다(고아 방지)
+        AdvancedLimitsDialog(self, parent).show()
+
+    def settings_error(self, msg):
+        QMessageBox.warning(self.ui.get("panel"), cp.t("s_err_title"), str(msg))
+
+    def save_settings(self):
+        ui = self.ui
+        pet_ids = ui.get("pet_ids") or []
+        sel_pet = pet_ids[ui["pet"].currentIndex()] if pet_ids else None
+        prev_pet = self.cfg.get("pet") or (pet_ids[0] if pet_ids else None)
+        widx = ui["wreset"].currentIndex()
+        form = {
+            "pet": sel_pet,
+            "lang": cp.SUPPORTED_LANGS[ui["lang"].currentIndex()],
+            "mode": "api" if ui["mode"].currentIndex() == 1 else "sub",
+            "model_keyword": (ui["kw"].text().strip().lower() or "auto"),
+            "weekly_reset_day": None if widx == 0 else widx - 1,
+            "weekly_reset_hour": ui["whour"].text(),
+            "api_budget": ui["bud"].text(),
+            "spike_mult": [0.5, 1.0, 2.0][ui["sens"].currentIndex()],
+            "greet": bool(ui["greet"].isChecked()),
+            "admin_key": ui["key"].text().strip(),
+            "session_limit_m": self.adv_value("ses"),
+            "weekly_limit_m": self.adv_value("wk"),
+            "opus_limit_m": self.adv_value("op"),
+            "session_pct": ui["cs"].text(),
+            "weekly_pct": ui["cw"].text(),
+            "opus_pct": ui["cm"].text(),
+        }
+
+        def stats_for(snapshot):
+            snap = dict(cp.RUNTIME)
+            snap.update({k: v for k, v in snapshot.items() if v is not None or k == "weekly_reset_day"})
+            return cp.compute_usage(runtime=snap)
+
+        plan, err = cp.plan_settings_save(self.cfg, form, stats_for=stats_for)
+        if err:
+            self.settings_error(err)
+            return
+        ok, _merged = cp.apply_settings_plan(plan, self.cfg, apply_fn=cp.apply_config,
+                                             set_pet_fn=self._set_pet, prev_pet=prev_pet)
+        if not ok:
+            self.settings_error(cp.t("s_err_save"))
+            return
+        for fld in ("cs", "cw", "cm"):
+            ui[fld].setText("")
+        with self._refresh_lock:               # 저장 전에 시작된 새로고침이 뒤늦게 덮어쓰지 못하게 세대를 올린다
+            self._refresh_gen += 1
+            self._pending = None
+        self.state["stats"] = cp.compute_usage()
+        self.state["repaint"] = True
+        cp._oauth_cache["t"] = 0.0             # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
+        self.close_main_panel()
+        self.refresh()
+        self.update()
+
+
+ADV_FIELD_KEYS = ("ses", "wk", "op")
+
+
+class SettingsDialog(QDialog):
+    """macOS 판 open_settings 의 NSPanel(420×612) 을 같은 좌표로 옮긴 것.
+
+    AppKit 은 y 가 아래에서 위로, Qt 는 위에서 아래로 커지므로 위젯의 위쪽 = PHT − y − h 로 뒤집는다.
+    라벨·입력·팝업·버튼의 x/폭/높이와 y 간격은 macOS 판과 같다(높이 예산 612 ≤ 656 도 그대로).
+    """
+    PWID, PHT = 420, 612
+
+    def __init__(self, win):
+        super().__init__(None, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.win = win
+        t, R, cfg = cp.t, cp.RUNTIME, win.cfg
+        self.setWindowTitle(t("settings_title"))
+        self.setFixedSize(self.PWID, self.PHT)
+
+        def label(text, x, y, w=150, h=20):
+            l = QLabel(text, self)
+            l.setGeometry(x, self.PHT - y - h, w, h)
+            if h > 20:                         # 여러 줄 라벨(note2): 줄바꿈 허용, 위에서부터
+                l.setWordWrap(True)
+                l.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            return l
+
+        def field(x, y, w, value, secure=False):
+            f = QLineEdit(str(value), self)
+            f.setGeometry(x, self.PHT - y - 22, w, 22)
+            if secure:
+                f.setEchoMode(QLineEdit.Password)
+            return f
+
+        def popup(x, y, w, items, index):
+            c = QComboBox(self)
+            c.setGeometry(x, self.PHT - y - 26, w, 26)
+            c.addItems(list(items))
+            if items:
+                c.setCurrentIndex(max(0, min(index, len(items) - 1)))
+            return c
+
+        y = self.PHT - 40
+        label(t("s_pet"), 20, y)
+        pet_list_s = cp.discover_pets()
+        pet_ids = [p["id"] for p in pet_list_s]
+        cur_pet = cfg.get("pet") or (pet_ids[0] if pet_ids else None)
+        pet_pop = popup(180, y - 3, 220, [p["name"] for p in pet_list_s],
+                        pet_ids.index(cur_pet) if cur_pet in pet_ids else 0)
+
+        y -= 34
+        label(t("s_language"), 20, y)
+        lang_pop = popup(180, y - 3, 160, [cp.LANG_NAMES[c] for c in cp.SUPPORTED_LANGS],
+                         cp.SUPPORTED_LANGS.index(cp.L["lang"]))
+
+        y -= 34
+        label(t("s_data_source"), 20, y)
+        mode = popup(180, y - 3, 220, [t("s_mode_sub"), t("s_mode_api")], 1 if R["mode"] == "api" else 0)
+
+        y -= 34
+        label(t("s_model_kw"), 20, y)
+        f_kw = field(180, y - 2, 100, R.get("model_keyword", "auto"))
+        label(t("s_auto_detect"), 288, y, 120)
+
+        y -= 34
+        label(t("s_weekly_reset"), 20, y)
+        wd = R.get("weekly_reset_day")
+        wreset = popup(180, y - 3, 130, [t("s_rolling7")] + list(cp.WEEKDAYS_FULL[cp.L["lang"]]),
+                       0 if wd is None else int(wd) + 1)
+        f_wh = field(318, y - 2, 40, int(R.get("weekly_reset_hour", 20)))
+        label(t("s_hour"), 362, y, 30)
+
+        y -= 40
+        label(t("s_calib1"), 20, y, 380)
+        y -= 20
+        label(t("s_calib2"), 20, y, 380)
+        y -= 28
+        label(t("s_calib_session"), 20, y)
+        f_cs = field(180, y - 2, 60, "")
+        y -= 30
+        label(t("s_calib_weekly_all"), 20, y)
+        f_cw = field(180, y - 2, 60, "")
+        y -= 30
+        label(t("s_calib_weekly_model"), 20, y)
+        f_cm = field(180, y - 2, 60, "")
+
+        y -= 30
+        label(t("s_limit_note1"), 20, y, 380)
+        y -= 56
+        label(t("s_limit_note2"), 20, y, 380, h=52)
+        y -= 24
+        label(t("s_limit_note3"), 20, y, 240)
+        adv_btn = QPushButton(t("s_limit_advanced_button"), self)
+        adv_btn.setGeometry(268, self.PHT - (y - 3) - 24, 132, 24)
+        adv_btn.clicked.connect(win.open_advanced_limits)
+
+        y -= 36
+        label(t("s_spike_sens"), 20, y)
+        m = R.get("spike_mult", 1.0)
+        sens = popup(180, y - 3, 220, [t("s_sens_high"), t("s_sens_normal"), t("s_sens_low")],
+                     0 if m < 0.9 else (2 if m > 1.5 else 1))
+
+        y -= 32
+        greet = QCheckBox(t("s_greet"), self)
+        greet.setGeometry(20, self.PHT - y - 22, 340, 22)
+        greet.setChecked(bool(R.get("greet")))
+
+        y -= 34
+        label(t("s_admin_key"), 20, y)
+        f_key = field(180, y - 2, 220, R.get("admin_key", ""), secure=True)
+        y -= 30
+        label(t("s_budget"), 20, y)
+        f_bud = field(180, y - 2, 90, R.get("api_budget") or 0)
+
+        vl = label(f"ClaudePet v{cp.APP_VERSION}", 20, 18, 200)
+        vl.setStyleSheet("color: palette(placeholder-text);")     # NSColor.secondaryLabelColor
+        save_btn = QPushButton(t("s_save"), self)
+        save_btn.setGeometry(self.PWID - 110, self.PHT - 12 - 30, 90, 30)
+        save_btn.clicked.connect(win.save_settings)
+
+        # ses/wk/op(절대 한도)는 여기 없다 — 고급 창이 생길 때 비로소 ui 에 들어온다 (adv_value 계약).
+        win.ui.update({"panel": self, "mode": mode, "sens": sens, "greet": greet,
+                       "key": f_key, "bud": f_bud, "kw": f_kw, "wreset": wreset, "whour": f_wh,
+                       "lang": lang_pop, "cs": f_cs, "cw": f_cw, "cm": f_cm,
+                       "pet": pet_pop, "pet_ids": pet_ids})
+        scr = win.screen() or QApplication.primaryScreen()        # macOS panel.center()
+        a = scr.availableGeometry()
+        self.move(a.center().x() - self.PWID // 2, a.center().y() - self.PHT // 2)
+
+    def closeEvent(self, e):
+        # X 로 닫힐 때: 자식 먼저, 그다음 본 창 (macOS 판 windowWillClose_ → close_main_panel)
+        if self.win.ui.get("panel") is self:
+            self.win.close_main_panel()
+        e.accept()
+
+
+class AdvancedLimitsDialog(QDialog):
+    """절대 한도(고급) 창 — macOS 판 open_advanced_limits 의 500×190 과 같은 좌표. 칸은 항상 빈 칸 = 지금 한도 유지."""
+    AW, AH = 500, 190
+
+    def __init__(self, win, parent):
+        super().__init__(parent, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.win = win
+        t, R = cp.t, cp.RUNTIME
+        self.setWindowTitle(t("s_limit_advanced"))
+        self.setFixedSize(self.AW, self.AH)
+
+        def alabel(text, x, yy, w=150, h=20):
+            l = QLabel(text, self)
+            l.setGeometry(x, self.AH - yy - h, w, h)
+            return l
+
+        def afield(x, yy, w):
+            f = QLineEdit("", self)
+            f.setGeometry(x, self.AH - yy - 22, w, 22)
+            return f
+
+        yy = self.AH - 34
+        alabel(t("s_limit_note1"), 16, yy, self.AW - 32)
+        yy -= 30
+        made = []
+        for key_l, tokens in (("s_limit_session", R["session_limit"]),
+                              ("s_limit_weekly", R["weekly_limit"]),
+                              ("s_limit_model", R["opus_limit"])):
+            alabel(t(key_l), 16, yy, 170)                         # 라벨 16..186 | 입력 190..290 | 현재값 300..484
+            made.append(afield(190, yy - 2, 100))
+            alabel(t("s_limit_current", value=cp.fmt_limit_m(tokens)), 300, yy, 184)
+            yy -= 30
+        for k, w in zip(ADV_FIELD_KEYS, made):
+            win.ui[k] = w
+        win.ui["adv_panel"] = self
+        self.move(parent.x() + 30, parent.y() + 40)
+
+    def closeEvent(self, e):
+        if self.win.ui.get("adv_panel") is self:
+            self.win.close_advanced()                             # 자식만 정리 — 본 창은 그대로
+        e.accept()
 
 
 def make_tray(app, win):
