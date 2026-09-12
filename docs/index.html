@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claude Pet — Free macOS desktop companion &amp; Claude usage monitor</title>
-<meta name="description" content="A free, source-available macOS desktop pet for Claude Code users. Choose a companion, let it roam, and see Claude usage percentages and reset countdowns.">
+<title>Claude Pet — Claude usage monitor pet for macOS &amp; Windows</title>
+<meta name="description" content="A free, source-available desktop pet for Claude Code users on macOS, with a Windows beta. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
 <meta name="keywords" content="Claude usage monitor, Claude Code token tracker, Claude rate limit, Claude weekly usage, macOS desktop pet, Claude token usage app">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
 <meta name="author" content="Yeongyu Yang (uygnoey)">
@@ -13,8 +13,8 @@
 <link rel="canonical" href="https://claude-pet.yeongyu.me/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Claude Pet">
-<meta property="og:title" content="Claude Pet — Free macOS desktop companion &amp; Claude usage monitor">
-<meta property="og:description" content="A free, source-available macOS desktop pet for Claude Code users. Choose a companion, let it roam, and see Claude usage percentages and reset countdowns.">
+<meta property="og:title" content="Claude Pet — Claude usage monitor pet for macOS &amp; Windows">
+<meta property="og:description" content="A free, source-available desktop pet for Claude Code users on macOS, with a Windows beta. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
 <meta property="og:url" content="https://claude-pet.yeongyu.me/">
 <meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <meta property="og:image:width" content="520">
@@ -25,8 +25,8 @@
 <meta property="og:locale:alternate" content="ja_JP">
 <meta property="og:locale:alternate" content="es_ES">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Claude Pet — Free macOS desktop companion &amp; Claude usage monitor">
-<meta name="twitter:description" content="A free, source-available macOS desktop pet for Claude Code users. Choose a companion, let it roam, and see Claude usage percentages and reset countdowns.">
+<meta name="twitter:title" content="Claude Pet — Claude usage monitor pet for macOS &amp; Windows">
+<meta name="twitter:description" content="A free, source-available desktop pet for Claude Code users on macOS, with a Windows beta. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
 <meta name="twitter:image:alt" content="Claude Pet mascot and its usage pill">
 <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <script type="application/ld+json">
@@ -92,7 +92,7 @@
       "@id": "https://claude-pet.yeongyu.me/#website",
       "url": "https://claude-pet.yeongyu.me/",
       "name": "Claude Pet",
-      "description": "Official website of Claude Pet, a macOS desktop pet that watches your Claude token usage.",
+      "description": "The official site of Claude Pet, a free desktop pet for macOS (with a Windows beta) that shows Claude usage in one small pill.",
       "inLanguage": [
         "en",
         "ko",
@@ -491,6 +491,7 @@
   /* ---------- ethicalads slot ---------- */
   .ad-section{padding:8px 24px 0}
   .ad-section[hidden]{display:none}
+  .btn[hidden]{display:none}   /* .btn 의 inline-flex 가 UA 의 [hidden] 을 이기므로 명시 */
   .ea-wrap{display:flex;justify-content:center}
   .footer-fine{color:var(--ink-soft);font-size:12.5px;max-width:none}
   .footer-brand{font-weight:800;margin-bottom:6px}
@@ -713,7 +714,7 @@
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Choose your Mac’s download</h4><p>Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Both are available on GitHub Releases.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Drag it to Applications</h4><p>Open the .dmg, drag ClaudePet to Applications, then launch it. No separate Python installation is needed.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Connect your Claude Code account</h4><p>Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings.</p></div></div>
-        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Windows (beta)</h4><p>Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\ClaudePet.exe. The build is unsigned, so SmartScreen warns the first time: More info → Run anyway. Sign in to Claude Code on Windows first.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Windows (beta)</h4><p>Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\ClaudePet.exe. The build is unsigned, so Windows asks once before the first run — SmartScreen ("Windows protected your PC": More info → Run anyway) or the classic "Open File - Security Warning" (Unknown publisher: Run — for the portable zip this one may repeat until you untick "Always ask before opening this file"). Sign in to Claude Code on Windows first.</p></div></div>
       </div>
       <div class="note-box">
         <span>🔒</span>
@@ -770,7 +771,7 @@
         <div class="section-eyebrow">한국어 안내</div>
         <h2 class="section-title">Claude 사용량을 알려 주는 데스크톱 펫 (macOS · Windows 베타)</h2>
         <p class="section-sub">Claude Pet은 코딩할 때 곁에 있어 주는 무료 앱이에요. 고양이·강아지·여우·전갈·코끼리 중에서 고르고, 화면 산책과 커서 따라다니기를 즐겨 보세요. Claude Code 로그인 후 펫 옆의 작은 필 한 줄에 세션·주간·모델 사용률이, 둘째 줄에 리셋 시간이 보여요. 수치 색이 출처(서버 값은 에메랄드, 로그 추정은 앰버), 라벨 색이 잔여량(50%부터 노랑, 85%부터 빨강)을 알려 줘요. 다음으로 Codex 사용량을 먼저, 이어서 Gemini·Grok 등 다른 AI 토큰도 같은 필에 추가할 예정이에요.</p>
-        <p class="section-sub">macOS 12 이상을 지원해요. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받으세요. Windows 10/11은 베타 설치 파일(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe">claude-pet-win-setup.exe</a>)을 실행하거나 zip(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">claude-pet-win.zip</a>)을 풀어 ClaudePet.exe를 실행하세요. 둘 다 서명이 없어 처음 실행 때 SmartScreen 안내가 뜨면 "추가 정보 → 실행"을 누르세요. <a href="#install">설치 안내</a> · <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 다운로드와 변경 내역</a></p>
+        <p class="section-sub">macOS 12 이상을 지원해요. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받으세요. Windows 10/11은 베타 설치 파일(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe">claude-pet-win-setup.exe</a>)을 실행하거나 zip(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">claude-pet-win.zip</a>)을 풀어 ClaudePet.exe를 실행하세요. 둘 다 서명이 없어 처음 실행 때 Windows가 묻습니다: SmartScreen이면 "추가 정보 → 실행", "파일 열기 - 보안 경고"면 "실행"을 누르세요(설치 파일은 한 번, 무설치 zip은 "이 파일을 열기 전에 항상 확인"을 끄기 전까지 매번 물을 수 있어요). <a href="#install">설치 안내</a> · <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 다운로드와 변경 내역</a></p>
       </div>
     </div>
   </section>
@@ -824,7 +825,7 @@ const I18N = {
     "hero.sub": "A free, source-available desktop pet for macOS, with a Windows beta. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.",
     "hero.winbeta": "Windows beta",
     "hero.cta.windows": "⬇ Windows beta (installer)",
-    "hero.cta.alt.windows": "On Windows? Download the beta installer (unsigned)",
+    "hero.cta.alt.winzip": "Prefer no installer? Download the portable zip (unsigned)",
     "hero.cta.primary": "⬇ Download for macOS",
     "hero.cta.secondary": "View source on GitHub",
     "hero.cta.alt.intel": "Intel Mac? Download the universal build",
@@ -884,7 +885,7 @@ const I18N = {
       ["Choose your Mac’s download", "Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Both are available on GitHub Releases."],
       ["Drag it to Applications", "Open the .dmg, drag ClaudePet to Applications, then launch it. No separate Python installation is needed."],
       ["Connect your Claude Code account", "Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings."],
-      ["Windows (beta)", "Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\\ClaudePet.exe. The build is unsigned, so SmartScreen warns the first time: More info → Run anyway. Sign in to Claude Code on Windows first."]
+      ["Windows (beta)", "Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\\ClaudePet.exe. The build is unsigned, so Windows asks once before the first run — SmartScreen (\"Windows protected your PC\": More info → Run anyway) or the classic \"Open File - Security Warning\" (Unknown publisher: Run — for the portable zip this one may repeat until you untick \"Always ask before opening this file\"). Sign in to Claude Code on Windows first."]
     ],
     honesty: [
       "Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage.",
@@ -913,7 +914,7 @@ const I18N = {
     "hero.sub": "코딩하는 동안 곁에 있어 주는 무료 소스 공개 macOS 펫이에요(Windows 베타 포함). Claude 사용량을 확인하고, 마음에 드는 친구가 화면을 산책하도록 해 보세요.",
     "hero.winbeta": "Windows 베타",
     "hero.cta.windows": "⬇ Windows 베타 (설치 파일)",
-    "hero.cta.alt.windows": "Windows이세요? 베타 설치 파일 다운로드(서명 없음)",
+    "hero.cta.alt.winzip": "설치 없이 쓰시려면 무설치 zip 다운로드(서명 없음)",
     "hero.cta.primary": "⬇ macOS용 다운로드",
     "hero.cta.secondary": "GitHub에서 소스 보기",
     "hero.cta.alt.intel": "Intel Mac이세요? universal 빌드 다운로드",
@@ -973,7 +974,7 @@ const I18N = {
       ["Mac에 맞는 파일 받기", "Apple Silicon은 ClaudePet.dmg, Intel은 ClaudePet-universal.dmg를 GitHub Releases에서 받으세요."],
       ["응용 프로그램으로 이동", "dmg를 열고 ClaudePet을 응용 프로그램 폴더로 옮겨 실행하세요. Python을 별도로 설치할 필요 없어요."],
       ["Claude Code 계정 연결", "먼저 Claude Code에 로그인하세요. 첫 실행 시 키체인 인증 정보와 Claude Code 로그 접근을 허용하고, 펫을 우클릭해 설정하세요."],
-      ["Windows (베타)", "claude-pet-win-setup.exe를 실행하거나(사용자별 설치, 시작 메뉴, 로그인 시 자동 실행 옵션), claude-pet-win.zip을 풀어 ClaudePet\\ClaudePet.exe를 실행하세요. 서명이 없어 처음엔 SmartScreen 경고가 뜨니 추가 정보 → 실행을 누르세요. Windows에서도 먼저 Claude Code에 로그인하세요."]
+      ["Windows (베타)", "claude-pet-win-setup.exe를 실행하거나(사용자별 설치, 시작 메뉴, 로그인 시 자동 실행 옵션), claude-pet-win.zip을 풀어 ClaudePet\\ClaudePet.exe를 실행하세요. 서명이 없어 처음 실행 때 Windows가 한 번 묻습니다 — SmartScreen(\"Windows의 PC 보호\": 추가 정보 → 실행) 또는 \"파일 열기 - 보안 경고\"(알 수 없는 게시자: 실행 — 무설치 zip은 \"이 파일을 열기 전에 항상 확인\"을 끄기 전까지 매번 물을 수 있음). Windows에서도 먼저 Claude Code에 로그인하세요."]
     ],
     honesty: [
       "정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률을 요청해요. 로컬 대체 모드는 Claude Code 로그에 기록된 활동만 추정하며, 로그에 없는 웹·데스크톱 채팅은 포함하지 못해요. 보정은 서버 사용률이 아닌 추정치에 적용돼요.",
@@ -1000,7 +1001,7 @@ const I18N = {
     "hero.sub": "コーディングのそばに、小さな相棒を。無料・ソース公開の macOS ペット（Windows ベータあり）で Claude の使用量を確認し、好きな仲間に画面を散歩してもらいましょう。",
     "hero.winbeta": "Windows ベータ",
     "hero.cta.windows": "⬇ Windows ベータ (インストーラー)",
-    "hero.cta.alt.windows": "Windows ですか？ ベータ版インストーラーをダウンロード（未署名）",
+    "hero.cta.alt.winzip": "インストール不要なら ポータブル zip をダウンロード（未署名）",
     "hero.cta.primary": "⬇ macOS 版をダウンロード",
     "hero.cta.secondary": "GitHub でソースを見る",
     "hero.cta.alt.intel": "Intel Mac の方は universal ビルドをダウンロード",
@@ -1060,7 +1061,7 @@ const I18N = {
       ["Mac に合うファイルを選ぶ", "Apple Silicon は ClaudePet.dmg、Intel は ClaudePet-universal.dmg を GitHub Releases から取得。"],
       ["アプリケーションへ移動", "dmg を開き ClaudePet をアプリケーションに移して起動。Python の別途インストールは不要です。"],
       ["Claude Code アカウントを接続", "先に Claude Code にログイン。初回起動時にキーチェーンの認証情報とログへのアクセスを許可し、右クリックで設定します。"],
-      ["Windows（ベータ）", "claude-pet-win-setup.exe を実行するか（ユーザー単位のインストール、スタートメニュー、サインイン時起動オプション）、claude-pet-win.zip を展開して ClaudePet\\ClaudePet.exe を実行します。未署名のため初回は SmartScreen の警告が出ます: 詳細情報 → 実行。Windows でも先に Claude Code にサインインしてください。"]
+      ["Windows（ベータ）", "claude-pet-win-setup.exe を実行するか（ユーザー単位のインストール、スタートメニュー、サインイン時起動オプション）、claude-pet-win.zip を展開して ClaudePet\\ClaudePet.exe を実行します。未署名のため初回起動時に Windows が一度確認します — SmartScreen（「Windows によって PC が保護されました」: 詳細情報 → 実行）または「ファイルを開く - セキュリティの警告」（発行元不明: 実行 — ポータブル zip では「このファイルを開く前に常に警告する」を外すまで毎回出ることがあります）。Windows でも先に Claude Code にサインインしてください。"]
     ],
     honesty: [
       "正確モードは既存の Claude Code 認証情報で Anthropic のアカウント使用率を要求します。ローカル代替モードはログに記録された活動のみを推定し、そこにない Web・デスクトップの利用は含められません。補正は推定値に適用されます。",
@@ -1087,7 +1088,7 @@ const I18N = {
     "hero.sub": "Una mascota de escritorio gratuita y con código disponible para macOS, con beta para Windows. Consulta tu uso de Claude, elige una compañera y deja que pasee mientras trabajas.",
     "hero.winbeta": "Beta para Windows",
     "hero.cta.windows": "⬇ Beta para Windows (instalador)",
-    "hero.cta.alt.windows": "¿Windows? Descarga el instalador beta (sin firmar)",
+    "hero.cta.alt.winzip": "¿Sin instalador? Descarga el zip portátil (sin firmar)",
     "hero.cta.primary": "⬇ Descargar para macOS",
     "hero.cta.secondary": "Ver el código en GitHub",
     "hero.cta.alt.intel": "¿Mac Intel? Descarga la versión universal",
@@ -1147,7 +1148,7 @@ const I18N = {
       ["Elige la descarga para tu Mac", "Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Ambas en GitHub Releases."],
       ["Muévela a Aplicaciones", "Abre el .dmg, arrastra ClaudePet a Aplicaciones y ejecútala. No necesitas instalar Python por separado."],
       ["Conecta tu cuenta de Claude Code", "Inicia sesión en Claude Code primero. Al abrir la app, permite el acceso a su credencial del Llavero y a los registros cuando se solicite. Clic derecho para configurar."],
-      ["Windows (beta)", "Ejecuta claude-pet-win-setup.exe (instalación por usuario, entrada en el menú Inicio, inicio opcional al iniciar sesión) o descomprime claude-pet-win.zip y ejecuta ClaudePet\\ClaudePet.exe. La compilación no está firmada, así que SmartScreen avisa la primera vez: Más información → Ejecutar de todas formas. Inicia sesión en Claude Code en Windows primero."]
+      ["Windows (beta)", "Ejecuta claude-pet-win-setup.exe (instalación por usuario, entrada en el menú Inicio, inicio opcional al iniciar sesión) o descomprime claude-pet-win.zip y ejecuta ClaudePet\\ClaudePet.exe. La compilación no está firmada, así que Windows pregunta una vez antes de la primera ejecución: SmartScreen (\"Windows protegió su PC\": Más información → Ejecutar de todas formas) o el clásico \"Abrir archivo - Advertencia de seguridad\" (editor desconocido: Ejecutar; con el zip portátil puede repetirse hasta desmarcar \"Preguntar siempre antes de abrir este archivo\"). Inicia sesión en Claude Code en Windows primero."]
     ],
     honesty: [
       "El modo exacto consulta los porcentajes de cuenta de Anthropic con la credencial existente de Claude Code. El modo local estima solo la actividad registrada en sus archivos; no incluye chats web o de escritorio ausentes de esos registros. La calibración afecta a la estimación, no al porcentaje del servidor.",
@@ -1287,10 +1288,22 @@ function applyDownloadLinks(){
   const alt = document.getElementById("dl-alt");
   const altRow = document.getElementById("dl-alt-row");
   const showAlt = (href, key) => { altRow.style.display = ""; alt.href = href; alt.innerHTML = t[key]; };
+  const ghostWin = document.querySelector('a[data-i18n="hero.cta.windows"]');
+  if(ghostWin) ghostWin.hidden = false;
   if(dlArch === "other"){
-    mains.forEach(a => a.href = DL.releases);
-    if(/Windows/.test(navigator.userAgent)) showAlt(DL.winSetup, "hero.cta.alt.windows");
-    else showAlt(DL.releases, "hero.cta.alt.other");
+    if(/Windows/.test(navigator.userAgent)){
+      // Windows 방문자: 큰 버튼(히어로·상단)이 설치 파일, 보조 링크가 zip. 상단 버튼은 아이콘/라벨 span 을 유지하고
+      // href 만 바꾸며, 히어로의 별도 Windows 버튼은 primary 와 중복이라 숨긴다.
+      mains.forEach(a => {
+        a.href = DL.winSetup;
+        if(a.hasAttribute("data-i18n")) a.textContent = t["hero.cta.windows"];
+      });
+      if(ghostWin) ghostWin.hidden = true;
+      showAlt(DL.win, "hero.cta.alt.winzip");
+    }else{
+      mains.forEach(a => a.href = DL.releases);
+      showAlt(DL.releases, "hero.cta.alt.other");
+    }
   }else if(dlArch === "intel"){
     if(DL.universal){
       mains.forEach(a => a.href = DL.universal);
@@ -1402,6 +1415,8 @@ fetch("https://api.github.com/repos/uygnoey/claude-pet/releases/latest")
       const n = (a.name || "").toLowerCase();
       if(n === "claudepet-universal.dmg") DL.universal = a.browser_download_url;
       else if(n === "claudepet.dmg") DL.arm = a.browser_download_url;
+      else if(n === "claude-pet-win-setup.exe") DL.winSetup = a.browser_download_url;
+      else if(n === "claude-pet-win.zip") DL.win = a.browser_download_url;
     });
     if(DL.universal){
       document.getElementById("arch-support").textContent = "Apple Silicon & Intel";

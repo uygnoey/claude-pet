@@ -333,3 +333,594 @@ classes (378×228 RGBA decoded with zlib, band y 22–43: yellow 283 / white 664
 red 0, 15:26Z); hashes (`shasum -a 256`, 15:18Z). No hypothesis is asserted as established
 by this Reviewer alone; the one sample-derived statement (screenshot colour-profile artefact)
 is labelled as such. Nothing in this record was measured from `~/.claude`.
+
+---
+
+# Round 8 — 2026-09-13 KST (post-publish docs refresh, uncommitted working tree over `3190ce6`)
+
+**Verdict: FAIL — two blocking defects, both inside the new Windows branch of
+`applyDownloadLinks()` in `docs/index.html`; everything else the brief asked for checks out.
+Both fixes are a few lines in that one function and do not touch the release, the tag, or
+the artifacts.**
+
+- **Reviewer:** `reviewer-v024`, round 8. Read-only; the only file edited is this record. No
+  `git` write command, no build/release script, no GUI launch, no read of `~/.claude`, no
+  write under `~/.claude_pet*`, no untracked file touched (`release/claude-pet-win-setup.exe`
+  and `release/claude-pet-win.zip` were only `ls -l`'d). Read-only network: `gh release view
+  v0.24`, `gh release list --limit 3`.
+- **UTC window:** 2026-09-12T16:14:38Z (first command) → 2026-09-12T16:19Z (record written).
+- **Tree under review:** HEAD `3190ce67dd2b5009fd63cbac684946de11ac0247` (`docs: record the
+  v0.24 execution gate …`, 2026-09-13T00:47:31+09:00). `git cat-file -t v0.24` → `tag`;
+  `git rev-parse v0.24^{commit}` → `3190ce6…`. `gh release list --limit 3`: `v0.24 Latest
+  2026-09-12T15:55:00Z` (= 2026-09-13 00:55 KST), not draft, not prerelease, target `main`.
+- **Working tree:** `git status --porcelain` shows exactly seven ` M` paths — `README.md`,
+  `README.ko.md`, `README.ja.md`, `README.es.md`, `docs/index.html`, `docs/llms-full.txt`,
+  `docs/sitemap.xml` — plus `??` entries only (`diag.py`, `release/ClaudePet.iconset/`,
+  `release/icon_1024.png`, `release/claude-pet-win-setup.exe`, 20 `docs-design/` captures and
+  records). `git diff --numstat`: 1/1 for each of the six text files, 26/15 for
+  `docs/index.html`. `git diff --check`: clean.
+- **Working-tree hashes at 16:17Z** (`shasum -a 256`): `docs/index.html` `a1f5c389…`;
+  `README.md` `9491e0b8…`; `README.ko.md` `008c0b6b…`; `README.ja.md` `8e5a5a1b…`;
+  `README.es.md` `72cd72a7…`; `docs/llms-full.txt` `e9bee346…`; `docs/sitemap.xml`
+  `a08a4cd6…`. A later fix changes at least the first of these; re-review is against the
+  new bytes, not this list.
+
+## 8.1 Hunk map — every hunk belongs to items 1–4
+
+`git diff -U0 -- docs/index.html` yields 15 hunks; the six text files one each. Mapped:
+
+| Hunks | Item |
+| --- | --- |
+| `index.html` `-6,2`, `-16,2`, `-28,2` (`<title>`, `description`, `og:title`, `og:description`, `twitter:title`, `twitter:description`) | 2 |
+| `index.html` `-716` (static install step), `-773` (Korean overview) | 3 |
+| `index.html` `-827,0` / `-916,0` / `-1003,0` / `-1090,0` (insert `hero.cta.alt.winzip` en/ko/ja/es) | 1 |
+| `index.html` `-887` / `-976` / `-1063` / `-1150` (install-step string, 4 locales) | 3 |
+| `index.html` `-1291,3` (`applyDownloadLinks` Windows branch) | 1 |
+| `index.html` `-1404,0` (asset scan: `claude-pet-win-setup.exe`, `claude-pet-win.zip`) | 1 |
+| `README*.md` ×4 line 55 | 3 |
+| `docs/llms-full.txt` line 68 | 3 |
+| `docs/sitemap.xml` `<lastmod>` 2026-09-12 → 2026-09-13 | 4 |
+
+Nothing outside items 1–4. `&amp;` escaping in the three `<title>`/`og`/`twitter` titles is
+preserved.
+
+## 8.2 Parse checks
+
+- `node -e` over every `<script>` block: block #2 (line 812, the page script, 42 246 chars)
+  → `new Function(body)` OK; block #1 (line 32, JSON-LD, 4 944 chars) → `JSON.parse` OK, shape
+  `{@context, @graph:[SoftwareApplication, WebSite, FAQPage]}`. Two blocks total, no
+  external `src`.
+
+## 8.3 Keys, DL entries, and the macOS paths
+
+- `"hero.cta.alt.winzip"` present in all four `I18N` blocks: lines 828 (en), 918 (ko), 1006
+  (ja), 1094 (es). `"hero.cta.windows"` present ×4 (826/916/1004/1092, pre-existing).
+- `t["hero.cta.windows"]` is written as a `.dl-main` label at exactly one site, line 1297,
+  inside `if(dlArch === "other"){ if(/Windows/.test(navigator.userAgent)){ … } }`. Its only
+  other reference is the pre-existing hero ghost button (line 621, `data-i18n`), which is not
+  `.dl-main`.
+- `DL.win` (line 1280) and `DL.winSetup` (line 1281) exist with the `releases/latest/download/`
+  URLs; the fetch callback (1414–1415) compares `a.name.toLowerCase()` against
+  `"claude-pet-win-setup.exe"` / `"claude-pet-win.zip"`.
+- `applyLang()` (1222–1243) re-applies `data-i18n` (which resets the hero primary to
+  `hero.cta.primary`) and **then** calls `applyDownloadLinks()` (1242), so a language switch
+  on Windows keeps the Windows label. Initial load: `detectDlArch().then(… applyDownloadLinks())`
+  (1370) and again after the release fetch (1420).
+- macOS visitors: the `intel` and `arm` branches (1303–1316), `DL.arm`, `DL.universal`, and
+  the static hrefs at 608/620/626 are byte-identical to HEAD; the only hunk in the function is
+  the `other` branch.
+
+## 8.4 Published assets ↔ links
+
+`gh release view v0.24 --json assets`: `claude-pet-win-setup.exe` 56 012 818 B,
+`claude-pet-win.zip` 72 459 838 B, `ClaudePet-universal.dmg` 41 320 380 B,
+`ClaudePet-universal.zip` 38 062 587 B, `ClaudePet.dmg` 34 586 302 B, `ClaudePet.zip`
+32 120 389 B — six assets. The two Windows names match the `DL` URLs, the fetch-scan
+literals, the `pet-hint` links (626), the Korean overview links (773), and the READMEs'
+file names exactly (case included). Local `release/claude-pet-win-setup.exe` and
+`release/claude-pet-win.zip` have the same byte sizes as the published assets (`ls -l`,
+not hashed — sizes only).
+
+## 8.5 Security-dialog wording vs. the Windows session's observation
+
+Observed (per the round-8 brief; no on-disk record of it was found under `docs-design/`):
+title `파일 열기 - 보안 경고`, body `게시자를 확인하지 못했습니다`, buttons `실행` / `취소`.
+
+- `README.ko.md:55` and `docs/index.html` 773 / 978 carry the title verbatim — hyphen-minus,
+  single spaces — and name the button `실행`. The parenthetical `(알 수 없는 게시자)` is the
+  dialog's publisher field, not the observed body sentence; both describe the same dialog and
+  neither contradicts the observation.
+- No text claims SmartScreen always appears. The site step (716 and ×4), the Korean overview
+  (773), and `llms-full.txt:68` say "Windows asks once … SmartScreen (…) **or** the classic
+  …". The READMEs ×4 state the SmartScreen prompt first and then "on PCs where SmartScreen's
+  app checking is off you get the classic … **instead**" — qualified, acceptable (R6 below
+  suggests the tighter phrasing).
+- Locale titles: `ja` 「ファイルを開く - セキュリティの警告」 matches Windows' Japanese string;
+  `en` uses an en dash (`Open File – Security Warning`, in README, site ×2, llms-full) where
+  Windows prints a hyphen; `es` uses a colon (`Abrir archivo: advertencia de seguridad`)
+  where Windows prints ` - Advertencia`. Cosmetic → R4.
+
+## 8.6 The four README paragraphs say the same thing
+
+Each locale's line 55 adds the same three propositions and nothing else: (i) the condition
+— SmartScreen's app checking is off (`SmartScreen의 앱 검사가 꺼진 PC` / `SmartScreen の
+アプリ確認がオフの PC` / `comprobación de aplicaciones de SmartScreen desactivada`); (ii) the
+classic dialog by name, "(unknown publisher)", and click **Run** (`실행` / `実行` /
+`Ejecutar`); (iii) "either prompt appears once per file" (`어느 쪽이든 파일마다 한 번만` /
+`どちらもファイルごとに一度だけ` / `Cualquiera de los dos avisos aparece una vez por
+archivo`). The surrounding sentences are unchanged in all four.
+
+## 8.7 Sitemap date
+
+`docs/sitemap.xml` `<lastmod>2026-09-13</lastmod>`; the release's `publishedAt` is
+2026-09-12T15:55:00Z = 2026-09-13 00:55 KST. Equal. `llms-full.txt:7` already reads
+"Version publication date: 2026-09-13"; `llms.txt:5` still reads "Reference updated:
+2026-09-12" (pre-existing, gate note n2) → R3.
+
+## 8.8 Findings
+
+### Blocking (fix before this docs commit is made / `git push origin main`)
+
+**B1 — Windows visitors get two identical hero buttons.** `applyDownloadLinks()` now sets
+the hero primary (`.dl-main`, line 620) to `href = DL.winSetup`, text `⬇ Windows beta
+(installer)`. The ghost button immediately beside it (line 621) is the pre-existing
+`data-i18n="hero.cta.windows"` link whose `href` is the same
+`…/releases/latest/download/claude-pet-win-setup.exe` (confirmed by string comparison
+against `DL.winSetup`) and whose text `applyLang()` sets to the same key. Result on every
+Windows browser: primary and ghost, side by side, same label, same target, with the alt row
+underneath pointing at the zip. Certain from the markup; no browser needed. Fix: on the
+Windows branch hide the ghost (give it an id and `style.display="none"`, restoring it on the
+other branches), or repurpose it as the zip link and drop the alt row — one of the two, not
+both.
+
+**B2 — the nav download button loses its markup and its mobile collapse.** `#nav-download`
+(line 608) is `<span class="dl-icon">⬇</span><span class="dl-label" data-i18n="nav.download">Download</span>`;
+`a.textContent = …` on every `.dl-main` replaces both spans with a bare text node. CSS: `.dl-icon{display:none}`
+(498) at desktop and, at `max-width:640px` (502–512), `.dl-label{display:none}`,
+`.dl-icon{display:inline-block}`, `.nav-actions .btn{width:38px;height:38px;padding:0;border-radius:50%}`;
+`.btn` is `white-space:nowrap` with no overflow rule (283). So on a Windows browser at
+≤ 640 px the nav button is a 38 px circle containing the nowrap string `⬇ Windows beta
+(installer)`, which overflows it — the icon-only nav from `a90befa` is undone for exactly
+the platform this change targets — and at desktop widths the arrow that the CSS hides is
+now visible text. Certain from the CSS; the pixel extent of the overflow was not measured
+(no browser run). Fix: relabel only `a.querySelector(".dl-label")` (or skip the nav button
+and change only its `href`), keep the spans, and keep `applyLang()`'s `aria-label` line as
+is. `hero.cta.windows` carries its own `⬇`, so a nav-specific key without the arrow (or the
+existing `nav.download`) is the right label for the nav.
+
+### Non-blocking recommendations
+
+1. `hero.cta.alt.windows` (827/917/1005/1093) is now unreferenced in all four locales —
+   delete it, or use it for B1's ghost.
+2. **"Once per file" is unverified for the classic dialog — a hypothesis, not a finding.**
+   The classic `Open File - Security Warning` on an Internet-zone (MOTW) executable
+   re-prompts on **every** launch while its "Always ask before opening this file" box stays
+   ticked; files Explorer extracts from a downloaded zip inherit the mark, files Inno Setup
+   writes do not. If that holds, the sentence is right for the installer route and wrong
+   for the portable-zip route (`ClaudePet\ClaudePet.exe`). Not testable from this Mac: ask
+   the Windows session to launch the zip's `ClaudePet.exe` twice with app checking off and
+   record whether the prompt repeats and whether the checkbox was present. If it repeats,
+   reword "once per file" for the classic case in READMEs ×4, the site ×5, `llms-full.txt`.
+3. `docs/llms.txt:10` still says only "SmartScreen: More info → Run anyway", and `:5`
+   "Reference updated: 2026-09-12" — align both with `llms-full.txt` in the same commit.
+4. Dialog-title punctuation for searchability: `en` `Open File - Security Warning`
+   (hyphen, as Windows prints it) in README, site ×2 and llms-full; `es` `Abrir archivo -
+   Advertencia de seguridad`.
+5. `<title>` is now 81 characters ("Claude Pet — Free desktop companion & Claude usage
+   monitor for macOS and Windows"); SERPs truncate around 60. Optional trim, e.g. drop
+   "Free".
+6. READMEs ×4: the first sentence still states the SmartScreen prompt unconditionally
+   before the "instead" qualifier; the site's "Windows asks once … SmartScreen (…) or the
+   classic (…)" is the tighter form.
+7. Note only (pre-existing): Windows visitors see `⬇ Download for macOS` until
+   `detectDlArch()` resolves (`dlArch` initialises to `"arm"`, 1286); the swap happens on
+   the next tick and again after the release fetch.
+
+## 8.9 What was not done
+
+- No browser run, no layout measurement; B1/B2 are derived from the markup and CSS as
+  written (a static simulation over the two `.dl-main` elements and the ghost's `href` was
+  run in `node`, output recorded above).
+- No Windows verification of the dialog's frequency (recommendation 2 is labelled as a
+  hypothesis for that reason).
+- No test run: the change is docs-only and touches no test-pinned file
+  (`claude_pet.py`, `release.sh`, `verify_release_artifact.py` are not in the diff).
+
+## 8.10 Provenance (AGENTS.md §5)
+
+Counts above are over stated sets at stated times: hunk count 15 (`git diff -U0`, 16:16Z);
+script bodies 42 246 / 4 944 chars (`new Function` / `JSON.parse`, 16:14Z); key line numbers
+(`grep -n`, 16:14–16:17Z); asset names and sizes (`gh release view v0.24 --json assets`,
+16:15Z); local Windows file sizes (`ls -l`, 16:17Z); hashes (`shasum -a 256`, 16:17Z). The
+one unverified claim (recommendation 2) is labelled as a hypothesis. Nothing was measured
+from `~/.claude`.
+
+---
+
+# Round 9 — 2026-09-13 KST (re-review of the round-8 fixes, uncommitted working tree over `3190ce6`)
+
+**Verdict: FAIL — one blocking defect remains. B2 is fixed. B1 is fixed in the JavaScript
+and not in effect: `ghostWin.hidden = true` sets the attribute, but the page's own
+`.btn{display:inline-flex}` rule out-cascades the user-agent `[hidden]{display:none}`, so
+the ghost button still renders and Windows visitors still see two identical installer
+buttons. The fix is one CSS line; everything else the brief asked for checks out.**
+
+- **Reviewer:** `reviewer-v024`, round 9. Read-only; the only file edited is this record. No
+  `git` write command, no build/release script, no ClaudePet GUI launch, no read of
+  `~/.claude`, no write under `~/.claude_pet*`, no untracked file touched. No network: the
+  one browser run was headless Chrome on a *scratchpad copy* of the page with every host
+  name mapped to NOTFOUND (`--host-resolver-rules="MAP * ~NOTFOUND"`) and a throwaway
+  profile directory, so no request left the machine.
+- **UTC window:** 2026-09-12T16:21Z (first command) → 16:37Z (record written).
+- **Tree under review:** HEAD `3190ce67dd2b5009fd63cbac684946de11ac0247`. `git status
+  --porcelain`: ` M` on `README.md`, `README.ko.md`, `README.ja.md`, `README.es.md`,
+  `docs/index.html`, `docs/llms.txt`, `docs/llms-full.txt`, `docs/sitemap.xml`, and this
+  record; `??` entries only otherwise. `git diff --check`: clean (exit 0, no output).
+- **Working-tree hashes at 16:22:12Z** (`shasum -a 256`): `docs/index.html` `b13d8e9b…`;
+  `README.md` `0be50d0e…`; `README.ko.md` `70e27dde…`; `README.ja.md` `071cd3c5…`;
+  `README.es.md` `9b27a8c8…`; `docs/llms.txt` `3656f323…`; `docs/llms-full.txt`
+  `25fda5c5…`; `docs/sitemap.xml` `a08a4cd6…` (unchanged since round 8). The B1 fix below
+  changes at least `docs/index.html`; re-review is against the new bytes.
+
+## 9.1 What changed since round 8 (`git diff -U0`, 16 hunks in `index.html`, one per text file)
+
+| Hunks | Item |
+| --- | --- |
+| `index.html` `-6,2`, `-16,2`, `-28,2` | `<title>`/`og:title`/`twitter:title` shortened (R5); descriptions reworded |
+| `index.html` `-716`, `-773`, `-887`, `-976`, `-1063`, `-1150` | install-step / Korean-overview wording: hyphenated dialog title (R4), "asks once … may repeat for the zip" (R2) |
+| `index.html` `-827`, `-916`, `-1003`, `-1090` | `hero.cta.alt.windows` → `hero.cta.alt.winzip` in en/ko/ja/es (R1) |
+| `index.html` `-1289,0 +1290,2`, `-1291,3 +1293,13` | `applyDownloadLinks()`: `ghostWin` lookup + un-hide; Windows branch (B1/B2) |
+| `index.html` `-1404,0 +1417,2` | release-asset scan adds the two Windows names (round 8, unchanged) |
+| `README*.md` ×4 line 55, `llms-full.txt:68` | two-prompt wording (R2, R4, R6) |
+| `llms.txt:5`, `:10` | "Reference updated: 2026-09-13"; SmartScreen-or-classic wording (R3) |
+| `sitemap.xml` | `<lastmod>2026-09-13</lastmod>` (round 8, unchanged) |
+
+Function-level diff of `applyDownloadLinks()` (HEAD vs working tree, `diff -u` over the
+`awk`-extracted function): the only changed lines are the two `ghostWin` lines at the top
+and the `dlArch === "other"` branch. The `intel` and `arm` branches are byte-identical to
+HEAD. `.dl-main` occurs on exactly two elements (`#nav-download`, line 608; the hero
+primary, line 620); the ghost (line 621, `data-i18n="hero.cta.windows"`) is not `.dl-main`
+and `#nav-download` carries no `data-i18n` attribute (its inner `.dl-label` span does), so
+`a.hasAttribute("data-i18n")` selects the hero primary alone — as the brief states.
+
+## 9.2 Parse and key checks (node v22.22.2, 16:22Z)
+
+- `<script>` blocks: 2, no external `src`. Block #1 (line 32, JSON-LD, 6 232 chars) →
+  `JSON.parse` OK, `@graph` = `SoftwareApplication, WebSite, FAQPage`. Block #2 (line 812,
+  page script, 42 559 chars) → `new Function(body)` OK.
+- `I18N` evaluated: en/ko/ja/es each **52 flat string keys**, key sets identical to `en`
+  (missing 0, extra 0), duplicate keys 0 per locale block. (Round 8's "57" counted with a
+  different extractor; both agree the four sets are equal.) `hero.cta.alt.winzip` present ×4;
+  `hero.cta.alt.windows` present in **none**.
+- `grep -rn "hero\.cta\.alt\.windows"` over the working tree: zero hits outside
+  `docs-design/` records (this file's round-8 section and the gate record quote the old
+  name historically). HEAD still has 5 (4 keys + the old `showAlt` call) — all gone.
+- Titles: `<title>`, `og:title`, `twitter:title` are all `Claude Pet — Claude usage monitor
+  pet for macOS &amp; Windows` — 61 characters as written, 57 once `&amp;` is decoded. ≤ 65
+  (R5 done). The three are identical to one another.
+- Static install step (line 716) and `I18N.en` install string (887) are equal after
+  HTML-unescaping the former.
+
+## 9.3 Behaviour: headless Chrome on a probe copy (Chrome 152.0.7977.83, 16:31–16:34Z)
+
+Method: `docs/index.html` copied to the scratchpad with a `<script>` appended before
+`</body>` that, on `load`, records for each `.dl-main` its `href`, `innerHTML`, span count,
+computed `display` and bounding box; the ghost's `hidden` attribute/property, computed
+`display` and box; the list of `.hero-ctas .btn` whose computed `display !== "none"`; and
+the alt row. Runs: `--headless=new --dump-dom`, UA strings for Windows 10, Linux and Intel
+Mac, window sizes 1280×900 and 390×844, all DNS mapped to NOTFOUND.
+
+**Spoof caveat, stated so the next reviewer does not trip on it:** `--user-agent` changes
+`navigator.userAgent` only; `navigator.platform` still reads `MacIntel` here, so
+`isMacBrowser()` stays true and `detectDlArch()` resolves `"arm"` under every UA on this
+Mac. A real Windows browser reports `Win32` and reaches `"other"`. The probe therefore
+forces `dlArch = "other"` and calls `applyDownloadLinks()` under the Windows UA string —
+which is exactly the state a Windows visitor is in after `detectDlArch()` resolves — and
+then calls `applyLang("ko")` and `applyLang("en")` to exercise the language-switch path.
+
+Results, Windows UA, `dlArch = "other"` (identical at 1280 and 390 widths except where noted):
+
+| Element | Observed |
+| --- | --- |
+| `#nav-download` | `href` → `claude-pet-win-setup.exe`; `innerHTML` still `<span class="dl-icon">⬇</span><span class="dl-label" data-i18n="nav.download">Download</span>` (2 spans); 97×38 at 1280, **38×38 at 390** (the icon-only circle from `a90befa` is intact). **B2 fixed.** |
+| hero primary | `href` → `claude-pet-win-setup.exe`; text `⬇ Windows beta (installer)`; 238×52 |
+| ghost `a[data-i18n="hero.cta.windows"]` | `hidden` attribute **present**, `.hidden === true` — **and computed `display: flex`, box 238×52** |
+| `.hero-ctas .btn` with `display !== none` | **`["⬇ Windows beta (installer)", "⬇ Windows beta (installer)", "View source on GitHub"]` — three, not two** |
+| alt row | `display: block`, `href` → `claude-pet-win.zip`, text `Prefer no installer? Download the portable zip (unsigned)` |
+| after `applyLang("ko")` | primary `⬇ Windows 베타 (설치 파일)` (re-applied after the `data-i18n` reset — the applyLang → applyDownloadLinks order works); nav spans intact, label `다운로드`; alt `설치 없이 쓰시려면 무설치 zip 다운로드(서명 없음)`; ghost still `hidden` **and still 232×52** |
+| after `applyLang("en")` | back to the first row; ghost unchanged |
+
+Other branches, same probe: Linux UA + `"other"` → both `.dl-main` → `releases/latest`,
+primary text `⬇ Download for macOS` (untouched), alt `Browse all releases (macOS builds and
+the Windows beta)`, ghost `hidden=false` and visible — HEAD behaviour. `"intel"` → mains →
+`ClaudePet-universal.dmg`, alt → `ClaudePet.dmg` / `hero.cta.alt.arm`, ghost `hidden=false`.
+`"arm"` → mains → `ClaudePet.dmg`, alt → universal / `hero.cta.alt.intel`, ghost
+`hidden=false`. The un-hide at the top of the function does restore the attribute on every
+non-Windows branch and on language switch, as the brief describes.
+
+**Why the attribute does nothing here.** The `hidden` attribute hides an element only through
+the user-agent stylesheet rule `[hidden]{display:none}`. The cascade orders by origin before
+specificity, so any author declaration of `display` on the same element wins — and `.btn`
+(line 283–287, unchanged from HEAD) declares `display:inline-flex`. The page already
+carries the correct pattern for its other `hidden` element — `.ad-section[hidden]{display:none}`
+at line 493 — and nothing equivalent exists for `.btn`. Demonstrated in isolation as well
+(`mini.html`, same Chrome): `<a class="btn" hidden>` under `.btn{display:inline-flex}`
+computes `inline-flex`; the same element with no author `display` rule computes `none`.
+(In the page the ghost computes `flex` rather than `inline-flex` because it is a flex item
+of `.hero-ctas`; either way it is laid out.) This is engine-independent — it is the
+cascade, not a Chrome quirk — and the element also stays in the accessibility tree, since
+`hidden` without `display:none` does not remove it.
+
+## 9.4 Wording (R2, R3, R4, R6)
+
+- **Dialog title punctuation (R4):** `Open File - Security Warning` in `README.md:55`,
+  `index.html` 716 and 887, `llms.txt:10`, `llms-full.txt:68`; `Abrir archivo - Advertencia
+  de seguridad` in `README.es.md:55` and `index.html:1150`; ko/ja titles unchanged and
+  hyphenated. No en-dash or colon form remains (`grep "Open File – \|Abrir archivo: "` → 0).
+- **Two-prompt wording (R2/R6):** the four READMEs' line 55 each carry the same four
+  propositions — SmartScreen first; the classic dialog on PCs with app checking off, click
+  Run; with the installer either prompt appears once; with the portable zip the classic
+  dialog may repeat until "Always ask before opening this file" is unticked (or the zip is
+  Unblocked before extraction). The site install step (716 + I18N ×4) and `llms-full.txt:68`
+  say the same with the zip caveat in a parenthesis. They agree.
+- Every other "once"-family hit in the READMEs (ko 44/80/82, ja 44/82, es 29/76/80/82) is an
+  unrelated sentence (update install, breathing cadence, token read) — checked in context.
+- Two summaries say "asks once" scoped to the first run with **no** zip caveat: the Korean
+  overview paragraph (`index.html:773`, "처음 실행 때 Windows가 한 번 묻습니다") and
+  `llms.txt:10` ("on first run Windows asks once"). True for the first run, silent about later
+  ones → R1 below, non-blocking.
+- `llms.txt:5` now reads `Reference updated: 2026-09-13` (R3 done); `sitemap.xml`
+  `<lastmod>` 2026-09-13.
+
+## 9.5 Findings
+
+### Blocking (fix before this docs commit is made / `git push origin main`)
+
+**B1 (carried from round 8, still open in effect) — Windows visitors still get two identical
+hero buttons.** The JavaScript now sets `hidden` on the ghost, but `.btn{display:inline-flex}`
+overrides the user-agent `[hidden]{display:none}`, so the ghost is laid out at 238×52 beside
+the relabelled primary; the headless run lists three visible `.hero-ctas .btn`, two of them
+reading `⬇ Windows beta (installer)` with the same `href`. **Fix (one line of CSS):** add
+`.btn[hidden]{display:none}` next to `.ad-section[hidden]{display:none}` (line 493), or a
+page-wide `[hidden]{display:none!important}`. No change to `applyDownloadLinks()` is needed;
+its un-hide/hide logic is correct once the attribute has effect. **Re-check:** the same
+probe must report the ghost at `display:none` / 0×0 and exactly two visible hero buttons
+(`⬇ Windows beta (installer)`, `View source on GitHub`) on the Windows branch, and three on
+every other branch.
+
+### Non-blocking recommendations
+
+1. `index.html:773` (Korean overview) and `llms.txt:10` say "asks once" without the zip
+   caveat; one clause ("무설치 zip은 매번 물을 수 있음" / "the portable zip may re-prompt")
+   would align them with the READMEs and the install step. Both are scoped to the first run,
+   so they are incomplete rather than wrong.
+2. `README.ko.md:55`: "…항상 확인*을 끄거나(또는 zip 속성에서 차단 해제 후 풀기) 전까지" doubles
+   the "or" (`-거나` + `또는`) and leaves "끄거나 … 전까지" ungrammatical; "끄기(또는 zip
+   속성에서 차단 해제 후 풀기) 전까지" reads cleanly.
+3. Pre-existing, not in this diff: `llms.txt:3` still opens "a free macOS desktop companion"
+   and the JSON-LD `WebSite.description` still says "a macOS desktop pet" while the
+   `SoftwareApplication` entry, `<title>` and `og:description` now name the Windows beta.
+   Optional alignment in the same commit.
+4. For whoever re-reviews B1: do not rely on `--user-agent` alone to reach the Windows
+   branch from a Mac (see the spoof caveat in 9.3); force `dlArch = "other"` or run on a
+   Windows browser.
+
+## 9.6 What was not done
+
+- No run on a real Windows browser; the Windows branch was exercised by forcing `dlArch` under
+  a Windows UA string in headless Chrome on this Mac. The cascade result does not depend on
+  the platform.
+- No test run: the diff touches no test-pinned file (`claude_pet.py`, `release.sh`,
+  `verify_release_artifact.py` are not in `git status`).
+- No `gh`/network call this round; asset names were checked against the round-8 record, not
+  re-fetched.
+
+## 9.7 Provenance (AGENTS.md §5)
+
+Counts above are over stated sets at stated times: hunk count 16 (`git diff -U0`, 16:24Z);
+script bodies 42 559 / 6 232 chars (`new Function` / `JSON.parse`, 16:22Z); I18N key counts
+52 ×4 (node evaluation of the extracted `const I18N`, 16:24Z); title lengths 61/57 (python
+over the file, 16:21Z); element boxes and computed styles from headless Chrome 152.0.7977.83
+`--dump-dom` at 16:31Z (three UAs, 1280×900) and 16:34Z (Windows UA, 1280×900 and 390×844);
+hashes (`shasum -a 256`, 16:22Z). Probe files and per-run outputs are in the session
+scratchpad (`probe.html`, `probe2.html`, `mini.html`, `probe-*.out`), not in the repo.
+Nothing was measured from `~/.claude`.
+
+---
+
+# Round 10 — 2026-09-12 (UTC) / 2026-09-13 KST — re-review of the B1 fix and the round-9 wording items
+
+**Verdict: PASS — B1 is closed; no blocking finding. Two non-blocking notes (§10.5).**
+
+- **Reviewer:** `reviewer-v024`, round 10 (Claude Code workflow subagent, spawned by the
+  Developer session `55c3dee4-…`). Held no other role on this release. Read-only: the only
+  file edited is this record (this section appended). No `git` write command, no build or
+  release script, no GUI launch, no network call, no read of `~/.claude`, no write under
+  `~/.claude_pet*`.
+- **UTC window:** 2026-09-12T16:38:37Z (first command) → 16:51:41Z (this section written).
+- **cwd:** `/Users/yeongyu/claude-pet`; absolute paths in every command.
+- **Tree under review:** HEAD `3190ce67dd2b5009fd63cbac684946de11ac0247` (unchanged since
+  round 9). `git status --porcelain`: ` M` on the same nine tracked paths as round 9
+  (`README.md`, `README.ko.md`, `README.ja.md`, `README.es.md`, `docs/index.html`,
+  `docs/llms.txt`, `docs/llms-full.txt`, `docs/sitemap.xml`, this record); `??` only
+  otherwise. **`git diff --check`: clean** (exit 0, no output) at 16:38Z and again at 16:50Z.
+- **Working-tree hashes at 16:38:37Z** (`shasum -a 256`). Changed since round 9:
+  `docs/index.html` `5d4e5436417166a4deec90c88fba6e27c2f73c2abc8a250c64bce42e3c9efe09`
+  (was `b13d8e9b…`); `README.ko.md` `992a3789…` (was `70e27dde…`); `docs/llms.txt`
+  `9b65cf1a…` (was `3656f323…`). Byte-identical to round 9: `README.md` `0be50d0e…`,
+  `README.ja.md` `071cd3c5…`, `README.es.md` `9b27a8c8…`, `docs/llms-full.txt` `25fda5c5…`,
+  `docs/sitemap.xml` `a08a4cd6…`.
+
+## 10.1 What changed since round 9 (`git diff -U0 HEAD`, 16:51Z)
+
+`docs/index.html` now carries **18 hunks** against HEAD (round 9 counted 16). The three new
+ones, all outside the page script (which starts at line 813):
+
+| Hunk | Change |
+| --- | --- |
+| `-95 +95` | JSON-LD `WebSite.description`: "a macOS desktop pet…" → "a free desktop pet for macOS (with a Windows beta) that shows Claude usage in one small pill." (round-9 R3) |
+| `-493,0 +494` | **`.btn[hidden]{display:none}`** added directly under `.ad-section[hidden]{display:none}`, with a Korean comment stating why (the B1 fix, exactly as recommended) |
+| `-773 +774` | Korean overview paragraph: "처음 실행 때 SmartScreen 안내가 뜨면…" → the two-dialog wording with "설치 파일은 한 번, 무설치 zip은 … 끄기 전까지 매번 물을 수 있어요" (round-9 R1) |
+
+Every other hunk is the round-9 hunk shifted down one line; `applyDownloadLinks()`
+(lines 1285–1321) is unchanged from round 9 — `ghostWin` lookup, unconditional un-hide,
+Windows branch sets `hidden = true`. `README.ko.md` and `docs/llms.txt`: 4 hunks between
+them — `README.ko.md:55` (one line), `llms.txt:3`, `:5`, `:10`; `:5` and `:10` are the
+round-9 bytes, `:3` is new (R3).
+
+## 10.2 Parse and key checks (node v22.22.2, 16:39Z; `r10-parse.js` in the scratchpad)
+
+- `<script>` blocks: 2, no external `src`. Block #1 (line 32, JSON-LD, 6 269 chars) →
+  `JSON.parse` OK; `@graph` = `SoftwareApplication, WebSite, FAQPage`;
+  `WebSite.description` as quoted above; `SoftwareApplication.description` and
+  `.operatingSystem` unchanged and already name Windows. Block #2 (line 813, page script,
+  **42 559 chars — the round-9 length**) → `new Function(body)` OK; consistent with the hunk
+  map, which puts no change inside the script since round 9.
+- `I18N` evaluated: en/ko/ja/es each **57 keys** by this extractor (round 8's figure; round
+  9's extractor counted 52 — both agree the four sets are equal), missing 0 / extra 0 vs
+  `en`. `hero.cta.alt.winzip` present ×4; `hero.cta.alt.windows` present in none; `grep -rn`
+  over `*.html *.md *.txt *.py` outside `docs-design/` → 0 hits.
+
+## 10.3 Behaviour: headless Chrome on a probe copy (Chrome 152.0.7977.83, 16:40–16:46Z)
+
+**Method — the round-9 method, re-run on the new bytes.** `docs/index.html` copied to the
+scratchpad as `r10-probe.html` (`shasum` of the copy **before** the probe was appended =
+`5d4e5436…`, i.e. the working-tree bytes), then a `<script>` appended before `</body>` that
+records, per snapshot: for each `.dl-main` its `href`, `innerHTML`, span count, computed
+`display` and box; the ghost's `hidden` attribute and property, computed `display`,
+`visibility`, box and `offsetParent === null`; every `.hero-ctas .btn` whose computed
+`display !== "none"` (text → href) plus the total count; and the alt row. Snapshots, in
+order: `initial`; `applyLang("ko")`; `applyLang("en")` + `dlArch = "other"` +
+`applyDownloadLinks()`; `applyLang("ko")`; `applyLang("ja")`; `applyLang("en")`;
+`dlArch = "intel"`; `dlArch = "arm"`; `dlArch = "other"` again. Chrome flags:
+`--headless=new --disable-gpu --disable-extensions --host-resolver-rules="MAP * ~NOTFOUND"
+--virtual-time-budget=8000 --dump-dom`, a fresh `--user-data-dir` per run. Four runs:
+Windows 10 UA at `--window-size=1280,900` and `390,844`, Linux UA at 1280×900, Intel-Mac UA
+at 1280×900. Each dump is complete (117 KB, 9 PROBE records, no `PROBE ERR`).
+
+Two operational notes. Chrome did not exit after the dump (it spawns Google Updater
+children; round 9's `.err` files show the same), so the runner scripts timed out after the
+dumps had landed and the four Chrome trees were killed by their `r10-chrome-*`
+`--user-data-dir` names — no run was repeated. And `--window-size=390,844` produces
+`innerWidth` **500** (Chrome's minimum window width on this Mac), so that run exercises the
+`≤640px` media block but not `≤420`/`≤340`; those are covered statically below.
+
+**Spoof caveat (unchanged from round 9):** `navigator.platform` reads `MacIntel` under every
+UA string, so `detectDlArch()` resolves `"arm"` on load; the Windows branch is reached by
+forcing `dlArch = "other"` under the Windows UA, which is the state a real Windows visitor is
+in after `detectDlArch()` returns `"other"`.
+
+**Results — Windows UA, `dlArch = "other"`** (identical at both widths except the nav box):
+
+| Element | Observed |
+| --- | --- |
+| `#nav-download` | `href` → `claude-pet-win-setup.exe`; **2 spans** kept (`dl-icon`, `dl-label` `data-i18n="nav.download"`); 97×38 at 1280, **38×38** at the 500-px run (icon-only circle intact); label `Download` / `다운로드` / `ダウンロード` after the language switches |
+| hero primary (`.dl-main[data-i18n]`) | `href` → `claude-pet-win-setup.exe`; text `⬇ Windows beta (installer)` (238×52) / `⬇ Windows 베타 (설치 파일)` (232×52) / `⬇ Windows ベータ (インストーラー)` (301×52) |
+| ghost `a[data-i18n="hero.cta.windows"]` | `hidden` attribute **present**, `.hidden === true`, computed **`display: none`**, box **0×0**, `offsetParent === null` — in every Windows-branch snapshot: `forced-other`, after `applyLang("ko")`, `("ja")`, `("en")`, and `forced-other-again` |
+| `.hero-ctas .btn` with `display !== none` | **exactly two of three**: `⬇ Windows beta (installer) → …/claude-pet-win-setup.exe`, `View source on GitHub → …/claude-pet` (ko: `⬇ Windows 베타 (설치 파일)`, `GitHub에서 소스 보기`; ja: `⬇ Windows ベータ (インストーラー)`, `GitHub でソースを見る`) |
+| alt row | `display: block`, `href` → `claude-pet-win.zip`, text `hero.cta.alt.winzip` in each language (`Prefer no installer? Download the portable zip (unsigned)` / `설치 없이 쓰시려면 무설치 zip 다운로드(서명 없음)` / `インストール不要なら ポータブル zip をダウンロード（未署名）`) |
+
+This is the re-check round 9 asked for — ghost at `display:none` / 0×0 and exactly two
+visible hero buttons on the Windows branch. **B1 is closed.** The Developer's reported probe
+(`["⬇ Windows 베타 (설치 파일) → …/claude-pet-win-setup.exe", "GitHub에서 소스 보기"]`, ghost
+`none`, nav 2 spans, alt = zip) is reproduced first-hand.
+
+**Other branches — three visible buttons, ghost visible** (`hidden` attribute absent,
+`.hidden === false`, computed `display: flex`, 238×52 en / 232×52 ko / 301×52 ja):
+
+- **non-Windows `"other"`** (Linux UA and Intel-Mac UA): both `.dl-main` → `releases/latest`;
+  primary `⬇ Download for macOS`; ghost visible → `claude-pet-win-setup.exe`; alt →
+  `releases/latest`, `Browse all releases (macOS builds and the Windows beta)` (ko `전체
+  릴리즈 보기 (macOS 빌드와 Windows 베타)`, ja `リリース一覧を見る（macOS ビルドと Windows
+  ベータ）`). HEAD behaviour, unchanged.
+- **`"intel"`**: mains → `ClaudePet-universal.dmg`; alt → `ClaudePet.dmg`, `Apple Silicon?
+  Download the smaller Apple Silicon build`; ghost visible.
+- **`"arm"`**: mains → `ClaudePet.dmg`; alt → `ClaudePet-universal.dmg`, `Intel Mac? Download
+  the universal build`; ghost visible.
+- Returning to `"other"` under the Windows UA after `"arm"` re-hides the ghost (attribute
+  back, `display: none`): the un-hide at the top of the function and the hide in the
+  Windows branch both take effect on every call now that the CSS honours the attribute.
+
+**Probe artifact, not a finding.** Under the Windows UA, the `forced-intel` / `forced-arm`
+snapshots show the hero primary still reading `⬇ Windows beta (installer)` (its `href`
+correctly → the dmg) beside the now-visible ghost with the same label. That is the probe
+switching `dlArch` without passing through `applyLang()`: only the Windows branch writes the
+primary's text, and nothing in `applyDownloadLinks()` restores it. A real page load resolves
+`dlArch` once (`detectDlArch().then(… applyDownloadLinks())`) and never moves from `"other"`
+to `"intel"`/`"arm"` within a load, and every language switch goes through `applyLang()`,
+which rewrites every `[data-i18n]` element's `innerHTML` **before** calling
+`applyDownloadLinks()` (lines 1219–1242). The Linux and Intel-Mac runs, which never enter the
+Windows branch, show the intel/arm branches with three distinctly labelled buttons.
+
+**Cascade check for the new rule at widths the probe could not reach** (static, over
+`<style>` lines 171–534): `.btn[hidden]{display:none}` at line 494 is the last `display`
+declaration that can match a hero button. The only later `display` rules naming `.btn` are
+`.nav-actions .btn-ghost{display:none}` (line 504, `≤640px`, nav only) and the
+`.dl-label`/`.dl-icon` span rules (509–510); the `≤420px` block sets sizes and font only, the
+`≤340px` block hides `.brand-name` only. `.hero-ctas .btn` (line 330, the same (0,2,0)
+specificity) declares padding and font-size, no `display`. So no author rule at any width
+out-cascades the new one, and the 500-px run (`≤640px` block active) confirms the icon-only
+nav circle coexists with it.
+
+## 10.4 Wording — round-9 R1, R2, R3
+
+- **R1 done.** `index.html:774` (Korean overview) now: "둘 다 서명이 없어 처음 실행 때 Windows가
+  묻습니다: SmartScreen이면 "추가 정보 → 실행", "파일 열기 - 보안 경고"면 "실행"을 누르세요(설치 파일은
+  한 번, 무설치 zip은 "이 파일을 열기 전에 항상 확인"을 끄기 전까지 매번 물을 수 있어요)." — the same
+  four propositions as the READMEs' line 55 (SmartScreen; the classic dialog; installer once;
+  zip may repeat until the checkbox is unticked); the hyphenated ko title matches
+  `README.ko.md:55` and the `I18N.ko` install string (line 977). `llms.txt:10` now ends
+  "…the installer asks once, the portable zip may re-prompt until "Always ask before opening
+  this file" is unticked" — same propositions, same hyphenated title.
+- **R2 done.** `README.ko.md:55` reads "…*이 파일을 열기 전에 항상 확인*을 끄기(또는 zip 속성에서 차단
+  해제 후 풀기) 전까지 실행할 때마다 물을 수 있으며…" — the doubled `-거나`/`또는` is gone and
+  "끄기 … 전까지" parses. It is the only changed line in the file; the other three READMEs'
+  line 55 are the round-9 bytes (hashes above) and still carry the four propositions.
+- **R3 done.** `llms.txt:3` opens "a free desktop companion and Claude usage monitor for macOS
+  (with a Windows beta)"; JSON-LD `WebSite.description` names the Windows beta (§10.2).
+  `<title>`, `og:*`, `twitter:*` and `<meta name="description">` are the round-9 bytes and
+  already name Windows.
+- `llms.txt:5` "Reference updated: 2026-09-13" and `sitemap.xml` `<lastmod>2026-09-13` —
+  unchanged, still consistent with each other.
+
+## 10.5 Findings
+
+### Blocking
+
+None. B1 (rounds 8–9) is closed by `.btn[hidden]{display:none}`; the Windows branch now
+renders two hero buttons, and every other branch three, first-hand (§10.3).
+
+### Non-blocking
+
+1. **Optional, pre-existing, same class as round-9 R3:** the static `<p class="hero-sub">` at
+   `index.html:619` still reads "A free, source-available desktop pet for macOS." with no
+   Windows mention, while the four `I18N` `hero.sub` strings (lines 825/914/1001/1088) say
+   "with a Windows beta" and replace it in `applyLang()` on load. Only a no-JS reader ever
+   sees the static sentence. Align it if the file is touched again; not worth a commit on its
+   own.
+2. **For the next reviewer, method notes:** (a) Chrome 152 `--headless=new --dump-dom` does
+   not exit here because of its updater children — the dump is complete once the `.out` file
+   stops growing (~117 KB), and the tree can be killed by `--user-data-dir` name; (b)
+   `--window-size` cannot take `innerWidth` below 500, so the `≤420px`/`≤340px` blocks need a
+   static read or device emulation, not a narrower window.
+
+## 10.6 What was not done
+
+- No real Windows browser (as in rounds 8–9); the fix is a cascade rule, and the cascade
+  result does not depend on the platform.
+- No test run: the diff touches no test-pinned file (`claude_pet.py`, `release.sh`,
+  `verify_release_artifact.py` are not in `git status`).
+- No `gh`/network call; the asset names were checked against the round-8 record, not
+  re-fetched.
+
+## 10.7 Provenance (AGENTS.md §5)
+
+Counts above are over stated sets at stated times: hunk counts 18 / 4 (`git diff -U0 HEAD`,
+16:51Z); script bodies 6 269 / 42 559 chars and I18N 57 ×4 (`r10-parse.js`, node v22.22.2,
+16:39Z); PROBE records 9 per run × 4 runs, element boxes and computed styles from headless
+Chrome 152.0.7977.83 `--dump-dom` — `.out` mtimes 16:40Z (Windows 1280×900), 16:42Z
+(Windows 390×844 → innerWidth 500), 16:44Z (Linux), 16:46Z (Intel Mac); hashes (`shasum -a
+256`, 16:38:37Z). Probe files and per-run outputs are in the session scratchpad
+(`r10-probe.html`, `r10-snippet.html`, `r10-run.sh`, `r10-parse.js`, `r10-summ.py`,
+`r10-summary.txt`, `r10-<run>.out` / `.err`), not in the repo. Nothing was measured from
+`~/.claude`.

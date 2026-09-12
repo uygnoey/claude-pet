@@ -1,13 +1,13 @@
 # Claude Pet
 
-> Claude Pet is a free macOS desktop companion and Claude usage monitor, with public source on GitHub. Choose a pet, let it roam, and read usage percentages and reset countdowns from one small pill (number colour = source, label colour = how much is left). Roadmap: Codex usage first, then Gemini, Grok and other AI services in the same pill.
+> Claude Pet is a free desktop companion and Claude usage monitor for macOS (with a Windows beta), with public source on GitHub. Choose a pet, let it roam, and read usage percentages and reset countdowns from one small pill (number colour = source, label colour = how much is left). Roadmap: Codex usage first, then Gemini, Grok and other AI services in the same pill.
 
-Reference version: v0.24, published 2026-09-13. Reference updated: 2026-09-12.
+Reference version: v0.24, published 2026-09-13. Reference updated: 2026-09-13.
 Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.
 
 ## Key facts
 
-- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 beta from v0.24 (unsigned installer claude-pet-win-setup.exe and portable zip claude-pet-win.zip; SmartScreen: More info → Run anyway). No separate Python installation is needed for the packaged apps.
+- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 beta from v0.24 (unsigned installer claude-pet-win-setup.exe and portable zip claude-pet-win.zip; on first run Windows asks: SmartScreen "Windows protected your PC" → More info → Run anyway, or the classic "Open File - Security Warning" → Run; the installer asks once, the portable zip may re-prompt until "Always ask before opening this file" is unticked). No separate Python installation is needed for the packaged apps.
 - Install: Apple Silicon uses ClaudePet.dmg; Intel uses ClaudePet-universal.dmg. Open the disk image, move ClaudePet.app to Applications, and launch. ZIP alternatives are also published. The release describes the app as Apple-notarized.
 - Account: sign in to Claude Code first. Exact mode uses its existing OAuth credential from macOS Keychain to request Anthropic's server-computed account usage percentages and reset times.
 - Estimate: when server usage is unavailable, local fallback estimates activity recorded in Claude Code logs under ~/.claude. Web or desktop activity absent from those logs is not counted. Optional calibration applies to this estimate, not the server percentage.
