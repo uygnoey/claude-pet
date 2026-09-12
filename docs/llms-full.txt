@@ -65,7 +65,7 @@ macOS 12 이상이 필요합니다. Apple Silicon은 ClaudePet.dmg, Intel Mac은
 
 ## Windows beta (v0.24)
 
-A Windows 10/11 (64-bit) beta ships with v0.24 as two unsigned files: claude-pet-win-setup.exe (per-user installer with a Start Menu entry, an optional start-at-sign-in task and an Apps & features uninstall entry) and claude-pet-win.zip (portable: unzip and run ClaudePet\ClaudePet.exe). Because the build is not code-signed, SmartScreen shows "Windows protected your PC" on first run; the user clicks More info, then Run anyway. The Windows build has the same pill, colours, roaming, settings and pets as macOS, reads the Claude Code credential file for Exact mode, and seeds the bundled pets into %USERPROFILE%\.claude_pet on first launch.
+A Windows 10/11 (64-bit) beta ships with v0.24 as two unsigned files: claude-pet-win-setup.exe (per-user installer with a Start Menu entry, an optional start-at-sign-in task and an Apps & features uninstall entry) and claude-pet-win.zip (portable: unzip and run ClaudePet\ClaudePet.exe). Because the build is not code-signed, Windows asks once before the first run: SmartScreen shows "Windows protected your PC" (click More info, then Run anyway), or on PCs with SmartScreen app checking off the classic "Open File - Security Warning" (Unknown publisher) appears (click Run; for the portable zip it may repeat until "Always ask before opening this file" is unticked). The Windows build has the same pill, colours, roaming, settings and pets as macOS, reads the Claude Code credential file for Exact mode, and seeds the bundled pets into %USERPROFILE%\.claude_pet on first launch.
 
 ## Roadmap
 
