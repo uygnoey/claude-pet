@@ -17,25 +17,47 @@ RoamScreen.frame/bounds 도 같은 축으로 만든다. roam_frame 이 주는 cr
 
 UI 는 macOS 판과 100% 같아야 한다(사용자 요구 2026-09-12): 필·행·막대·상태줄·버튼·요약 필·설정 창·우클릭 메뉴는
 macOS 판의 같은 상수·같은 문자열·같은 좌표로 그린다. 폰트만 플랫폼 제약(SF Mono 는 Windows 에 없다) — MONO_FAMILIES 참조.
-3단계 범위(다음): 업데이트 내려받아 교체(지금은 릴리즈 페이지만 연다), 펫 시딩, PyInstaller 패키징, 제거 시 앱 폴더 삭제.
+업데이트·제거(Track C/D, 2026-09-13): 판단은 windows/win_update.py(순수, macOS 에서 시험), 실행은 이 파일.
+  · 확인: 매시간(시작 때는 하지 않고 cp.UPDATE_CHECK_SEC 뒤부터 — macOS 판과 같은 의미) + 우클릭 '업데이트 확인…'. 자산 표는
+    machine × 설치 종류(inno/portable)로 windows/ 안에 있고, 버전 비교는 cp._ver_tuple 이다. 일시적 실패(네트워크, JSON 아님)만
+    다음 새로고침(30초)에 다시 묻고, 그 밖의 결과(최신·새 버전·이 기기용 자산 없음 같은 거절)는 한 시간을 기다린다
+    (win_update.stamps_cooldown) — 예전에는 모든 거절이 30초마다 api.github.com 을 불렀다.
+  · inno(설치 파일로 깐 경우): setup.exe 를 %LOCALAPPDATA%\\me.yeongyu.claudepet 에 받아 크기·sha256 을 릴리즈 JSON 과 대조한 뒤
+    /SILENT … /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /RELAUNCH=1 로 돌린다. 앱은 스스로 끝내지 않는다 — 설치 파일의 Restart
+    Manager 가 닫고(RegisterApplicationRestart 로 등록돼 있어) 다시 띄우며, [Run] 의 /RELAUNCH 항목이 이중 보험, 단일 인스턴스
+    뮤텍스가 둘 중 하나만 남긴다.
+  · portable(zip 을 풀어 쓰는 경우): zip 을 받아 검증 → cp._zip_members_are_safe → 옆 폴더에 풀어 레이아웃·버전 마커 확인 →
+    PowerShell 교체 스크립트(pid 종료 대기 → 설치 폴더를 .claudepet-old-v<버전> 으로 → 새 폴더를 제자리로 → 실행 → 살아 있는지
+    확인, 실패하면 되돌리고 옛 exe 실행)를 띄우고 앱을 끝낸다. 이름 바꾸기는 모두 Rename-Item 이다(대상이 있으면 실패 — Move-Item 은
+    있는 폴더 *안으로* 옮겨 ClaudePet\\ClaudePet 을 만든다). .claudepet-old-v<버전> 이 이미 있으면 내려받기 전에 거절한다
+    (old-dir-exists — win_update.swap_refusal). 지난 거래가 남긴 옆 폴더는 다음 시작에서 지운다.
+  · 잠금: portable 은 공유 모드 없는 잠금 핸들을 헬퍼에 물려주어 헬퍼가 끝날 때까지 산다. inno 설치 파일은 핸들을 물려받지 않고
+    앱 쪽 핸들도 띄운 직후 닫히므로, 설치 파일이 도는 동안 두 번째 업데이트와 완전 삭제를 막는 것은 state["installing"] 표시다
+    (win_update.uninstall_refusal); 설치 파일이 앱을 닫지 않고 끝나면 _reap_installer 가 표시를 지운다.
+  · 완전 삭제: macOS 판 UNINSTALL_PATHS 의 사용자 파일 + 캐시 폴더 + HKCU Run 값(우리 exe 일 때만) 을 지우고, inno 는
+    unins000.exe /SILENT, portable 은 종료 뒤 폴더를 지우는 헬퍼. %USERPROFILE%\\.claude_pet(펫)은 남긴다.
+  · 모든 단계는 %LOCALAPPDATA%\\me.yeongyu.claudepet\\update.log 에 개수·상태만 남긴다(경로 없음 — CLAUDE.md § Privacy).
 `claude_pet.py` 와 macOS 빌드·릴리즈 스크립트는 이 파일로 바뀌지 않는다.
 
 실행: `pythonw windows\\claude_pet_win.py` (저장소 루트에서, Python 3.13 + PySide6 + Pillow)
 """
 import math
 import os
+import platform
 import shutil
 import subprocess
 import sys
 import threading
 import time
-import webbrowser
+import zipfile
 from datetime import datetime, timezone
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)             # win_update.py 는 이 파일 옆 (소스 실행·PyInstaller 번들 모두)
 
 
 def _import_core():
@@ -69,6 +91,7 @@ def _import_core():
 
 
 cp = _import_core()  # AppKit 은 run_gui 안에서만 import 되므로 GUI 없이 코어를 쓸 수 있다 (설계 문서 §0)
+import win_update as wu  # noqa: E402  — cp 를 먼저 import 한 뒤 (같은 sys.modules 항목을 본다)
 
 from PIL import Image  # noqa: E402
 from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal  # noqa: E402
@@ -193,9 +216,214 @@ def windows_ui_lang():
     return code if code in cp.SUPPORTED_LANGS else None
 
 
+# ─────────────────────────── Windows 전용 문자열 (코어 TR 에 없는 것만; 있는 키는 cp.t 로) ───────────────────────────
+TR_WIN = {
+    "en": {
+        "upd_no_asset": "No Windows build is published for this machine ({m}) yet.",
+        "upd_source": "Running from source — update with git pull instead.",
+        "upd_installing": "Installing v{v} — Claude Pet will close and reopen by itself.",
+        "unin_busy": "An update is in progress. Try again in a minute.",
+    },
+    "ko": {
+        "upd_no_asset": "이 기기({m})용 Windows 빌드가 아직 없습니다.",
+        "upd_source": "소스에서 실행 중입니다 — git pull 로 갱신하세요.",
+        "upd_installing": "v{v} 를 설치합니다 — Claude Pet 이 스스로 닫혔다가 다시 뜹니다.",
+        "unin_busy": "업데이트가 진행 중입니다. 잠시 후 다시 시도하세요.",
+    },
+    "ja": {
+        "upd_no_asset": "このPC（{m}）向けの Windows ビルドはまだ公開されていません。",
+        "upd_source": "ソースから実行中です — git pull で更新してください。",
+        "upd_installing": "v{v} をインストールします — Claude Pet は自動的に閉じて再び開きます。",
+        "unin_busy": "アップデートの実行中です。しばらくしてからもう一度お試しください。",
+    },
+    "es": {
+        "upd_no_asset": "Aún no hay una versión de Windows publicada para este equipo ({m}).",
+        "upd_source": "Se está ejecutando desde el código fuente: actualiza con git pull.",
+        "upd_installing": "Instalando v{v}: Claude Pet se cerrará y volverá a abrirse solo.",
+        "unin_busy": "Hay una actualización en curso. Inténtalo en un minuto.",
+    },
+}
+
+
+def tw(key, **kw):
+    """Windows 전용 키 → 현재 언어 문자열(없으면 en, 그래도 없으면 cp.t)."""
+    d = TR_WIN.get(cp.L["lang"]) or TR_WIN["en"]
+    s = d.get(key) or TR_WIN["en"].get(key)
+    if s is None:
+        return cp.t(key, **kw)
+    return s.format(**kw) if kw else s
+
+
+# ─────────────────────────── Windows API 배선 (win32 에서만; 판단은 win_update 에) ───────────────────────────
+_WIN32 = sys.platform == "win32"
+_KEEP_HANDLES = []            # 프로세스가 사는 동안 들고 있을 핸들(단일 인스턴스 뮤텍스) — GC 로 닫히지 않게
+RESTART_NO_CRASH, RESTART_NO_HANG, RESTART_NO_REBOOT = 1, 2, 8
+ERROR_ALREADY_EXISTS = 183
+ERROR_SHARING_VIOLATION = 32
+GENERIC_READ, GENERIC_WRITE = 0x80000000, 0x40000000
+OPEN_ALWAYS = 4
+FILE_ATTRIBUTE_NORMAL = 0x80
+FILE_FLAG_DELETE_ON_CLOSE = 0x04000000
+INVALID_HANDLE_VALUE = -1
+
+
+def is_frozen():
+    """PyInstaller 번들(ClaudePet.exe)로 도는가. 아니면 소스 실행 — 업데이트/폴더 삭제 대상이 없다."""
+    return bool(getattr(sys, "frozen", False)) and _WIN32
+
+
+def app_exe_path():
+    return os.path.abspath(sys.executable) if is_frozen() else None
+
+
+def _inno_registry_reader(value_name):
+    """HKCU\\…\\Uninstall\\{me.yeongyu.claudepet}_is1 의 값. 키가 없으면 winreg 가 OSError 를 낸다 — install_kind 는 그것을 portable 로 읽는다."""
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, wu.INNO_UNINSTALL_SUBKEY) as k:
+        value, _type = winreg.QueryValueEx(k, value_name)
+        return value
+
+
+def install_kind_now():
+    """'inno' | 'portable' | 'source'."""
+    exe = app_exe_path()
+    if not exe:
+        return "source"
+    return wu.install_kind(exe, _inno_registry_reader)
+
+
+def delete_run_value_if_ours(exe):
+    """HKCU Run 의 ClaudePet 값이 이 exe 를 가리킬 때만 지운다 → 지웠으면 True."""
+    if not _WIN32 or not exe:
+        return False
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, wu.RUN_SUBKEY, 0, winreg.KEY_READ | winreg.KEY_WRITE) as k:
+            try:
+                value, _type = winreg.QueryValueEx(k, wu.RUN_VALUE_NAME)
+            except OSError:
+                return False
+            if not wu.run_value_is_ours(value, exe):
+                return False
+            winreg.DeleteValue(k, wu.RUN_VALUE_NAME)
+            return True
+    except OSError:
+        return False
+
+
+def acquire_single_instance_mutex():
+    """Local\\me.yeongyu.claudepet 뮤텍스 → True 면 이 프로세스가 유일하다. 이미 있으면 False(다른 인스턴스가 떠 있다).
+    다른 OS 에서는 항상 True."""
+    if not _WIN32:
+        return True
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)     # get_last_error 는 use_last_error 로 연 DLL 에서만 믿을 수 있다
+        k32.CreateMutexW.restype = wintypes.HANDLE
+        k32.CreateMutexW.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR)
+        h = k32.CreateMutexW(None, False, wu.MUTEX_NAME)
+        err = ctypes.get_last_error()
+        if not h:
+            return True                        # 못 만들면 막지 않는다 — 두 개 뜨는 것보다 안 뜨는 것이 더 나쁘다
+        if err == ERROR_ALREADY_EXISTS:
+            k32.CloseHandle(h)
+            return False
+        _KEEP_HANDLES.append(h)
+        return True
+    except Exception:
+        return True
+
+
+RESTART_CMDLINE = "--restart"      # 재시작 때 붙는 인수. 앱은 인수를 읽지 않는다 — NULL/빈 문자열은 '등록 해제' 라 비워 둘 수 없다
+
+
+def register_application_restart():
+    """Restart Manager 에 '나를 다시 띄워 달라'고 등록한다 — 설치 파일(/CLOSEAPPLICATIONS /RESTARTAPPLICATIONS, RestartApplications=yes)
+    이 이 앱을 닫고 설치를 마친 뒤 다시 띄우는 근거. 첫 인수는 실행 파일 이름을 뺀 명령줄이고, NULL 이나 빈 문자열은 등록을
+    '지우는' 뜻이라 반드시 무언가를 준다(RESTART_CMDLINE). 충돌·멈춤·재부팅 뒤 자동 재시작은 끈다(RESTART_NO_*): 그건 Restart
+    Manager 가 아니라 WER 의 일이고 원하지 않는다."""
+    if not _WIN32:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.RegisterApplicationRestart.restype = ctypes.c_long
+        k32.RegisterApplicationRestart.argtypes = (wintypes.LPCWSTR, wintypes.DWORD)
+        rc = k32.RegisterApplicationRestart(RESTART_CMDLINE, RESTART_NO_CRASH | RESTART_NO_HANG | RESTART_NO_REBOOT)
+        return rc == 0
+    except Exception:
+        return False
+
+
+def open_update_lock(path):
+    """업데이트 거래 잠금: 공유 모드 0(share-none) 으로 연 파일 핸들 → 핸들, 다른 프로세스가 들고 있으면 None.
+
+    macOS 판 _acquire_update_lock 의 flock 에 해당한다. Windows 의 바이트 범위 잠금은 프로세스가 끝나면 풀리므로 헬퍼에 물려줄 수
+    없고, share-none 핸들은 상속한 자식이 닫을 때까지 살아 있어 그 자리를 대신한다(조사 § Locks). 상속 가능하게 만들고
+    DELETE_ON_CLOSE 를 주어 마지막 핸들이 닫히면 파일이 사라진다 — 잔여 잠금 파일이 남지 않는다."""
+    if not _WIN32:
+        return None
+    import ctypes
+    from ctypes import wintypes
+
+    class SECURITY_ATTRIBUTES(ctypes.Structure):
+        _fields_ = [("nLength", wintypes.DWORD), ("lpSecurityDescriptor", ctypes.c_void_p),
+                    ("bInheritHandle", wintypes.BOOL)]
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+    except OSError as e:                        # 잠금 자리를 만들 수 없다 — 믿을 수 없는 자리에서는 진행하지 않는다
+        wu.log_update("lock", status="failed", error=type(e).__name__)
+        return None
+    sa = SECURITY_ATTRIBUTES(ctypes.sizeof(SECURITY_ATTRIBUTES), None, True)
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateFileW.restype = wintypes.HANDLE
+    k32.CreateFileW.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+                                wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p)
+    h = k32.CreateFileW(path, GENERIC_READ | GENERIC_WRITE, 0, ctypes.byref(sa), OPEN_ALWAYS,
+                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, None)
+    invalid = ctypes.c_void_p(INVALID_HANDLE_VALUE).value       # HANDLE 로 돌아온 INVALID_HANDLE_VALUE 의 정수 표현
+    if h is None or h == invalid:
+        return None                             # ERROR_SHARING_VIOLATION(다른 업데이터) 또는 열 수 없는 자리 — 둘 다 진행하지 않는다
+    return h
+
+
+def close_handle(h):
+    if not _WIN32 or h is None:
+        return
+    try:
+        import ctypes
+        ctypes.windll.kernel32.CloseHandle(h)
+    except Exception:
+        pass
+
+
+def powershell_exe():
+    """System32 의 Windows PowerShell — PATH 를 믿지 않는다."""
+    root = os.environ.get("SystemRoot") or r"C:\Windows"
+    return os.path.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+
+
+def popen_detached(argv, inherit=None, cwd=None):
+    """부모와 분리해 띄운다(새 프로세스 그룹, 창 없음). inherit 에 핸들을 주면 그 핸들만 자식에 물려준다 (macOS 판 pass_fds)."""
+    kw = {}
+    if _WIN32:
+        kw["creationflags"] = (getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                               | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if inherit:
+            si = subprocess.STARTUPINFO()
+            si.lpAttributeList = {"handle_list": list(inherit)}
+            kw["startupinfo"] = si
+            kw["close_fds"] = True
+    return subprocess.Popen(argv, cwd=cwd, **kw)
+
+
 # ─────────────────────────── 펫 창 ───────────────────────────
 class PetWindow(QWidget):
-    update_msg = Signal(str)     # 업데이트 확인 결과 — 워커 스레드에서 emit, GUI 스레드에서 알림 창
+    update_msg = Signal(str)     # 업데이트 확인 결과 — 워커 스레드에서 emit, GUI 스레드에서 알림 창(모달)
+    notify = Signal(str)         # 비모달 알림(트레이 풍선) — 설치 파일이 이 앱을 닫는 동안 모달 창이 종료를 막지 않게
+    quit_app = Signal()          # 워커 스레드에서 종료 요청 → GUI 스레드에서 QApplication.quit
 
     def __init__(self, frames, cfg, pets):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -223,8 +451,13 @@ class PetWindow(QWidget):
         self._refresh_gen = 0
         self._refresh_lock = threading.Lock()
         self._pending = None
+        self._installer = None       # inno: 띄운 setup.exe 의 Popen — 앱을 닫지 않고 끝나면 _reap_installer 가 installing 을 지운다
         self.ui = {}                 # 설정 창 위젯 — macOS 판 ui 딕셔너리와 같은 키
+        self.tray = None             # make_tray 가 채운다 — 비모달 알림(notify) 의 출구
+        self._closing = False        # closeEvent 재진입 방지 (Restart Manager 의 WM_CLOSE → 종료)
         self.update_msg.connect(self._show_update_message)
+        self.notify.connect(self._show_notify)
+        self.quit_app.connect(lambda: QApplication.instance().quit())
         self._fonts()
         self.PW, self.PH, self.W, self.H = self.geom()
         self.resize(self.W, self.H)
@@ -668,6 +901,15 @@ class PetWindow(QWidget):
                 with self._refresh_lock:
                     if gen == self._refresh_gen:      # 더 새 요청이 있으면 버린다 (macOS 판 세대 규칙)
                         self._pending = values
+            # 주기적 새 버전 확인 — macOS 판 run_gui 와 같은 규칙: 마지막 확인(또는 앱 시작, main 이 찍는다)에서
+            # UPDATE_CHECK_SEC 가 지났을 때만, 그리고 이미 새 버전을 알고 있으면 하지 않는다. 결과는 우클릭 메뉴에 노출될 뿐
+            # 자동으로 설치하지 않는다.
+            try:
+                self._reap_installer()
+                if not self.state.get("update") and time.time() - cp._upd_cache["t"] > cp.UPDATE_CHECK_SEC:
+                    self._run_update_check()
+            except Exception as e:
+                print(f"[update] periodic check failed: {type(e).__name__}", file=sys.stderr)
         threading.Thread(target=work, daemon=True).start()
 
     def _color(self, h, a=1.0):
@@ -982,10 +1224,30 @@ class PetWindow(QWidget):
                               "& '" + binp.replace("'", "''") + "' auth login",
                               "Write-Host ''", self._ps_echo(cp.t("term_done"))])
 
+    # ── 완전 삭제 (macOS 판 uninstallApp_ / do_uninstall 과 같은 순서: 거절할 수 있는 단계가 먼저) ──
     def _uninstall(self):
-        """제거 — macOS 판 uninstallApp_ 과 같은 확인 창(취소가 기본 버튼). 앱 폴더 삭제는 3단계 패키징과 함께."""
-        items = [p for p in UNINSTALL_PATHS_WIN if os.path.lexists(p)]
+        """제거 — macOS 판과 같은 확인 창(취소가 기본 버튼). 설치 종류별로:
+          source   설정·잠금·디버그 로그·캐시 폴더만 (macOS 판 개발 모드와 같은 unin_devmode 안내)
+          inno     위 파일들 + HKCU Run 값(우리 exe 일 때만) 을 지우고 unins000.exe /SILENT → 종료. 제거 프로그램이 프로그램·바로가기·
+                   등록 항목을 지운다.
+          portable 위 파일들을 지우고, 종료 뒤 앱 폴더를 지우는 PowerShell 헬퍼 → 종료.
+        %USERPROFILE%\\.claude_pet(펫) 은 어느 경우에도 남긴다."""
+        why = wu.uninstall_refusal(self.state)        # 설치 파일이 이 앱을 닫길 기다리는 중 — 확인 창을 띄울 것도 없다
+        if why:
+            wu.log_update("uninstall", status="refused", reason=why)
+            self._info(cp.t("unin_title"), tw("unin_busy"))
+            return
+        kind = install_kind_now()
+        exe = app_exe_path()
+        exe_dir = os.path.dirname(exe) if exe else None
         home = os.path.expanduser("~")
+        if kind == "source":
+            plan = [("delete", p) for p in UNINSTALL_PATHS_WIN] + [("delete", wu.cache_dir())]
+        else:
+            plan = wu.uninstall_plan(kind, exe_dir, home)
+        items = [a for op, a in plan if op == "delete" and os.path.lexists(a)]
+        if kind != "source":
+            items.insert(0, exe_dir)
         shown = "\n".join("  • " + (p.replace(home, "~", 1) if p.startswith(home) else p) for p in items) \
             or "  • (없음 / none)"
         box = self._msgbox(QMessageBox.Critical, cp.t("unin_title"), cp.t("unin_body", items=shown))
@@ -995,51 +1257,288 @@ class PetWindow(QWidget):
         box.exec()
         if box.clickedButton() is not ok:
             return
+        # 진행 중인 업데이트가 있으면 지우지 않고 물러난다 (macOS 판 do_uninstall). 두 겹이다: inno 설치 파일이 도는 동안은
+        # state["installing"] 표시(설치 파일은 잠금 핸들을 물려받지 않는다 — win_update.uninstall_refusal), portable 헬퍼가 도는
+        # 동안은 헬퍼가 물려받은 공유 모드 없는 잠금 핸들.
+        why = wu.uninstall_refusal(self.state)
+        if why:
+            wu.log_update("uninstall", status="refused", reason=why)
+            self._info(cp.t("unin_title"), tw("unin_busy"))
+            return
+        lock = None
+        if _WIN32:
+            lock = open_update_lock(wu.lock_path())
+            if lock is None:
+                wu.log_update("uninstall", status="refused", reason="lock-busy")
+                self._info(cp.t("unin_title"), tw("unin_busy"))
+                return
         err = None
-        for p in items:
-            try:
-                os.remove(p)
-            except Exception as e:
-                err = e
-        box = self._msgbox(QMessageBox.Information, cp.t("unin_title"), cp.t("unin_fail") if err else cp.t("unin_devmode"))
-        box.addButton(QMessageBox.Ok)
-        box.exec()
+        try:
+            # 1. 거절할 수 있는 단계: 제거 프로그램/헬퍼를 먼저 띄운다. Popen 이 실패하면 아직 아무것도 지우지 않았다.
+            if kind == "inno":
+                argv = plan[-1][1]
+                if not os.path.isfile(argv[0]):
+                    self._info(cp.t("unin_title"), cp.t("unin_fail"))
+                    return
+                try:
+                    popen_detached(argv)
+                except Exception as e:
+                    wu.log_update("uninstall", kind=kind, status="failed", at="run-uninstaller", error=type(e).__name__)
+                    self._info(cp.t("unin_title"), cp.t("unin_fail"))
+                    return
+            elif kind == "portable":
+                script = os.path.join(os.environ.get("TEMP") or home, f"claudepet-uninstall-{os.getpid()}.ps1")
+                try:
+                    with open(script, "w", encoding="utf-8-sig") as f:
+                        f.write(wu.build_uninstall_script(exe_dir, os.getpid()))
+                    popen_detached([powershell_exe(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                                    "-File", script])
+                except Exception as e:
+                    wu.log_update("uninstall", kind=kind, status="failed", at="run-helper", error=type(e).__name__)
+                    self._info(cp.t("unin_title"), cp.t("unin_fail"))
+                    return
+            # 2. 되돌릴 수 없는 구간: 사용자 파일 → Run 값 → 캐시 폴더(잠금은 닫은 뒤; DELETE_ON_CLOSE 라 파일은 사라진다)
+            delete_run_value_if_ours(exe)
+            cache = wu.cache_dir()
+            deleted = 0
+            for op, p in plan:
+                if op != "delete" or p == cache:
+                    continue
+                if not os.path.lexists(p):
+                    continue
+                try:
+                    if os.path.isdir(p) and not os.path.islink(p):
+                        shutil.rmtree(p)
+                    else:
+                        os.remove(p)
+                    deleted += 1
+                except Exception as e:
+                    err = e
+            wu.log_update("uninstall", kind=kind, deleted=deleted, error=(type(err).__name__ if err else "none"))
+            close_handle(lock)
+            lock = None
+            shutil.rmtree(cache, ignore_errors=True)
+        finally:
+            close_handle(lock)
+        if kind == "source":
+            self._info(cp.t("unin_title"), cp.t("unin_fail") if err else cp.t("unin_devmode"))
+            return
+        QApplication.instance().quit()
 
+    # ── 업데이트 (판단: win_update / 실행: 여기) ──
     def _run_update_check(self):
-        """새 버전 확인 1회, 한 번에 하나만 (macOS 판 _run_update_check)."""
+        """새 버전 확인 1회, 한 번에 하나만 → 'update' | 'current' | 'failed' | None(이미 확인 중).
+
+        macOS 판 poll_github_update 의 규칙을 이유별로 나눈다(win_update.stamps_cooldown): 새 버전·최신, 그리고 이 릴리즈·이
+        기기의 성질인 거절(no-asset, unknown-machine, bad-url …)은 재확인 쿨다운(_upd_cache["t"])을 찍어 한 시간 뒤에 다시 묻고,
+        일시적 실패(fetch-failed:*, bad-payload)만 찍지 않아 다음 새로고침(30초)에 다시 묻는다. 예전에는 모든 error 가 쿨다운을
+        건너뛰어 ARM64 기기가 30초마다 api.github.com 을 불렀다(시간당 120회 — 비인증 한도 60회). 새 버전일 때만
+        state["update"] = (버전, url) 과 _upd_cache["choice"] 를 채운다. 소스 실행은 확인하지 않는다(자산이 소용없다).
+        """
         if cp._upd_cache.get("busy"):
             return None
         cp._upd_cache["busy"] = True
         try:
-            return cp.poll_github_update(self.state)     # 'update' | 'current' | 'failed'
+            kind = install_kind_now()
+            if kind == "source":
+                cp._upd_cache["t"] = time.time()
+                cp._upd_cache["choice"] = None
+                self.state["update_reason"] = "source"
+                return "current"
+            got = wu.check_github_update_win(wu.fetch_json_default, platform.machine(), kind, cp.APP_VERSION)
+            status = got[0]
+            stamped = wu.stamps_cooldown(got)
+            if stamped:
+                cp._upd_cache["t"] = time.time()
+            if status == "error":
+                cp._upd_cache["choice"] = None
+                self.state["update_reason"] = got[1]
+                wu.log_update("check", status="error", reason=got[1], cooldown=int(stamped))
+                return "failed"
+            if status == "update":
+                choice = got[2]
+                cp._upd_cache["choice"] = choice
+                self.state["update"] = (choice["tag"], choice["url"])
+                self.state["update_reason"] = None
+                wu.log_update("check", status="update", tag=choice["tag"], kind=kind, machine=platform.machine())
+            else:
+                cp._upd_cache["choice"] = None
+                self.state["update_reason"] = None
+            return status
         finally:
             cp._upd_cache["busy"] = False
 
     def _check_update(self):
-        """우클릭 '업데이트 확인…'. 결과는 알림 창 한 번. 내려받아 교체하는 부분은 3단계(Windows 업데이터) — 그때까지는
-        새 버전이 있으면 릴리즈 페이지를 연다."""
+        """우클릭 '업데이트 확인…': 지금 확인 → 새 버전이 있으면 바로 설치한다 (macOS 판 checkUpdate_). 결과는 알림 한 번."""
         def work():
             status = self._run_update_check()
             if status == "update":
-                upd = self.state.get("update")
-                webbrowser.open(f"https://github.com/{cp.GITHUB_REPO}/releases/latest")
-                msg = cp.t("menu_update", v=upd[0]) if upd else cp.t("upd_install_failed")
+                if self._install_update():
+                    return                       # 설치가 시작됐다 — 알림/종료는 _install_update 가 보낸다
+                msg = cp.t("upd_install_failed")
             elif status == "current":
-                msg = cp.t("upd_current", v=cp.APP_VERSION)
+                msg = tw("upd_source") if self.state.get("update_reason") == "source" \
+                    else cp.t("upd_current", v=cp.APP_VERSION)
             elif status is None:
                 msg = cp.t("upd_busy")
+            elif self.state.get("update_reason") == "no-asset":
+                msg = tw("upd_no_asset", m=platform.machine())
             else:
                 msg = cp.t("upd_failed")
             self.update_msg.emit(msg)
         threading.Thread(target=work, daemon=True).start()
 
     def _do_update(self):
-        webbrowser.open(f"https://github.com/{cp.GITHUB_REPO}/releases/latest")
+        """우클릭 '새 버전 vX 설치' (매시간 확인이 찾아 둔 것)."""
+        def work():
+            if not self._install_update():
+                self.update_msg.emit(cp.t("upd_install_failed"))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _install_update(self):
+        """_upd_cache["choice"] 의 자산을 받아 설치한다 → True 면 설치가 시작됐다(inno: 설치 파일이 이 앱을 닫고 다시 띄운다,
+        portable: 교체 헬퍼가 떠 있고 이 앱은 곧 끝난다). False 면 아무것도 바뀌지 않았다.
+
+        순서 — 거절할 수 있는 단계가 전부 되돌릴 수 없는 단계 앞에 온다: 잠금 → 내려받기 → 크기·sha256 → (portable) 멤버 검사 →
+        옆 폴더에 풀기 → 레이아웃·버전 마커 → 헬퍼/설치 파일 띄우기 → (portable) 종료. 잠금 핸들은 헬퍼에 물려주고 우리 쪽 사본은
+        닫는다(macOS 판 pass_fds 와 같은 규율). 로그에는 개수·상태만 남긴다.
+        """
+        choice = cp._upd_cache.get("choice") or {}
+        kind, tag = choice.get("kind"), choice.get("tag")
+        exe = app_exe_path()
+        if not exe or kind not in wu.INSTALL_KINDS or not tag or not choice.get("url"):
+            return False
+        if self.state.get("installing"):
+            wu.log_update("install", status="refused", reason="installing")
+            return False                          # 설치 파일이 이미 돌고 있다(이 앱이 닫히길 기다리는 중) — 두 번 띄우지 않는다
+        if kind != install_kind_now():
+            wu.log_update("install", status="refused", reason="kind-changed")
+            return False
+        cache = wu.cache_dir()
+        # portable: 이름 셋을 내려받기 전에 정하고 미리 거절한다. .claudepet-old-v<버전> 이 이미 있으면(지난 거래가 반쯤 지운 옛
+        # 폴더 — exe·마커가 없어 clean_update_leftovers 가 건드리지 않는다) 헬퍼의 Rename-Item 이 첫 단계에서 실패할 것이고,
+        # 그 답은 사용자가 그 폴더를 지우기 전에는 바뀌지 않으니 수십 MB 를 받을 이유가 없다 (win_update.swap_refusal).
+        app_dir = parent = token = stage = new_dir = old_dir = None
+        if kind == "portable":
+            app_dir = os.path.dirname(exe)
+            parent = os.path.dirname(app_dir)
+            token = f"{os.getpid()}-{os.urandom(4).hex()}"
+            stage = os.path.join(parent, wu.STAGE_PREFIX + token)
+            new_dir, old_dir = wu.swap_names(parent, cp.APP_VERSION, token)
+            why = wu.swap_refusal(app_dir, new_dir, old_dir)
+            if why:
+                wu.log_update("install", tag=tag, kind=kind, status="refused", reason=why)
+                return False
+        lock = open_update_lock(wu.lock_path())
+        if lock is None:
+            wu.log_update("install", status="refused", reason="lock-busy")
+            return False
+        dest = os.path.join(cache, choice["asset"])
+        staged = False                            # stage 폴더가 만들어졌고 아직 치우지 않았다
+        try:
+            try:
+                total = cp._download_update_zip(choice["url"], dest)
+            except Exception as e:
+                wu.log_update("download", tag=tag, status="failed", error=type(e).__name__)
+                return False
+            wu.log_update("download", tag=tag, kind=kind, bytes=total, status="ok")
+            if not wu.verify_download(dest, choice.get("size"), choice.get("digest")):
+                wu.log_update("verify", tag=tag, status="refused", reason="size-or-digest")
+                return False
+            wu.log_update("verify", tag=tag, status="ok")
+            if kind == "inno":
+                argv = wu.inno_silent_args(dest, os.path.join(cache, wu.INNO_LOG_NAME))
+                try:
+                    proc = popen_detached(argv)
+                except Exception as e:
+                    wu.log_update("install", tag=tag, kind=kind, status="failed", error=type(e).__name__)
+                    return False
+                wu.log_update("install", tag=tag, kind=kind, status="launched")
+                # 여기서 끝내지 않는다: 설치 파일의 Restart Manager 가 이 앱을 닫고(등록돼 있으므로) 다시 띄운다. 그동안 잠금 핸들은
+                # 아래 finally 에서 닫히고 설치 파일은 물려받지 않으므로, 두 번째 업데이트와 완전 삭제를 막는 것은 이 표시다
+                # (win_update.uninstall_refusal). 설치 파일이 이 앱을 닫지 않고 끝나면 _reap_installer 가 표시를 지운다.
+                self._installer = proc
+                self.state["installing"] = True
+                self.notify.emit(tw("upd_installing", v=tag))
+                return True
+            # portable
+            if not wu.scan_update_zip(dest):
+                wu.log_update("scan", tag=tag, status="refused")
+                return False
+            try:
+                os.mkdir(stage)                       # 부모가 쓰기 불가(예: Program Files)면 여기서 거절된다
+                staged = True
+                with zipfile.ZipFile(dest) as z:
+                    z.extractall(stage)
+            except Exception as e:
+                wu.log_update("extract", tag=tag, status="failed", error=type(e).__name__)
+                return False
+            ok, reason = wu.validate_portable_layout(stage, tag)
+            if not ok:
+                wu.log_update("layout", tag=tag, status="refused", reason=reason.replace(" ", "-"))
+                return False
+            why = wu.swap_refusal(app_dir, new_dir, old_dir)      # 내려받는 사이에 생겼을 수 있다 — 같은 물음, 같은 거절
+            if why:
+                wu.log_update("install", tag=tag, kind=kind, status="refused", reason=why)
+                return False
+            try:
+                os.rename(os.path.join(stage, wu.APP_DIR_NAME), new_dir)   # 대상이 있으면 FileExistsError — 덮어쓰지 않는다
+                os.rmdir(stage)
+                staged = False
+            except Exception as e:
+                wu.log_update("stage", tag=tag, status="failed", error=type(e).__name__)
+                return False
+            script = os.path.join(cache, f"swap-{token}.ps1")
+            try:
+                with open(script, "w", encoding="utf-8-sig") as f:       # BOM: PowerShell 5.1 이 UTF-8 로 읽게
+                    f.write(wu.build_swap_script(app_dir, new_dir, old_dir, exe, os.getpid(),
+                                                 log_path=wu.update_log_path()))
+                popen_detached([powershell_exe(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                                "-File", script], inherit=[lock])
+            except Exception as e:
+                wu.log_update("swap", tag=tag, status="failed", error=type(e).__name__)
+                shutil.rmtree(new_dir, ignore_errors=True)
+                return False
+            wu.log_update("swap", tag=tag, kind=kind, status="launched")
+            self.quit_app.emit()
+            return True
+        finally:
+            if staged:
+                shutil.rmtree(stage, ignore_errors=True)
+            close_handle(lock)
+
+    def _reap_installer(self):
+        """inno 설치 파일이 이 앱을 닫지 않은 채 끝났으면(거절·취소·실패) installing 표시를 지운다 — 표시가 남으면 업데이트도
+        완전 삭제도 이 앱이 다시 뜰 때까지 물러난다. 새로고침 워커가 30초마다 부른다. 정상 경로에서는 설치 파일이 이 앱을 먼저
+        닫으므로 여기 오지 않는다."""
+        proc = self._installer
+        if proc is None:
+            return
+        rc = proc.poll()
+        if rc is None:
+            return
+        self._installer = None
+        self.state["installing"] = False
+        wu.log_update("install", kind="inno", status="exited", rc=rc)
 
     def _show_update_message(self, msg):
         box = self._msgbox(QMessageBox.Information, cp.t("upd_title"), msg)
         box.addButton(QMessageBox.Ok)
         box.exec()
+
+    def _info(self, title, msg):
+        box = self._msgbox(QMessageBox.Information, title, msg)
+        box.addButton(QMessageBox.Ok)
+        box.exec()
+
+    def _show_notify(self, msg):
+        """비모달 알림 — 트레이 풍선. 트레이가 없으면 조용히 넘어간다(모달 창은 설치 파일의 종료 요청을 막는다)."""
+        tray = self.tray
+        if tray is not None:
+            try:
+                tray.showMessage(cp.t("upd_title"), msg, app_icon(), 8000)
+            except Exception:
+                pass
 
     # ── 설정 창 (macOS 판 open_settings / open_advanced_limits / save_settings 와 같은 좌표·계약) ──
     def _open_settings(self):
@@ -1092,6 +1591,21 @@ class PetWindow(QWidget):
         if not parent:
             return                      # 본 창이 없으면 열지 않는다(고아 방지)
         AdvancedLimitsDialog(self, parent).show()
+
+    def closeEvent(self, e):
+        """창 닫기 요청(WM_CLOSE) 은 곧 앱 종료다. 트레이의 보이기/숨기기는 setVisible 이라 여기를 거치지 않는다.
+
+        설치 파일의 Restart Manager(/CLOSEAPPLICATIONS) 는 이 프로세스의 최상위 창에 WM_CLOSE 를 보내 앱을 닫는다. 그냥 숨기기만
+        하면 RM 은 앱이 안 닫혔다고 보고 강제 종료(/FORCECLOSEAPPLICATIONS)로 넘어간다 — 그래도 설정 파일은 os.replace 로 쓰므로
+        찢어지지 않지만, 곱게 끝나는 쪽이 낫다. 모달 알림 창이 떠 있으면 먼저 닫아야 quit 이 먹는다(중첩 루프)."""
+        if not self._closing:
+            self._closing = True
+            app = QApplication.instance()
+            for w in app.topLevelWidgets():
+                if w is not self and w.isVisible():
+                    w.close()
+            app.quit()
+        e.accept()
 
     def _msgbox(self, icon, title, text, parent=None):
         """항상 위에 뜨는 알림 창 — 펫 창(항상 위) 아래에 숨지 않게 (macOS 판 NSAlert 는 모달로 앞에 온다)."""
@@ -1443,9 +1957,35 @@ def make_tray(app, win):
     return tray
 
 
+def clean_update_leftovers():
+    """지난 업데이트 거래가 앱 폴더 옆에 남긴 우리 폴더를 지운다 — 교체 헬퍼가 옛 폴더를 못 지웠거나 중간에 죽은 경우다.
+    -new-*/-old-* 는 우리 exe 와 버전 마커를 품은 것만, -stage-* 는 아카이브 루트(ClaudePet) 말고는 아무것도 없는 것만
+    (win_update.leftover_dirs — 이름만으로는 지우지 않는다). 반쯤 지워진 옛 폴더는 그래서 남고, 다음 업데이트가 old-dir-exists 로
+    거절된다(README 의 안내대로 사용자가 지운다)."""
+    exe = app_exe_path()
+    if not exe:
+        return
+    parent = os.path.dirname(os.path.dirname(exe))
+    removed = 0
+    for p in wu.leftover_dirs(parent):
+        try:
+            shutil.rmtree(p)
+            removed += 1
+        except Exception:
+            pass
+    if removed:
+        wu.log_update("cleanup", removed=removed)
+
+
 def main():
     claim_windows_app_identity()              # QApplication 보다 먼저 — 창이 만들어지기 전에 묶음 ID 가 있어야 한다
+    if not acquire_single_instance_mutex():   # 이미 떠 있으면 조용히 끝난다 — 설치 파일의 재시작과 [Run] 이 둘 다 띄워도 하나만 남는다
+        cp._dbg("win: another instance holds the mutex; exiting")
+        return 0
+    register_application_restart()           # 설치 파일(Restart Manager)이 닫은 뒤 다시 띄울 수 있게 (installer.iss RestartApplications=yes)
     app = QApplication(sys.argv)
+    # 지난 거래의 옆 폴더 정리는 1분 뒤 — 방금 portable 교체로 떴다면 헬퍼가 아직 옛 폴더를 지우는 중일 수 있다(확인 ≤ 23초).
+    QTimer.singleShot(60_000, clean_update_leftovers)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("Claude Pet")
     app.setWindowIcon(app_icon())             # 설정 창·알림 창의 제목줄·작업표시줄 아이콘도 같은 그림
@@ -1473,9 +2013,13 @@ def main():
     if frames is None:
         print(f"스프라이트를 찾지 못했습니다: {sel['dir']}", file=sys.stderr)
         return 1
+    # 새 릴리즈 확인은 시작 시 하지 않는다 — macOS 판과 같은 사용자 요구(2026-09-11). 기준점을 '지금' 으로 찍어 두면 새로고침
+    # 워커가 UPDATE_CHECK_SEC(1시간) 뒤부터 확인한다. PetWindow 가 첫 새로고침을 바로 시작하므로 그 전에 찍는다.
+    cp._upd_cache["t"] = time.time()
     win = PetWindow(frames, cfg, pets)
     win.show()
     tray = make_tray(app, win)  # noqa: F841  (GC 방지)
+    win.tray = tray                            # 비모달 알림(트레이 풍선)의 출구
     return app.exec()
 
 
