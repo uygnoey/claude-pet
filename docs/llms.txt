@@ -1,13 +1,13 @@
 # Claude Pet
 
-> Claude Pet is a free desktop companion and Claude usage monitor for macOS (with a Windows beta), with public source on GitHub. Choose a pet, let it roam, and read usage percentages and reset countdowns from one small pill (number colour = source, label colour = how much is left). Roadmap: Codex usage first, then Gemini, Grok and other AI services in the same pill.
+> Claude Pet is a free desktop companion and Claude usage monitor for macOS and Windows, with public source on GitHub. Choose a pet, let it roam, and read usage percentages and reset countdowns from one small pill (number colour = source, label colour = how much is left). Codex and other AI services (Gemini, Grok and more) are planned for the same pill; Codex first.
 
 Reference version: v0.24, published 2026-09-13. Reference updated: 2026-09-13.
 Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.
 
 ## Key facts
 
-- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 beta from v0.24 (unsigned installer claude-pet-win-setup.exe and portable zip claude-pet-win.zip; on first run Windows asks: SmartScreen "Windows protected your PC" → More info → Run anyway, or the classic "Open File - Security Warning" → Run; the installer asks once, the portable zip may re-prompt until "Always ask before opening this file" is unticked). No separate Python installation is needed for the packaged apps.
+- Platform: macOS 12 or later, Apple Silicon and Intel; Windows 10/11 from v0.24 (unsigned installer claude-pet-win-setup.exe and portable zip claude-pet-win.zip; on first run Windows asks: SmartScreen "Windows protected your PC" → More info → Run anyway, or the classic "Open File - Security Warning" → Run; the installer asks once, the portable zip may re-prompt until "Always ask before opening this file" is unticked). No separate Python installation is needed for the packaged apps.
 - Install: Apple Silicon uses ClaudePet.dmg; Intel uses ClaudePet-universal.dmg. Open the disk image, move ClaudePet.app to Applications, and launch. ZIP alternatives are also published. The release describes the app as Apple-notarized.
 - Account: sign in to Claude Code first. Exact mode uses its existing OAuth credential from macOS Keychain to request Anthropic's server-computed account usage percentages and reset times.
 - Estimate: when server usage is unavailable, local fallback estimates activity recorded in Claude Code logs under ~/.claude. Web or desktop activity absent from those logs is not counted. Optional calibration applies to this estimate, not the server percentage.
@@ -27,10 +27,10 @@ Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated w
 - [Latest release](https://github.com/uygnoey/claude-pet/releases/latest)
 - [Apple Silicon DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg)
 - [Intel universal DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg)
-- [Windows beta installer](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe)
-- [Windows beta ZIP](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip)
+- [Windows installer](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe)
+- [Windows ZIP](https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip)
 - [v0.24 source](https://github.com/uygnoey/claude-pet/blob/v0.24/claude_pet.py)
 
 ## 한국어 요약
 
-Claude Pet은 Claude 사용량을 확인할 수 있는 무료 macOS 데스크톱 펫입니다. 고양이·강아지·여우·전갈·코끼리를 고르고 화면 산책과 커서 따라다니기를 사용할 수 있습니다. 정확 모드는 Anthropic 서버의 사용률을 표시하고, 로컬 대체 모드는 Claude Code 로그만 추정합니다. macOS 12 이상에서 동작하며 Intel Mac은 universal 빌드를 사용합니다.
+Claude Pet은 Claude 사용량을 확인할 수 있는 무료 macOS·Windows 데스크톱 펫입니다. 고양이·강아지·여우·전갈·코끼리를 고르고 화면 산책과 커서 따라다니기를 사용할 수 있습니다. 정확 모드는 Anthropic 서버의 사용률을 표시하고, 로컬 대체 모드는 Claude Code 로그만 추정합니다. macOS 12 이상에서 동작하며 Intel Mac은 universal 빌드를 사용합니다.

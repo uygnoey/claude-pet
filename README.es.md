@@ -5,9 +5,23 @@
 Una mascota de escritorio: Patch flota en tu pantalla y vigila tu uso de tokens de Claude, al estilo de Codex Pets.
 Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estelas.
 
-> 🧪 v0.24 — la app de macOS está notarizada; la versión de Windows es beta (sin firmar).
+> 🧪 v0.24 — la app de macOS está notarizada; la versión de Windows se distribuye como instalador y zip (sin firmar — ver la sección Windows).
 
 ![Patch](preview.png)
+
+## Plataformas compatibles
+
+|  | macOS | Windows |
+| --- | --- | --- |
+| Sistema | macOS 12 o posterior | Windows 10/11 (64 bits) |
+| Chip | Apple Silicon e Intel (compilación universal) | x64 |
+| Descarga | `ClaudePet.dmg` (Apple Silicon) · `ClaudePet-universal.dmg` (Intel) | `claude-pet-win-setup.exe` (instalador) · `claude-pet-win.zip` (portátil) |
+| Firma | Firmada con Developer ID y notarizada por Apple | Sin firmar: Windows pregunta una vez antes de la primera ejecución |
+| Actualizaciones | En la app: comprueba cada hora e instala desde el menú contextual | En la app: comprueba desde el menú contextual; el nuevo instalador se descarga de la página de versiones |
+| Inicio al iniciar sesión | Ajustes del Sistema → General → Ítems de inicio | Opción del instalador “Iniciar al iniciar sesión” |
+| Claude Code | Lee la credencial de Claude Code (Llavero o archivo de credenciales) | Lee el archivo de credenciales de Claude Code |
+| Mascotas | Gato incluido + 4 más, y las tuyas en `~/.claude_pet/pets` | Igual, en `%USERPROFILE%\.claude_pet\pets` |
+| Desinstalar | Clic derecho → Desinstalar por completo… | Configuración → Aplicaciones → Desinstalar |
 
 ## Descarga e instalación (recomendado)
 
@@ -45,7 +59,7 @@ Cada hora tras el arranque (nunca al arrancar) la app comprueba la última versi
 
 ---
 
-## Windows (beta)
+## Windows
 
 Windows 10/11 (64 bits) tiene la misma píldora, paseos, ajustes y mascotas. Con cada versión se publican dos archivos:
 

@@ -924,3 +924,458 @@ Chrome 152.0.7977.83 `--dump-dom` — `.out` mtimes 16:40Z (Windows 1280×900), 
 (`r10-probe.html`, `r10-snippet.html`, `r10-run.sh`, `r10-parse.js`, `r10-summ.py`,
 `r10-summary.txt`, `r10-<run>.out` / `.err`), not in the repo. Nothing was measured from
 `~/.claude`.
+
+---
+
+# Round 11 — reviewer-v024, 2026-09-13 ≈01:33Z–01:43:33Z (read-only; the five user directives on the docs-only tree)
+
+**Verdict: FAIL — one blocking finding.** B1: the usage-pill illustration in `#gauges` no
+longer wraps at phone widths, but its text now runs **out of the pill** in en/ja/es (31 px past
+the bubble at 390 px, 38 px at 340 px). Directive 2 ("텍스트가 넘어가서 이상한데") is met on
+desktop (centred) and not met on phones. Directives 1, 3, 4, 5 are met first-hand.
+
+- **UTC window:** first timestamped command 01:35:38Z (Chrome run 1); parse/grep checks ran
+  just before it; this section written 01:43:33Z.
+- **cwd:** `/Users/yeongyu/claude-pet`; absolute paths in every command. Windows facts from
+  `/Users/yeongyu/claude-pet-windows` (tip `d4050ee`, read only).
+- **Tree under review:** HEAD `13710dbb4ba9fc1e9b3f1b7d8cda27c3c4381bfa`. `git status
+  --porcelain`: ` M` on `README.md`, `README.ko.md`, `README.ja.md`, `README.es.md`,
+  `docs/assets/preview.png`, `docs/index.html`, `docs/llms-full.txt`, `docs/llms.txt`,
+  `preview.png`; `??` only otherwise. **`git diff --check`: clean** (exit 0, no output).
+- **Working-tree hashes (`shasum -a 256`, 01:38:08Z):** `docs/index.html` `e982875b…`,
+  `README.md` `4f991bc2…`, `README.ko.md` `265fe4a2…`, `README.ja.md` `4082d6cd…`,
+  `README.es.md` `f9c71366…`, `docs/llms.txt` `14ac0f44…`, `docs/llms-full.txt`
+  `f52745dc…`, `preview.png` = `docs/assets/preview.png` = `9da6640c…` (byte-identical).
+- **Hunks vs HEAD (`git diff -U0`):** `docs/index.html` 52; each README 3; each llms file 3.
+
+## 11.1 Directive 4 — no "beta" anywhere (grep, first-hand)
+
+`grep -n -i -E 'beta|베타|ベータ'` over the seven text files → **0 hits** (exit 1); the same
+grep at HEAD → 58 hits. JSON-LD (parsed) 0; each of the four `I18N` locales (evaluated) 0;
+rendered `document.body.innerText` in headless Chrome 0 at every width × locale (§11.2 probe).
+`hero.winbeta` is referenced nowhere (`grep -rn winbeta docs README*.md docs/llms*.txt` → 0);
+`hero.win` = "Windows" in all four locales. Repo-wide tracked grep outside `RELEASE_NOTES.md`
+finds only the `anthropic-beta` HTTP header in `claude_pet.py:2511`, the review/gate records
+under `docs-design/`, and the font binary — nothing user-facing. Synonym sweep
+(시험판/試用/試験/prueba/experimental/실험) → only `comprueba` substrings. The frozen v0.24
+`RELEASE_NOTES.md` entry ("Windows용 시험판") is out of scope, as assigned.
+
+Also gone: "Windows · installer (beta)" / "ZIP (beta)" in the pet-hint row (`index.html:638`),
+the "(beta)" in `operatingSystem`, the four READMEs' banner line 8 and "## Windows" heading,
+`llms.txt:3/10/30–31`, `llms-full.txt:67/69`. The static `hero-sub` (`index.html:626`) now
+reads "for macOS and Windows" (round-10 recommendation 1 done).
+
+## 11.2 Directive 2 — the pill illustration (headless Chrome 152.0.7977.83)
+
+**Method.** Scratch copy `r11-probe.html` (sha `e982875b…` = working tree). Two independent
+measurements, which agree to 0.1 px:
+
+- **(a) iframe probe** — `r11-frame.html` / `r11b-frame.html` embed the copy in iframes of
+  1100, 390, 340 (run 1, 01:35:38–42Z) and 340, 360, 390, 430 px (run 2, 01:37:24–30Z);
+  Chrome `--headless=new --allow-file-access-from-files --host-resolver-rules="MAP * ~NOTFOUND"
+  --virtual-time-budget --dump-dom --window-size=1280,900`. The parent calls the framed page's
+  global `applyLang()` for en/ko/ja/es and records `.pill-demo` computed style and box, its
+  `scrollWidth`/`clientWidth`, the `.wrap` box, the Range client rects of both lines (count,
+  distinct `top`s, right edge), `documentElement.scrollWidth` vs `clientWidth`, the spec table,
+  and every element whose box passes the viewport. 12 + 64 PROBE records, no `PROBE ERR`.
+  (`vw` and media queries resolve against the iframe, which is why this reaches below Chrome's
+  500-px window floor noted in round 10.)
+- **(b) CDP probe** — `r11-cdp.js` (node v22.22.2, `--remote-debugging-port`,
+  `Emulation.setDeviceMetricsOverride` 390/340/1100 at DPR 2, 01:39:30Z and 01:40:09Z): a real
+  viewport, same measurements, plus `Page.captureScreenshot` clips `r11-shot-<w>-<lang>.png`.
+
+**Desktop (1100 px): centred — met.** `.pill-demo` is `display:block; width:max-content;
+margin:0 auto` (`index.html:405`); gaps to the `.wrap` edges are equal in every locale:
+en 329.4/329.4, ko 363.4/363.4, ja 331.2/331.2, es 327.5/327.5 px. `r11-shot-1100-en.png`.
+
+**One line: yes.** `white-space:nowrap`; line 1's Range rects share a single `top` at every
+width and locale. It cannot wrap any more.
+
+**But the line does not fit the pill at phone widths (B1).** Text-ink right edge minus pill
+right edge (positive = text drawn outside the bubble), current CSS:
+
+| width | en | ko | ja | es |
+| --- | --- | --- | --- | --- |
+| 430 | **+16.7** | −21.5 | **+13.0** | **+20.4** |
+| 390 | **+31.4** | −19.5 | **+28.0** | **+34.9** |
+| 360 | **+35.5** | −18.0 | **+32.3** | **+38.7** |
+| 340 | **+38.2** | −17.0 | **+35.2** | **+41.2** |
+
+Same thing as `pill.scrollWidth > pill.clientWidth`: at 390 px 337/334/341 vs 306 (en/ja/es);
+at 340 px 294/291/297 vs 256. Screenshots: `r11-shot-390-en.png` — "18%" straddles the pill's
+right edge; `r11-shot-340-en.png` — the whole "18%" sits outside the dark bubble on the page
+background; `r11-shot-390-ko.png` — Korean fits with room.
+
+Mechanism: `max-width:100%` clamps the box to the `.wrap` content width (`.wrap{padding:0
+24px}`, `index.html:239` — 306 px at 390, 256 at 340), the `clamp()` floors keep the nowrap
+text wider than that (line 1 is 16.77 px at 390, 14.62 at 340; padding 19.5/17 px), and
+`overflow` is `visible`, so the excess is painted past the right edge (`text-align:center`
+does not shift overflowing content). The Developer's check — "stays on one line inside an
+iframe of width 390 and 340" — is literally true and cannot see this: `nowrap` guarantees one
+line; it says nothing about whether the line fits. **The test that catches it is
+`pill.scrollWidth <= pill.clientWidth`** (or the Range right edge ≤ the pill's right).
+
+Font caveat: the pill's stack is `"SF Pro Text","Segoe UI","Pretendard","Noto Sans KR",
+"Helvetica Neue",Arial,sans-serif` (`index.html:228`); none of the first four is installed here
+(no Pretendard under `~/Library/Fonts` or `/Library/Fonts`), so Latin text measured in
+Helvetica Neue — which is also what iOS Safari resolves to from this stack; Android (Roboto) and
+Windows (Segoe UI) are of similar advance widths. Korean glyphs used the system fallback; 세션/주간
+are two glyphs each, which is why ko fits everywhere.
+
+**Verified fix candidates** (overrides injected into the scratch copy only — no repo file
+touched — measured at 340/360/390/430 × 4 locales, run 2):
+
+- C1 `.pill-line1{font-size:clamp(12px,3.8vw,18px)}` `.pill-line2{clamp(9.5px,2.9vw,13.5px)}`
+  `.pill-demo{padding:12px clamp(12px,4vw,26px)}` — **still spills** at 340 (en +2.6, es +5.2)
+  and 360 es (+0.6). Not enough.
+- **C2 `.pill-line1{font-size:clamp(11px,3.6vw,18px)}` `.pill-line2{font-size:clamp(9px,2.8vw,13.5px)}`
+  `.pill-demo{padding:12px clamp(10px,3.5vw,26px)}` — fits every locale at every width**,
+  smallest slack 9.6 px (es @ 340); desktop unchanged (the 18 px cap is reached from 500 px up).
+  `r11-shot-390-es-C2.png`, `r11-shot-340-en-C2.png`.
+- C3 (3.5vw / 2.7vw / 3.2vw, same floors) — fits with ≥ 10.9 px slack; smaller than needed.
+
+Any change that brings the en/ja/es line under the `.wrap` content width at 340 px closes B1;
+re-measure after the change (the fit is a few px at 340) rather than trusting the arithmetic.
+
+**No page-level horizontal scroll**: `documentElement.scrollWidth` = `clientWidth` at 1100,
+390, 340 in all four locales; 0 elements outside `.spec-wrap` extend past the viewport.
+
+## 11.3 Directive 5 — the requirements table
+
+**`docs/index.html`.** `.spec-wrap{max-width:820px;overflow-x:auto}`, `.spec{min-width:560px}`
+(`index.html:438–446`); one static English `<table id="spec-table">` under the Install heading
+(9 static rows, `index.html:722–734`); `renderLists()` (`index.html:1229–1233`) rewrites
+`thead`/`tbody` from `t.spec` when present, and `applyLang()` calls `renderLists()`
+(`index.html:1271`). Evaluated `I18N`: **58 keys × 4 locales, sets equal**; every locale has
+`spec` with `head` of 3 and 9 rows × 3 cells; every `data-i18n` key in the markup exists in
+`I18N.en`; `install.sub` shortened in all four. Probe: rows 9, cells `333333333`, heads
+`["","macOS","Windows"]`, 6 `<code>` spans, in en/ko/ja/es at 1100, 390 and 340. At 390 the
+table is 560–611 px wide inside a 306-px `.spec-wrap` (`scrollWidth` 560–611 > `clientWidth`
+306, `overflow-x:auto`) — the wrapper scrolls, the page does not.
+
+**Row facts vs code** (`claude_pet.py` at HEAD; `claude_pet_win.py` and `windows/installer.iss`
+at `d4050ee`):
+
+- *Updates.* macOS "checks every hour, installs from the right-click menu" ↔ `UPDATE_CHECK_SEC
+  = 3600` (939), refresh worker `time.time() - _upd_cache["t"] > UPDATE_CHECK_SEC` (7699),
+  `menu_update` "⬆︎ Install v{v}" / `menu_check_update` "⬆︎ Check for updates…" (1060–1061).
+  Windows "In-app check from the right-click menu; download the new installer from the releases
+  page" ↔ menu action (`claude_pet_win.py:892`) → `_check_update` (1018) → on `"update"`
+  `webbrowser.open(…/releases/latest)` (1025); `_do_update` opens the same page (1037); the
+  Windows file has no `UPDATE_CHECK_SEC` and no periodic check — the row is exact.
+- *Uninstall.* macOS "Right-click → Uninstall completely…" ↔ `menu_uninstall` "Uninstall
+  completely…" / "완전 삭제…" / "完全に削除…" / "Desinstalar por completo…" (1067/1141/1218/1300),
+  menu item at 6576. Windows "Settings → Apps → Uninstall" ↔ `UninstallDisplayName`
+  (`installer.iss:27`), `[UninstallDelete]` (64–66) — installer only, which is what the row
+  describes.
+- *Start at sign-in.* Windows ↔ `[Tasks] startup … checkedonce` (46), `[Registry] HKCU\…\Run
+  … Tasks: startup` (59), `CustomMessages` "Start Claude Pet when I sign in to Windows" /
+  "Windows 로그인 시 Claude Pet 자동 실행" (42–43); the table's "Start when I sign in" / "로그인 시
+  자동 실행" are abbreviations of those (the installer ships English and Korean only). macOS
+  "System Settings → General → Login Items": the app has no login-item setting of its own
+  (`grep -i 'login\|LaunchAgent\|SMAppService'` → only the Claude Code sign-in strings), so the
+  OS path is the right instruction.
+- *OS / Chip.* Windows "10/11 (64-bit)" / "x64" ↔ `MinVersion=10.0` (35),
+  `ArchitecturesAllowed=x64compatible` (31). "macOS 12 or later" is the pre-existing claim
+  (README line 32, `llms.txt:10/36`, JSON-LD) — not introduced here; `setup.py` sets no
+  `LSMinimumSystemVersion`, so it rests on its precedent, not on a re-check.
+- *Claude Code.* macOS "Keychain or credentials file" ↔ `_read_oauth_token` file → `security`
+  CLI → native Keychain (2259–2311); Windows "credentials file" ↔ the same function with the
+  `security`/Keychain steps under `sys.platform == "darwin"` (2307), reached from
+  `claude_pet_win.py:660` `cp.fetch_exact_usage()`.
+- *Download.* Names unchanged from rounds 8–10 (`UPDATE_ASSET_NAMES` + the Windows pair).
+- *Pets.* "4 bundled + your own" ↔ `.claude_pet/pets/{dog,elephant,fox,scorpion}` — but the
+  built-in cat (`frames/`) is a fifth pet the app ships, and the page's own copy lists five
+  (고양이·강아지·여우·전갈·코끼리). See R1.
+
+**READMEs.** Each table sits between the banner and the Download heading (`## Supported
+platforms` / `## 지원 사양` / `## 対応環境` / `## Plataformas compatibles`), blank line before
+and after, header `|  | macOS | Windows |`, separator `| --- | --- | --- |`, **9 rows × 3
+cells**, 12 backticks per table with every cell balanced (6 code spans), no `|` inside a code
+span. No markdown renderer is installed here (python `markdown`, pandoc, cmark absent) and no
+network call was made, so this is a structural check, not a rendered one.
+
+## 11.4 Directive 1 — the preview image
+
+`preview.png` = `docs/assets/preview.png` (same sha). Header: **398 × 312**, colour type 6
+(RGBA) — the Developer's report says 400 × 312; the file is 398 wide. Decoded (pure-Python zlib):
+74 264 of 124 176 px fully transparent, all four corners alpha 0. Viewed: the black cat with green
+ear/eye/paw accents and the zipped jacket — the built-in cat of `frames/idle/00.png` (192 × 208),
+not a user pet. Pill: `세션 11% · 주간 21% · Fable 38%`, green values (Exact), white labels (all
+under 50 %), no ▲; second line `리셋 세션 4시간 40분 후 · 주간 6일 9시간 후`. The five captions
+(static + 4 locales) and the `alt` ("The built-in Claude Pet cat with its two-line usage pill on
+a transparent background") match what the image shows: built-in cat, macOS, Exact mode, every
+gauge under 50 %, two lines, transparent. The old caption's "session label is yellow" would now
+be false and is gone from all five places.
+
+## 11.5 Directive 3 — roadmap wording
+
+All plain statements, quoted from the evaluated `I18N` and the files:
+
+- en / static: "Codex and other AI services (Gemini, Grok and more) are planned. Codex comes first."
+- ko: "Codex 및 다른 AI 서비스(Gemini, Grok 등)는 지원 예정이에요. Codex가 가장 먼저예요." — the
+  shape the user gave ("Codex 및 타 AI는 지원 예정").
+- ja: "Codex やその他の AI サービス（Gemini、Grok など）は対応予定です。Codex を最初に対応します。"
+- es: "Codex y otros servicios de IA (Gemini, Grok y más) están previstos. Codex será el primero."
+- `llms.txt:3` / `llms-full.txt:73`: "Codex and other AI services (Gemini, Grok and more) are
+  planned for the same pill; Codex first." (+ "These are plans, not shipped features.")
+
+The static Korean overview paragraph (`index.html:796`) still ends "다음으로 Codex 사용량을 먼저,
+이어서 Gemini·Grok 등 다른 AI 토큰도 같은 필에 추가할 예정이에요." — unchanged; also a "…예정"
+statement, but not in the new shape (R2).
+
+## 11.6 Parse checks (node v22.22.2, `r11-parse.js`)
+
+JSON-LD parses (6 253 chars; `@graph` SoftwareApplication, WebSite, FAQPage; `operatingSystem`
+"macOS 12.0 or later (Apple Silicon and Intel); Windows 10/11"; FAQ Q2 and `featureList` name
+"installer and zip"). Page script: `new Function(body)` OK and `node --check` OK (46 633 chars,
+`<script>` at line 836). `git diff --check` clean.
+
+## 11.7 Findings
+
+### Blocking (fix before this docs commit is made / `git push origin main`)
+
+**B1 — the `#gauges` pill's text runs out of the pill at ≤ 430 px in en/ja/es** (§11.2 table
+and screenshots). The rewrite of `.pill-demo` traded wrapping for spilling; on a 390-px phone
+the last value is half outside the bubble, on a 340-px one wholly outside. The verified fix is
+C2 (or any equivalent that makes `pill.scrollWidth <= pill.clientWidth` at 340 px in all four
+locales); measure with that predicate, not with "one line".
+
+### Non-blocking
+
+1. **R1 — "4 bundled" undercounts by the cat.** The app ships five pets (built-in cat + the four
+   seeded under `~/.claude_pet/pets`), and the same page lists five by name. Say "built-in cat +
+   4 more" (or "5 built-in") in the Pets row — page + 4 locales + 4 READMEs, same row.
+2. **R2 — `index.html:796`** (static Korean overview): align its roadmap sentence with the new
+   `gauges.roadmap` shape for consistency; optional.
+3. **R3 — pre-existing, unchanged lines:** `llms.txt:36` Korean summary still says "무료 macOS
+   데스크톱 펫입니다" with no Windows; JSON-LD `softwareRequirements` "macOS 12.0 or later and a
+   Claude Code login" names no Windows requirement. Neither is false; touch if the files are
+   opened again.
+4. **R4 — record the real image size:** 398 × 312, not 400 × 312, wherever the Developer's
+   figure is copied.
+5. **R5 — for the next reviewer / the Developer's self-check:** the pill's fit is
+   `pill.scrollWidth <= pill.clientWidth` plus the Range right edge of each line ≤ the pill's
+   right; with `nowrap` the line count is always 1 and proves nothing. An iframe of the target
+   width (or CDP `Emulation.setDeviceMetricsOverride`) gets below Chrome's 500-px window floor;
+   for screenshots, `Page.captureScreenshot` clips are in **document** coordinates
+   (`rect.top + scrollY`) with `captureBeyondViewport: true`.
+
+## 11.8 What was not done
+
+- No real phone or Safari: Latin text was measured in Helvetica Neue, the face iOS resolves to
+  from this stack; Korean used the macOS fallback and fits with ≥ 17 px to spare in every run.
+- No rendered-markdown check of the README tables (no renderer installed, no network).
+- No test run (the diff touches no test-pinned file). No `gh`/network call.
+- No GUI launch; no repo file edited other than this record; `~/.claude_pet` and `~/.claude`
+  never read.
+
+## 11.9 Provenance (AGENTS.md §5)
+
+Counts above are over stated sets at stated times: grep hit counts over the seven named files
+(0) and at HEAD (58); hunk counts from `git diff -U0 HEAD` (01:38Z); I18N 58 × 4, spec 3/9/3,
+script lengths from `r11-parse.js` (node v22.22.2); pill/table geometry from headless Chrome
+152.0.7977.83 — iframe runs `r11.out` (01:35:38–42Z, 12 PROBE records) and `r11b.out`
+(01:37:24–30Z, 64 records: 4 CSS variants × 4 widths × 4 locales), CDP run `r11-cdp.js`
+(01:40:09–24Z, 7 clips); PNG facts from a pure-Python decode (python 3.13.7); hashes `shasum
+-a 256` at 01:38:08Z. Probe files and outputs (`r11-parse.js`, `r11-page.js`,
+`r11-probe.html`, `r11-frame.html`, `r11b-frame.html`, `r11.out`, `r11b.out`,
+`r11-cdp.js`, `r11-shot-*.png`) are in the session scratchpad, not in the repo. Nothing was
+measured from `~/.claude`.
+
+---
+
+# Round 12 — reviewer-v024, 2026-09-13 ≈01:46Z–01:56:53Z (read-only; re-verification of round-11 B1 and R1–R3 on the docs-only tree)
+
+**Verdict: PASS — no blocking finding.** B1 is closed first-hand: with the applied C2 sizes the
+`#gauges` pill's text sits inside the bubble in all four locales at 340, 360, 390 and 430 px
+(and at 320 and 375, measured in addition), the desktop pill is pixel-identical to round 11 and
+centred, and R1–R3 are applied as described. Parse checks and `git diff --check` are clean.
+
+- **UTC window:** first timestamped command 01:46:42Z (hashes); iframe run 01:47:54Z; CDP runs
+  01:51:17–26Z, 01:52:37–42Z, 01:53:11–18Z; extra iframe run 01:54:32Z; this section written
+  01:56:53Z.
+- **cwd / tree:** `/Users/yeongyu/claude-pet`, HEAD `13710dbb…` (unchanged). `git status
+  --porcelain`: ` M` on the same nine paths as round 11 plus this record; `??` only otherwise.
+  **`git diff --check`: clean** (exit 0, no output), re-run after this section was appended.
+- **Working-tree hashes (`shasum -a 256`, 01:46:42Z):** `docs/index.html` `c26670f0…` (round 11:
+  `e982875b…`), `README.md` `081a3db0…`, `README.ko.md` `5ff3a5e6…`, `README.ja.md` `6c35837d…`,
+  `README.es.md` `00588f47…`, `docs/llms.txt` `c1cdf166…` (round 11: `14ac0f44…`),
+  `docs/llms-full.txt` `f52745dc…` (**unchanged** since round 11), `preview.png` =
+  `docs/assets/preview.png` = `9da6640c…` (**unchanged**).
+- **What changed since round 11** (`diff` of the round-11 probe copy `r11-probe.html`, sha
+  `e982875b…`, against the working-tree `docs/index.html`): exactly eight hunks — line 47 JSON-LD
+  `softwareRequirements` (R3), lines 405–407 the three pill rules (B1 = C2 verbatim), line 732
+  the static Pets row (R1), line 796 the static Korean overview sentence (R2), and the `spec`
+  Pets row in each of the four locales (lines 889/979/1067/1155, R1). Nothing else in the file
+  moved. `docs/llms.txt` differs from round 11 only in the Korean summary line (R3); each README
+  differs only in its Pets row (R1).
+
+## 12.1 B1 — the pill fits (headless Chrome 152.0.7977.83, two independent measurements)
+
+**Applied CSS (`index.html:405–407`)** is the round-11 C2 candidate character for character:
+`.pill-demo{… padding:12px clamp(10px,3.5vw,26px) … white-space:nowrap}`,
+`.pill-line1{font-size:clamp(11px,3.6vw,18px)}`, `.pill-line2{font-size:clamp(9px,2.8vw,13.5px)}`.
+`max-width:100%`, `overflow:visible`, `width:max-content`, `margin:0 auto` unchanged.
+
+**Method** — same as round 11, on a fresh copy `r12-probe.html` (sha `c26670f0…` = working tree):
+
+- **(a) iframe probe** `r12-frame.html` — iframes of 340, 360, 390, 430 and 1100 px inside a
+  1280×900 headless window (`--allow-file-access-from-files --host-resolver-rules="MAP *
+  ~NOTFOUND" --virtual-time-budget --dump-dom`); for each iframe × en/ko/ja/es the parent calls
+  the framed page's `applyLang()` and records `.pill-demo`'s box, `scrollWidth`/`clientWidth`,
+  computed font sizes and padding, the Range client rects of both lines (left/right ink edges,
+  distinct `top`s), the gap to the `.wrap` content box on each side, `documentElement.scrollWidth`
+  vs `clientWidth`, and every element outside `.spec-wrap` whose box passes the viewport.
+  **20 PROBE records, 0 `PROBE ERR`** (`r12.out`, 01:47:54Z). (Chrome did not exit on its own
+  after the dump this time — killed at 01:49:54Z — but the DOM had been written at 01:47:5xZ and
+  is complete.)
+- **(b) CDP probe** `r12-cdp.js` (node v22.22.2, `--remote-debugging-port`,
+  `Emulation.setDeviceMetricsOverride` 340/390/430/1100 at DPR 2, `mobile:true` below 700) — a
+  real viewport, same measurements, plus `Page.captureScreenshot` clips (`r12-shot-<w>-<lang>.png`,
+  01:51:17–26Z). **16 records; every number agrees with (a) to 0.1 px.**
+
+**Result — fits everywhere.** `pill.scrollWidth`/`pill.clientWidth`, and the slack between the
+pill's right edge and the rightmost text ink of either line (positive = inside the bubble):
+
+| width | en | ko | ja | es | font 1 / 2 / pad |
+| --- | --- | --- | --- | --- | --- |
+| 340 | 256/256, +11.9 | 210/210, +11.9 | 253/253, +11.9 | 256/256, **+9.6** | 12.24 / 9.52 / 11.9 px |
+| 360 | 271/271, +12.6 | 222/222, +12.6 | 268/268, +12.6 | 274/274, +12.6 | 12.96 / 10.08 / 12.6 |
+| 390 | 293/293, +13.6 | 240/240, +13.6 | 291/291, +13.6 | 296/296, +13.6 | 14.04 / 10.92 / 13.65 |
+| 430 | 324/324, +15.0 | 265/265, +15.0 | 320/320, +15.0 | 327/327, +15.0 | 15.48 / 12.04 / 15.05 |
+| 1100 | 393/393, +26.0 | 325/325, +26.0 | 390/390, +26.0 | 397/397, +26.0 | 18 / 13.5 / 26 |
+
+Round 11 at the same points, for contrast: 390 px 337/334/341 vs 306 (en/ja/es), 340 px
+294/291/297 vs 256; spill +31.4/+28.0/+34.9 at 390 and +38.2/+35.2/+41.2 at 340. Every one of
+those is now inside the bubble by 9.6 px or more. The left slack equals the padding in every
+cell. Both lines are one line each (one distinct `top` per line at every width × locale). The
+Developer's reported slack range 9.6–13.6 px is what the 340–390 rows show; this run measured
+it independently.
+
+One nuance, stated so nobody over-reads "fits": at **340 px en and es** the pill is clamped by
+`max-width:100%` to the `.wrap` content width (256 px; `gapL`/`gapR` 0.0–0.1), and in es the
+line-1 ink (234.5 px) is 2.3 px wider than the pill's *content* box (232.2 px) — it sits inside
+the right padding, 9.6 px short of the bubble's edge. That is why es@340 is the only cell whose
+slack is not the full padding. The round-11 R5 predicate (`scrollWidth <= clientWidth` **and**
+ink right ≤ pill right) holds; `r12-shot-340-es.png` shows "18%" wholly inside the dark bubble
+with visible room.
+
+**Desktop unchanged and centred.** At 1100 px the pill rects are identical to round 11 to the
+decimal: en 353.4..746.6 (393.2 wide), ko 387.4..712.6 (325.3), ja 355.2..744.8 (389.5), es
+351.5..748.5 (396.9); fonts 18 / 13.5 px, padding 26 px — the clamps' caps, reached from 500 px
+up, so the change cannot touch desktop. `gapL` = `gapR` in every locale (305.4, 339.4, 307.2,
+303.5 px to the `.wrap` content edges). `r12-shot-1100-en.png` is **byte-identical** to round
+11's `r11-shot-1100-en.png` (sha `84e4b515…`), and `r12-shot-390-es.png` is byte-identical to
+round 11's C2 candidate shot `r11-shot-390-es-C2.png` (sha `3f17d2d8…`) — the applied CSS
+renders exactly what was verified.
+
+**No page-level horizontal scroll** at any of the five widths in any locale
+(`documentElement.scrollWidth` = `clientWidth`; 0 elements outside `.spec-wrap` beyond the
+viewport).
+
+**Below the assigned floor (extra, `r12b-frame.html`, 01:54:32Z, 12 records):** 375 px (iPhone
+SE 2/3) fits with +13.1 px in every locale; **320 px** (the narrowest current phone width) fits:
+en +6.3, ko +11.2, ja +8.7, es +4.0. At **300 px** — narrower than any shipping phone — the 11-px
+`clamp()` floor is reached and en/ja/es spill by 3.0/0.8/5.3 px; in ja a page-level scroll also
+appears there from `.btn-sponsor` (320 px wide in a 300-px viewport), unrelated to the pill.
+Recorded for completeness, not as a finding.
+
+**Screenshots viewed:** `r12-shot-340-es.png`, `r12-shot-390-en-settled.png`,
+`r12-shot-1100-en.png` — text inside the bubble in all three; Session label yellow, values
+emerald, second line grey, as designed. A capture note for the next reviewer:
+`r12-shot-390-en.png` from the first CDP run shows the sticky `.nav` drawn across the pill's
+second line — a capture artefact, not a page defect: the page has `scroll-behavior:smooth`
+(`index.html:222`), so `scrollIntoView` was still in flight when `captureBeyondViewport` froze
+the sticky bar mid-scroll. With an instant scroll and the pill at rest 120 px below the viewport
+top (`r12-cdp2.js`, 01:53:11Z) `.nav` occupies 0–59 px and `overlapsPill=false` at 390-en,
+340-es and 390-es, and the re-taken `r12-shot-390-en-settled.png` is clean. Use
+`scrollTo({behavior:"instant"})` before clipping.
+
+**Font caveat** as in round 11: Latin measured in Helvetica Neue (the face iOS resolves to from
+this stack; none of SF Pro Text / Segoe UI / Pretendard / Noto Sans KR is installed here);
+Korean in the macOS fallback.
+
+## 12.2 R1 — "Built-in cat + 4 bundled pets"
+
+- `index.html:732` (static table): "Built-in cat + 4 bundled pets, plus your own in
+  `~/.claude_pet/pets`".
+- `spec.rows[7]` in the evaluated `I18N`: en "Built-in cat + 4 bundled pets, plus your own in …",
+  ko "내장 고양이 + 4종, 그리고 …의 내 펫", ja "内蔵の猫 + 4 種、さらに … の自作ペット", es "Gato
+  incluido + 4 más, y las tuyas en …". The rendered Pets row was captured by the probe at every
+  width × locale and reads the same (`petsRow=` lines in `r12.out`).
+- READMEs line 23, one row each: `README.md` "Built-in cat + 4 bundled pets, plus your own in …",
+  `.ko` "내장 고양이 + 4종, 그리고 …", `.ja` "内蔵の猫 + 4 種、さらに …", `.es` "Gato incluido + 4
+  más, y las tuyas en …". `git diff -U0 HEAD` on the four READMEs shows the Pets row as the only
+  new hunk since round 11. Table structure re-checked: 9 rows × 3 cells, balanced backticks, in
+  all four.
+- Matches the code: built-in cat (`frames/`) + `.claude_pet/pets/{dog,elephant,fox,scorpion}`.
+
+## 12.3 R2 — static Korean overview
+
+`index.html:796` now ends "… Codex 및 다른 AI 서비스(Gemini, Grok 등)는 지원 예정이에요. Codex가
+가장 먼저예요." — the `gauges.roadmap` ko string, verbatim. (Round 11: "다음으로 Codex 사용량을
+먼저, 이어서 Gemini·Grok 등 다른 AI 토큰도 같은 필에 추가할 예정이에요.")
+
+## 12.4 R3 — the two pre-existing macOS-only lines
+
+- `docs/llms.txt` Korean summary: "Claude Pet은 Claude 사용량을 확인할 수 있는 무료
+  **macOS·Windows** 데스크톱 펫입니다." — the file's only change since round 11; its other three
+  hunks vs HEAD (the `>` summary, the Platform line, the two Windows link labels) are the round-11
+  beta removals, unchanged.
+- JSON-LD `softwareRequirements`: "macOS 12.0 or later, or Windows 10/11 (64-bit), and a Claude
+  Code login" (parsed, §12.5).
+
+`docs/llms-full.txt` was not in R3 and is byte-identical to round 11; its line 11 ("a free macOS
+desktop pet …") and line 60 ("무료 macOS 데스크톱 펫입니다") still say macOS only, with the
+"## Windows (v0.24)" section following at line 66. Same status R3 had: not false, touch if the
+file is opened again (recommendation 1 below).
+
+## 12.5 Parse checks (node v22.22.2, `r12-parse.js`, 01:50:38Z)
+
+JSON-LD parses: 6 281 chars, `@graph` SoftwareApplication / WebSite / FAQPage; `operatingSystem`
+"macOS 12.0 or later (Apple Silicon and Intel); Windows 10/11"; 0 beta hits. Page script
+(`<script>` at line 836): `new Function(body)` OK, **`node --check` OK** (46 683 chars); `I18N`
+58 keys × 4 locales, sets equal; every locale's `spec` has `head` 3 and 9 rows × 3 cells; every
+`data-i18n` key in the markup exists in `I18N.en`; one `#spec-table`, 9 static rows;
+`grep -i -E 'beta|베타|ベータ'` over the seven text files → 0.
+
+## 12.6 Findings
+
+### Blocking
+
+None. B1 is closed by measurement (§12.1); R1–R3 are applied (§12.2–12.4).
+
+### Non-blocking
+
+1. **`docs/llms-full.txt:11` and `:60`** still describe the app as a macOS desktop pet
+   (pre-existing, outside R3's named lines). Optional; align with `llms.txt` if the file is
+   opened again.
+2. **The fit floor is 320 px.** At 300 px en/ja/es spill 0.8–5.3 px because the 11-px `clamp()`
+   floor stops the text shrinking while the container keeps shrinking. No shipping phone is that
+   narrow; if it ever matters, the floors (or the `max-width:100%` clamp) are the lever —
+   re-measure rather than reason.
+3. **Round-11 R4 stands:** the preview image is 398 × 312, not 400 × 312 — carry the real figure
+   wherever the Developer's number is copied (not re-checked here whether it was copied anywhere).
+4. **Keep the Developer's new probe predicate** (`pill.scrollWidth <= pill.clientWidth` plus the
+   Range right edge, per locale, in an iframe or CDP viewport) as the self-check for any future
+   edit to `.pill-demo`; it is the check that would have caught round 11's B1.
+
+## 12.7 What was not done
+
+- No real phone or Safari; fonts as caveated. No rendered-markdown check of the README tables
+  (structural only). No test run (no test-pinned file in the diff). No `gh`/network call; no GUI
+  launch. No repo file edited other than this record; `~/.claude_pet` and `~/.claude` never read.
+
+## 12.8 Provenance (AGENTS.md §5)
+
+Counts above are over stated sets at stated times: hashes `shasum -a 256` at 01:46:42Z; the
+eight-hunk delta from `diff r11-probe.html docs/index.html`; pill geometry from headless Chrome
+152.0.7977.83 — iframe run `r12.out` (01:47:54Z, 20 records, 5 widths × 4 locales), CDP run
+`r12-cdp.out` (01:51:17–26Z, 16 records, 7 clips), settled-scroll run `r12-cdp2c.out`
+(01:53:11–18Z, 3 clips), extra iframe run `r12b.out` (01:54:32Z, 12 records, 300/320/375 × 4);
+parse figures from `r12-parse.js` + `node --check r12-page.js` (01:50:38Z); README structure from
+an `awk` pass over the four tables. Probe files and outputs (`r12-probe.html`, `r12-frame.html`,
+`r12b-frame.html`, `r12.dom`/`.out`, `r12b.dom`/`.out`, `r12-cdp.js`, `r12-cdp2.js`,
+`r12-cdp*.out`, `r12-parse.js`, `r12-page.js`, `r12-shot-*.png`) are in the session scratchpad,
+not in the repo. Nothing was measured from `~/.claude`.

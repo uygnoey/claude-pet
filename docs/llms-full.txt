@@ -8,7 +8,7 @@ Version publication date: 2026-09-13. Reference updated: 2026-09-13.
 
 ## Overview
 
-Claude Pet is a free macOS desktop pet and Claude usage monitor with public source on GitHub. It is for people using Claude Code who want a companion on their desktop and usage information nearby. It uses native AppKit rendering with a transparent, frameless window. macOS 12 or later is supported, on Apple Silicon and Intel Macs.
+Claude Pet is a free macOS and Windows desktop pet and Claude usage monitor with public source on GitHub. It is for people using Claude Code who want a companion on their desktop and usage information nearby. It uses native AppKit rendering with a transparent, frameless window. macOS 12 or later is supported, on Apple Silicon and Intel Macs.
 
 The pet can wander around the screen, occasionally follow the cursor while keeping a distance, and hop between monitors. The right-click menu can toggle roaming. The usage pill tucks away during movement. Users can drag the companion to a new resting location, and double-click to jump and refresh usage.
 
@@ -57,16 +57,16 @@ Claude Pet is an independent project by Yeongyu Yang (GitHub: uygnoey). It is no
 
 ## 한국어 안내
 
-Claude Pet은 코딩할 때 곁에 있어 주는 무료 macOS 데스크톱 펫입니다. 화면 산책, 커서 따라다니기, 모니터 사이 이동을 지원하며 우클릭 메뉴에서 산책을 끌 수 있습니다. 고양이·강아지·여우·전갈·코끼리를 선택할 수 있습니다.
+Claude Pet은 코딩할 때 곁에 있어 주는 무료 macOS·Windows 데스크톱 펫입니다. 화면 산책, 커서 따라다니기, 모니터 사이 이동을 지원하며 우클릭 메뉴에서 산책을 끌 수 있습니다. 고양이·강아지·여우·전갈·코끼리를 선택할 수 있습니다.
 
 정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률과 리셋 시간을 요청합니다. 서버 정보를 사용할 수 없는 경우 로컬 Claude Code 로그로 추정하며, 로그에 없는 웹·데스크톱 채팅 사용량은 추정치에 포함되지 않습니다.
 
 macOS 12 이상이 필요합니다. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받고 응용 프로그램 폴더로 이동하세요. Python은 앱에 포함됩니다. v0.24은 실행 직후가 아닌 실행 후 1시간마다 업데이트를 확인하며, 우클릭 → 업데이트 확인…에서 즉시 확인하고 새 버전이 있으면 설치할 수 있습니다.
 
-## Windows beta (v0.24)
+## Windows (v0.24)
 
-A Windows 10/11 (64-bit) beta ships with v0.24 as two unsigned files: claude-pet-win-setup.exe (per-user installer with a Start Menu entry, an optional start-at-sign-in task and an Apps & features uninstall entry) and claude-pet-win.zip (portable: unzip and run ClaudePet\ClaudePet.exe). Because the build is not code-signed, Windows asks once before the first run: SmartScreen shows "Windows protected your PC" (click More info, then Run anyway), or on PCs with SmartScreen app checking off the classic "Open File - Security Warning" (Unknown publisher) appears (click Run; for the portable zip it may repeat until "Always ask before opening this file" is unticked). The Windows build has the same pill, colours, roaming, settings and pets as macOS, reads the Claude Code credential file for Exact mode, and seeds the bundled pets into %USERPROFILE%\.claude_pet on first launch.
+Windows 10/11 (64-bit) support ships with v0.24 as two unsigned files: claude-pet-win-setup.exe (per-user installer with a Start Menu entry, an optional start-at-sign-in task and an Apps & features uninstall entry) and claude-pet-win.zip (portable: unzip and run ClaudePet\ClaudePet.exe). Because the build is not code-signed, Windows asks once before the first run: SmartScreen shows "Windows protected your PC" (click More info, then Run anyway), or on PCs with SmartScreen app checking off the classic "Open File - Security Warning" (Unknown publisher) appears (click Run; for the portable zip it may repeat until "Always ask before opening this file" is unticked). The Windows build has the same pill, colours, roaming, settings and pets as macOS, reads the Claude Code credential file for Exact mode, and seeds the bundled pets into %USERPROFILE%\.claude_pet on first launch.
 
 ## Roadmap
 
-The pill is built from provider segments; the next planned addition is Codex usage, followed by Gemini, Grok and other AI services in the same pill. These are plans, not shipped features.
+The pill is built from provider segments; Codex and other AI services (Gemini, Grok and more) are planned for the same pill, Codex first. These are plans, not shipped features.

@@ -5,9 +5,23 @@
 A desktop pet — Patch floats on your screen and watches your Claude token usage, à la Codex Pets.
 Rendered natively on macOS (AppKit) — no window frame, no background, no ghosting.
 
-> 🧪 v0.24 — the macOS app is notarized; the Windows build is a beta (unsigned).
+> 🧪 v0.24 — the macOS app is notarized; the Windows build ships as an installer and a zip (unsigned — see the Windows section).
 
 ![Patch](preview.png)
+
+## Supported platforms
+
+|  | macOS | Windows |
+| --- | --- | --- |
+| OS | macOS 12 or later | Windows 10/11 (64-bit) |
+| Chip | Apple Silicon and Intel (universal build) | x64 |
+| Download | `ClaudePet.dmg` (Apple Silicon) · `ClaudePet-universal.dmg` (Intel) | `claude-pet-win-setup.exe` (installer) · `claude-pet-win.zip` (portable) |
+| Signing | Developer ID signed, notarized by Apple | Unsigned — Windows asks once before the first run |
+| Updates | In-app: checks every hour, installs from the right-click menu | In-app check from the right-click menu; download the new installer from the releases page |
+| Start at sign-in | System Settings → General → Login Items | Installer option “Start when I sign in” |
+| Claude Code | Reads the Claude Code credential (Keychain or credentials file) | Reads the Claude Code credentials file |
+| Pets | Built-in cat + 4 bundled pets, plus your own in `~/.claude_pet/pets` | Same, under `%USERPROFILE%\.claude_pet\pets` |
+| Uninstall | Right-click → Uninstall completely… | Settings → Apps → Uninstall |
 
 ## Download & Install (recommended)
 
@@ -45,7 +59,7 @@ Every hour after launch (never at launch) the app checks the latest GitHub relea
 
 ---
 
-## Windows (beta)
+## Windows
 
 Windows 10/11 (64-bit) gets the same pill, roaming, settings and pets. Two files are published with every release:
 

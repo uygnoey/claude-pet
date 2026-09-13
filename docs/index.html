@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Pet — Claude usage monitor pet for macOS &amp; Windows</title>
-<meta name="description" content="A free, source-available desktop pet for Claude Code users on macOS, with a Windows beta. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
+<meta name="description" content="A free, source-available desktop pet for Claude Code users on macOS and Windows. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
 <meta name="keywords" content="Claude usage monitor, Claude Code token tracker, Claude rate limit, Claude weekly usage, macOS desktop pet, Claude token usage app">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
 <meta name="author" content="Yeongyu Yang (uygnoey)">
@@ -14,7 +14,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Claude Pet">
 <meta property="og:title" content="Claude Pet — Claude usage monitor pet for macOS &amp; Windows">
-<meta property="og:description" content="A free, source-available desktop pet for Claude Code users on macOS, with a Windows beta. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
+<meta property="og:description" content="A free, source-available desktop pet for Claude Code users on macOS and Windows. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
 <meta property="og:url" content="https://claude-pet.yeongyu.me/">
 <meta property="og:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <meta property="og:image:width" content="520">
@@ -26,7 +26,7 @@
 <meta property="og:locale:alternate" content="es_ES">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Claude Pet — Claude usage monitor pet for macOS &amp; Windows">
-<meta name="twitter:description" content="A free, source-available desktop pet for Claude Code users on macOS, with a Windows beta. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
+<meta name="twitter:description" content="A free, source-available desktop pet for Claude Code users on macOS and Windows. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.">
 <meta name="twitter:image:alt" content="Claude Pet mascot and its usage pill">
 <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/preview.png">
 <script type="application/ld+json">
@@ -37,14 +37,14 @@
       "@type": "SoftwareApplication",
       "@id": "https://claude-pet.yeongyu.me/#app",
       "name": "Claude Pet",
-      "description": "A free, source-available desktop pet for Claude Code users on macOS (Windows beta). Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.",
+      "description": "A free, source-available desktop pet for Claude Code users on macOS and Windows. Choose a companion, let it roam, and read Claude usage percentages and reset countdowns from one small pill.",
       "url": "https://claude-pet.yeongyu.me/",
       "image": "https://claude-pet.yeongyu.me/assets/preview.png",
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "AI usage monitor",
-      "operatingSystem": "macOS 12.0 or later (Apple Silicon and Intel); Windows 10/11 (beta)",
+      "operatingSystem": "macOS 12.0 or later (Apple Silicon and Intel); Windows 10/11",
       "softwareVersion": "0.24",
-      "softwareRequirements": "macOS 12.0 or later and a Claude Code login",
+      "softwareRequirements": "macOS 12.0 or later, or Windows 10/11 (64-bit), and a Claude Code login",
       "downloadUrl": "https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg",
       "installUrl": "https://github.com/uygnoey/claude-pet/releases/latest",
       "codeRepository": "https://github.com/uygnoey/claude-pet",
@@ -63,7 +63,7 @@
         "Cat, dog, fox, scorpion and elephant companions",
         "Hourly update checks after launch and manual update installation",
         "Native AppKit rendering with a transparent, frameless window",
-        "Windows 10/11 beta (unsigned installer and zip) with the same pill, roaming and settings"
+        "Windows 10/11 support (installer and zip, unsigned) with the same pill, roaming and settings"
       ],
       "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v0.24",
       "softwareHelp": {
@@ -92,7 +92,7 @@
       "@id": "https://claude-pet.yeongyu.me/#website",
       "url": "https://claude-pet.yeongyu.me/",
       "name": "Claude Pet",
-      "description": "The official site of Claude Pet, a free desktop pet for macOS (with a Windows beta) that shows Claude usage in one small pill.",
+      "description": "The official site of Claude Pet, a free desktop pet for macOS and Windows that shows Claude usage in one small pill.",
       "inLanguage": [
         "en",
         "ko",
@@ -120,7 +120,7 @@
           "name": "Which platforms does Claude Pet support?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 there is a Windows 10/11 beta as an unsigned zip with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting."
+            "text": "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 it also runs on Windows 10/11 (installer or zip) with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting."
           }
         },
         {
@@ -402,9 +402,9 @@
   @media (max-width:560px){.pet-card{width:132px}}
 
   /* ---------- usage pill illustration (v0.24) ---------- */
-  .pill-demo{display:inline-block;background:#1C1C1F;color:#F2F2F7;border-radius:999px;padding:12px 26px;text-align:center;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.18)}
-  .pill-line1{font-size:18px;letter-spacing:.01em}
-  .pill-line2{font-size:13.5px;color:#98989F;margin-top:5px;font-weight:600}
+  .pill-demo{display:block;width:max-content;max-width:100%;margin:0 auto;background:#1C1C1F;color:#F2F2F7;border-radius:999px;padding:12px clamp(10px,3.5vw,26px);text-align:center;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.18);white-space:nowrap}
+  .pill-line1{font-size:clamp(11px,3.6vw,18px);letter-spacing:.01em}
+  .pill-line2{font-size:clamp(9px,2.8vw,13.5px);color:#98989F;margin-top:5px;font-weight:600}
   .pill-demo .val{color:#50C878}
   .pill-demo .lbl.warn{color:#FFD60A}
   .pill-demo .lbl.bad{color:#FF453A}
@@ -435,6 +435,15 @@
   .step-num::before{content:counter(step)}
   .step-body h4{margin:2px 0 6px;font-size:15.5px;font-weight:700}
   .step-body p{margin:0;color:var(--ink-soft);font-size:14px}
+  .spec-wrap{max-width:820px;margin:0 auto 36px;overflow-x:auto}
+  .spec{width:100%;min-width:560px;border-collapse:separate;border-spacing:0;font-size:14px;background:var(--card);border:1px solid var(--card-border);border-radius:16px}
+  .spec th,.spec td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--card-border)}
+  .spec tbody tr:last-child td{border-bottom:0}
+  .spec thead th{background:var(--bg-soft);font-weight:700;color:var(--ink)}
+  .spec thead th:first-child{border-top-left-radius:16px}.spec thead th:last-child{border-top-right-radius:16px}
+  .spec td:first-child{font-weight:700;color:var(--ink);white-space:nowrap}
+  .spec td{color:var(--ink-soft)}
+  .spec code{font-size:12.5px;background:var(--bg-soft);padding:1px 5px;border-radius:5px}
   .note-box{
     max-width:820px;margin:26px auto 0;background:var(--accent-soft);border-radius:16px;
     padding:16px 20px;font-size:13.5px;color:var(--ink);display:flex;gap:10px;
@@ -614,17 +623,17 @@
 <main>
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow"><span class="dot"></span><span>macOS · <span id="arch-support">Apple Silicon &amp; Intel</span> · <span data-i18n="hero.winbeta">Windows beta</span> · <span id="app-version">v0.24</span></span></div>
+      <div class="eyebrow"><span class="dot"></span><span>macOS · <span id="arch-support">Apple Silicon &amp; Intel</span> · <span data-i18n="hero.win">Windows</span> · <span id="app-version">v0.24</span></span></div>
       <h1 class="hero-title"><span data-i18n="hero.title.pre">Meet</span> <span class="accent">Claude Pet</span><span data-i18n="hero.title.post">, a little company while you code</span></h1>
-      <p class="hero-sub" data-i18n="hero.sub">A free, source-available desktop pet for macOS. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.</p>
+      <p class="hero-sub" data-i18n="hero.sub">A free, source-available desktop pet for macOS and Windows. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary dl-main" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg" data-i18n="hero.cta.primary">⬇ Download for macOS</a>
-        <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe" data-i18n="hero.cta.windows">⬇ Windows beta (installer)</a>
+        <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe" data-i18n="hero.cta.windows">⬇ Windows (installer)</a>
         <a class="btn btn-ghost" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener" data-i18n="hero.cta.secondary">View source on GitHub</a>
       </div>
       <div class="dl-alt-row" id="dl-alt-row" style="display:none"><a id="dl-alt" href="https://github.com/uygnoey/claude-pet/releases/latest">Intel Mac? Download the universal build</a></div>
 
-      <p class="pet-hint"><a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg">Apple Silicon · DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg">Intel · Universal DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 release notes</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe">Windows · installer (beta)</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">Windows · ZIP (beta)</a></p>
+      <p class="pet-hint"><a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg">Apple Silicon · DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg">Intel · Universal DMG</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 release notes</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe">Windows · installer</a> &nbsp;·&nbsp; <a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">Windows · ZIP</a></p>
 
       <div class="pet-stage">
         <img id="pet-sprite" src="assets/frames/idle/00.png" alt="Claude Pet mascot" draggable="false">
@@ -686,7 +695,7 @@
         <li data-i18n="gauges.remaining2">Label colour = how much is left: white, yellow from 50 %, red from 85 % — and red with ▲ while that gauge is spiking.</li>
         <li data-i18n="gauges.autodetect">The per-model gauge picks the top tier found in your logs; the second line lists reset countdowns.</li>
       </ul>
-      <p class="section-sub roadmap" data-i18n="gauges.roadmap">Coming next: the same pill will also show Codex usage first, then Gemini, Grok and other AI services.</p>
+      <p class="section-sub roadmap" data-i18n="gauges.roadmap">Codex and other AI services (Gemini, Grok and more) are planned. Codex comes first.</p>
     </div>
   </section>
 
@@ -697,9 +706,9 @@
         <h2 class="section-title" data-i18n="preview.title">See it in action</h2>
       </div>
       <div class="shot-frame">
-        <img src="assets/preview.png" alt="Claude Pet mascot with its two-line usage pill on a transparent background">
+        <img src="assets/preview.png" alt="The built-in Claude Pet cat with its two-line usage pill on a transparent background">
       </div>
-      <p class="shot-caption" data-i18n="preview.caption">The v0.24 pill on macOS in Exact mode. The session label is yellow because that gauge is past 50 %.</p>
+      <p class="shot-caption" data-i18n="preview.caption">The v0.24 pill on macOS in Exact mode, with the built-in cat. Every gauge is under 50 %, so the labels stay white.</p>
     </div>
   </section>
 
@@ -708,13 +717,27 @@
       <div class="section-head">
         <div class="section-eyebrow" data-i18n="install.eyebrow">Install</div>
         <h2 class="section-title" data-i18n="install.title">Make room for a small companion</h2>
-        <p class="section-sub" data-i18n="install.sub">macOS 12+ · Apple Silicon and Intel · Windows 10/11 beta · Free · Source on GitHub · Python is bundled.</p>
+        <p class="section-sub" data-i18n="install.sub">Free · Source on GitHub · Python is bundled. Requirements by platform:</p>
       </div>
+      <div class="spec-wrap"><table class="spec" id="spec-table">
+        <thead><tr><th></th><th>macOS</th><th>Windows</th></tr></thead>
+        <tbody>
+          <tr><td>OS</td><td>macOS 12 or later</td><td>Windows 10/11 (64-bit)</td></tr>
+          <tr><td>Chip</td><td>Apple Silicon and Intel (universal build)</td><td>x64</td></tr>
+          <tr><td>Download</td><td><code>ClaudePet.dmg</code> (Apple Silicon) · <code>ClaudePet-universal.dmg</code> (Intel)</td><td><code>claude-pet-win-setup.exe</code> (installer) · <code>claude-pet-win.zip</code> (portable)</td></tr>
+          <tr><td>Signing</td><td>Developer ID signed, notarized by Apple</td><td>Unsigned — Windows asks once before the first run</td></tr>
+          <tr><td>Updates</td><td>In-app: checks every hour, installs from the right-click menu</td><td>In-app check from the right-click menu; download the new installer from the releases page</td></tr>
+          <tr><td>Start at sign-in</td><td>System Settings → General → Login Items</td><td>Installer option “Start when I sign in”</td></tr>
+          <tr><td>Claude Code</td><td>Reads the Claude Code credential (Keychain or credentials file)</td><td>Reads the Claude Code credentials file</td></tr>
+          <tr><td>Pets</td><td>Built-in cat + 4 bundled pets, plus your own in <code>~/.claude_pet/pets</code></td><td>Same, under <code>%USERPROFILE%\.claude_pet\pets</code></td></tr>
+          <tr><td>Uninstall</td><td>Right-click → Uninstall completely…</td><td>Settings → Apps → Uninstall</td></tr>
+        </tbody>
+      </table></div>
       <div class="steps" id="install-steps">
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Choose your Mac’s download</h4><p>Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Both are available on GitHub Releases.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Drag it to Applications</h4><p>Open the .dmg, drag ClaudePet to Applications, then launch it. No separate Python installation is needed.</p></div></div>
         <div class="step"><div class="step-num"></div><div class="step-body"><h4>Connect your Claude Code account</h4><p>Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings.</p></div></div>
-        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Windows (beta)</h4><p>Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\ClaudePet.exe. The build is unsigned, so Windows asks once before the first run — SmartScreen ("Windows protected your PC": More info → Run anyway) or the classic "Open File - Security Warning" (Unknown publisher: Run — for the portable zip this one may repeat until you untick "Always ask before opening this file"). Sign in to Claude Code on Windows first.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><h4>Windows</h4><p>Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\ClaudePet.exe. The build is unsigned, so Windows asks once before the first run — SmartScreen ("Windows protected your PC": More info → Run anyway) or the classic "Open File - Security Warning" (Unknown publisher: Run — for the portable zip this one may repeat until you untick "Always ask before opening this file"). Sign in to Claude Code on Windows first.</p></div></div>
       </div>
       <div class="note-box">
         <span>🔒</span>
@@ -741,7 +764,7 @@
       </div>
       <div class="faq" id="faq-list">
         <details><summary>Is Claude Pet free?</summary><p>Yes. Claude Pet is completely free to download with source available on GitHub. You can download the notarized app from GitHub Releases or build it yourself from the source code.</p></details>
-        <details><summary>Which platforms does Claude Pet support?</summary><p>Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 there is a Windows 10/11 beta as an unsigned zip with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting.</p></details>
+        <details><summary>Which platforms does Claude Pet support?</summary><p>Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 it also runs on Windows 10/11 (installer or zip) with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting.</p></details>
         <details><summary>How does Claude Pet track my Claude token usage?</summary><p>Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage.</p></details>
         <details><summary>Is Claude Pet affiliated with Anthropic?</summary><p>No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic.</p></details>
         <details><summary>Does Claude Pet include web or desktop chat usage?</summary><p>Not in the estimate: the local-log fallback counts only what Claude Code wrote to its logs, so web and desktop chat activity is missing from it. Exact mode is different — its percentages come from Anthropic’s server and reflect everything your account used.</p></details>
@@ -769,9 +792,9 @@
     <div class="wrap">
       <div class="section-head">
         <div class="section-eyebrow">한국어 안내</div>
-        <h2 class="section-title">Claude 사용량을 알려 주는 데스크톱 펫 (macOS · Windows 베타)</h2>
-        <p class="section-sub">Claude Pet은 코딩할 때 곁에 있어 주는 무료 앱이에요. 고양이·강아지·여우·전갈·코끼리 중에서 고르고, 화면 산책과 커서 따라다니기를 즐겨 보세요. Claude Code 로그인 후 펫 옆의 작은 필 한 줄에 세션·주간·모델 사용률이, 둘째 줄에 리셋 시간이 보여요. 수치 색이 출처(서버 값은 에메랄드, 로그 추정은 앰버), 라벨 색이 잔여량(50%부터 노랑, 85%부터 빨강)을 알려 줘요. 다음으로 Codex 사용량을 먼저, 이어서 Gemini·Grok 등 다른 AI 토큰도 같은 필에 추가할 예정이에요.</p>
-        <p class="section-sub">macOS 12 이상을 지원해요. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받으세요. Windows 10/11은 베타 설치 파일(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe">claude-pet-win-setup.exe</a>)을 실행하거나 zip(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">claude-pet-win.zip</a>)을 풀어 ClaudePet.exe를 실행하세요. 둘 다 서명이 없어 처음 실행 때 Windows가 묻습니다: SmartScreen이면 "추가 정보 → 실행", "파일 열기 - 보안 경고"면 "실행"을 누르세요(설치 파일은 한 번, 무설치 zip은 "이 파일을 열기 전에 항상 확인"을 끄기 전까지 매번 물을 수 있어요). <a href="#install">설치 안내</a> · <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 다운로드와 변경 내역</a></p>
+        <h2 class="section-title">Claude 사용량을 알려 주는 데스크톱 펫 (macOS · Windows)</h2>
+        <p class="section-sub">Claude Pet은 코딩할 때 곁에 있어 주는 무료 앱이에요. 고양이·강아지·여우·전갈·코끼리 중에서 고르고, 화면 산책과 커서 따라다니기를 즐겨 보세요. Claude Code 로그인 후 펫 옆의 작은 필 한 줄에 세션·주간·모델 사용률이, 둘째 줄에 리셋 시간이 보여요. 수치 색이 출처(서버 값은 에메랄드, 로그 추정은 앰버), 라벨 색이 잔여량(50%부터 노랑, 85%부터 빨강)을 알려 줘요. Codex 및 다른 AI 서비스(Gemini, Grok 등)는 지원 예정이에요. Codex가 가장 먼저예요.</p>
+        <p class="section-sub">macOS 12 이상을 지원해요. Apple Silicon은 ClaudePet.dmg, Intel Mac은 ClaudePet-universal.dmg를 받으세요. Windows 10/11은 설치 파일(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe">claude-pet-win-setup.exe</a>)을 실행하거나 zip(<a href="https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip">claude-pet-win.zip</a>)을 풀어 ClaudePet.exe를 실행하세요. 둘 다 서명이 없어 처음 실행 때 Windows가 묻습니다: SmartScreen이면 "추가 정보 → 실행", "파일 열기 - 보안 경고"면 "실행"을 누르세요(설치 파일은 한 번, 무설치 zip은 "이 파일을 열기 전에 항상 확인"을 끄기 전까지 매번 물을 수 있어요). <a href="#install">설치 안내</a> · <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">v0.24 다운로드와 변경 내역</a></p>
       </div>
     </div>
   </section>
@@ -822,15 +845,15 @@ const I18N = {
     "sponsor.fine": "One-time or monthly — every bit helps.",
     "hero.title.pre": "Meet",
     "hero.title.post": ", a little company while you code",
-    "hero.sub": "A free, source-available desktop pet for macOS, with a Windows beta. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.",
-    "hero.winbeta": "Windows beta",
-    "hero.cta.windows": "⬇ Windows beta (installer)",
+    "hero.sub": "A free, source-available desktop pet for macOS and Windows. Keep Claude usage in sight, choose your companion, and let it wander alongside your work.",
+    "hero.win": "Windows",
+    "hero.cta.windows": "⬇ Windows (installer)",
     "hero.cta.alt.winzip": "Prefer no installer? Download the portable zip (unsigned)",
     "hero.cta.primary": "⬇ Download for macOS",
     "hero.cta.secondary": "View source on GitHub",
     "hero.cta.alt.intel": "Intel Mac? Download the universal build",
     "hero.cta.alt.arm": "Apple Silicon? Download the smaller Apple Silicon build",
-    "hero.cta.alt.other": "Browse all releases (macOS builds and the Windows beta)",
+    "hero.cta.alt.other": "Browse all releases (macOS and Windows builds)",
     "hero.cta.alt.intelsoon": "Intel Mac? Find the universal build in GitHub Releases",
     "hero.pethint": "👋 hover to say hi · click to make it jump",
     "features.eyebrow": "Behavior",
@@ -856,13 +879,14 @@ const I18N = {
     "gauges.remaining": "Number colour = where it comes from: emerald for server-computed (Exact mode), amber with ≈ for the local-log estimate, coral for API cost.",
     "gauges.remaining2": "Label colour = how much is left: white, yellow from 50 %, red from 85 % — and red with ▲ while that gauge is spiking.",
     "gauges.autodetect": "The per-model gauge picks the top tier found in your logs; the second line lists reset countdowns.",
-    "gauges.roadmap": "Coming next: the same pill will also show Codex usage first, then Gemini, Grok and other AI services.",
+    "gauges.roadmap": "Codex and other AI services (Gemini, Grok and more) are planned. Codex comes first.",
     "preview.eyebrow": "Preview",
     "preview.title": "See it in action",
-    "preview.caption": "The v0.24 pill on macOS in Exact mode. The session label is yellow because that gauge is past 50 %.",
+    "preview.caption": "The v0.24 pill on macOS in Exact mode, with the built-in cat. Every gauge is under 50 %, so the labels stay white.",
     "install.eyebrow": "Install",
     "install.title": "Make room for a small companion",
-    "install.sub": "macOS 12+ · Apple Silicon and Intel · Windows 10/11 beta · Free · Source on GitHub · Python is bundled.",
+    "install.sub": "Free · Source on GitHub · Python is bundled. Requirements by platform:",
+    "spec": {"head": ["", "macOS", "Windows"], "rows": [["OS", "macOS 12 or later", "Windows 10/11 (64-bit)"], ["Chip", "Apple Silicon and Intel (universal build)", "x64"], ["Download", "<code>ClaudePet.dmg</code> (Apple Silicon) · <code>ClaudePet-universal.dmg</code> (Intel)", "<code>claude-pet-win-setup.exe</code> (installer) · <code>claude-pet-win.zip</code> (portable)"], ["Signing", "Developer ID signed, notarized by Apple", "Unsigned — Windows asks once before the first run"], ["Updates", "In-app: checks every hour, installs from the right-click menu", "In-app check from the right-click menu; download the new installer from the releases page"], ["Start at sign-in", "System Settings → General → Login Items", "Installer option “Start when I sign in”"], ["Claude Code", "Reads the Claude Code credential (Keychain or credentials file)", "Reads the Claude Code credentials file"], ["Pets", "Built-in cat + 4 bundled pets, plus your own in <code>~/.claude_pet/pets</code>", "Same, under <code>%USERPROFILE%\\.claude_pet\\pets</code>"], ["Uninstall", "Right-click → Uninstall completely…", "Settings → Apps → Uninstall"]]},
     "install.note": "Exact mode uses your Claude Code credential from Keychain to request usage from Anthropic. Local fallback reads Claude Code logs under <code>~/.claude</code>. Update checks contact GitHub.",
     "cal.eyebrow": "Calibration",
     "cal.title": "Exact when available, calibrated when needed",
@@ -885,7 +909,7 @@ const I18N = {
       ["Choose your Mac’s download", "Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Both are available on GitHub Releases."],
       ["Drag it to Applications", "Open the .dmg, drag ClaudePet to Applications, then launch it. No separate Python installation is needed."],
       ["Connect your Claude Code account", "Sign in to Claude Code first. On first launch, allow its credential in Keychain and Claude Code log access when prompted. Right-click the pet for settings."],
-      ["Windows (beta)", "Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\\ClaudePet.exe. The build is unsigned, so Windows asks once before the first run — SmartScreen (\"Windows protected your PC\": More info → Run anyway) or the classic \"Open File - Security Warning\" (Unknown publisher: Run — for the portable zip this one may repeat until you untick \"Always ask before opening this file\"). Sign in to Claude Code on Windows first."]
+      ["Windows", "Run claude-pet-win-setup.exe (per-user install, Start Menu entry, optional start at sign-in), or unzip claude-pet-win.zip and run ClaudePet\\ClaudePet.exe. The build is unsigned, so Windows asks once before the first run — SmartScreen (\"Windows protected your PC\": More info → Run anyway) or the classic \"Open File - Security Warning\" (Unknown publisher: Run — for the portable zip this one may repeat until you untick \"Always ask before opening this file\"). Sign in to Claude Code on Windows first."]
     ],
     honesty: [
       "Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage.",
@@ -894,7 +918,7 @@ const I18N = {
     ],
     faq: [
       ["Is Claude Pet free?", "Yes. Claude Pet is completely free to download with source available on GitHub. You can download the notarized app from GitHub Releases or build it yourself from the source code."],
-      ["Which platforms does Claude Pet support?", "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 there is a Windows 10/11 beta as an unsigned zip with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting."],
+      ["Which platforms does Claude Pet support?", "Claude Pet runs on macOS 12 or later, on Apple Silicon and Intel Macs (Intel from v0.10 via the universal build), and from v0.24 it also runs on Windows 10/11 (installer or zip) with the same pill, roaming and settings. macOS is rendered natively with AppKit — no window frame, no background, no ghosting."],
       ["How does Claude Pet track my Claude token usage?", "Exact mode requests Anthropic’s server-computed account percentages using your existing Claude Code credential. Local fallback estimates only the activity recorded in Claude Code logs; it cannot include web or desktop chat activity absent from those logs. Calibration applies to the estimate, not the server percentage."],
       ["Is Claude Pet affiliated with Anthropic?", "No. Claude Pet is an independent project by Yeongyu Yang (uygnoey). Claude is a trademark of Anthropic PBC, and Claude Pet is not affiliated with, endorsed by, or otherwise related to Anthropic."],
       ["Does Claude Pet include web or desktop chat usage?", "Not in the estimate: the local-log fallback counts only what Claude Code wrote to its logs, so web and desktop chat activity is missing from it. Exact mode is different — its percentages come from Anthropic’s server and reflect everything your account used."],
@@ -911,15 +935,15 @@ const I18N = {
     "sponsor.fine": "한 번만 또는 매달 — 어떤 금액이든 큰 힘이 돼요.",
     "hero.title.pre": "화면 위의 작은 친구,",
     "hero.title.post": "을 소개합니다",
-    "hero.sub": "코딩하는 동안 곁에 있어 주는 무료 소스 공개 macOS 펫이에요(Windows 베타 포함). Claude 사용량을 확인하고, 마음에 드는 친구가 화면을 산책하도록 해 보세요.",
-    "hero.winbeta": "Windows 베타",
-    "hero.cta.windows": "⬇ Windows 베타 (설치 파일)",
+    "hero.sub": "코딩하는 동안 곁에 있어 주는 무료 소스 공개 macOS·Windows 펫이에요. Claude 사용량을 확인하고, 마음에 드는 친구가 화면을 산책하도록 해 보세요.",
+    "hero.win": "Windows",
+    "hero.cta.windows": "⬇ Windows (설치 파일)",
     "hero.cta.alt.winzip": "설치 없이 쓰시려면 무설치 zip 다운로드(서명 없음)",
     "hero.cta.primary": "⬇ macOS용 다운로드",
     "hero.cta.secondary": "GitHub에서 소스 보기",
     "hero.cta.alt.intel": "Intel Mac이세요? universal 빌드 다운로드",
     "hero.cta.alt.arm": "Apple Silicon이세요? 더 가벼운 Apple Silicon 빌드 다운로드",
-    "hero.cta.alt.other": "전체 릴리즈 보기 (macOS 빌드와 Windows 베타)",
+    "hero.cta.alt.other": "전체 릴리즈 보기 (macOS와 Windows 빌드)",
     "hero.cta.alt.intelsoon": "Intel Mac용 universal 빌드는 GitHub Releases에서 확인하세요",
     "hero.pethint": "👋 마우스를 가까이 대면 인사해요 · 클릭하면 점프해요",
     "features.eyebrow": "행동 패턴",
@@ -945,13 +969,14 @@ const I18N = {
     "gauges.remaining": "수치 색 = 출처: 서버 계산(정확 모드)은 에메랄드, 로컬 로그 추정은 앰버(≈), API 비용은 코랄.",
     "gauges.remaining2": "라벨 색 = 잔여량: 흰색, 50%부터 노랑, 85%부터 빨강 — 급증 중이면 ▲와 함께 빨강.",
     "gauges.autodetect": "모델별 게이지는 로그에서 상위 티어를 자동으로 고르고, 둘째 줄이 리셋 시간을 알려 줘요.",
-    "gauges.roadmap": "다음 예정: 같은 필에 Codex 사용량을 가장 먼저, 이어서 Gemini·Grok과 다른 AI 서비스도 추가할 계획이에요.",
+    "gauges.roadmap": "Codex 및 다른 AI 서비스(Gemini, Grok 등)는 지원 예정이에요. Codex가 가장 먼저예요.",
     "preview.eyebrow": "미리보기",
     "preview.title": "실제로 이렇게 생겼어요",
-    "preview.caption": "v0.24의 필(macOS, 정확 모드). 세션이 50%를 넘어 라벨이 노란색이에요.",
+    "preview.caption": "v0.24의 필(macOS, 정확 모드)과 내장 고양이. 모든 게이지가 50% 아래라 라벨이 흰색이에요.",
     "install.eyebrow": "설치",
     "install.title": "작은 친구를 맞이해 보세요",
-    "install.sub": "macOS 12+ · Apple Silicon 및 Intel · Windows 10/11 베타 · 무료 소스 공개 · Python이 포함돼요.",
+    "install.sub": "무료 소스 공개 · Python이 포함돼요. 플랫폼별 지원 사양:",
+    "spec": {"head": ["", "macOS", "Windows"], "rows": [["운영체제", "macOS 12 이상", "Windows 10/11 (64비트)"], ["칩", "Apple Silicon · Intel (universal 빌드)", "x64"], ["다운로드", "<code>ClaudePet.dmg</code> (Apple Silicon) · <code>ClaudePet-universal.dmg</code> (Intel)", "<code>claude-pet-win-setup.exe</code> (설치 파일) · <code>claude-pet-win.zip</code> (무설치)"], ["서명", "Developer ID 서명 + Apple 공증", "서명 없음 — 처음 실행 때 Windows가 한 번 물어요"], ["업데이트", "앱 안에서 1시간마다 확인하고 우클릭 메뉴에서 설치해요", "앱 안에서 확인(우클릭 메뉴)하고, 새 설치 파일은 릴리즈 페이지에서 받아요"], ["로그인 시 시작", "시스템 설정 → 일반 → 로그인 항목", "설치 파일의 “로그인 시 자동 실행” 옵션"], ["Claude Code 연동", "Claude Code 자격 증명(키체인 또는 자격 증명 파일)을 읽어요", "Claude Code 자격 증명 파일을 읽어요"], ["펫", "내장 고양이 + 4종, 그리고 <code>~/.claude_pet/pets</code>의 내 펫", "동일, <code>%USERPROFILE%\\.claude_pet\\pets</code>"], ["제거", "우클릭 → 완전 삭제…", "설정 → 앱 → 제거"]]},
     "install.note": "정확 모드는 키체인의 Claude Code 인증 정보로 Anthropic에 사용량을 요청해요. 로컬 대체 모드는 <code>~/.claude</code>의 Claude Code 로그를 읽고, 업데이트 확인은 GitHub에 연결해요.",
     "cal.eyebrow": "보정",
     "cal.title": "가능하면 정확하게, 필요하면 보정해서",
@@ -974,7 +999,7 @@ const I18N = {
       ["Mac에 맞는 파일 받기", "Apple Silicon은 ClaudePet.dmg, Intel은 ClaudePet-universal.dmg를 GitHub Releases에서 받으세요."],
       ["응용 프로그램으로 이동", "dmg를 열고 ClaudePet을 응용 프로그램 폴더로 옮겨 실행하세요. Python을 별도로 설치할 필요 없어요."],
       ["Claude Code 계정 연결", "먼저 Claude Code에 로그인하세요. 첫 실행 시 키체인 인증 정보와 Claude Code 로그 접근을 허용하고, 펫을 우클릭해 설정하세요."],
-      ["Windows (베타)", "claude-pet-win-setup.exe를 실행하거나(사용자별 설치, 시작 메뉴, 로그인 시 자동 실행 옵션), claude-pet-win.zip을 풀어 ClaudePet\\ClaudePet.exe를 실행하세요. 서명이 없어 처음 실행 때 Windows가 한 번 묻습니다 — SmartScreen(\"Windows의 PC 보호\": 추가 정보 → 실행) 또는 \"파일 열기 - 보안 경고\"(알 수 없는 게시자: 실행 — 무설치 zip은 \"이 파일을 열기 전에 항상 확인\"을 끄기 전까지 매번 물을 수 있음). Windows에서도 먼저 Claude Code에 로그인하세요."]
+      ["Windows", "claude-pet-win-setup.exe를 실행하거나(사용자별 설치, 시작 메뉴, 로그인 시 자동 실행 옵션), claude-pet-win.zip을 풀어 ClaudePet\\ClaudePet.exe를 실행하세요. 서명이 없어 처음 실행 때 Windows가 한 번 묻습니다 — SmartScreen(\"Windows의 PC 보호\": 추가 정보 → 실행) 또는 \"파일 열기 - 보안 경고\"(알 수 없는 게시자: 실행 — 무설치 zip은 \"이 파일을 열기 전에 항상 확인\"을 끄기 전까지 매번 물을 수 있음). Windows에서도 먼저 Claude Code에 로그인하세요."]
     ],
     honesty: [
       "정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률을 요청해요. 로컬 대체 모드는 Claude Code 로그에 기록된 활동만 추정하며, 로그에 없는 웹·데스크톱 채팅은 포함하지 못해요. 보정은 서버 사용률이 아닌 추정치에 적용돼요.",
@@ -983,7 +1008,7 @@ const I18N = {
     ],
     faq: [
       ["Claude Pet은 무료인가요?", "네, 무료로 다운로드할 수 있고 소스가 GitHub에 공개돼 있어요. GitHub Releases에서 공증된 앱을 받거나 소스 코드로 직접 빌드할 수 있어요."],
-      ["어떤 플랫폼을 지원하나요?", "macOS 12 이상에서 동작해요 (Apple Silicon · Intel은 v0.10부터 universal 빌드). v0.24부터는 Windows 10/11 베타(서명 없는 zip)도 있어 같은 필·산책·설정을 써요. macOS는 AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
+      ["어떤 플랫폼을 지원하나요?", "macOS 12 이상에서 동작해요 (Apple Silicon · Intel은 v0.10부터 universal 빌드). v0.24부터는 Windows 10/11도 지원해요(설치 파일 또는 zip). 같은 필·산책·설정을 써요. macOS는 AppKit 네이티브로 렌더링돼서 창 프레임도, 배경도, 잔상도 없어요."],
       ["토큰 사용량은 어떻게 추적하나요?", "정확 모드는 기존 Claude Code 인증 정보로 Anthropic 서버의 계정 사용률을 요청해요. 로컬 대체 모드는 Claude Code 로그에 기록된 활동만 추정하며, 로그에 없는 웹·데스크톱 채팅은 포함하지 못해요. 보정은 서버 사용률이 아닌 추정치에 적용돼요."],
       ["Anthropic과 관련이 있나요?", "아니요. Claude Pet은 Yeongyu Yang(uygnoey)이 만든 독립 프로젝트예요. Claude는 Anthropic PBC의 상표이며, Claude Pet은 Anthropic과 제휴하거나 공식 지원을 받지 않아요."],
       ["웹/데스크톱 채팅 사용량도 포함되나요?", "추정 모드에는 포함되지 않아요. 로컬 로그 대체 모드는 Claude Code가 로그에 남긴 활동만 세기 때문에 웹·데스크톱 채팅은 빠져요. 정확 모드는 달라요 — Anthropic 서버가 계산한 사용률이라 계정이 쓴 모든 사용량이 반영돼요."]
@@ -998,15 +1023,15 @@ const I18N = {
     "sponsor.fine": "一回だけでも毎月でも — どんな金額でも励みになります。",
     "hero.title.pre": "画面の上の小さな相棒、",
     "hero.title.post": "をご紹介",
-    "hero.sub": "コーディングのそばに、小さな相棒を。無料・ソース公開の macOS ペット（Windows ベータあり）で Claude の使用量を確認し、好きな仲間に画面を散歩してもらいましょう。",
-    "hero.winbeta": "Windows ベータ",
-    "hero.cta.windows": "⬇ Windows ベータ (インストーラー)",
+    "hero.sub": "コーディングのそばに、小さな相棒を。無料・ソース公開の macOS・Windows ペットで Claude の使用量を確認し、好きな仲間に画面を散歩してもらいましょう。",
+    "hero.win": "Windows",
+    "hero.cta.windows": "⬇ Windows (インストーラー)",
     "hero.cta.alt.winzip": "インストール不要なら ポータブル zip をダウンロード（未署名）",
     "hero.cta.primary": "⬇ macOS 版をダウンロード",
     "hero.cta.secondary": "GitHub でソースを見る",
     "hero.cta.alt.intel": "Intel Mac の方は universal ビルドをダウンロード",
     "hero.cta.alt.arm": "Apple Silicon の方はより軽い Apple Silicon ビルドをダウンロード",
-    "hero.cta.alt.other": "リリース一覧を見る（macOS ビルドと Windows ベータ）",
+    "hero.cta.alt.other": "リリース一覧を見る（macOS と Windows のビルド）",
     "hero.cta.alt.intelsoon": "Intel Mac 用の universal ビルドは GitHub Releases で確認できます",
     "hero.pethint": "👋 マウスを近づけると挨拶 · クリックでジャンプ",
     "features.eyebrow": "ふるまい",
@@ -1032,13 +1057,14 @@ const I18N = {
     "gauges.remaining": "数値の色 = 出どころ: サーバー計算（正確モード）はエメラルド、ローカルログ推定はアンバー（≈）、API コストはコーラル。",
     "gauges.remaining2": "ラベルの色 = 残量: 白、50% から黄、85% から赤 — 急増中は ▲ 付きで赤。",
     "gauges.autodetect": "モデル別ゲージはログから上位ティアを自動選択し、2行目がリセットまでの時間を示します。",
-    "gauges.roadmap": "次の予定: 同じピルに Codex の使用量をまず追加し、続いて Gemini・Grok など他の AI サービスも表示します。",
+    "gauges.roadmap": "Codex やその他の AI サービス（Gemini、Grok など）は対応予定です。Codex を最初に対応します。",
     "preview.eyebrow": "プレビュー",
     "preview.title": "実際はこんな感じです",
-    "preview.caption": "v0.24 のピル（macOS、正確モード）。セッションが 50% を超えているのでラベルが黄色です。",
+    "preview.caption": "v0.24 のピル（macOS、正確モード）と内蔵の猫。どのゲージも 50% 未満なのでラベルは白のままです。",
     "install.eyebrow": "インストール",
     "install.title": "小さな相棒を迎えましょう",
-    "install.sub": "macOS 12+ · Apple Silicon と Intel · Windows 10/11 ベータ · 無料・ソース公開 · Python 同梱。",
+    "install.sub": "無料・ソース公開 · Python 同梱。プラットフォーム別の対応環境:",
+    "spec": {"head": ["", "macOS", "Windows"], "rows": [["OS", "macOS 12 以降", "Windows 10/11（64 ビット）"], ["チップ", "Apple Silicon・Intel（universal ビルド）", "x64"], ["ダウンロード", "<code>ClaudePet.dmg</code>（Apple Silicon）・<code>ClaudePet-universal.dmg</code>（Intel）", "<code>claude-pet-win-setup.exe</code>（インストーラー）・<code>claude-pet-win.zip</code>（ポータブル）"], ["署名", "Developer ID 署名 + Apple 公証", "未署名 — 初回起動時に Windows が一度確認します"], ["更新", "アプリ内で 1 時間ごとに確認し、右クリックメニューからインストール", "アプリ内で確認（右クリックメニュー）。新しいインストーラーはリリースページから"], ["サインイン時に起動", "システム設定 → 一般 → ログイン項目", "インストーラーの「サインイン時に起動」オプション"], ["Claude Code 連携", "Claude Code の資格情報（キーチェーンまたは資格情報ファイル）を読みます", "Claude Code の資格情報ファイルを読みます"], ["ペット", "内蔵の猫 + 4 種、さらに <code>~/.claude_pet/pets</code> の自作ペット", "同じ。<code>%USERPROFILE%\\.claude_pet\\pets</code>"], ["アンインストール", "右クリック → 完全に削除…", "設定 → アプリ → アンインストール"]]},
     "install.note": "正確モードはキーチェーンの Claude Code 認証情報で Anthropic に使用量を要求します。ローカル代替モードは <code>~/.claude</code> のログを読み、更新確認は GitHub に接続します。",
     "cal.eyebrow": "キャリブレーション",
     "cal.title": "取得できるときは正確に、必要なときは補正",
@@ -1061,7 +1087,7 @@ const I18N = {
       ["Mac に合うファイルを選ぶ", "Apple Silicon は ClaudePet.dmg、Intel は ClaudePet-universal.dmg を GitHub Releases から取得。"],
       ["アプリケーションへ移動", "dmg を開き ClaudePet をアプリケーションに移して起動。Python の別途インストールは不要です。"],
       ["Claude Code アカウントを接続", "先に Claude Code にログイン。初回起動時にキーチェーンの認証情報とログへのアクセスを許可し、右クリックで設定します。"],
-      ["Windows（ベータ）", "claude-pet-win-setup.exe を実行するか（ユーザー単位のインストール、スタートメニュー、サインイン時起動オプション）、claude-pet-win.zip を展開して ClaudePet\\ClaudePet.exe を実行します。未署名のため初回起動時に Windows が一度確認します — SmartScreen（「Windows によって PC が保護されました」: 詳細情報 → 実行）または「ファイルを開く - セキュリティの警告」（発行元不明: 実行 — ポータブル zip では「このファイルを開く前に常に警告する」を外すまで毎回出ることがあります）。Windows でも先に Claude Code にサインインしてください。"]
+      ["Windows", "claude-pet-win-setup.exe を実行するか（ユーザー単位のインストール、スタートメニュー、サインイン時起動オプション）、claude-pet-win.zip を展開して ClaudePet\\ClaudePet.exe を実行します。未署名のため初回起動時に Windows が一度確認します — SmartScreen（「Windows によって PC が保護されました」: 詳細情報 → 実行）または「ファイルを開く - セキュリティの警告」（発行元不明: 実行 — ポータブル zip では「このファイルを開く前に常に警告する」を外すまで毎回出ることがあります）。Windows でも先に Claude Code にサインインしてください。"]
     ],
     honesty: [
       "正確モードは既存の Claude Code 認証情報で Anthropic のアカウント使用率を要求します。ローカル代替モードはログに記録された活動のみを推定し、そこにない Web・デスクトップの利用は含められません。補正は推定値に適用されます。",
@@ -1070,7 +1096,7 @@ const I18N = {
     ],
     faq: [
       ["Claude Pet は無料ですか？", "はい。完全に無料でソースは GitHub に公開されています。GitHub Releases から公証済みアプリをダウンロードするか、ソースコードから自分でビルドできます。"],
-      ["対応プラットフォームは？", "macOS 12 以降の Apple Silicon と Intel Mac（v0.10 から、universal ビルド）で動作します。v0.24 からは Windows 10/11 ベータ（未署名の zip）もあり、同じピル・散歩・設定が使えます。macOS は AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
+      ["対応プラットフォームは？", "macOS 12 以降の Apple Silicon と Intel Mac（v0.10 から、universal ビルド）で動作します。v0.24 からは Windows 10/11 にも対応し（インストーラーまたは zip）、同じピル・散歩・設定が使えます。macOS は AppKit ネイティブでレンダリングされるため、ウィンドウ枠も背景も残像もありません。"],
       ["トークン使用量はどうやって追跡していますか？", "正確モードは既存の Claude Code 認証情報で Anthropic のアカウント使用率を要求します。ローカル代替モードはログに記録された活動のみを推定し、そこにない Web・デスクトップの利用は含められません。補正は推定値に適用されます。"],
       ["Anthropic と関係がありますか？", "いいえ。Claude Pet は Yeongyu Yang（uygnoey）による独立プロジェクトです。Claude は Anthropic PBC の商標であり、Claude Pet は Anthropic と提携も公認もされていません。"],
       ["Web／デスクトップチャットの使用量も含まれますか？", "推定には含まれません。ローカルログ代替モードは Claude Code がログに残した活動だけを数えるので、Web・デスクトップのチャットは入りません。正確モードは違います — Anthropic のサーバーが計算した使用率なので、アカウントが使ったすべてが反映されます。"]
@@ -1085,15 +1111,15 @@ const I18N = {
     "sponsor.fine": "Una vez o cada mes — todo suma.",
     "hero.title.pre": "Conoce a",
     "hero.title.post": ", compañía mientras programas",
-    "hero.sub": "Una mascota de escritorio gratuita y con código disponible para macOS, con beta para Windows. Consulta tu uso de Claude, elige una compañera y deja que pasee mientras trabajas.",
-    "hero.winbeta": "Beta para Windows",
-    "hero.cta.windows": "⬇ Beta para Windows (instalador)",
+    "hero.sub": "Una mascota de escritorio gratuita y con código disponible para macOS y Windows. Consulta tu uso de Claude, elige una compañera y deja que pasee mientras trabajas.",
+    "hero.win": "Windows",
+    "hero.cta.windows": "⬇ Windows (instalador)",
     "hero.cta.alt.winzip": "¿Sin instalador? Descarga el zip portátil (sin firmar)",
     "hero.cta.primary": "⬇ Descargar para macOS",
     "hero.cta.secondary": "Ver el código en GitHub",
     "hero.cta.alt.intel": "¿Mac Intel? Descarga la versión universal",
     "hero.cta.alt.arm": "¿Apple Silicon? Descarga la versión más ligera para Apple Silicon",
-    "hero.cta.alt.other": "Ver todas las versiones (compilaciones para macOS y beta para Windows)",
+    "hero.cta.alt.other": "Ver todas las versiones (compilaciones para macOS y Windows)",
     "hero.cta.alt.intelsoon": "¿Mac Intel? Busca la versión universal en GitHub Releases",
     "hero.pethint": "👋 pasa el cursor para saludar · haz clic para que salte",
     "features.eyebrow": "Comportamiento",
@@ -1119,13 +1145,14 @@ const I18N = {
     "gauges.remaining": "Color del número = de dónde sale: esmeralda si lo calcula el servidor (modo Exacto), ámbar con ≈ si es la estimación local, coral para el coste de API.",
     "gauges.remaining2": "Color de la etiqueta = cuánto queda: blanco, amarillo desde el 50 %, rojo desde el 85 % — y rojo con ▲ mientras ese medidor se dispara.",
     "gauges.autodetect": "El medidor por modelo elige el nivel superior de tus registros; la segunda línea lista los reinicios.",
-    "gauges.roadmap": "Próximamente: la misma píldora mostrará primero el uso de Codex y después Gemini, Grok y otros servicios de IA.",
+    "gauges.roadmap": "Codex y otros servicios de IA (Gemini, Grok y más) están previstos. Codex será el primero.",
     "preview.eyebrow": "Vista previa",
     "preview.title": "Míralo en acción",
-    "preview.caption": "La píldora de v0.24 en macOS, modo Exacto. La etiqueta de sesión está en amarillo porque supera el 50 %.",
+    "preview.caption": "La píldora de v0.24 en macOS, modo Exacto, con el gato incluido. Todos los indicadores están por debajo del 50 %, así que las etiquetas siguen en blanco.",
     "install.eyebrow": "Instalación",
     "install.title": "Haz sitio a una pequeña compañera",
-    "install.sub": "macOS 12+ · Apple Silicon e Intel · Beta para Windows 10/11 · Gratis · Código en GitHub · Python incluido.",
+    "install.sub": "Gratis · Código en GitHub · Python incluido. Requisitos por plataforma:",
+    "spec": {"head": ["", "macOS", "Windows"], "rows": [["Sistema", "macOS 12 o posterior", "Windows 10/11 (64 bits)"], ["Chip", "Apple Silicon e Intel (compilación universal)", "x64"], ["Descarga", "<code>ClaudePet.dmg</code> (Apple Silicon) · <code>ClaudePet-universal.dmg</code> (Intel)", "<code>claude-pet-win-setup.exe</code> (instalador) · <code>claude-pet-win.zip</code> (portátil)"], ["Firma", "Firmada con Developer ID y notarizada por Apple", "Sin firmar: Windows pregunta una vez antes de la primera ejecución"], ["Actualizaciones", "En la app: comprueba cada hora e instala desde el menú contextual", "En la app: comprueba desde el menú contextual; el nuevo instalador se descarga de la página de versiones"], ["Inicio al iniciar sesión", "Ajustes del Sistema → General → Ítems de inicio", "Opción del instalador “Iniciar al iniciar sesión”"], ["Claude Code", "Lee la credencial de Claude Code (Llavero o archivo de credenciales)", "Lee el archivo de credenciales de Claude Code"], ["Mascotas", "Gato incluido + 4 más, y las tuyas en <code>~/.claude_pet/pets</code>", "Igual, en <code>%USERPROFILE%\\.claude_pet\\pets</code>"], ["Desinstalar", "Clic derecho → Desinstalar por completo…", "Configuración → Aplicaciones → Desinstalar"]]},
     "install.note": "El modo exacto usa la credencial de Claude Code del Llavero para consultar el uso en Anthropic. El modo local lee registros en <code>~/.claude</code>. Las comprobaciones de actualización contactan con GitHub.",
     "cal.eyebrow": "Calibración",
     "cal.title": "Exacto cuando es posible, calibrado cuando hace falta",
@@ -1148,7 +1175,7 @@ const I18N = {
       ["Elige la descarga para tu Mac", "Apple Silicon: ClaudePet.dmg. Intel: ClaudePet-universal.dmg. Ambas en GitHub Releases."],
       ["Muévela a Aplicaciones", "Abre el .dmg, arrastra ClaudePet a Aplicaciones y ejecútala. No necesitas instalar Python por separado."],
       ["Conecta tu cuenta de Claude Code", "Inicia sesión en Claude Code primero. Al abrir la app, permite el acceso a su credencial del Llavero y a los registros cuando se solicite. Clic derecho para configurar."],
-      ["Windows (beta)", "Ejecuta claude-pet-win-setup.exe (instalación por usuario, entrada en el menú Inicio, inicio opcional al iniciar sesión) o descomprime claude-pet-win.zip y ejecuta ClaudePet\\ClaudePet.exe. La compilación no está firmada, así que Windows pregunta una vez antes de la primera ejecución: SmartScreen (\"Windows protegió su PC\": Más información → Ejecutar de todas formas) o el clásico \"Abrir archivo - Advertencia de seguridad\" (editor desconocido: Ejecutar; con el zip portátil puede repetirse hasta desmarcar \"Preguntar siempre antes de abrir este archivo\"). Inicia sesión en Claude Code en Windows primero."]
+      ["Windows", "Ejecuta claude-pet-win-setup.exe (instalación por usuario, entrada en el menú Inicio, inicio opcional al iniciar sesión) o descomprime claude-pet-win.zip y ejecuta ClaudePet\\ClaudePet.exe. La compilación no está firmada, así que Windows pregunta una vez antes de la primera ejecución: SmartScreen (\"Windows protegió su PC\": Más información → Ejecutar de todas formas) o el clásico \"Abrir archivo - Advertencia de seguridad\" (editor desconocido: Ejecutar; con el zip portátil puede repetirse hasta desmarcar \"Preguntar siempre antes de abrir este archivo\"). Inicia sesión en Claude Code en Windows primero."]
     ],
     honesty: [
       "El modo exacto consulta los porcentajes de cuenta de Anthropic con la credencial existente de Claude Code. El modo local estima solo la actividad registrada en sus archivos; no incluye chats web o de escritorio ausentes de esos registros. La calibración afecta a la estimación, no al porcentaje del servidor.",
@@ -1157,7 +1184,7 @@ const I18N = {
     ],
     faq: [
       ["¿Claude Pet es gratis?", "Sí. Claude Pet es totalmente gratuito y con código disponible. Puedes descargar la app certificada (notarized) desde GitHub Releases o compilarla tú mismo desde el código fuente."],
-      ["¿Qué plataformas admite Claude Pet?", "Funciona en macOS 12 o posterior con Apple Silicon e Intel (desde v0.10, versión universal), y desde v0.24 hay una beta para Windows 10/11 (zip sin firmar) con la misma píldora, paseos y ajustes. En macOS se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
+      ["¿Qué plataformas admite Claude Pet?", "Funciona en macOS 12 o posterior con Apple Silicon e Intel (desde v0.10, versión universal), y desde v0.24 también funciona en Windows 10/11 (instalador o zip) con la misma píldora, paseos y ajustes. En macOS se renderiza de forma nativa con AppKit: sin marco de ventana, sin fondo, sin estelas."],
       ["¿Cómo rastrea mi uso de tokens de Claude?", "El modo exacto consulta los porcentajes de cuenta de Anthropic con la credencial existente de Claude Code. El modo local estima solo la actividad registrada en sus archivos; no incluye chats web o de escritorio ausentes de esos registros. La calibración afecta a la estimación, no al porcentaje del servidor."],
       ["¿Claude Pet está afiliado a Anthropic?", "No. Claude Pet es un proyecto independiente de Yeongyu Yang (uygnoey). Claude es una marca registrada de Anthropic PBC, y Claude Pet no está afiliado a Anthropic ni cuenta con su respaldo."],
       ["¿Incluye el uso del chat web o de escritorio?", "En la estimación no: el modo local solo cuenta lo que Claude Code escribió en sus registros, así que el chat web y de escritorio falta ahí. El modo Exacto es distinto: sus porcentajes vienen del servidor de Anthropic y reflejan todo lo que usó tu cuenta."]
@@ -1198,6 +1225,12 @@ function renderLists(lang){
       <div class="step-body"><h4>${title}</h4><p>${desc}</p></div>
     </div>
   `).join("");
+
+  if(t.spec){
+    const tbl = document.getElementById("spec-table");
+    tbl.querySelector("thead").innerHTML = "<tr>" + t.spec.head.map(h => "<th>" + h + "</th>").join("") + "</tr>";
+    tbl.querySelector("tbody").innerHTML = t.spec.rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("");
+  }
 
   document.getElementById("honesty-list").innerHTML = t.honesty.map(item => `<li>${item}</li>`).join("");
 
