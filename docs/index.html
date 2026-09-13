@@ -28,8 +28,12 @@
     <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/social-preview-20260913.png">
     <meta name="twitter:image:alt" content="Claude Pet desktop companion for Mac and Windows; illustrated usage values">
     <link rel="icon" href="assets/frames/idle/00.png">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.5/latin.css" crossorigin>
     <style>
       :root {
+        --font-ui:"Inter","Segoe UI",sans-serif;
         --paper:#f4f3ec;
         --surface:#fffef8;
         --ink:#17283b;
@@ -43,6 +47,12 @@
         --shadow:0 25px 70px #17283b16;
         color-scheme:light
       }
+      [lang="ko"] {
+        --font-ui:"Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+      }
+      [lang="ja"] {
+        --font-ui:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+      }
       * {
         box-sizing:border-box
       }
@@ -54,7 +64,7 @@
         margin:0;
         background:var(--paper);
         color:var(--ink);
-        font-family:"Avenir Next","Segoe UI","Apple SD Gothic Neo","Yu Gothic",sans-serif;
+        font-family:var(--font-ui);
         font-size:16px;
         line-height:1.6;
         -webkit-font-smoothing:antialiased
@@ -87,9 +97,9 @@
         margin:0
       }
       h1,h2 {
-        font-family:Georgia,"Noto Serif KR","Yu Mincho",serif;
+        font-family:var(--font-ui);
         font-weight:400;
-        letter-spacing:-.065em;
+        letter-spacing:-.045em;
         line-height:1.03
       }
       h1 {
@@ -184,7 +194,7 @@
         display:flex;
         align-items:center;
         gap:10px;
-        font-family:Georgia,serif;
+        font-family:var(--font-ui);
         font-size:28px;
         font-weight:bold;
         letter-spacing:-1.2px;
@@ -313,8 +323,8 @@
         filter:drop-shadow(0 20px 13px #15273c1c)
       }
       .scene-note {
-        font-family:Georgia,serif;
-        font-style:italic;
+        font-family:var(--font-ui);
+        font-style:normal;
         position:absolute;
         right:-8px;
         bottom:20px;
@@ -539,7 +549,7 @@
         position:absolute;
         left:20px;
         bottom:7px;
-        font-family:Georgia,serif;
+        font-family:var(--font-ui);
         font-size:59px;
         color:var(--teal);
         letter-spacing:-3px
@@ -610,7 +620,7 @@
         padding-top:23px
       }
       .story-number {
-        font-family:Georgia,serif;
+        font-family:var(--font-ui);
         font-size:22px;
         color:var(--teal);
         display:block;
@@ -803,6 +813,7 @@
         max-width:600px
       }
       .korean {
+        font-family:var(--font-ui);
         border-top:1px solid var(--line);
         padding-block:36px;
         display:grid;
@@ -912,16 +923,16 @@
         background:#172333
       }
       html[lang="ko"] h1 {
-        font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+        font-family:var(--font-ui);
         font-size:clamp(48px,4.7vw,72px);
         font-weight:650;
-        letter-spacing:-.075em;
+        letter-spacing:-.045em;
         line-height:1.17;
         word-break:keep-all
       }
       html[lang="ko"] h2 {
         word-break:keep-all;
-        letter-spacing:-.07em;
+        letter-spacing:-.045em;
         line-height:1.15
       }
       @media(max-width:760px) {
@@ -1259,6 +1270,197 @@
           transition:none!important
         }
       }
+
+      /* App display fidelity: v0.24 PILL_BG, SUMMARY_COLORS and h/2 capsule radius.
+         The demo is enlarged for the web; its sample values are not account data. */
+      .hero-scene .scene-star {
+        display:none;
+      }
+      .hero-cat.app-preview {
+        width:440px;
+        height:345px;
+        max-width:100%;
+        top:103px;
+        object-fit:contain;
+      }
+      .usage-pill {
+        font-family:"Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+        font-weight:600;
+        width:100%;
+        max-width:405px;
+        min-height:62px;
+        margin-inline:auto;
+        background:rgba(28,28,31,.96);
+        color:#F2F2F7;
+        border:0;
+        border-radius:999px;
+        padding:10px 17px;
+        box-shadow:none;
+        font-size:14.85px;
+      }
+      .usage-values {
+        display:block;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        text-align:center;
+        line-height:1.45;
+      }
+      .usage-values > span + span::before {
+        content:" · ";
+        color:#F2F2F7;
+      }
+      .usage-values strong {
+        color:#50C878;
+        font-weight:600;
+      }
+      .usage-pill.estimate .usage-values strong {
+        color:#FFB300;
+      }
+      .usage-pill .week-label {
+        color:#FFD60A;
+      }
+      .reset-details {
+        color:#98989F;
+        font-size:12.825px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        margin-top:2px;
+      }
+      .demo-pet-row {
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:8px;
+        min-height:172px;
+      }
+      .demo-pet-row .demo-pet {
+        margin:6px 0 0;
+      }
+      .demo-pet-row .collapse {
+        position:static;
+        width:32px;
+        height:32px;
+        min-height:32px;
+        min-width:32px;
+        border-radius:50%;
+        background:rgba(28,28,31,.96);
+        color:#F2F2F7;
+      }
+      @media(max-width:760px) {
+        .hero-cat.app-preview {
+          width:340px;
+          height:267px;
+          top:80px;
+        }
+        .usage-pill {
+          min-height:46px;
+          padding:7px 13px;
+          font-size:11px;
+        }
+        .reset-details {
+          font-size:9.5px;
+        }
+      }
+
+      .community-link {
+        display:inline-flex;
+        align-items:center;
+        gap:7px;
+        padding:9px 12px;
+        border:1px solid var(--line);
+        border-radius:5px;
+        font-size:12px;
+        line-height:1.4;
+        font-weight:650;
+        white-space:nowrap;
+        text-decoration:none;
+      }
+      .community-link:hover {
+        border-color:var(--teal);
+      }
+      .sponsor-link {
+        background:var(--lime);
+        color:#17283b;
+        border-color:var(--lime);
+      }
+      .hero-community {
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px;
+        margin-top:17px;
+      }
+      .star-note {
+        color:var(--muted);
+        font-size:10px;
+        line-height:1.6;
+        margin-top:9px;
+      }
+      .sponsor-section {
+        padding-block:76px;
+        background:var(--section);
+        border-block:1px solid var(--line);
+      }
+      .sponsor-layout {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:65px;
+        align-items:center;
+      }
+      .sponsor-layout h2 {
+        font-size:clamp(37px,4vw,58px);
+        letter-spacing:-.045em;
+        font-weight:550;
+      }
+      .sponsor-copy .button {
+        margin-block:25px 16px;
+      }
+      .sponsor-copy .small {
+        max-width:420px;
+        line-height:1.8;
+      }
+      .nav-links {
+        gap:17px;
+      }
+      .nav-tools {
+        gap:9px;
+      }
+      @media(max-width:1200px) {
+        .nav-links {
+          display:none;
+        }
+      }
+      @media(max-width:760px) {
+        .nav {
+          height:auto;
+          min-height:115px;
+          padding-block:13px;
+          flex-wrap:wrap;
+        }
+        .nav-tools {
+          width:100%;
+          justify-content:space-between;
+          gap:6px;
+        }
+        .nav-tools .community-link {
+          font-size:11px;
+          padding:8px 9px;
+        }
+        .nav-tools .select-wrap select {
+          max-width:77px;
+        }
+        .hero-community .community-link {
+          font-size:11px;
+        }
+        .sponsor-layout {
+          grid-template-columns:1fr;
+          gap:25px;
+        }
+        .sponsor-section {
+          padding-block:55px;
+        }
+      }
     </style>
     <script type="application/ld+json" id="structured-data">
       {
@@ -1390,6 +1592,8 @@
           </a>
         </div>
         <div class="nav-tools">
+          <a id="nav-sponsor" class="community-link sponsor-link" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener"><span aria-hidden="true">♡</span> <span data-copy="support.short">Sponsor</span></a>
+          <a id="nav-star" class="community-link star-link" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener"><span aria-hidden="true">★</span> <span data-copy="star.short">GitHub Star</span></a>
           <label class="select-wrap">
             <span data-copy="language" class="sr-only">
               Language
@@ -1453,6 +1657,11 @@
               </span>
             </a>
           </div>
+          <div class="hero-community">
+            <a id="hero-sponsor" class="community-link sponsor-link" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener"><span aria-hidden="true">♡</span> <span data-copy="support.hero">Support Claude Pet</span></a>
+            <a id="hero-star" class="community-link star-link" href="https://github.com/uygnoey/claude-pet" target="_blank" rel="noopener"><span aria-hidden="true">★</span> <span data-copy="star.hero">Star on GitHub</span></a>
+          </div>
+          <p class="star-note" data-copy="star.note">Opens GitHub in a new tab. Sign in there to add your star.</p>
           <p data-copy="hero.fine" class="small">
             Free to download. Source on GitHub. A Claude Code login gets you started.
           </p>
@@ -1460,21 +1669,7 @@
         <div class="hero-scene">
           <div class="scene-disc">
           </div>
-          <div class="mini-pill" aria-hidden="true">
-            Session
-            <b>
-              24%
-            </b>
-            &nbsp;
-            Week
-            <b>
-              51%
-            </b>
-            <small>
-              2h 14m · 3d
-            </small>
-          </div>
-          <img class="hero-cat" src="assets/frames/waving/00.png" alt="Claude Pet cat waving" width="342" height="342" fetchpriority="high">
+          <img class="hero-cat app-preview" src="assets/preview.png" alt="Claude Pet v0.24 app display: rounded usage pill above the cat" width="398" height="312" fetchpriority="high">
           <span class="scene-star" aria-hidden="true">
             ✳
           </span>
@@ -1484,8 +1679,8 @@
             A little more personality.
           </p>
           <p data-copy="hero.illustration" class="scene-caption">
-            Product illustration · example values
-          </p>
+                v0.24 app display example · existing app preview
+              </p>
         </div>
       </section>
       <div class="platform-bar">
@@ -1567,7 +1762,7 @@
                   </strong>
                 </span>
                 <span>
-                  Opus
+                  Fable
                   <strong data-number="18">
                     18%
                   </strong>
@@ -1575,20 +1770,20 @@
               </div>
               <div class="reset-details" id="demo-details">
                 <span data-copy="demo.reset" >
-                  Session resets in 2h 14m · weekly in 3d
-                </span>
+                Reset Session 2h 14m · Week 3d
+              </span>
               </div>
-              <button id="demo-collapse" class="collapse" aria-expanded="true" aria-controls="demo-details" aria-label="Toggle reset details" type="button">
-                ⌃
-              </button>
             </div>
+            <div class="demo-pet-row">
+              <button id="demo-collapse" class="collapse" aria-expanded="true" aria-controls="usage-demo" aria-label="Toggle usage pill" type="button">⌃</button>
             <img class="demo-pet" src="assets/frames/idle/00.png" alt="" loading="lazy">
+            </div>
             <p class="demo-status" id="demo-status" role="status">
               Green numbers identify server-reported usage.
             </p>
             <p data-copy="demo.caption" class="demo-caption">
-              Interactive illustration, not live account data or an app screenshot. Try the source selector and collapse button.
-            </p>
+                Interactive example styled after the v0.24 app, not live account data. The separate chevron folds the whole usage pill.
+              </p>
           </div>
         </div>
       </section>
@@ -2029,6 +2224,19 @@
           </details>
         </div>
       </section>
+      <section class="sponsor-section" id="sponsor">
+        <div class="wrap sponsor-layout">
+          <div>
+            <p class="eyebrow" data-copy="support.eyebrow">MADE WITH CARE. SUPPORTED BY YOU.</p>
+            <h2 data-copy="support.title">Help this little<br>companion grow.</h2>
+          </div>
+          <div class="sponsor-copy">
+            <p class="sub" data-copy="support.body">Claude Pet is free to download. If it makes your desk a little better, optional sponsorship helps support development and maintenance.</p>
+            <a id="sponsor-cta" class="button" href="https://github.com/sponsors/uygnoey" target="_blank" rel="noopener"><span aria-hidden="true">♡</span> <span data-copy="support.cta">Sponsor on GitHub</span></a>
+            <p class="small" data-copy="support.fine">One-time or monthly, through GitHub Sponsors. Using the app never requires a sponsorship.</p>
+          </div>
+        </div>
+      </section>
       <section class="wrap korean" lang="ko">
         <h2>
           Mac과 Windows의 작은 친구,
@@ -2099,7 +2307,7 @@
           "download.win": "Download for Windows",
           "hero.fine": "Free to download. Source on GitHub. A Claude Code login gets you started.",
           "hero.note": "Small presence.<br>A little more personality.",
-          "hero.illustration": "Product illustration · example values",
+          "hero.illustration": "v0.24 app display example · existing app preview",
           "platform.mac": "macOS 12+ · Apple Silicon & Intel",
           "platform.win": "Windows 10/11 · x64",
           "platform.pets": "One built-in cat. Four more companions.",
@@ -2113,13 +2321,13 @@
           "demo.source": "Usage source",
           "demo.exact": "Exact · server",
           "demo.estimate": "Estimate · local logs",
-          "demo.caption": "Interactive illustration, not live account data or an app screenshot. Try the source selector and collapse button.",
-          "demo.collapse": "Toggle reset details",
+          "demo.caption": "Interactive example styled after the v0.24 app, not live account data. The separate chevron folds the whole usage pill.",
+          "demo.collapse": "Toggle usage pill",
           "demo.status.exact": "Green numbers identify server-reported usage.",
           "demo.status.estimate": "Amber numbers and ≈ identify an estimate.",
           "demo.session": "Session",
           "demo.week": "Week",
-          "demo.reset": "Session resets in 2h 14m · weekly in 3d",
+          "demo.reset": "Reset Session 2h 14m · Week 3d",
           "pets.eyebrow": "02 / YOUR KIND OF COMPANY",
           "pets.title": "Who’s joining<br>your next session?",
           "pets.sub": "Pick a personality. The cat is built in; dog, fox, scorpion and elephant come bundled. Change your pet from the app’s right-click menu.",
@@ -2233,7 +2441,17 @@
               "How do updates work?",
               "On Mac, automatic checks begin one hour after launch and repeat hourly. The right-click menu can check and install a newer release. On Windows, use the right-click menu to check, then download the new installer from GitHub Releases."
             ]
-          ]
+          ],
+          "support.short": "Sponsor",
+          "star.short": "GitHub Star",
+          "support.hero": "Support Claude Pet",
+          "star.hero": "Star on GitHub",
+          "support.eyebrow": "MADE WITH CARE. SUPPORTED BY YOU.",
+          "support.title": "Help this little<br>companion grow.",
+          "support.body": "Claude Pet is free to download. If it makes your desk a little better, optional sponsorship helps support development and maintenance.",
+          "support.cta": "Sponsor on GitHub",
+          "support.fine": "One-time or monthly, through GitHub Sponsors. Using the app never requires a sponsorship.",
+          "star.note": "Opens GitHub in a new tab. Sign in there to add your star."
         },
         "ko": {
           "skip": "본문으로 건너뛰기",
@@ -2249,7 +2467,7 @@
           "download.win": "Windows 다운로드",
           "hero.fine": "무료 다운로드 · GitHub 소스 공개 · Claude Code 로그인 필요",
           "hero.note": "작은 존재감.<br>조금 더 즐거운 작업 시간.",
-          "hero.illustration": "제품 일러스트 · 설명용 수치",
+          "hero.illustration": "v0.24 앱 표시 예시 · 기존 앱 미리보기",
           "platform.mac": "macOS 12+ · Apple Silicon 및 Intel",
           "platform.win": "Windows 10/11 · x64",
           "platform.pets": "기본 고양이와 네 종류의 친구",
@@ -2263,13 +2481,13 @@
           "demo.source": "사용량 출처",
           "demo.exact": "정확 · 서버",
           "demo.estimate": "추정 · 로컬 로그",
-          "demo.caption": "실제 계정 데이터나 앱 캡처가 아닌 인터랙티브 예시예요. 출처 선택과 접기 버튼을 눌러 보세요.",
-          "demo.collapse": "리셋 상세 접기·펴기",
+          "demo.caption": "v0.24 앱 표시를 본뜬 체험용 예시이며 실제 계정 데이터가 아니에요. 옆의 화살표로 사용량 필 전체를 접고 펼 수 있어요.",
+          "demo.collapse": "사용량 필 접기·펴기",
           "demo.status.exact": "초록색 수치는 서버 사용률을 뜻해요.",
           "demo.status.estimate": "호박색 수치와 ≈ 표시는 추정치예요.",
           "demo.session": "세션",
           "demo.week": "주간",
-          "demo.reset": "세션 2시간 14분 후 · 주간 3일 후 리셋",
+          "demo.reset": "리셋 세션 2시간 14분 · 주간 3일",
           "pets.eyebrow": "02 / 내 취향의 친구",
           "pets.title": "오늘은 누구와<br>함께할까요?",
           "pets.sub": "고양이는 기본 내장이고 강아지·여우·전갈·코끼리도 함께 들어 있어요. 앱에서 우클릭 메뉴로 친구를 바꿀 수 있어요.",
@@ -2383,7 +2601,17 @@
               "업데이트는 어떻게 하나요?",
               "Mac은 실행 후 첫 1시간이 지나면 1시간마다 확인하며 우클릭 메뉴에서 새 버전을 확인·설치할 수 있어요. Windows는 우클릭 메뉴로 확인한 뒤 GitHub Releases에서 새 설치 파일을 받으세요."
             ]
-          ]
+          ],
+          "support.short": "후원하기",
+          "star.short": "GitHub Star",
+          "support.hero": "Claude Pet 후원하기",
+          "star.hero": "GitHub에서 Star",
+          "support.eyebrow": "작은 친구의 다음을 함께",
+          "support.title": "이 작은 친구가<br>계속 자랄 수 있도록.",
+          "support.body": "Claude Pet은 무료로 다운로드할 수 있어요. 내 데스크톱이 조금 더 즐거워졌다면, 자발적인 후원으로 개발과 유지보수를 응원해 주세요.",
+          "support.cta": "GitHub에서 후원하기",
+          "support.fine": "GitHub Sponsors에서 일회성·정기 후원을 선택할 수 있어요. 앱을 사용하기 위해 후원할 필요는 없어요.",
+          "star.note": "GitHub를 새 탭으로 열어요. 그곳에서 로그인하고 Star를 눌러 주세요."
         },
         "ja": {
           "skip": "本文へスキップ",
@@ -2399,7 +2627,7 @@
           "download.win": "Windows 版を入手",
           "hero.fine": "無料ダウンロード · GitHub でソース公開 · Claude Code ログインが必要",
           "hero.note": "さりげなく、<br>ちょっと楽しく。",
-          "hero.illustration": "製品イラスト · 数値は例",
+          "hero.illustration": "v0.24 アプリ表示の例 · 既存のプレビュー",
           "platform.mac": "macOS 12+ · Apple Silicon と Intel",
           "platform.win": "Windows 10/11 · x64",
           "platform.pets": "内蔵のネコと、さらに4種類の相棒",
@@ -2413,13 +2641,13 @@
           "demo.source": "使用量の情報源",
           "demo.exact": "正確 · サーバー",
           "demo.estimate": "推定 · ローカルログ",
-          "demo.caption": "実際のアカウント情報やアプリ画面ではない操作例です。情報源の選択と折りたたみを試せます。",
-          "demo.collapse": "リセット詳細を開閉",
+          "demo.caption": "v0.24 の表示を再現した操作例で、実際のアカウント情報ではありません。横の矢印で使用量表示全体を折りたためます。",
+          "demo.collapse": "使用量表示を開閉",
           "demo.status.exact": "緑の数値はサーバーの使用率を示します。",
           "demo.status.estimate": "琥珀色と ≈ は推定値を示します。",
           "demo.session": "セッション",
           "demo.week": "週間",
-          "demo.reset": "セッションは2時間14分後 · 週間は3日後にリセット",
+          "demo.reset": "リセット セッション2時間14分 · 週間3日",
           "pets.eyebrow": "02 / あなたらしい相棒",
           "pets.title": "今日は誰と<br>一緒に過ごす？",
           "pets.sub": "ネコは標準搭載。イヌ・キツネ・サソリ・ゾウも同梱されています。アプリの右クリックメニューで切り替えられます。",
@@ -2533,7 +2761,17 @@
               "更新方法は？",
               "Mac は起動後1時間から毎時確認し、右クリックで新版の確認・インストールができます。Windows は右クリックで確認後、GitHub Releases から新版をダウンロードしてください。"
             ]
-          ]
+          ],
+          "support.short": "支援する",
+          "star.short": "GitHub Star",
+          "support.hero": "Claude Pet を支援",
+          "star.hero": "GitHub で Star",
+          "support.eyebrow": "この小さな相棒の、これからを",
+          "support.title": "小さな相棒の成長を、<br>一緒に。",
+          "support.body": "Claude Pet は無料でダウンロードできます。デスクトップが少し楽しくなったら、任意のスポンサーで開発とメンテナンスを応援してください。",
+          "support.cta": "GitHub で支援する",
+          "support.fine": "GitHub Sponsors で一回または毎月の支援を選べます。アプリの利用に支援は必要ありません。",
+          "star.note": "GitHub を新しいタブで開きます。そこでログインして Star を付けてください。"
         },
         "es": {
           "skip": "Ir al contenido",
@@ -2549,7 +2787,7 @@
           "download.win": "Descargar para Windows",
           "hero.fine": "Descarga gratuita. Código en GitHub. Necesitas iniciar sesión en Claude Code.",
           "hero.note": "Una presencia pequeña.<br>Un escritorio con personalidad.",
-          "hero.illustration": "Ilustración del producto · valores de ejemplo",
+          "hero.illustration": "Ejemplo de vista de la app v0.24 · vista previa existente",
           "platform.mac": "macOS 12+ · Apple Silicon e Intel",
           "platform.win": "Windows 10/11 · x64",
           "platform.pets": "Un gato integrado y cuatro compañeros más.",
@@ -2563,13 +2801,13 @@
           "demo.source": "Fuente de uso",
           "demo.exact": "Exacto · servidor",
           "demo.estimate": "Estimado · registros locales",
-          "demo.caption": "Ilustración interactiva, no datos reales ni captura de la app. Prueba el selector de fuente y el botón de contraer.",
-          "demo.collapse": "Mostrar u ocultar los reinicios",
+          "demo.caption": "Ejemplo inspirado en la vista de v0.24, no datos reales. La flecha separada contrae toda la píldora de uso.",
+          "demo.collapse": "Mostrar u ocultar la píldora de uso",
           "demo.status.exact": "Los números verdes identifican el uso del servidor.",
           "demo.status.estimate": "El ámbar y ≈ identifican una estimación.",
           "demo.session": "Sesión",
           "demo.week": "Semana",
-          "demo.reset": "Sesión: reinicio en 2h 14m · semana: en 3d",
+          "demo.reset": "Reinicio Sesión 2h 14m · Semana 3d",
           "pets.eyebrow": "02 / TU TIPO DE COMPAÑÍA",
           "pets.title": "¿Quién te acompaña<br>en tu próxima sesión?",
           "pets.sub": "El gato viene integrado; perro, zorro, escorpión y elefante están incluidos. Cambia de mascota desde el menú contextual de la app.",
@@ -2683,7 +2921,17 @@
               "¿Cómo se actualiza?",
               "En Mac, las comprobaciones empiezan una hora tras el inicio y se repiten cada hora. El menú contextual permite consultar e instalar. En Windows, consulta desde el menú contextual y descarga el nuevo instalador desde GitHub Releases."
             ]
-          ]
+          ],
+          "support.short": "Patrocinar",
+          "star.short": "GitHub Star",
+          "support.hero": "Apoyar Claude Pet",
+          "star.hero": "Dar una estrella en GitHub",
+          "support.eyebrow": "CREADA CON CARIÑO. APOYADA POR TI.",
+          "support.title": "Ayuda a crecer<br>a esta compañera.",
+          "support.body": "Claude Pet se descarga gratis. Si mejora tu escritorio, un patrocinio voluntario ayuda a apoyar su desarrollo y mantenimiento.",
+          "support.cta": "Patrocinar en GitHub",
+          "support.fine": "Puedes elegir una aportación única o mensual en GitHub Sponsors. No necesitas patrocinar para usar la app.",
+          "star.note": "Abre GitHub en una pestaña nueva. Inicia sesión allí para dar tu estrella."
         }
       };
       const PETS={"cat": "assets/frames/idle/00.png", "dog": "assets/pets/dog.png", "fox": "assets/pets/fox.png", "scorpion": "assets/pets/scorpion.png", "elephant": "assets/pets/elephant.png"};
@@ -2732,7 +2980,7 @@
       document.getElementById('language').addEventListener('change',e=>{setLanguage(e.target.value);persist('claudepet-lang',lang)});
       document.querySelectorAll('[data-pet]').forEach(button=>button.addEventListener('click',()=>{pet=button.dataset.pet;renderPet()}));
       document.getElementById('demo-source').addEventListener('change',renderDemo);
-      document.getElementById('demo-collapse').addEventListener('click',e=>{const button=e.currentTarget;const expanded=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(expanded));document.getElementById('demo-details').hidden=!expanded;button.textContent=expanded?'⌃':'⌄'});
+      document.getElementById('demo-collapse').addEventListener('click',e=>{const button=e.currentTarget;const expanded=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(expanded));document.getElementById('usage-demo').hidden=!expanded;button.textContent=expanded?'⌃':'⌄'});
       const tabs=[...document.querySelectorAll('[role=tab]')];
       tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activateTab(tab.id));tab.addEventListener('keydown',e=>{let target;if(e.key==='ArrowRight'||e.key==='ArrowDown')target=(index+1)%tabs.length;if(e.key==='ArrowLeft'||e.key==='ArrowUp')target=(index+tabs.length-1)%tabs.length;if(e.key==='Home')target=0;if(e.key==='End')target=tabs.length-1;if(target!==undefined){e.preventDefault();activateTab(tabs[target].id,true)}})});
       document.documentElement.classList.add('js');
