@@ -37,6 +37,10 @@ macOS 판의 같은 상수·같은 문자열·같은 좌표로 그린다. 폰트
   · 완전 삭제: macOS 판 UNINSTALL_PATHS 의 사용자 파일 + 캐시 폴더 + HKCU Run 값(우리 exe 일 때만) 을 지우고, inno 는
     unins000.exe /SILENT, portable 은 종료 뒤 폴더를 지우는 헬퍼. %USERPROFILE%\\.claude_pet(펫)은 남긴다.
   · 모든 단계는 %LOCALAPPDATA%\\me.yeongyu.claudepet\\update.log 에 개수·상태만 남긴다(경로 없음 — CLAUDE.md § Privacy).
+로그인 시 자동 실행(Track B-W, 2026-09-13): 우클릭 체크 항목 — macOS 판과 같은 자리(화면 돌아다니기 다음)·같은 TR 키. 판단은
+  windows/win_autostart.py(순수, macOS 에서 시험): 설치 파일의 startup 옵션이 쓰는 HKCU Run 값 `ClaudePet` = "<exe>" 그대로 읽고 쓰며,
+  작업 관리자 › 시작 앱의 사용 안 함(Explorer StartupApproved)도 본다. 설정 키는 없다 — 메뉴를 열 때마다 OS 에서 다시 읽는다
+  (CLAUDE.md § "Start at sign-in" 과 같은 계약). 소스 실행(pythonw)은 항목이 '(여기서는 사용 불가)' 로 비활성이다.
 `claude_pet.py` 와 macOS 빌드·릴리즈 스크립트는 이 파일로 바뀌지 않는다.
 
 실행: `pythonw windows\\claude_pet_win.py` (저장소 루트에서, Python 3.13 + PySide6 + Pillow)
@@ -92,6 +96,7 @@ def _import_core():
 
 cp = _import_core()  # AppKit 은 run_gui 안에서만 import 되므로 GUI 없이 코어를 쓸 수 있다 (설계 문서 §0)
 import win_update as wu  # noqa: E402  — cp 를 먼저 import 한 뒤 (같은 sys.modules 항목을 본다)
+import win_autostart as wa  # noqa: E402  — 로그인 시 자동 실행의 순수 부분 (HKCU Run 값 + StartupApproved 판단)
 
 from PIL import Image  # noqa: E402
 from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal  # noqa: E402
@@ -1088,8 +1093,8 @@ class PetWindow(QWidget):
     def _context_menu(self, gpos):
         """우클릭 메뉴 — macOS 판 rightMouseDown_ 과 같은 항목·순서·상태.
 
-        [설치/로그인] [업데이트] 설정… · 접기/펴기 · 화면 돌아다니기(✓) · 크기 원래대로 · 펫 ▸ · ─ · 제거 · 종료 · ─ ·
-        ClaudePet vX(비활성) · 업데이트 확인…  (맨 위 두 항목은 해당 상태일 때만, 각각 구분선과 함께)
+        [설치/로그인] [업데이트] 설정… · 접기/펴기 · 화면 돌아다니기(✓) · 로그인 시 자동 실행(✓) · 크기 원래대로 · 펫 ▸ · ─ ·
+        제거 · 종료 · ─ · ClaudePet vX(비활성) · 업데이트 확인…  (맨 위 두 항목은 해당 상태일 때만, 각각 구분선과 함께)
         """
         self.roam_display.reset()              # macOS 판 roam_interrupt: 요약 래치 해제
         m = QMenu(self)
@@ -1111,6 +1116,13 @@ class PetWindow(QWidget):
         roam.setEnabled(not self.state["reduce_motion"])     # 동작 줄이기(애니메이션 끔)면 비활성
         roam.triggered.connect(self._toggle_roam)
         m.addAction(roam)
+        # 로그인 시 자동 실행 — macOS 판 rightMouseDown_ 과 같은 자리(화면 돌아다니기 다음, 크기 원래대로 앞), 같은 TR 키.
+        # 체크 표시는 설정 파일이 아니라 OS(HKCU Run 값 + Explorer StartupApproved)에서 오고, 메뉴가 열릴 때마다(aboutToShow)
+        # 다시 읽는다 — 작업 관리자에서 끈 것도 그대로 보인다. 판단은 win_autostart, 여기서는 항목과 알림창만.
+        autostart = QAction(cp.t("menu_autostart"), m, checkable=True)
+        autostart.triggered.connect(self._toggle_autostart)
+        m.addAction(autostart)
+        m.aboutToShow.connect(lambda: self._sync_autostart_item(autostart))
         m.addAction(cp.t("menu_reset_size"), self._reset_scale)
         pet_list = cp.discover_pets()          # 우클릭 때마다 다시 스캔 → 새로 넣은 펫 즉시 반영
         if pet_list:
@@ -1155,6 +1167,36 @@ class PetWindow(QWidget):
             self.cfg.update(merged)
         else:
             self.cfg["roam"] = value
+
+    # ── 로그인 시 자동 실행 (판단: win_autostart / 실행: 여기 — macOS 판 toggleAutostart_ 와 같은 계약, 설정 키 없음) ──
+    def _autostart_args(self):
+        """(reader, writer, exe, is_frozen) — 메뉴와 클릭이 같은 규칙으로 레지스트리와 신원을 고른다 (macOS 판 autostart_current).
+        소스 실행(pythonw)은 is_frozen 이 False 라 순수 함수가 레지스트리를 건드리지 않고 "unavailable" 을 돌려준다."""
+        reader, writer = wa.real_registry()
+        return reader, writer, app_exe_path(), is_frozen()
+
+    def _sync_autostart_item(self, action):
+        """메뉴가 열릴 때마다 OS 에서 다시 읽어 체크·활성·제목을 맞춘다. 설정 파일에는 아무것도 없다."""
+        reader, _writer, exe, frozen = self._autostart_args()
+        state = wa.autostart_read_state(reader, exe, frozen)
+        if state == "unavailable":
+            action.setText(cp.t("autostart_unavailable"))     # 소스 실행, 또는 레지스트리를 읽을 수 없음
+            action.setChecked(False)
+            action.setEnabled(False)
+            return
+        action.setText(cp.t("menu_autostart"))
+        action.setChecked(state == "on")
+        action.setEnabled(True)
+
+    def _toggle_autostart(self):
+        """우클릭 체크 항목 한 번. 결과는 알릴 뿐 어디에도 저장하지 않는다 — 다음에 메뉴를 열면 OS 에서 다시 읽는다."""
+        reader, writer, exe, frozen = self._autostart_args()
+        new_state, err = wa.autostart_toggle(reader, writer, exe, frozen)
+        wu.log_update("startup", status=new_state, error=err or "none")
+        if err:
+            box = self._msgbox(QMessageBox.Critical, cp.t("autostart_title"), cp.t("autostart_fail"))
+            box.addButton(QMessageBox.Ok)
+            box.exec()
 
     def _set_pet(self, pet_id):
         pinfo = next((x for x in self.pets if x["id"] == pet_id), None)

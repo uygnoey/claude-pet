@@ -21,6 +21,7 @@ Inno Setup 이 필요하다:  winget install --id JRSoftware.InnoSetup -e   (ISC
     claudepet-release.json   버전 마커 {"version": APP_VERSION, "built": <ISO UTC>, …} — 업데이터가 태그와 대조하는 번들 안의 유일한 신원
     fcntl              windows\\compat\\fcntl.py 를 분석 경로에 두어 코어의 `import fcntl` 이 이 shim 으로 묶인다
     win_update         windows\\win_update.py — 업데이트/제거 판단의 순수 부분 (hidden-import)
+    win_autostart      windows\\win_autostart.py — 로그인 시 자동 실행 판단의 순수 부분 (hidden-import)
 코어 claude_pet.py 는 --hidden-import 로 PYZ 에 들어간다(런타임에 importlib 로 읽으므로 자동 감지가 안 된다).
 
 서명 — CLAUDE_PET_WIN_SIGN=off|pfx|store|trusted (기본 off: 서명하지 않고 그 사실을 로그 한 줄로 남긴다).
@@ -80,6 +81,7 @@ def build():
             "--paths", ROOT, "--paths", os.path.join(ROOT, "windows"),
             "--paths", os.path.join(ROOT, "windows", "compat"),
             "--hidden-import", "claude_pet", "--hidden-import", "win_update",
+            "--hidden-import", "win_autostart",
             "--distpath", DIST, "--workpath", WORK, "--specpath", WORK]
     for src, dst in data:
         args += ["--add-data", f"{os.path.join(ROOT, src)}{sep}{dst}"]

@@ -92,6 +92,22 @@ macOS 판의 `UNINSTALL_PATHS` 와 같은 범위입니다. 지우는 것: `%USER
 설치 파일의 제거 프로그램(앱 및 기능)은 `installer.iss` 의 `[UninstallDelete]` 대로 `{app}\_internal`, `{app}\ClaudePet.exe`,
 `{localappdata}\me.yeongyu.claudepet` 만 지웁니다 — `{app}` 통째로가 아닙니다(사용자가 기존 폴더에 설치했을 수 있습니다).
 
+## 로그인 시 자동 실행 (우클릭 "로그인 시 자동 실행")
+
+macOS 판과 같은 자리(화면 돌아다니기 다음)의 체크 항목이고 문자열도 같은 키(`menu_autostart`)입니다. 판단은
+`windows/win_autostart.py`(순수 Python, macOS 의 `windows/tests/` 로 시험), 실행은 `claude_pet_win.py` 입니다. 설치 파일의
+"Windows 로그인 시 자동 실행" 옵션이 쓰는 값 그대로 — `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 의 `ClaudePet`
+값에 `"<exe 경로>"`(큰따옴표 한 쌍) — 를 읽고 씁니다. 그래서 설치 옵션·이 항목·제거 프로그램의 `uninsdeletevalue`·완전 삭제가
+한 값을 다룹니다. 설정 파일(`.claude_pet.json`)에는 아무것도 적지 않습니다: 메뉴를 열 때마다 레지스트리를 다시 읽으므로
+작업 관리자 › 시작 앱에서 끈 것이 그대로 꺼진 것으로 보이고, 앱이 몰래 다시 켜지 않습니다. 작업 관리자는 끌 때 Run 값을 지우지
+않고 `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run` 의 같은 이름 REG_BINARY 값에 기록합니다
+(첫 바이트 `0x02` = 사용, `0x03` = 사용 안 함 — 기억에 의존한 값이라 실기에서 확인해야 하고, 그래서
+`win_autostart.startup_approved_enabled` 한 함수에만 있습니다). 켜져 있음 = Run 값이 이 exe 를 가리키고 StartupApproved
+항목이 없거나 `0x02`. 켜면 Run 값을 쓰고(다른 경로를 가리키던 값은 덮어씀 — 옮겨 둔 portable 폴더를 고칩니다) 사용 안 함
+항목을 지우며, 끄면 둘 다 지웁니다. 소스 실행(`pythonw`)은 항목이 "(여기서는 사용 불가)" 로 비활성입니다 — `pythonw.exe` 를
+등록하지 않습니다(macOS 판의 소스 실행과 같은 정책). 클릭마다 `update.log` 에 `startup status=<on|off> error=<none|autostart_fail>`
+한 줄이 남습니다.
+
 ## 배포물 만들기 (3단계)
 
 Windows 에서, 저장소 루트, venv 활성화 후:
@@ -152,3 +168,10 @@ Azure Trusted Signing(구독 + 신원 확인, 한국 가용성은 확인 필요)
   실패 안내 상자가 뜨고 `update.log` 에 `uninstall kind=portable status=failed at=run-helper error=<예외 종류>` 가 남으며 아무것도
   지워지지 않는가(inno 에서 `unins000.exe` 실행을 막으면 `at=run-uninstaller`). 이 두 줄은 macOS 에서는 호출 모양만 확인된다.
 - 관리형 PC 의 PowerShell 제한(Constrained Language, AppLocker)에서 교체 스크립트가 도는가.
+- 로그인 시 자동 실행: 설치 파일에서 옵션을 켠 뒤 우클릭 메뉴 항목에 체크가 있는가; 항목을 끄고 켜면 작업 관리자 › 시작 앱의
+  ClaudePet 이 사라지고 다시 나타나는가(`update.log` 의 `startup status=off` / `status=on`); 작업 관리자에서 "사용 안 함" 으로
+  바꾸면 다음 우클릭에 항목이 꺼진 것으로 보이고, `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`
+  의 `ClaudePet` 값 첫 바이트가 `0x03`(사용 안 함) / 다시 사용으로 바꾸면 `0x02` 인가 — 다른 값(예: `0x06`)이 보이면
+  `win_autostart.startup_approved_enabled` 와 그 시험 표를 함께 고친다; 사용 안 함 상태에서 메뉴 항목을 켜면 그 값이 지워지고
+  다음 로그인에 펫이 실제로 뜨는가; portable(zip) 에서도 작업 관리자가 ClaudePet 이름으로 보여 주는가; 완전 삭제 뒤 Run 값이
+  없는가.
