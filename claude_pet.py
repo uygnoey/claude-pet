@@ -1057,6 +1057,12 @@ TR = {
     "menu_settings": "Settings…", "menu_toggle": "Show/hide the usage pill",
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_roam": "Roam the screen",
+    "menu_autostart": "Start at sign-in",
+    "autostart_title": "Start at sign-in",
+    "autostart_approval": "macOS needs your approval: System Settings → General → Login Items.",
+    "autostart_open_settings": "Open Login Items",
+    "autostart_fail": "Could not change the sign-in setting.",
+    "autostart_unavailable": "Start at sign-in (not available here)",
     "menu_update": "⬆︎ Install v{v}",
     "menu_check_update": "⬆︎ Check for updates…",
     "upd_title": "Claude Pet update",
@@ -1138,6 +1144,12 @@ TR = {
     "menu_settings": "설정…", "menu_toggle": "사용량 필 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_roam": "화면 돌아다니기",
+    "menu_autostart": "로그인 시 자동 실행",
+    "autostart_title": "로그인 시 자동 실행",
+    "autostart_approval": "macOS 승인이 필요합니다: 시스템 설정 → 일반 → 로그인 항목",
+    "autostart_open_settings": "로그인 항목 열기",
+    "autostart_fail": "로그인 시 자동 실행 설정을 바꾸지 못했습니다.",
+    "autostart_unavailable": "로그인 시 자동 실행 (여기서는 사용 불가)",
     "menu_uninstall": "완전 삭제…",
     "menu_pets": "펫", "pet_default": "고양이 🐱",
     "pet_add": "➕ 펫 추가… (폴더 열기)",
@@ -1215,6 +1227,12 @@ TR = {
     "menu_settings": "設定…", "menu_toggle": "使用量ピルの表示/非表示",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_roam": "画面を歩き回る",
+    "menu_autostart": "サインイン時に自動起動",
+    "autostart_title": "サインイン時に自動起動",
+    "autostart_approval": "macOS の承認が必要です: システム設定 → 一般 → ログイン項目",
+    "autostart_open_settings": "ログイン項目を開く",
+    "autostart_fail": "サインイン時の起動設定を変更できませんでした。",
+    "autostart_unavailable": "サインイン時に自動起動（ここでは利用不可）",
     "menu_uninstall": "完全に削除…",
     "menu_pets": "ペット", "pet_default": "ネコ 🐱",
     "pet_add": "➕ ペットを追加…（フォルダを開く）",
@@ -1297,6 +1315,12 @@ TR = {
     "menu_settings": "Ajustes…", "menu_toggle": "Mostrar/ocultar la píldora",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_roam": "Pasear por la pantalla",
+    "menu_autostart": "Abrir al iniciar sesión",
+    "autostart_title": "Abrir al iniciar sesión",
+    "autostart_approval": "macOS necesita tu aprobación: Ajustes del Sistema → General → Ítems de inicio",
+    "autostart_open_settings": "Abrir Ítems de inicio",
+    "autostart_fail": "No se pudo cambiar el inicio al iniciar sesión.",
+    "autostart_unavailable": "Abrir al iniciar sesión (no disponible aquí)",
     "menu_uninstall": "Desinstalar por completo…",
     "menu_pets": "Mascota", "pet_default": "Gato 🐱",
     "pet_add": "➕ Añadir mascota… (abrir carpeta)",
@@ -5107,6 +5131,150 @@ def app_bundle_path():
     return p
 
 
+# ─────────────────────── 로그인 시 자동 실행 (SMAppService) ───────────────────────
+# 우클릭 메뉴의 체크 항목 하나가 전부다. 설정 파일에는 아무것도 적지 않는다 — OS 의
+# 등록 상태가 유일한 진실이라, 사용자가 시스템 설정에서 끄면 여기서도 꺼진 것으로
+# 보이고, 앱이 몰래 다시 켜는 일이 없다.
+#
+# SMAppService.status() 가 돌려주는 정수. 프레임워크 상수와 같은 값이지만 여기 다시
+# 적는다 — 프레임워크가 없는 곳(macOS 12, 시험)에서도 순수 함수들은 돌아가야 한다.
+SM_STATUS_NOT_REGISTERED = 0
+SM_STATUS_ENABLED = 1
+SM_STATUS_REQUIRES_APPROVAL = 2
+SM_STATUS_NOT_FOUND = 3
+
+_AUTOSTART_STATE_BY_STATUS = {
+    SM_STATUS_NOT_REGISTERED: "off",
+    SM_STATUS_ENABLED: "on",
+    SM_STATUS_REQUIRES_APPROVAL: "approval",
+    SM_STATUS_NOT_FOUND: "unavailable",
+}
+
+
+def autostart_state(status, is_bundle):
+    """SMAppService 상태값 → 메뉴 상태 ("on" | "off" | "approval" | "unavailable").
+
+    설치본이 아니면(소스 실행) 상태값이 무엇이든 "unavailable" 이다: 소스에서 본
+    mainAppService 는 파이썬 자신의 서비스라 그 값은 우리 것이 아니다. 모르는
+    상태값도 "unavailable" — 켜져 있다고 단정하고 해제를 누르게 하지 않는다.
+    """
+    if not is_bundle:
+        return "unavailable"
+    return _AUTOSTART_STATE_BY_STATUS.get(status, "unavailable")
+
+
+def autostart_service():
+    """SMAppService.mainAppService(), 없으면 None.
+
+    프레임워크는 호출 시점에 가져온다(app_bundle_path 의 in-function import 와 같은
+    선례). macOS 12 에는 SMAppService 클래스가 없고, py2app 이 프레임워크를 빠뜨린
+    번들도 같은 모양으로 실패한다 — 어느 쪽이든 항목이 비활성으로 보일 뿐 앱은
+    뜬다. mainAppService 를 부르는 곳은 이 함수 하나다.
+    """
+    try:
+        from ServiceManagement import SMAppService
+    except Exception:
+        return None
+    try:
+        return SMAppService.mainAppService()
+    except Exception:
+        return None
+
+
+def autostart_current():
+    """(service, is_bundle) — 메뉴와 핸들러가 같은 규칙으로 서비스를 고른다.
+
+    설치본이 아니면 서비스는 None 이다: 소스 실행의 mainAppService 는 파이썬 자신의
+    서비스라 status() 조차 부르지 않는다. 결과는 그대로 autostart_read_state /
+    autostart_toggle 의 인자다.
+    """
+    is_bundle = bool(app_bundle_path())
+    return (autostart_service() if is_bundle else None), is_bundle
+
+
+def autostart_read_state(service, is_bundle):
+    """지금 상태. 설치본이 아니거나 서비스가 없으면 서비스를 전혀 건드리지 않는다
+    (status() 조차) — 소스 실행에서 읽히는 값은 파이썬 자신의 것이다."""
+    if not is_bundle or service is None:
+        return "unavailable"
+    try:
+        status = service.status()
+    except Exception:
+        return "unavailable"
+    return autostart_state(status, is_bundle)
+
+
+def autostart_toggle(service, is_bundle):
+    """메뉴 클릭 한 번. 반환 (새 상태, 오류 키 | None).
+
+    꺼져 있으면 등록, 켜져 있으면 해제. 새 상태는 부른 뒤 서비스에서 **다시 읽는다**
+    — 등록이 승인 대기(2)로 떨어질 수 있어서, "등록했으니 켜졌다" 고 가정하면 사용자에게
+    승인 안내를 못 한다. 실패((False, err))는 상태를 바꾸지 않고 "autostart_fail" 로
+    보고한다. 승인 대기 상태에서는 아무것도 부르지 않고 "approval" 을 돌려준다 —
+    호출자가 승인 안내창을 띄운다. 해제해 버리면 사용자가 켜려고 누른 등록이 사라진다.
+    설치본이 아니거나 서비스가 없으면 ("unavailable", None), 서비스는 건드리지 않는다.
+    설정 파일·RUNTIME 에는 아무것도 쓰지 않는다.
+    """
+    state = autostart_read_state(service, is_bundle)
+    if state in ("unavailable", "approval"):
+        return state, None
+    try:
+        if state == "on":
+            ok, err = service.unregisterAndReturnError_(None)
+        else:
+            ok, err = service.registerAndReturnError_(None)
+    except Exception as e:
+        ok, err = False, e
+    if not ok:
+        _dbg("autostart: toggle from", state, "failed:", _autostart_err_summary(err))
+        return state, "autostart_fail"
+    return autostart_read_state(service, is_bundle), None
+
+
+def uninstall_autostart(service):
+    """완전 삭제 전에 로그인 항목을 해제한다. 반환 오류 키 | None.
+
+    등록돼 있을 때(1, 2)만 해제한다. 등록한 적 없는 사용자(0, 3)에게 해제를 부르면
+    OS 가 실패를 돌려주고, 그 실패로 삭제를 거절하면 그 사용자는 지울 수 없다.
+    해제 실패는 "autostart_fail" — do_uninstall 은 이것을 받으면 아무것도 지우지
+    않는다(로그인 항목이 사라진 번들을 가리키게 두지 않는다).
+    """
+    if service is None:
+        return None
+    try:
+        status = service.status()
+    except Exception:
+        return "autostart_fail"      # 등록 여부를 모른 채 지우지 않는다
+    if status not in (SM_STATUS_ENABLED, SM_STATUS_REQUIRES_APPROVAL):
+        return None
+    try:
+        ok, err = service.unregisterAndReturnError_(None)
+    except Exception as e:
+        ok, err = False, e
+    if not ok:
+        _dbg("autostart: uninstall unregister failed:", _autostart_err_summary(err))
+        return "autostart_fail"
+    return None
+
+
+def _autostart_err_summary(err):
+    """디버그 로그용 요약 — 도메인과 코드만. 설명문은 경로를 품을 수 있어 적지 않는다."""
+    try:
+        return "%s/%s" % (err.domain(), err.code())
+    except Exception:
+        return type(err).__name__
+
+
+def autostart_open_login_items():
+    """시스템 설정 → 일반 → 로그인 항목을 연다(승인 안내창의 버튼). 반환 성공 여부."""
+    try:
+        from ServiceManagement import SMAppService
+        SMAppService.openSystemSettingsLoginItems()
+        return True
+    except Exception:
+        return False
+
+
 def _uninstall_cleanup_script(app, app_id, lock_dir, lock_id):
     """앱 번들 → 잠금 폴더 순으로, '신원이 맞을 때만' 지우는 /bin/sh 명령.
 
@@ -5162,6 +5330,10 @@ def do_uninstall():
       1. 잠금을 잡는다. 못 잡으면 아무것도 지우지 않고 물러난다.
       2. 지울 번들의 신원을 잠금 안에서 읽는다. 못 읽으면 역시 아무것도 지우지
          않고 물러난다 — 무엇을 지울지 모르는 채로 시작하지 않는다.
+      2½. 로그인 항목을 해제한다(uninstall_autostart). 실패하면 아무것도 지우지
+         않고 물러난다 — 앱은 지워졌는데 로그인 항목이 그 자리를 가리키는 상태를
+         만들지 않는다. 설치본(app)일 때만이다: 소스 실행이 읽는 서비스는 파이썬
+         자신의 것이라 건드리지 않는다.
       3. 번들을 지울 분리된 셸을 **먼저** 띄운다. Popen 이 실패하면 그때까지
          지운 것이 하나도 없으므로 설치는 통째로 그대로다.
       4. 그다음에야 사용자 쪽 파일들을 지운다.
@@ -5194,6 +5366,11 @@ def do_uninstall():
                 # 무엇을 지울지 모르는 채로는 시작하지 않는다. 여기서 물러나면
                 # 지운 것이 없으므로 설치는 그대로다.
                 return False, "could not identify the installed app bundle"
+            # 로그인 항목 해제 — 아직 거절할 수 있는 마지막 단계. 잠금 안에서,
+            # 셸을 띄우기 전에. 실패하면 지운 것이 없으므로 설치는 그대로다.
+            err = uninstall_autostart(autostart_service())
+            if err:
+                return False, err
             # 잠긴 fd 를 그 셸에 그대로 물려준다(업데이트 교체 셸과 같은
             # 방식이다). 여기서 놓아 버리면 '앱을 지우는 2초'가 무방비가 되어,
             # 그 사이에 시작한 업데이터가 잠금을 잡고 이미 사라지는 중인 앱을
@@ -6466,6 +6643,10 @@ def run_gui():
              "roam_display": None, "roam_env": None, "roam_crop": None,
              "roam_rects": None, "roam_mode": None,
              "roam_toggle": None, "roam_interrupt": None,
+             # 로그인 시 자동 실행: rightMouseDown_ 이 부르는 훅 → "on"|"off"|"approval"|
+             # "unavailable". 메뉴를 열 때마다 OS 등록 상태를 다시 읽는다(설정 파일 아님).
+             # 창 없는 시험(직접 만든 state)에선 없다 → 항목이 '사용 불가' 로 비활성.
+             "autostart_read": lambda: autostart_read_state(*autostart_current()),
              # 구독 모드인데 Claude Code 데이터가 전혀 없을 때: None|'install'|'login'.
              # refresh 워커가 매 주기 갱신한다(아래 compute_onboard_state).
              "onboard": None,
@@ -6736,6 +6917,7 @@ def run_gui():
             for title, action in ((t("menu_settings"), "openSettings:"),
                                   (t("menu_toggle"), "togglePanel:"),
                                   (t("menu_roam"), "toggleRoam:"),
+                                  (t("menu_autostart"), "toggleAutostart:"),
                                   (t("menu_reset_size"), "resetScale:"),
                                   (None, None),
                                   (t("menu_uninstall"), "uninstallApp:"),
@@ -6750,6 +6932,20 @@ def run_gui():
                     mi.setState_(1 if RUNTIME.get("roam") else 0)   # 체크 표시
                     # macOS '동작 줄이기' 가 켜져 있으면 어차피 움직이지 않는다 → 비활성
                     mi.setEnabled_(not state["reduce_motion"])
+                elif action == "toggleAutostart:":
+                    # 체크 표시는 설정 파일이 아니라 OS 등록 상태에서 온다 — 메뉴를 열
+                    # 때마다 훅으로 다시 읽으므로 시스템 설정에서 바꾼 것도 그대로 보인다.
+                    # 훅은 state 에 있다(roam_interrupt 와 같은 모양): 창 없는 시험에선
+                    # 없고, 그때는 '사용 불가' 다.
+                    read = state.get("autostart_read")
+                    a_state = read() if read is not None else "unavailable"
+                    if a_state == "unavailable":
+                        # 소스 실행, macOS 12(SMAppService 없음), 또는 서비스가 없음
+                        mi.setTitle_(t("autostart_unavailable"))
+                        mi.setEnabled_(False)
+                    else:
+                        # -1 = NSControlStateValueMixed: 등록은 됐지만 승인 대기
+                        mi.setState_({"on": 1, "off": 0}.get(a_state, -1))
                 menu.addItem_(mi)
             # 펫 선택 서브메뉴 (우클릭 때마다 폴더를 새로 스캔 → 새로 넣은 펫 즉시 반영)
             pet_list = discover_pets()
@@ -6772,7 +6968,7 @@ def run_gui():
                 pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_pets"), None, "")
                 pet_item.setSubmenu_(sub)
-                menu.insertItem_atIndex_(pet_item, 4)       # '크기 원래대로' 다음
+                menu.insertItem_atIndex_(pet_item, 5)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -7649,6 +7845,31 @@ def run_gui():
             else:
                 cfg["roam"] = value
 
+        def toggleAutostart_(self, sender):
+            # 우클릭 체크 항목. 결정은 autostart_toggle 이 하고, 여기서는 결과를 알릴
+            # 뿐이다. 설정 파일에는 아무것도 쓰지 않는다 — 다음에 메뉴를 열면 OS 에서
+            # 다시 읽는다.
+            new_state, err = autostart_toggle(*autostart_current())
+            if err:
+                a = NSAlert.alloc().init()
+                a.setMessageText_(t("autostart_title"))
+                a.setInformativeText_(t("autostart_fail"))
+                a.setAlertStyle_(2)                      # NSAlertStyleCritical
+                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+                a.runModal()
+                return
+            if new_state == "approval":
+                # 등록은 됐지만 macOS 가 사용자의 승인을 기다린다. 첫 버튼이 기본값이라
+                # 엔터가 곧 '로그인 항목 열기' 다.
+                a = NSAlert.alloc().init()
+                a.setMessageText_(t("autostart_title"))
+                a.setInformativeText_(t("autostart_approval"))
+                a.addButtonWithTitle_(t("autostart_open_settings"))
+                a.addButtonWithTitle_(t("unin_cancel"))
+                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+                if a.runModal() == 1000:                 # 1000 = 첫 버튼
+                    autostart_open_login_items()
+
         def resetScale_(self, sender):
             set_scale(0.5)
 
@@ -7694,7 +7915,12 @@ def run_gui():
                 return
             b = NSAlert.alloc().init()
             b.setMessageText_(t("unin_title"))
-            b.setInformativeText_(t("unin_fail") if err else t("unin_devmode"))
+            if err == "autostart_fail":
+                # 로그인 항목을 못 풀어 삭제를 거절했다 — 앱도 설정도 그대로다.
+                msg = t("unin_fail") + "\n\n" + t("autostart_fail")
+            else:
+                msg = t("unin_fail") if err else t("unin_devmode")
+            b.setInformativeText_(msg)
             b.runModal()
 
         def doUpdate_(self, sender):
