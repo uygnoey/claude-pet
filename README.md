@@ -1,13 +1,13 @@
-# 🐱 Claude Pet (Patch Edition)
+# 🐱 Claude Pet
 
 **English** · [한국어](README.ko.md) · [日本語](README.ja.md) · [Español](README.es.md)
 
-A desktop pet — Patch floats on your screen and watches your Claude token usage, à la Codex Pets.
+A desktop pet that floats on your screen and watches your Claude token usage, à la Codex Pets.
 Rendered natively on macOS (AppKit) — no window frame, no background, no ghosting.
 
 > 🧪 v0.24 — the macOS app is notarized; the Windows build ships as an installer and a zip (unsigned — see the Windows section).
 
-![Patch](preview.png)
+![Claude Pet](preview.png)
 
 ## Supported platforms
 

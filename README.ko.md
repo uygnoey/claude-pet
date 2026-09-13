@@ -1,13 +1,13 @@
-# 🐱 Claude Pet (Patch 에디션)
+# 🐱 Claude Pet
 
 [English](README.md) · **한국어** · [日本語](README.ja.md) · [Español](README.es.md)
 
-Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
+Codex Pets처럼 화면에 떠서 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
 macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
 > 🧪 v0.24 — macOS 앱은 공증됐고, Windows 판은 설치 파일과 zip으로 제공돼요(서명 없음 — 아래 Windows 절 참고).
 
-![Patch](preview.png)
+![Claude Pet](preview.png)
 
 ## 지원 사양
 
