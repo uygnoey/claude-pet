@@ -10,9 +10,19 @@ Surface pinned here — module-level names the Developer provides in claude_pet.
 
   autostart_state(status, is_bundle) -> "on" | "off" | "approval" | "unavailable"
       SMAppService status ints: 0 NotRegistered, 1 Enabled, 2 RequiresApproval,
-      3 NotFound.  is_bundle False -> "unavailable" whatever the status.
+      3 NotFound.  For a bundle, 0 and 3 are both "off".  Hardware evidence
+      (Coordinator, 2026-09-13, macOS 26 / Darwin 25.5, Developer-ID-signed bundle
+      built by build_app.sh from 794c66f, probed from the bundle's own interpreter so
+      NSBundle.mainBundle() was the app): a never-registered bundle reports 3,
+      register from 3 returns (True, None) and the status then reads 1, unregister
+      returns (True, None) and the status then reads 0.  So 3 is the fresh-install
+      "off", not a fault — the `3 -> "unavailable"` mapping merged at 794c66f left
+      every fresh install with a disabled item that could not be turned on.  Any
+      other int (99, -1) -> "unavailable".  is_bundle False -> "unavailable"
+      whatever the status.
   autostart_toggle(service, is_bundle) -> (new_state, error_key | None)
-      Service reports off -> service.registerAndReturnError_(None); on ->
+      Service reports off (status 0 or 3) -> service.registerAndReturnError_(None);
+      on ->
       service.unregisterAndReturnError_(None).  The new state is read back from the
       service afterwards, so a register that lands on status 2 returns
       ("approval", None).  A call returning (False, err) leaves the state unchanged and
@@ -42,7 +52,8 @@ from or written to CONFIG_PATH, RUNTIME or SETTINGS_OWNED_KEYS for this feature.
 
 Rivals (AGENTS.md §3) — each fixture's docstring carries the table that separates them:
   R1  non-zero status is "on"            R2  only 1 is "on", everything else "off"
-  R3  is_bundle ignored                  R4  NotFound rendered as "off"
+  R3  is_bundle ignored                  R4  NotFound is "unavailable" (merged at 794c66f)
+  R4b NotFound is "on"                   R15 unknown status falls through to "off"
   R5  state assumed after the call       R6  (False, err) swallowed
   R7  service touched from source        R8  persisted preference (config / RUNTIME)
   R9  inline / launch-time registration  R10 unconditional unregister on uninstall
@@ -125,11 +136,16 @@ class FakeService:
     `status()` returns the current int.  register / unregister append to `calls`,
     demand the PyObjC out-param spelling (`None`), return the `(ok, err)` pair PyObjC
     returns for that spelling, and move the status the way the OS does: a register
-    from 0 lands on `after_register` (1, or 2 to model RequiresApproval); a register
-    while already at 2 stays at 2 (re-registering does not approve anything); an
-    unregister lands on 0.  Unregistering something that is not registered (0 or 3)
-    fails, as the OS does, so an unconditional unregister (R10) is visible both as an
-    extra call and as an error.
+    from 0 or 3 lands on `after_register` (1, or 2 to model RequiresApproval); a
+    register while already at 2 stays at 2 (re-registering does not approve
+    anything); an unregister lands on 0.  The 3 -> 1 (register) and 1 -> 0
+    (unregister) transitions are the two observed on hardware (2026-09-13, see the
+    module docstring); the rest model the framework's documented semantics.
+    Unregistering something that is not registered (0 or 3) fails, as the OS does,
+    so an unconditional unregister (R10) is visible both as an extra call and as an
+    error — 3 stays in that set on purpose: it is "never registered", which is the
+    same thing as 0 for both calls, and the toggle from 3 must register, never
+    unregister.
     """
 
     def __init__(self, status, register_ok=True, unregister_ok=True,
@@ -166,6 +182,14 @@ class FakeService:
     def method_calls(self):
         """Calls that change anything — `status` reads are not counted here."""
         return [c for c in self.calls if c != "status"]
+
+
+class RaisingStatusService(FakeService):
+    """A service whose status() raises — the framework misbehaving, not a status."""
+
+    def status(self):
+        self.calls.append("status")
+        raise RuntimeError("synthetic SMAppService.status() failure")
 
 
 class TripwireService:
@@ -298,7 +322,9 @@ STATE_TABLE = (
     ((SM_NOT_REGISTERED, True), "off"),
     ((SM_ENABLED, True), "on"),
     ((SM_REQUIRES_APPROVAL, True), "approval"),
-    ((SM_NOT_FOUND, True), "unavailable"),
+    ((SM_NOT_FOUND, True), "off"),
+    ((99, True), "unavailable"),
+    ((-1, True), "unavailable"),
     ((SM_NOT_REGISTERED, False), "unavailable"),
     ((SM_ENABLED, False), "unavailable"),
     ((SM_REQUIRES_APPROVAL, False), "unavailable"),
@@ -308,20 +334,30 @@ STATE_TABLE = (
 
 class AutostartStateTests(unittest.TestCase):
     def test_status_and_bundle_table(self):
-        """The whole 4 × 2 table at once, so the diff shows every wrong cell.
+        """The whole table at once, so the diff shows every wrong cell.
 
-        | (status, is_bundle) | expected    | R1 non-zero=on | R2 1=on else off | R3 ignore bundle | R4 NotFound=off |
-        | (0, True)           | off         | off            | off              | off              | off             |
-        | (1, True)           | on          | on             | on               | on               | on              |
-        | (2, True)           | approval    | on ✗           | off ✗            | approval         | approval        |
-        | (3, True)           | unavailable | on ✗           | off ✗            | unavailable      | off ✗           |
-        | (0, False)          | unavailable | off ✗          | off ✗            | off ✗            | unavailable     |
-        | (1, False)          | unavailable | on ✗           | on ✗             | on ✗             | unavailable     |
-        | (2, False)          | unavailable | on ✗           | off ✗            | approval ✗       | unavailable     |
-        | (3, False)          | unavailable | on ✗           | off ✗            | unavailable      | unavailable     |
+        (3, True) -> "off" is the hardware-derived cell (module docstring): a
+        never-registered bundle reports 3 and register from 3 succeeds, so the menu
+        must show it unchecked and enabled.  The two unknown-int rows exist for R15:
+        a bare else-branch that sends everything not 1/2 to "off" is the easiest way
+        to write the fix and would offer "register" for a status nobody understands.
 
-        Every rival column differs from `expected` in at least one row; a
-        single-status fixture would let R1 (status 1) or R2 (status 0) tie.
+        | (status, is_bundle) | expected    | R1 non-zero=on | R2 1=on else off | R3 ignore bundle | R4 3=unavailable | R4b 3=on      | R15 else=off |
+        | (0, True)           | off         | off            | off              | off              | off              | off           | off          |
+        | (1, True)           | on          | on             | on               | on               | on               | on            | on           |
+        | (2, True)           | approval    | on ✗           | off ✗            | approval         | approval         | approval      | approval     |
+        | (3, True)           | off         | on ✗           | off              | off              | unavailable ✗    | on ✗          | off          |
+        | (99, True)          | unavailable | on ✗           | off ✗            | unavailable      | unavailable      | unavailable   | off ✗        |
+        | (-1, True)          | unavailable | on ✗           | off ✗            | unavailable      | unavailable      | unavailable   | off ✗        |
+        | (0, False)          | unavailable | off ✗          | off ✗            | off ✗            | unavailable      | unavailable   | unavailable  |
+        | (1, False)          | unavailable | on ✗           | on ✗             | on ✗             | unavailable      | unavailable   | unavailable  |
+        | (2, False)          | unavailable | on ✗           | off ✗            | approval ✗       | unavailable      | unavailable   | unavailable  |
+        | (3, False)          | unavailable | on ✗           | off ✗            | off ✗            | unavailable      | unavailable   | unavailable  |
+
+        Every rival column differs from `expected` in at least one row.  R2 now
+        ties on (3, True) and is separated by (2, True) and the unknown rows; R4 —
+        the mapping merged at 794c66f — is separated only by (3, True), which is
+        the row this fix is about.
         """
         fn = _require(self, "autostart_state")
         got = {args: fn(*args) for args, _ in STATE_TABLE}
@@ -360,6 +396,36 @@ class AutostartStateTests(unittest.TestCase):
             self.assertNotIn("autostart", claude_pet.RUNTIME)
 
 
+# ─────────────────────── autostart_read_state ───────────────────────
+
+class AutostartReadStateTests(unittest.TestCase):
+    def test_read_state_table(self):
+        """autostart_read_state(service, is_bundle) — the value the menu hook shows.
+
+        autostart_state is pure over an int; this is the function the right-click
+        menu reaches through state["autostart_read"], so the fresh-install claim
+        ("unchecked and enabled") is pinned where the menu reads it.  The other
+        three rows are the "unavailable" cases the fix must leave alone.
+
+        | fixture                    | expected    | calls    | R4 3=unavailable | rival: status() error propagates | R7 no bundle gate |
+        | status 3, bundle           | off         | [status] | unavailable ✗    | off                              | off               |
+        | status() raises, bundle    | unavailable | [status] | unavailable      | RuntimeError ✗                   | unavailable       |
+        | status 3, not a bundle     | unavailable | []       | unavailable      | unavailable                      | off ✗ / [status] ✗|
+        | service None, bundle       | unavailable | —        | unavailable      | unavailable                      | AttributeError ✗  |
+        """
+        fn = _require(self, "autostart_read_state")
+        rows = (
+            (FakeService(SM_NOT_FOUND), True, "off", ["status"]),
+            (RaisingStatusService(SM_NOT_FOUND), True, "unavailable", ["status"]),
+            (FakeService(SM_NOT_FOUND), False, "unavailable", []),
+            (None, True, "unavailable", None),
+        )
+        got = [(fn(svc, bundle), svc.calls if svc is not None else None)
+               for svc, bundle, _, _ in rows]
+        want = [(state, calls) for _, _, state, calls in rows]
+        self.assertEqual(got, want)
+
+
 # ─────────────────────── autostart_toggle ───────────────────────
 
 class AutostartToggleTests(unittest.TestCase):
@@ -369,6 +435,7 @@ class AutostartToggleTests(unittest.TestCase):
 
     | fixture (status, bundle, call, after) | expected                 | calls        | R1 non-zero=on | R5 assumed  | R6 swallowed | R7 no gate  |
     | (0, T, register ok, 1)                | ("on", None)             | [register]   | same           | same        | same         | same        |
+    | (3, T, register ok, 1)                | ("on", None)             | [register]   | see below ✗    | same        | same         | same        |
     | (1, T, unregister ok, 0)              | ("off", None)            | [unregister] | same           | same        | same         | same        |
     | (0, T, register ok, 2)                | ("approval", None)       | [register]   | ("on") ✗       | ("on") ✗    | same         | same        |
     | (2, T)                                | ("approval", None)       | no unregister| [unregister] ✗ | —           | —            | —           |
@@ -376,6 +443,13 @@ class AutostartToggleTests(unittest.TestCase):
     | (1, T, unregister (False, err))       | ("on", "autostart_fail") | [unregister] | —              | ("off") ✗   | ("on", None) ✗| —          |
     | (1, F)                                | ("unavailable", None)    | []           | —              | —           | —            | [unregister]✗|
     | (None service, T)                     | ("unavailable", None)    | —            | —              | —           | —            | AttributeError ✗ |
+
+    The (3, T) row is the fresh-install click (hardware: status 3 before any
+    registration, 1 after register).  It separates the two NotFound rivals by the
+    call list as well as by the result: R4 (3 = "unavailable", merged at 794c66f)
+    returns ("unavailable", None) with no call at all — the item cannot be turned
+    on; R1 / R4b (3 = "on") call unregister, which the fake refuses from 3, giving
+    ("on", "autostart_fail") and [unregister].
 
     Every row also runs under ConfigGuard: config bytes, RUNTIME and the two config
     writers must be untouched (R8).
@@ -390,6 +464,13 @@ class AutostartToggleTests(unittest.TestCase):
 
     def test_off_registers_and_reads_the_new_state_back(self):
         svc = FakeService(SM_NOT_REGISTERED)
+        self.assertEqual((self.toggle(svc), svc.method_calls()),
+                         (("on", None), ["register"]))
+        self.guard.check()
+
+    def test_never_registered_bundle_registers_from_not_found(self):
+        """Status 3 is where every fresh install starts; the click must register."""
+        svc = FakeService(SM_NOT_FOUND)
         self.assertEqual((self.toggle(svc), svc.method_calls()),
                          (("on", None), ["register"]))
         self.guard.check()

@@ -5143,20 +5143,36 @@ SM_STATUS_ENABLED = 1
 SM_STATUS_REQUIRES_APPROVAL = 2
 SM_STATUS_NOT_FOUND = 3
 
+# 3(NotFound) 은 설치본에서 "off" 다 — "unavailable" 이 아니다. SDK 헤더는 NotFound 를
+# "An error occurred and no such service could be found" 라고 적어서 첫 구현(794c66f 에서
+# 병합)은 그대로 "unavailable" 로 보냈고, 그 결과 새로 설치한 모든 사용자에게 항목이
+# '(여기서는 사용 불가)' 로 비활성으로 떠서 켤 수 없었다 — 실제 번들 화면에서 확인됐다.
+# 하드웨어 관측(Coordinator, 2026-09-13, macOS 26.5 / Darwin 25.5, Developer ID 서명 번들을
+# 번들 자신의 인터프리터에서 조사 — 기기 하나, 조사 한 번): 한 번도 등록한 적 없는 번들의
+# status() 는 3 이고, 거기서 registerAndReturnError_ 는 (True, None) 을 돌려주며 상태는
+# 1 이 된다; 해제하면 0 이다. 등록이 되는 상태는 '등록 안 됨' 이지 오류가 아니다. 다른
+# macOS 가 같은 자리에서 0 을 돌려주는지는 이 관측으로는 모른다 — 그래서 0 과 3 이 같은
+# 상태로 간다. 어떤 3 이 정말 헤더가 말하는 오류라면, 사용자는 켤 수 있는 항목을 누르고
+# 등록이 (False, err) 로 실패해 autostart_fail 창을 본다 — 켤 수 없는 항목보다 낫다.
+# 0~3 밖의 값은 여전히 "unavailable" 이다.
 _AUTOSTART_STATE_BY_STATUS = {
     SM_STATUS_NOT_REGISTERED: "off",
     SM_STATUS_ENABLED: "on",
     SM_STATUS_REQUIRES_APPROVAL: "approval",
-    SM_STATUS_NOT_FOUND: "unavailable",
+    SM_STATUS_NOT_FOUND: "off",          # 한 번도 등록한 적 없는 설치본 — 위 주석
 }
 
 
 def autostart_state(status, is_bundle):
     """SMAppService 상태값 → 메뉴 상태 ("on" | "off" | "approval" | "unavailable").
 
-    설치본이 아니면(소스 실행) 상태값이 무엇이든 "unavailable" 이다: 소스에서 본
-    mainAppService 는 파이썬 자신의 서비스라 그 값은 우리 것이 아니다. 모르는
-    상태값도 "unavailable" — 켜져 있다고 단정하고 해제를 누르게 하지 않는다.
+    설치본: 0 → "off", 1 → "on", 2 → "approval", 3 → "off". 3(NotFound) 이 "off" 인
+    이유는 _AUTOSTART_STATE_BY_STATUS 위 주석에 있다 — 한 번도 등록한 적 없는 번들이
+    돌려주는 값이고, 거기서 등록이 된다. 설치본이 아니면(소스 실행) 상태값이 무엇이든
+    "unavailable" 이다: 소스에서 본 mainAppService 는 파이썬 자신의 서비스라 그 값은
+    우리 것이 아니다. 0~3 밖의 모르는 상태값도 "unavailable" — 켜져 있다고 단정하고
+    해제를 누르게 하지도, 무슨 뜻인지 모르는 값에서 등록을 부르지도 않는다. 3 은
+    모르는 값이 아니다.
     """
     if not is_bundle:
         return "unavailable"
@@ -5193,8 +5209,14 @@ def autostart_current():
 
 
 def autostart_read_state(service, is_bundle):
-    """지금 상태. 설치본이 아니거나 서비스가 없으면 서비스를 전혀 건드리지 않는다
-    (status() 조차) — 소스 실행에서 읽히는 값은 파이썬 자신의 것이다."""
+    """지금 상태 — 메뉴가 state["autostart_read"] 훅으로 읽는 값.
+
+    설치본이 아니거나 서비스가 없으면 서비스를 전혀 건드리지 않고 "unavailable"
+    (status() 조차) — 소스 실행에서 읽히는 값은 파이썬 자신의 것이다. status() 가
+    예외를 던져도 "unavailable" — 프레임워크가 오작동한 것이지 상태가 아니다. 새로
+    설치해 한 번도 등록한 적 없는 번들은 status() 가 3(NotFound) 을 돌려주고, 그것은
+    "off" 다(autostart_state) — 항목은 체크 없이 활성으로 보이고, 누르면 등록된다.
+    """
     if not is_bundle or service is None:
         return "unavailable"
     try:
@@ -5207,13 +5229,19 @@ def autostart_read_state(service, is_bundle):
 def autostart_toggle(service, is_bundle):
     """메뉴 클릭 한 번. 반환 (새 상태, 오류 키 | None).
 
-    꺼져 있으면 등록, 켜져 있으면 해제. 새 상태는 부른 뒤 서비스에서 **다시 읽는다**
+    꺼져 있으면(상태 0 또는 3) 등록, 켜져 있으면(1) 해제. 3(NotFound) 은 새 설치가
+    시작하는 자리다 — 한 번도 등록한 적 없는 번들이 돌려주는 값이고, 하드웨어에서 거기서
+    등록이 (True, None) 으로 성공해 1 이 됐다(_AUTOSTART_STATE_BY_STATUS 위 주석). 그래서
+    3 에서 이 함수는 registerAndReturnError_ 를 부른다; 3 을 "unavailable" 로 보던 첫
+    구현은 여기서 아무것도 부르지 않고 ("unavailable", None) 을 돌려줘 항목을 켤 수
+    없었다. 새 상태는 부른 뒤 서비스에서 **다시 읽는다**
     — 등록이 승인 대기(2)로 떨어질 수 있어서, "등록했으니 켜졌다" 고 가정하면 사용자에게
     승인 안내를 못 한다. 실패((False, err))는 상태를 바꾸지 않고 "autostart_fail" 로
     보고한다. 승인 대기 상태에서는 아무것도 부르지 않고 "approval" 을 돌려준다 —
     호출자가 승인 안내창을 띄운다. 해제해 버리면 사용자가 켜려고 누른 등록이 사라진다.
     설치본이 아니거나 서비스가 없으면 ("unavailable", None), 서비스는 건드리지 않는다.
-    설정 파일·RUNTIME 에는 아무것도 쓰지 않는다.
+    0~3 밖의 모르는 상태값도 ("unavailable", None) — status() 는 읽었지만 등록·해제는
+    부르지 않는다. 설정 파일·RUNTIME 에는 아무것도 쓰지 않는다.
     """
     state = autostart_read_state(service, is_bundle)
     if state in ("unavailable", "approval"):

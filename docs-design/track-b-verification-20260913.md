@@ -1163,3 +1163,601 @@ real `~/.claude_pet.json` stat was unchanged and nothing reached the real `SMApp
   than this record and `tests/test_autostart.py` was touched.
 
 Record closed 2026-09-13T02:41:27Z.
+
+---
+
+## 11. FIX: NotFound mapping — RED
+
+Verifier: verifier-b (Claude), VERIFIER role only, on the Track B fix. Reopened
+2026-09-13T13:17Z. **Worktree `/Users/yeongyu/claude-pet-autostart-fix`, branch
+`autostart-fix`, HEAD `794c66f`** (= `main` with Track A and Track B merged) — a different
+worktree from §§1–10. All commands below ran with cwd there; times are UTC; output blocks are
+verbatim. No git write command was run; the GUI was not run; nothing reached the real
+`SMAppService` (fake service objects only, plus the module's `sys.modules` tripwire); the
+user-owned untracked files were not touched; `~/.claude_pet.json` was neither read nor written.
+Files written in this pass: `tests/test_autostart.py` (see §11.2 for what was already there)
+and this record.
+
+### 11.1 The defect this pass gates
+
+At `794c66f`, `_AUTOSTART_STATE_BY_STATUS` in `claude_pet.py` maps status `3`
+(`SM_STATUS_NOT_FOUND`) to `"unavailable"`, and `rightMouseDown_` renders `"unavailable"` as a
+disabled item titled `autostart_unavailable` (`(여기서는 사용 불가)`). The Coordinator's
+hardware probe (quoted verbatim in §11.3) shows that a real, never-registered bundle reports
+`3`, so on every fresh install the item is disabled and the feature cannot be turned on. That
+was observed on screen in the built bundle (Coordinator's report; not reproduced here — a
+GUI run is outside this role's allowed actions).
+
+### 11.2 State of the tree when this pass opened, and the provenance of the uncommitted diff
+
+```
+$ git rev-parse --short HEAD ; git branch --show-current ; git status --porcelain
+794c66f
+autostart-fix
+ M tests/test_autostart.py
+```
+
+```
+$ stat -f "%Sm %N" tests/test_autostart.py docs-design/track-b-verification-20260913.md claude_pet.py
+Sep 13 12:24:24 2026 tests/test_autostart.py
+Sep 13 12:20:23 2026 docs-design/track-b-verification-20260913.md
+Sep 13 12:20:23 2026 claude_pet.py
+```
+
+The gating file already carried an uncommitted modification when this pass opened, written
+four minutes after the worktree checkout (12:20:23 local = 03:20Z; the edit 12:24:24 local =
+03:24Z), with this record and `claude_pet.py` untouched since checkout. Its content quotes
+this assignment's hardware evidence nearly word for word under the module header that names
+verifier-b, and it does exactly what this assignment specifies and nothing else. It is
+therefore treated as an earlier, unfinished pass of this same assignment by this role, which
+stopped before the RED run and before writing this section. It was **reviewed cell by cell,
+not accepted** (§11.5); nothing in it needed changing, so the file as run is that diff.
+
+**Deviation from the requested ordering, stated plainly.** The assignment asks that the
+mapping be derived from the hardware evidence and written here *before* the existing
+expected values are read, in the sense of AGENTS.md §2 Condition C. Establishing whose diff
+was sitting in the working tree required reading `git diff tests/test_autostart.py`, which
+shows both the old expected values (`(3, True) → "unavailable"`) and the new ones. So the
+derivation in §11.4 was written **after** both had been seen, and this record does **not**
+claim the "derived before reading" property. What it does claim: every cell in §11.4 is
+justified by a quoted line of the hardware evidence or of the SDK header, not by the prior
+diff, and the reader can check each justification without trusting this role.
+
+### 11.3 Hardware evidence (Coordinator's, quoted verbatim; not reproduced here)
+
+Provided by the Coordinator with the assignment. It is a single probe on a single machine,
+and this role may not repeat it (calling `registerAndReturnError_` on the real service is
+**[NEVER]** for a test or probe), so under §5 it stays an *observation* that this role has not
+independently reproduced:
+
+```
+HARDWARE EVIDENCE (Coordinator, 2026-09-13, macOS 26 / Darwin 25.5, bundle built by
+build_app.sh from 794c66f, signed Developer ID team RXGNVSLYF5, copied to
+~/Applications/ClaudePet.app, probed from the bundle's own interpreter
+Contents/MacOS/ClaudePet_py so NSBundle.mainBundle() was the app):
+  bundle: /Users/yeongyu/Applications/ClaudePet.app
+  status before: 3
+  register: True | err: None
+  status after register: 1
+  unregister: True | err: None
+  status after unregister: 0
+The same bundle inside a git worktree directory also reported status 3 before any
+registration.
+```
+
+Documentary source, read from disk (a static file read, no framework call) —
+`/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk` → `MacOSX26.5.sdk`
+(`SDKSettings.plist` `Version` = `26.5`), file
+`System/Library/Frameworks/ServiceManagement.framework/Headers/SMAppService.h`, lines 13–35:
+
+```
+ * @abstract The values returned by SMAppService:status
+ *
+ * @const SMAppServiceNotRegistered
+ * A service has not been registered with ServiceManagement or that the service was unregistered
+ * after it was already registered.
+ *
+ * @const SMAppServiceEnabled
+ * A service has been successfully registered and is eligible to run
+ *
+ * @const SMAppServiceRequiresApproval
+ * A service has been successfully registered, but the user needs to take action in System Settings
+ * before the service is eligible to run. This status will be returned if the user revokes consent for the service
+ * to run in System Settings
+ *
+ * @const SMAppServiceNotFound
+ * An error occurred and no such service could be found
+ */
+typedef NS_ENUM(NSInteger, SMAppServiceStatus) {
+	SMAppServiceStatusNotRegistered,
+	SMAppServiceStatusEnabled,
+	SMAppServiceStatusRequiresApproval,
+	SMAppServiceStatusNotFound,
+} NS_SWIFT_NAME(SMAppService.Status);
+```
+
+The header fixes the four ints (0, 1, 2, 3 in declaration order) — that part is a
+specification. Its description of `NotFound` ("an error occurred") is what the `794c66f`
+mapping followed, and it is the reason that mapping looked right. The three §5 slots, kept
+apart:
+
+1. **Observed** (one machine, one bundle, one probe, 2026-09-13, macOS 26.5.2 / Darwin 25.5.0,
+   by the Coordinator): a never-registered main-app service reads `3`, not `0`; `register`
+   from `3` returns `(True, None)` and the status then reads `1`; `unregister` from `1`
+   returns `(True, None)` and the status then reads `0`. Whether a never-registered bundle
+   *always* reads `3`, or reads `0` on some other macOS version, is not established by this
+   sample and is not claimed.
+2. **Invariant** (from the header): the status ints are 0–3 with the names above; nothing in
+   the header promises that a never-registered main-app service reads `NotRegistered` rather
+   than `NotFound`, so no documented guarantee is contradicted by the observation — the
+   header simply does not settle the fresh-install case.
+3. **Consequence for the code**: for an installed bundle, `3` must render as `"off"` —
+   unchecked and enabled — so that the click calls `register`, which the observation shows
+   succeeds from `3`. Ints outside 0–3, a non-bundle run, a `None` service and a `status()`
+   that raises stay `"unavailable"`. If a `3` ever is the header's "an error occurred", the
+   user now sees an enabled item whose click returns `(False, err)` and surfaces the
+   `autostart_fail` alert — a loud failure, instead of an item that can never be turned on.
+   `uninstall_autostart` is unchanged: from `3` it reads `status()` and makes no call.
+
+### 11.4 The mapping, re-derived cell by cell (see §11.2 for when this was written)
+
+| `(status, is_bundle)` | derived | from |
+| --- | --- | --- |
+| `(0, True)` | `off` | header: NotRegistered, "unregistered after it was already registered"; hardware: `status after unregister: 0` |
+| `(1, True)` | `on` | header: Enabled; hardware: `status after register: 1` |
+| `(2, True)` | `approval` | header: RequiresApproval, "user needs to take action in System Settings" |
+| `(3, True)` | **`off`** | hardware: `status before: 3` on a never-registered bundle, then `register: True \| err: None` — a state from which registering works is the unregistered state |
+| `(99, True)`, `(-1, True)` | `unavailable` | not in the header's enum; do not offer register or unregister for a value nobody understands |
+| `(any, False)` | `unavailable` | from source `mainAppService()` is Python.app's service, not ours (CLAUDE.md "Start at sign-in"); the status is not about this app |
+| `service is None`, bundle | `unavailable` | macOS 12 / framework missing — no status exists to map |
+| `status()` raises, bundle | `unavailable` | the framework misbehaving is not a status |
+
+Toggle from `3`, bundle: `"off"` → `registerAndReturnError_(None)` → state read back; with the
+fake moving `3 → 1` as the hardware did, the result is `("on", None)` and the call list is
+`["register"]`. Unregister from `3` is refused by the fake (as from `0`): "never registered"
+is the same thing as `0` for both calls, and keeping `3` in that set is what makes the
+`3 = "on"` rival visible as an error and not only as a wrong call (§11.6).
+
+These match the values in the working-tree diff (§11.2). The values at HEAD `794c66f` differ
+in exactly one cell: `(3, True)` was `"unavailable"`.
+
+### 11.5 What `tests/test_autostart.py` pins now (the diff reviewed, not accepted)
+
+`git diff --stat`: `tests/test_autostart.py | 127 +++++++++++++++++++++++++++++++++++++++---------`
+(104 insertions, 23 deletions). SHA256 of the file as run:
+`ff7be7d53056ec4e2ec513c419afb1b1db30cb996a29261d6b16e1ba22a9759c`; of the HEAD version, for
+contrast: `6de0e0560d0998b67449af257d9caee98e6658f37b82d26bf7896e769aac15a2`. `claude_pet.py`
+is byte-identical to HEAD: `3bc33466ff97e04fcbd33160c60bc2cf6c90c070ac9d1d8b4a0212c059853461`.
+
+- `STATE_TABLE` (`AutostartStateTests.test_status_and_bundle_table`): `(SM_NOT_FOUND, True)`
+  → `"off"`; two new rows `(99, True)` and `(-1, True)` → `"unavailable"`; the four
+  `is_bundle=False` rows unchanged at `"unavailable"`. The docstring's truth table gained
+  three rival columns — **R4 `3 = "unavailable"`** (the shipped mapping), **R4b `3 = "on"`**,
+  and **R15 "bare else branch → off"** (the easiest way to write the fix, which would offer
+  register for `99`). Each column was checked by hand against the derivation above and then
+  by execution (§11.6).
+- `AutostartReadStateTests.test_read_state_table` (**new**): pins `autostart_read_state`,
+  the function the menu actually reaches through `state["autostart_read"]`, so the
+  fresh-install claim is pinned where the menu reads it — `(FakeService(3), bundle)` →
+  `"off"` with `["status"]`; `status()` raising → `"unavailable"` with `["status"]`
+  (new `RaisingStatusService` fake); `(FakeService(3), not a bundle)` → `"unavailable"`
+  with `[]`; `(None, bundle)` → `"unavailable"`.
+- `AutostartToggleTests.test_never_registered_bundle_registers_from_not_found` (**new**):
+  `FakeService(SM_NOT_FOUND)`, bundle → `(("on", None), ["register"])` under `ConfigGuard`.
+  The class docstring's table gained the `(3, T, register ok, 1)` row and a paragraph on how
+  it separates R4 (returns `("unavailable", None)` with no call) from R1/R4b (call
+  unregister, which the fake refuses from `3`).
+- `FakeService`: `registerAndReturnError_` already moved any status other than `2` to
+  `after_register`, so a register from `3` lands on `1` with no code change; the docstring
+  now says so and names the two transitions the hardware showed (`3 → 1`, `1 → 0`).
+  `unregisterAndReturnError_` still refuses from `(SM_NOT_REGISTERED, SM_NOT_FOUND)`
+  (line 177) — **kept deliberately**, consistent with `UninstallAutostartHelperTests`'s
+  `status 3 → None, []` row and with the toggle row above.
+- Module docstring: the `autostart_state` and `autostart_toggle` contracts updated; the
+  rival list gained R4b and R15 and re-labels R4 as "NotFound is unavailable (merged at
+  794c66f)".
+- Everything else — service resolution, uninstall helper and ordering, localisation,
+  AST wiring — untouched, and all of it stayed green in the RED run below.
+
+### 11.6 Discrimination check by execution (scratch, 13:22:50Z)
+
+Scratch script `discriminate_notfound.py` in the session scratchpad, run as
+`PYTHONPATH=/Users/yeongyu/claude-pet-autostart-fix python3 <script>` (a first attempt with
+a bare `python3 <path>` failed on `import claude_pet` — `python3 <file>` puts the script's
+own directory on `sys.path`, not the cwd — and was rerun). It implements each rival mapping
+as a function, runs all of them plus HEAD's `autostart_state` over `STATE_TABLE`, and then
+drives the **real** `autostart_toggle` on `FakeService(3)` with `autostart_state` patched to
+each rival in turn. Nothing touches the real service.
+
+```
+(status,bund) expected     R1           R2           R3           R4           R4b          R15          HEAD
+(0,T)         off          off          off          off          off          off          off          off
+(1,T)         on           on           on           on           on           on           on           on
+(2,T)         approval     on X         off X        approval     approval     approval     approval     approval
+(3,T)         off          on X         off          off          unavailable Xon X         off          unavailable X
+(99,T)        unavailable  on X         off X        unavailable  unavailable  unavailable  off X        unavailable
+(-1,T)        unavailable  on X         off X        unavailable  unavailable  unavailable  off X        unavailable
+(0,F)         unavailable  off X        off X        off X        unavailable  unavailable  unavailable  unavailable
+(1,F)         unavailable  on X         on X         on X         unavailable  unavailable  unavailable  unavailable
+(2,F)         unavailable  on X         off X        approval X   unavailable  unavailable  unavailable  unavailable
+(3,F)         unavailable  on X         off X        off X        unavailable  unavailable  unavailable  unavailable
+
+expected  separated by 0 row(s): []
+R1        separated by 8 row(s): [(2, True), (3, True), (99, True), (-1, True), (0, False), (1, False), (2, False), (3, False)]
+R2        separated by 7 row(s): [(2, True), (99, True), (-1, True), (0, False), (1, False), (2, False), (3, False)]
+R3        separated by 4 row(s): [(0, False), (1, False), (2, False), (3, False)]
+R4        separated by 1 row(s): [(3, True)]
+R4b       separated by 1 row(s): [(3, True)]
+R15       separated by 2 row(s): [(99, True), (-1, True)]
+HEAD      separated by 1 row(s): [(3, True)]
+every rival separated: True
+
+real autostart_toggle on FakeService(3), is_bundle=True, under each mapping:
+  expected  -> ('on', None)  calls=['register']  status now 1
+  R1        -> ('on', 'autostart_fail')  calls=['unregister']  status now 3
+  R2        -> ('on', None)  calls=['register']  status now 1
+  R3        -> ('on', None)  calls=['register']  status now 1
+  R4        -> ('unavailable', None)  calls=[]  status now 3
+  R4b       -> ('on', 'autostart_fail')  calls=['unregister']  status now 3
+  R15       -> ('on', None)  calls=['register']  status now 1
+  HEAD      -> ('unavailable', None)  calls=[]  status now 3
+```
+
+Reading: the executed matrix matches the docstring table in the test cell for cell. R4 and
+HEAD coincide everywhere (HEAD *is* R4) and are separated by exactly one row, `(3, True)` —
+the row this fix is about — and by the toggle (no call, `"unavailable"`). R4b and R1 are
+separated on the toggle by the call list *and* the error (`["unregister"]`,
+`"autostart_fail"`), which is why the fake keeps refusing unregister from `3`. R2, R3 and R15
+tie with `expected` on the toggle row and are separated in the state table, as the test
+docstring says.
+
+### 11.7 RED run (AGENTS.md §3 step 2) — 13:17:35Z, exit 1
+
+```
+$ python3 -m unittest tests.test_autostart -v
+```
+
+30 tests ran; 27 `ok`; the three below `FAIL`. Verbatim, the failure section through the
+summary (the 27 `ok` lines are omitted here; the full log is in the session scratchpad,
+`red-autostart.log`):
+
+```
+======================================================================
+FAIL: test_read_state_table (tests.test_autostart.AutostartReadStateTests.test_read_state_table)
+autostart_read_state(service, is_bundle) — the value the menu hook shows.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet-autostart-fix/tests/test_autostart.py", line 426, in test_read_state_table
+    self.assertEqual(got, want)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: Lists differ: [('unavailable', ['status']), ('unavailable'[53 chars]one)] != [('off', ['status']), ('unavailable', ['stat[45 chars]one)]
+
+First differing element 0:
+('unavailable', ['status'])
+('off', ['status'])
+
+- [('unavailable', ['status']),
++ [('off', ['status']),
+   ('unavailable', ['status']),
+   ('unavailable', []),
+   ('unavailable', None)]
+
+======================================================================
+FAIL: test_status_and_bundle_table (tests.test_autostart.AutostartStateTests.test_status_and_bundle_table)
+The whole table at once, so the diff shows every wrong cell.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet-autostart-fix/tests/test_autostart.py", line 364, in test_status_and_bundle_table
+    self.assertEqual(got, dict(STATE_TABLE))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {(0, [61 chars]e): 'unavailable', (99, True): 'unavailable', [129 chars]ble'} != {(0, [61 chars]e): 'off', (99, True): 'unavailable', (-1, Tru[121 chars]ble'}
+  {(-1, True): 'unavailable',
+   (0, False): 'unavailable',
+   (0, True): 'off',
+   (1, False): 'unavailable',
+   (1, True): 'on',
+   (2, False): 'unavailable',
+   (2, True): 'approval',
+   (3, False): 'unavailable',
+-  (3, True): 'unavailable',
++  (3, True): 'off',
+   (99, True): 'unavailable'}
+
+======================================================================
+FAIL: test_never_registered_bundle_registers_from_not_found (tests.test_autostart.AutostartToggleTests.test_never_registered_bundle_registers_from_not_found)
+Status 3 is where every fresh install starts; the click must register.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yeongyu/claude-pet-autostart-fix/tests/test_autostart.py", line 474, in test_never_registered_bundle_registers_from_not_found
+    self.assertEqual((self.toggle(svc), svc.method_calls()),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     (("on", None), ["register"]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (('unavailable', None), []) != (('on', None), ['register'])
+
+First differing element 0:
+('unavailable', None)
+('on', None)
+
+- (('unavailable', None), [])
++ (('on', None), ['register'])
+
+----------------------------------------------------------------------
+Ran 30 tests in 0.086s
+
+FAILED (failures=3)
+exit=1
+```
+
+Each failure is the `(3, True)` cell and nothing else: the state table differs in one key
+(`- (3, True): 'unavailable'` / `+ (3, True): 'off'`), the read-state table in its first
+element only, and the toggle row shows the shipped behaviour in full — `("unavailable",
+None)` with an empty call list, i.e. the click that cannot turn the feature on. The three
+`"unavailable"` rows that must survive the fix (status raises, not a bundle, `None` service)
+already pass, so a fix that over-corrects them will turn one of these green tests red.
+
+### 11.8 Full suite from the worktree root — 13:17:57Z to 13:22:28Z, exit 1
+
+```
+$ python3 -m unittest discover -s tests -v
+Ran 588 tests in 270.801s
+
+FAILED (failures=52, errors=8, skipped=8)
+```
+
+| module | not-ok | reason |
+| --- | --- | --- |
+| `test_upload_artifact_gate` | 48 FAIL | pin, expected — `REVIEWED_APP_SOURCE_SHA256` = `6f95bc8b…` ≠ `3bc33466…` (this HEAD's `claude_pet.py`). Not re-pinned, per instruction. |
+| `test_manual_update_transaction` | 8 ERROR (`setUpClass`) | pin, same family; its 18 tests did not run. |
+| `test_v024_release_contract` | 1 FAIL | pin, derived from the two above. |
+| `test_autostart` | **3 FAIL** | **this pass's RED** — the same three tests, same messages as §11.7 (log lines 892–950). |
+
+Verbatim, the pin family's messages (one per module; note the right-hand hash is now this
+HEAD's, not round 2's `0cd17cef…`):
+
+```
+AssertionError: claude_pet.py changed after the shared-lock/version harness was reviewed: expected 6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4, found 3bc33466ff97e04fcbd33160c60bc2cf6c90c070ac9d1d8b4a0212c059853461
+```
+
+```
+AssertionError: ['test_manual_update_transaction.py:REVIEWED_APP_SOURCE_SHA256 pins 6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4, final claude_pet.py is 3bc33466ff97e04fcbd33160c60bc2cf6c90c070ac9d1d8b4a0212c059853461', 'test_upload_artifact_gate.py:REVIEWED_APP_SOURCE_SHA256 pins 6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4, final claude_pet.py is 3bc33466ff97e04fcbd33160c60bc2cf6c90c070ac9d1d8b4a0212c059853461'] is not false :
+```
+
+52 = 48 + 1 + 3; 8 = the `setUpClass` errors. **Nothing outside the pin family and the three
+intended RED tests failed or errored.** The 8 skips are the pre-existing loud ones (§6, §10):
+four in `test_updater` (two "installed-app preflight", two "real stapler contract", opt-in via
+`CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1`) and four in `test_v020_boundaries`
+(`B2Bundle.test_py2app_bundle_carries_every_asset`, no built bundle under `dist/`; three
+`B3Updater` live tests gated on `CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1`). `grep -c` for
+`WARNING`, `reached SMAppService`, `tried to open System Settings` over the log: `0` — the
+real `~/.claude_pet.json` stat was unchanged and no test reached the tripwire.
+
+Test count 588 against round 2's 575: `git diff --stat 13710db 794c66f -- tests/` lists two
+files, `tests/test_autostart.py` (the Track B module itself) and
+`tests/test_oauth_token_cache.py` (Track A, new at the merge); this run counts 11 tests in
+`test_oauth_token_cache` and 30 in `test_autostart` (28 in §10), so 575 + 11 + 2 = 588.
+
+### 11.9 What remains (not done here)
+
+- **Developer**: change `_AUTOSTART_STATE_BY_STATUS[SM_STATUS_NOT_FOUND]` to `"off"` (and
+  the `autostart_state` docstring, which says unknown values are `"unavailable"` — still true
+  — but must stop implying `3` is one of them). CLAUDE.md "Start at sign-in" currently reads
+  `` `3 → "unavailable"` `` in the `autostart_state` bullet and needs the same correction;
+  this role did not edit it. The `rightMouseDown_` comment listing the `"unavailable"` cases
+  (source run, macOS 12, no service) stays correct.
+- **Verifier, after the Developer's tree lands**: rerun `python3 -m unittest
+  tests.test_autostart -v` with the gating file byte-identical to
+  `ff7be7d53056ec4e2ec513c419afb1b1db30cb996a29261d6b16e1ba22a9759c` (30/30 expected), then
+  the full suite (only the pin family may remain not-ok), and read — not edit — the
+  production diff.
+- The `claude_pet.py` SHA256 re-pin stays scheduled separately by the Coordinator.
+- Not done, by instruction and by role: no git write; no GUI; nothing against the real
+  `SMAppService`; no reproduction of the hardware probe (it would call `register` on the real
+  service, which is **[NEVER]** from a test or probe) — §11.3 therefore rests on the
+  Coordinator's single observation, labelled as such.
+
+Record closed 2026-09-13T13:26Z.
+
+## 12. FIX: NotFound mapping — GREEN
+
+Verifier: verifier-b (Claude), VERIFIER role only, on the Track B fix. Reopened
+2026-09-13T13:37:42Z, same worktree as §11: `/Users/yeongyu/claude-pet-autostart-fix`, branch
+`autostart-fix`, HEAD `794c66f`. All commands ran with cwd there; times are UTC; output blocks are
+verbatim. No git write command was run; the GUI was not run; nothing reached the real
+`SMAppService` (fake service objects only, plus the module's `sys.modules` tripwire); the
+user-owned untracked files were not touched; `~/.claude_pet.json` was neither read nor written.
+**Files written in this pass: this record, and nothing else.** `claude_pet.py`, CLAUDE.md and
+`tests/test_autostart.py` were read (diffs and hashes below), not opened for writing. Machine:
+macOS 26.5.2 (25F84), Darwin 25.5.0, Python 3.13.7.
+
+### 12.1 The tree, and what changed since the RED run
+
+```
+$ git rev-parse --short HEAD ; git status --porcelain
+794c66f
+ M CLAUDE.md
+ M claude_pet.py
+ M docs-design/track-b-verification-20260913.md
+ M tests/test_autostart.py
+$ shasum -a 256 claude_pet.py tests/test_autostart.py CLAUDE.md
+ce7564b1e3595ecf75365634642acf3837bdd8871e79cb8c1826e4ef88291db4  claude_pet.py
+ff7be7d53056ec4e2ec513c419afb1b1db30cb996a29261d6b16e1ba22a9759c  tests/test_autostart.py
+12be8e264363787a7db7afe6c70a4fd5c09d89ce08c656cd9109dd07d80a03b3  CLAUDE.md
+$ git show HEAD:claude_pet.py | shasum -a 256
+3bc33466ff97e04fcbd33160c60bc2cf6c90c070ac9d1d8b4a0212c059853461  -
+$ git diff --numstat
+21	5	CLAUDE.md
+36	8	claude_pet.py
+394	0	docs-design/track-b-verification-20260913.md   # §11, before this section
+104	23	tests/test_autostart.py
+$ stat -f "%Sm %N" claude_pet.py tests/test_autostart.py CLAUDE.md
+Sep 13 22:29:50 2026 claude_pet.py          # local (UTC+9) = 13:29:50Z
+Sep 13 12:24:24 2026 tests/test_autostart.py # unchanged since §11.2 (03:24Z)
+Sep 13 22:30:18 2026 CLAUDE.md               # 13:30:18Z
+```
+
+Two facts this pins, both checkable from the hashes alone:
+
+- **The gating file is byte-identical to the one that produced the RED run.** §11.5 recorded
+  `ff7be7d5…` for `tests/test_autostart.py` as run at 13:17:35Z; it is `ff7be7d5…` now, and
+  its mtime (03:24Z) predates the Developer's write to `claude_pet.py` (13:29:50Z). So the
+  Developer did not touch the assertions or fixtures (§2 Condition A), and the only variable
+  between §11.7 (RED) and §12.3 (GREEN) is `claude_pet.py`: `3bc33466…` (= HEAD) then,
+  `ce7564b1…` now.
+- **This role has clean hands on the production file** (§2 Condition B): `claude_pet.py` was
+  last written at 13:29:50Z, before this pass opened (13:37:42Z), and this pass wrote only
+  this record.
+
+### 12.2 The production diff, read (not edited)
+
+`git diff -U0 -- claude_pet.py | grep '^@@'` — six hunks, all inside the autostart block
+(old lines 5145–5216; nothing else in the file moved):
+
+```
+@@ -5145,0 +5146,12 @@ SM_STATUS_NOT_FOUND = 3
+@@ -5150 +5162 @@ _AUTOSTART_STATE_BY_STATUS = {
+@@ -5157,3 +5169,7 @@ def autostart_state(status, is_bundle):
+@@ -5196,2 +5212,8 @@ def autostart_read_state(service, is_bundle):
+@@ -5210 +5232,6 @@ def autostart_toggle(service, is_bundle):
+@@ -5216 +5243,2 @@ def autostart_toggle(service, is_bundle):
+```
+
+One line of behaviour changed: `_AUTOSTART_STATE_BY_STATUS[SM_STATUS_NOT_FOUND]` reads
+`"off"` where HEAD has `"unavailable"`. Every other hunk is a comment or a docstring: a
+Korean block above the table carrying the hardware finding (labelled "기기 하나, 조사 한 번" —
+one machine, one probe — with the observation, the "0 and 3 map to the same state" reasoning,
+and the operational consequence in separate sentences, per §5), and updated docstrings on
+`autostart_state`, `autostart_read_state` and `autostart_toggle`. Checked against §11.4 cell by
+cell:
+
+- `autostart_state`: `if not is_bundle: return "unavailable"` then
+  `_AUTOSTART_STATE_BY_STATUS.get(status, "unavailable")` — unchanged code, so `99` / `-1`
+  still fall to `"unavailable"` (R15 rejected) and the four `is_bundle=False` rows are
+  untouched (R3 rejected).
+- `autostart_read_state`: `not is_bundle or service is None → "unavailable"` before any
+  call, `status()` raising → `"unavailable"` — unchanged code.
+- `autostart_toggle`: unchanged code; it branches on the state `autostart_read_state`
+  returns, so `3 → "off"` reaches the `else` branch and calls `registerAndReturnError_(None)`,
+  then reads the state back. The `("unavailable", "approval")` early return still makes no
+  call for unknown ints and from `2`.
+- `uninstall_autostart`: no hunk; from `0` / `3` it still reads `status()` and stops.
+- `rightMouseDown_` (no hunk): `"unavailable"` → disabled item with the
+  `autostart_unavailable` title; anything else → `setState_({"on": 1, "off": 0}.get(a_state, -1))`,
+  so `"off"` renders unchecked and enabled. Its comment listing the `"unavailable"` cases
+  (source run, macOS 12, no service) is still accurate, as §11.9 said.
+
+CLAUDE.md, three hunks (`@@ -581`, `@@ -588,2`, `@@ -623,2`), all in "Start at sign-in": the
+`autostart_state` bullet now reads `3 → "off"`, `any other int → "unavailable"`, states the
+hardware finding as one machine / one probe, and names the four surviving `"unavailable"`
+cases; the `autostart_toggle` bullet says "Off (status `0` or `3`)"; the closing **[NEVER]**
+paragraph no longer says a from-source run "would report `NotFound` anyway" (which the fix
+makes misleading) and says instead that `autostart_current()` hands the helpers
+`(None, False)`. §11.9's open item on CLAUDE.md is therefore closed. The machine descriptor it
+quotes ("macOS 26.5 / Darwin 25.5") matches this machine's `sw_vers` / `uname -r`; the probe
+itself is still the Coordinator's single observation and was not reproduced here (§11.3).
+
+### 12.3 GREEN run (AGENTS.md §3 step 4) — 13:37:46Z, exit 0
+
+```
+$ python3 -m unittest tests.test_autostart -v
+```
+
+30 tests ran, 30 `ok`, exit 0. The three tests that were RED in §11.7, verbatim from this
+run (the full 48-line log is in the session scratchpad, `green-autostart.txt`; it contains no
+`WARNING`, `reached SMAppService` or `tried to open System Settings` line):
+
+```
+test_read_state_table (tests.test_autostart.AutostartReadStateTests.test_read_state_table)
+autostart_read_state(service, is_bundle) — the value the menu hook shows. ... ok
+test_status_and_bundle_table (tests.test_autostart.AutostartStateTests.test_status_and_bundle_table)
+The whole table at once, so the diff shows every wrong cell. ... ok
+test_never_registered_bundle_registers_from_not_found (tests.test_autostart.AutostartToggleTests.test_never_registered_bundle_registers_from_not_found)
+Status 3 is where every fresh install starts; the click must register. ... ok
+```
+
+and the tail:
+
+```
+test_helper_table (tests.test_autostart.UninstallAutostartHelperTests.test_helper_table)
+uninstall_autostart(service) -> error_key | None. ... ok
+
+----------------------------------------------------------------------
+Ran 30 tests in 0.077s
+
+OK
+EXIT=0
+```
+
+Red → green with the gating file held constant (§12.1): the RED run at 13:17:35Z failed
+exactly these three on the `(3, True)` cell against `claude_pet.py` `3bc33466…`; this run
+passes all 30 against `ce7564b1…`. The three `"unavailable"` rows that had to survive the fix
+(`status()` raises, not a bundle, `None` service — §11.7) are inside `test_read_state_table`
+and `test_status_and_bundle_table`, which pass, so the fix did not over-correct them.
+
+### 12.4 Full suite from the worktree root — 13:37:48Z to 13:42:19Z, exit 1
+
+```
+$ python3 -m unittest discover -s tests -v
+Ran 588 tests in 270.871s
+
+FAILED (failures=49, errors=8, skipped=8)
+```
+
+| module | not-ok | reason |
+| --- | --- | --- |
+| `test_upload_artifact_gate` | 48 FAIL | pin, expected — `REVIEWED_APP_SOURCE_SHA256` = `6f95bc8b…` ≠ `ce7564b1…` (this tree's `claude_pet.py`). Not re-pinned, per instruction. |
+| `test_manual_update_transaction` | 8 ERROR (`setUpClass`) | pin, same family; its 18 tests did not run. |
+| `test_v024_release_contract` | 1 FAIL | pin, derived from the two above. |
+| `test_autostart` | **0** | **was 3 FAIL in §11.8** — all 30 `ok` in this run (log lines 1–43). |
+
+Verbatim, the pin family's messages (one per module; the right-hand hash is now the fixed
+tree's, not §11.8's `3bc33466…`):
+
+```
+AssertionError: claude_pet.py changed after the shared-lock/version harness was reviewed: expected 6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4, found ce7564b1e3595ecf75365634642acf3837bdd8871e79cb8c1826e4ef88291db4
+```
+
+```
+AssertionError: ['test_manual_update_transaction.py:REVIEWED_APP_SOURCE_SHA256 pins 6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4, final claude_pet.py is ce7564b1e3595ecf75365634642acf3837bdd8871e79cb8c1826e4ef88291db4', 'test_upload_artifact_gate.py:REVIEWED_APP_SOURCE_SHA256 pins 6f95bc8b923a58ddbec053d2a83f9aeb1645a05362ad5b3427d773a87956d2e4, final claude_pet.py is ce7564b1e3595ecf75365634642acf3837bdd8871e79cb8c1826e4ef88291db4'] is not false :
+```
+
+49 = 48 + 1; 8 = the `setUpClass` errors; §11.8's 52 − 3 = 49. **Nothing outside the pin
+family failed or errored.** Counted from the log with `grep -E '^(FAIL|ERROR): '`: 48 `FAIL:`
+lines name `test_upload_artifact_gate`, 1 names `test_v024_release_contract`, all 8 `ERROR:`
+lines are `setUpClass (test_manual_update_transaction.*)`, and no `FAIL:` / `ERROR:` line
+names any other module. The 8 skips are the same pre-existing loud ones as §11.8: four in
+`test_updater` (opt-in via `CLAUDEPET_RUN_LIVE_UPDATER_TESTS=1`) and four in
+`test_v020_boundaries` (`B2Bundle` — no built bundle under `dist/`; three `B3Updater` live
+tests gated on `CLAUDEPET_RUN_LIVE_V020_TO_V021_BOUNDARIES=1`). `grep -c` for `WARNING`,
+`reached SMAppService`, `tried to open System Settings` over the log: `0`. Test count 588,
+unchanged from §11.8, as expected with no test file changed since. Full log in the session
+scratchpad, `green-full.txt`.
+
+### 12.5 Verdict — GREEN
+
+- The gating module is 30/30 against the Developer's tree, with the gating file byte-identical
+  to its RED run (§3 steps 2 and 4 both observed, fix as the only variable).
+- The full suite has no not-ok result outside the `claude_pet.py` SHA256 pin family, which
+  stays scheduled for release-time re-pinning.
+- The production diff is one mapping cell plus comments and docstrings; every `"unavailable"`
+  path named in the assignment (not a bundle, `None` service, `status()` raising, ints outside
+  0–3) is unchanged in code and pinned by a passing test.
+
+### 12.6 What remains (not done here)
+
+- **`main` has moved.** `git worktree list` shows `/Users/yeongyu/claude-pet` at `f3c4780`
+  (one commit past `794c66f`: "docs: drop the "Patch" name everywhere"). It touches
+  `claude_pet.py` at line 6 (the module docstring) and the READMEs / `make_icon.py`; it does
+  not touch the autostart hunks, `tests/test_autostart.py`, CLAUDE.md or this record, so the
+  fix applies cleanly — but the final `claude_pet.py` hash will differ from `ce7564b1…` once
+  merged, so the pin family must be re-pinned on the merged tree, not on this one.
+- The `claude_pet.py` SHA256 re-pin itself stays with the Coordinator (release-time).
+- Optional, not blocking: CLAUDE.md's repo-layout row for `tests/test_autostart.py` lists
+  "the status table, the toggle's truth table, the `do_uninstall()` ordering, the TR keys, and
+  the menu wiring"; the module now also pins `autostart_read_state`'s table. The row is not
+  wrong (it is not written as exhaustive); a Developer may add it.
+- Not done, by instruction and by role: no git write; no GUI; nothing against the real
+  `SMAppService`; no reproduction of the hardware probe (**[NEVER]** for a test or probe), so
+  the fresh-install-reads-3 claim still rests on the Coordinator's single observation, labelled
+  as such in the code comment, CLAUDE.md, the test docstring and §11.3.
+Record closed 2026-09-13T13:45Z.

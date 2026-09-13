@@ -578,15 +578,31 @@ never re-applied behind their back. Do not add a persisted preference and "recon
 Four module-level functions carry the logic, so tests never reach the real registry:
 
 - `autostart_state(status, is_bundle)` — `0 → "off"`, `1 → "on"`, `2 → "approval"`,
-  `3 → "unavailable"`; `is_bundle` False → `"unavailable"` whatever the status. Pure.
+  `3 → "off"`; any other int → `"unavailable"`; `is_bundle` False → `"unavailable"` whatever
+  the status. Pure. **`3` (`NotFound`) is `"off"`, not `"unavailable"`, and the first
+  implementation got that wrong.** The SDK header describes `NotFound` as "an error occurred
+  and no such service could be found", so the mapping merged at `794c66f` sent it to
+  `"unavailable"` — and every fresh install then showed a disabled item that could not be
+  turned on, observed on screen in the built bundle. The hardware finding (Coordinator,
+  2026-09-13, macOS 26.5 / Darwin 25.5, a Developer-ID-signed bundle probed from its own
+  interpreter — one machine, one probe): **a never-registered bundle reports `NotFound` and
+  registers fine from it** (`register` returned `(True, None)` and the status then read `1`;
+  `unregister` then returned `(True, None)` and it read `0`). Whether some other macOS
+  reports `0` in that state is not settled by that sample, which is why `0` and `3` map to
+  the same state rather than one being special. If a `3` ever is the header's error, the
+  click now fails loudly through the `autostart_fail` alert instead of leaving an item that
+  can never be turned on. `"unavailable"` remains the answer for a non-bundle, a `None`
+  service (macOS 12 / framework missing), a `status()` that raises, and an int outside
+  `0`–`3` — never offer register or unregister for a value nobody understands.
 - `autostart_service()` — `SMAppService.mainAppService()`, or `None` when the framework cannot
   be imported or has no `SMAppService`. It imports the framework **at call time** (the same
   in-function import `app_bundle_path()` uses) and is the **only** call site of `mainAppService`.
   `autostart_current()` pairs it with `app_bundle_path()` into the `(service, is_bundle)` the
   two functions below take — `(None, False)` from source, so nothing there ever calls the
   service — and is the one place the menu and the handler both pick the service through.
-- `autostart_toggle(service, is_bundle)` → `(new_state, "autostart_fail" | None)`. Off →
-  `registerAndReturnError_(None)`, on → `unregisterAndReturnError_(None)`; the new state is
+- `autostart_toggle(service, is_bundle)` → `(new_state, "autostart_fail" | None)`. Off
+  (status `0` or `3`) → `registerAndReturnError_(None)`, on → `unregisterAndReturnError_(None)`;
+  the new state is
   **read back** from the service afterwards because a register can land on `2`. From `2` nothing
   is called and `("approval", None)` comes back — the handler shows the `autostart_approval`
   alert, whose default button calls `SMAppService.openSystemSettingsLoginItems()`. A
@@ -620,8 +636,8 @@ pins. Six TR keys in en/ko/ja/es: `menu_autostart`, `autostart_title`, `autostar
 **[NEVER]** call `registerAndReturnError_` / `unregisterAndReturnError_` on the real service from
 a test or a probe, and never call `mainAppService()` from a test. `tests/test_autostart.py` passes
 fake service objects and installs a tripwire in `sys.modules["ServiceManagement"]` whose register
-and unregister raise; a from-source run is never a bundle, so the real service would report
-`NotFound` anyway.
+and unregister raise; a from-source run is never a bundle, so `autostart_current()` hands the
+helpers `(None, False)` and nothing there consults the real service at all.
 
 ---
 
