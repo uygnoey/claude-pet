@@ -60,6 +60,7 @@ invites the reader to reason from it.
 | `tests/test_partial_copy_seeding.py` | Seeding tests for a copy that dies *midway through a file*, a different state from one that never starts. |
 | `tests/test_seeding_identity.py` | Identity-bound cleanup gates for bundled-pet seeding. Both roots are passed explicitly and live under a realpath temp directory; `USER_PET_HOME` and the process `HOME` are never consulted. |
 | `tests/test_v020_boundaries.py` | Upgrade-boundary verification for v0.20. Fail-closed: it refuses to run unless launched with the allow-list environment its header specifies. |
+| `tests/test_autostart.py` | Gating tests for the "Start at sign-in" menu item: the status table, the toggle's truth table, the `do_uninstall()` ordering, the TR keys, and the menu wiring (by AST, no GUI). Every service is a fake; `sys.modules["ServiceManagement"]` is a tripwire for the duration of the module. |
 | `verify_pet_payload.py` | Build gate: checks that the bundled `.claude_pet` payload actually landed in an artifact and matches the repo source byte for byte. It reads the expected file list out of `claude_pet.py`'s `BUNDLED_PET_README` / `BUNDLED_PET_IDS` / `BUNDLED_PET_FILES` via AST rather than importing it, so adding a pet cannot leave a hardcoded count checking the wrong number. Called by `release.sh` (`build`, and per-artifact before upload) and by `build_app.sh`. |
 | `verify_release_artifact.py` | Release gate: inspects the zip/dmg **that will be uploaded**, not a build directory. `scan` checks archive safety before any byte is extracted, `app` checks that the bundle's `Contents/Resources/claude_pet.py` is byte-identical to this checkout's and then hands the bundle to the updater's own preflight, `assets` checks the upload list against the updater's asset-name table. The code-hash check is the one the updater cannot do — it has no original to compare against, and a signature says *who built it*, never *what is inside*: a stale bundle re-signed today passes every other check. It **calls** `claude_pet`'s `_zip_members_are_safe` and `validate_update_app` rather than reimplementing them — which is why its diagnostics carry an `[update]` prefix. |
 | `build_app.sh` | Fast local build: assembles `ClaudePet.app` from `claude_pet.py` + `frames/` + `.claude_pet/`. **It does sign** — `sign_app` uses the Developer ID when one is present, ad-hoc otherwise. `build` / `install` / `update` subcommands; anything else prints usage and exits 1. |
@@ -558,6 +559,69 @@ copying, publishing, cleanup — is `dir_fd`-relative. This is structural, not d
 **Never write to `~/.claude_pet/` or `~/.claude_pet.json` from a test or a probe.** The user's
 pets live there alongside the four stock ones. Seeding tests pass `source_root=` and `dest_root=`
 and point both at `tempfile` directories.
+
+---
+
+## Start at sign-in
+
+A checkable right-click item, `t("menu_autostart")`, between "Roam the screen" and "Reset size",
+backed by `SMAppService.mainAppService()` (the `ServiceManagement` framework; the class exists on
+macOS 13 and later). It lives in the menu and not in the settings panel because that panel is a
+fixed-height view (see [Danger zone](#danger-zone)).
+
+**There is no config key.** Nothing about this feature is read from or written to
+`~/.claude_pet.json`, `RUNTIME`, `SETTINGS_OWNED_KEYS` or `apply_config`. The OS registration is
+the only source of truth: the checkmark is re-read from `service.status()` every time the menu
+opens, so a change the user makes in System Settings → General → Login Items shows as-is and is
+never re-applied behind their back. Do not add a persisted preference and "reconcile" it at launch.
+
+Four module-level functions carry the logic, so tests never reach the real registry:
+
+- `autostart_state(status, is_bundle)` — `0 → "off"`, `1 → "on"`, `2 → "approval"`,
+  `3 → "unavailable"`; `is_bundle` False → `"unavailable"` whatever the status. Pure.
+- `autostart_service()` — `SMAppService.mainAppService()`, or `None` when the framework cannot
+  be imported or has no `SMAppService`. It imports the framework **at call time** (the same
+  in-function import `app_bundle_path()` uses) and is the **only** call site of `mainAppService`.
+  `autostart_current()` pairs it with `app_bundle_path()` into the `(service, is_bundle)` the
+  two functions below take — `(None, False)` from source, so nothing there ever calls the
+  service — and is the one place the menu and the handler both pick the service through.
+- `autostart_toggle(service, is_bundle)` → `(new_state, "autostart_fail" | None)`. Off →
+  `registerAndReturnError_(None)`, on → `unregisterAndReturnError_(None)`; the new state is
+  **read back** from the service afterwards because a register can land on `2`. From `2` nothing
+  is called and `("approval", None)` comes back — the handler shows the `autostart_approval`
+  alert, whose default button calls `SMAppService.openSystemSettingsLoginItems()`. A
+  `(False, err)` leaves the state unchanged. Not a bundle, or `service is None` →
+  `("unavailable", None)` **without touching the service, `status()` included** — from source
+  `mainAppService()` is Python.app's own service, not ours. (From `2`, and on a failure,
+  `status()` has still been read; it is register/unregister that is not called.)
+- `uninstall_autostart(service)` → `"autostart_fail" | None`. Unregisters only when the status
+  is `1` or `2`; `None` makes no call at all, and `0` / `3` read `status()` and stop there.
+  `do_uninstall()` calls it **after** the update lock is held and **before** the deletion shell
+  is spawned, only for an installed bundle, and a failure refuses the whole uninstall with
+  nothing deleted — the state this avoids is a login item pointing at a bundle that no longer
+  exists.
+
+In the menu, `"unavailable"` (from source, or no `SMAppService`) shows the item disabled with the
+`autostart_unavailable` title; `"approval"` shows the mixed state (`-1`). `rightMouseDown_` does
+not call these functions by name: it reads `state["autostart_read"]`, a hook installed in the
+`state` dict as `lambda: autostart_read_state(*autostart_current())`, and treats a missing hook
+as `"unavailable"`. That is the same shape as `roam_interrupt` / `roam_release` — the `state`
+comment says why: the view's methods are executed in window-less tests with a hand-built
+`state`, and a hook that is simply absent there keeps every such test's scope stable when an
+item gains an OS-backed collaborator. Do not reach for the module-level functions from
+`rightMouseDown_` directly; put new collaborators of a view method behind a `state` hook. The
+handler, `Handler.toggleAutostart_`, calls `autostart_toggle(*autostart_current())` by name —
+that one is pinned by the AST test. `setup.py` lists
+`ServiceManagement` in the py2app `includes` — without it the bundle's item is permanently
+unavailable while the from-source run works, which is the failure `tests/test_autostart.py`
+pins. Six TR keys in en/ko/ja/es: `menu_autostart`, `autostart_title`, `autostart_approval`,
+`autostart_open_settings`, `autostart_fail`, `autostart_unavailable`.
+
+**[NEVER]** call `registerAndReturnError_` / `unregisterAndReturnError_` on the real service from
+a test or a probe, and never call `mainAppService()` from a test. `tests/test_autostart.py` passes
+fake service objects and installs a tripwire in `sys.modules["ServiceManagement"]` whose register
+and unregister raise; a from-source run is never a bundle, so the real service would report
+`NotFound` anyway.
 
 ---
 
