@@ -694,6 +694,28 @@ There are two sources of usage, and they coexist at runtime:
   It is the fallback for when the token is unavailable, unreadable, or the user has not
   logged in.
 
+**The token cache is source-aware and re-validates without prompting.** `_oauth_token_cache`
+records where the token came from (`src`: `file`, `cli`, `native`), the credentials file's
+`(st_mtime_ns, st_size, st_ino)` signature when it came from the file (`file_sig`;
+`_credentials_path()` / `_credentials_sig()`), and a `suspect` flag. A file-sourced token is
+re-checked against that signature on every read: a changed or vanished file drops the cached
+token and reads afresh, which is how a rotated `~/.claude/.credentials.json` is picked up
+without a restart — and the only rotation signal the Windows port has, since the file is its
+only source there. A fetch that fails for any reason other than 401/403 — 5xx, 429, a network
+error, an unparseable body — keeps the token but marks it `suspect`; the next read re-validates
+through **prompt-free sources only** (the file, then the `security` CLI if the token came from
+the CLI) and never enters the native Keychain reader, which is the one path that can prompt. A
+replacement token replaces the cache; none keeps the cached one; `suspect` clears either way.
+A 401/403 still runs the forced walk (which may reach the native reader once, unless the user
+declined); if that walk finds nothing, the dead token is **cleared** rather than re-served
+during the cooldown, and `OAUTH_STATUS["auth_error"]` is set. `OAUTH_STATUS["last_error"]`
+records the class of the last failure (`http:<code>`, `net`, `parse`; `None` after a success)
+and is not rendered — the pill's memo key is unchanged. `fetch_exact_usage()` caches a failed
+fetch for `OAUTH_FAIL_RETRY_SEC` (60 s) instead of `OAUTH_CACHE_SEC` (180 s), **except** after
+`http:429`, which keeps the full 180 s because avoiding over-calling is why the cache exists.
+The `_dbg` lines on this path carry status codes, exception class names and booleans only —
+never token bytes.
+
 ### The `claude -p /usage` CLI fallback is opt-in and OFF by default
 
 `_fetch_cli_usage()` returns `None` immediately unless `CLAUDE_PET_USE_CLI=1` is set in

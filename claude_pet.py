@@ -2109,6 +2109,10 @@ def fetch_api_cost_month():
 
 OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
+# 실패한 조회는 이만큼만 캐시한다(성공과 429는 OAUTH_CACHE_SEC 그대로). 일시적 네트워크
+# 장애나 5xx 뒤에 3분 내내 추정 모드에 머물지 않기 위함. 429만은 예외 — 위 캐시가
+# 존재하는 이유가 바로 과호출이라, 429 뒤에 더 빨리 다시 두드리면 안 된다.
+OAUTH_FAIL_RETRY_SEC = 60
 OAUTH_TOKEN_RETRY = 120   # 토큰 못 읽었을 때 재시도 간격(초)
 _oauth_cache = {"t": 0.0, "gauges": None}
 # 토큰은 성공 시 메모리에 캐시 — 재조회 시 macOS 허용 프롬프트가 반복되기 때문.
@@ -2116,7 +2120,18 @@ _oauth_cache = {"t": 0.0, "gauges": None}
 # 못 읽으면 "포기"하지 않고 next_retry 이후 다시 시도한다 → 새로 설치/업데이트해
 # 아직 Claude Code 인증 전이거나 키체인 허용 전이어도, 나중에 인증/허용하면
 # 재시작 없이 정확 모드로 자동 복구된다. declined=사용자가 명시적으로 거부.
-_oauth_token_cache = {"tok": None, "next_retry": 0.0, "declined": False}
+#
+# src: 토큰이 어디서 왔는지("file"|"cli"|"native"|None). 자동 재검증이 프롬프트 없는
+#      경로만 타도록 고르는 근거다.
+# file_sig: src=="file"일 때 credentials 파일의 (st_mtime_ns, st_size, st_ino).
+#      다음 읽기에서 서명이 달라졌거나 파일이 사라졌으면 캐시를 버리고 새로 읽는다 —
+#      Claude Code가 토큰을 갱신해도 재시작 없이 따라가는 신호다. Windows는 파일이
+#      유일한 소스라 이것만이 회전 신호다.
+# suspect: 인증 외 실패(5xx/429/네트워크/파싱) 뒤 True. 다음 읽기에서 프롬프트 없는
+#      소스(파일, 그리고 cli에서 온 토큰이면 security CLI)로만 재검증하고 내린다.
+#      네이티브 키체인은 자동 재검증에서 절대 타지 않는다(v0.16의 재프롬프트 회귀).
+_oauth_token_cache = {"tok": None, "next_retry": 0.0, "declined": False,
+                      "src": None, "file_sig": None, "suspect": False}
 _oauth_token_lock = threading.Lock()
 
 # 키체인 API 상태 코드 (Security.framework)
@@ -2144,13 +2159,48 @@ def _dbg(*a):
         pass
 
 
+def _credentials_path():
+    """~/.claude/.credentials.json — 일부 설치는 키체인 대신 여기에 토큰을 둔다."""
+    return os.path.expanduser("~/.claude/.credentials.json")
+
+
+def _stat_sig(st):
+    return (st.st_mtime_ns, st.st_size, st.st_ino)
+
+
+def _credentials_sig():
+    """credentials 파일의 서명 (st_mtime_ns, st_size, st_ino). 파일이 없으면 None.
+
+    세 필드가 모두 필요하다: 제자리 덮어쓰기는 mtime_ns만, 원자적 rename은 ino만
+    바꾸고, 같은 길이의 토큰은 size를 바꾸지 않는다. 초 단위 mtime은 같은 초 안의
+    갱신을 놓친다.
+    """
+    try:
+        return _stat_sig(os.stat(_credentials_path()))
+    except OSError:
+        return None
+
+
+def _read_credentials_file():
+    """(token, sig) — 파일이 없거나 못 읽으면 (None, None). 무프롬프트.
+
+    stat을 open보다 먼저 한다: 그 사이에 파일이 바뀌면 옛 서명 + 새 내용이 되고,
+    다음 읽기에서 서명 불일치로 한 번 더 읽을 뿐이다. 반대 순서(읽고 나서 stat)는
+    새 서명 + 옛 토큰이 되어 다음 갱신까지 옛 토큰을 계속 낸다.
+    """
+    path = _credentials_path()
+    try:
+        sig = _stat_sig(os.stat(path))
+        with open(path, encoding="utf-8") as f:
+            tok = (json.load(f).get("claudeAiOauth") or {}).get("accessToken")
+    except Exception:
+        return None, None
+    return (tok or None), sig
+
+
 def _token_from_file():
     """~/.claude/.credentials.json (일부 설치는 키체인 대신 파일에 저장) — 무프롬프트."""
-    try:
-        with open(os.path.expanduser("~/.claude/.credentials.json"), encoding="utf-8") as f:
-            return (json.load(f).get("claudeAiOauth") or {}).get("accessToken")
-    except Exception:
-        return None
+    return _read_credentials_file()[0]
 
 
 def _token_from_cli():
@@ -2281,9 +2331,25 @@ def _read_oauth_token(force=False):
     (declined) 그 실행 동안 키체인은 다시 묻지 않는다.
     401 만료 시엔 force=True — 이땐 만료된 파일 토큰을 다시 집어 무한루프에
     빠지지 않도록 파일을 건너뛰고 키체인부터 읽는다.
+
+    캐시된 토큰을 그냥 돌려주지 않는 경우가 둘 있다(둘 다 프롬프트 없는 경로만 탄다):
+      - src=="file"인데 파일 서명이 바뀌었거나 파일이 사라졌다 → 캐시를 버리고
+        새로 읽는다. Claude Code가 토큰을 갱신하면 재시작 없이 따라간다.
+      - suspect(인증 외 조회 실패 뒤) → _revalidate_oauth_token()으로 파일과
+        (cli 출처면) security CLI만 다시 묻는다. 네이티브 키체인은 타지 않는다.
+    force(401)로 걸어서도 대체 토큰을 못 찾으면 거부된 토큰을 캐시에서 지운다 —
+    쿨다운 동안 죽은 토큰을 계속 돌려주지 않기 위해서다.
     """
     c = _oauth_token_cache
+    if not force and c["tok"] and c["src"] == "file":
+        sig = _credentials_sig()
+        if sig != c["file_sig"]:
+            # 파일이 갱신됐거나(서명 변경) 사라졌다(None). 캐시를 버리고 새로 읽는다.
+            _dbg("read_oauth: file sig changed; vanished?", sig is None)
+            _forget_oauth_token(c)
     if c["tok"] and not force:
+        if c["suspect"]:
+            return _revalidate_oauth_token(c)
         return c["tok"]
     if not force and time.time() < c["next_retry"]:
         return None                        # 재시도 쿨다운 중
@@ -2292,18 +2358,19 @@ def _read_oauth_token(force=False):
     #    단 force(=401 만료)면 건너뛴다. 만료된 파일 토큰을 계속 집어오면
     #    401 → force → 같은 파일 → 401 루프에 빠진다.
     if not force:
-        tok = _token_from_file()
+        tok, sig = _read_credentials_file()
         _dbg("read_oauth: file tok?", bool(tok))
         if tok:
-            c["tok"] = tok
-            c["next_retry"] = 0.0
+            _remember_oauth_token(c, tok, "file", sig)
             return tok
     if not _oauth_token_lock.acquire(blocking=False):
-        return c["tok"]                    # 다른 스레드가 읽는 중(프롬프트 대기)
+        # 다른 스레드가 읽는 중(프롬프트 대기). force(=401)면 지금 캐시된 토큰은
+        # 서버가 방금 거부한 그 토큰이므로 돌려주지 않는다.
+        return None if force else c["tok"]
     try:
         if c["tok"] and not force:
             return c["tok"]
-        tok = None
+        tok, src, sig = None, None, None
         if sys.platform == "darwin":
             # 2) security CLI — 이게 1순위여야 한다. 이 키체인 항목은 Claude Code가
             #    `security` 로 만들기 때문에 항목 ACL의 신뢰 앱 목록에 /usr/bin/security
@@ -2313,29 +2380,82 @@ def _read_oauth_token(force=False):
             #    키체인 '암호' 프롬프트를 요구하고, UI를 못 띄우면 -25308로 조용히 죽는다.
             #    예전엔 네이티브를 앞에 뒀던 탓에, 프롬프트 없이 성공하던 유일한 경로를
             #    뒤로 밀어내고 프롬프트가 필요한 경로를 먼저 타고 있었다.
-            tok = _token_from_cli()
+            tok, src = _token_from_cli(), "cli"
             _dbg("read_oauth: cli tok?", bool(tok))
             # 3) 네이티브 — 최후 수단. CLI가 막힌 환경에서만 쓴다. 여기서만
             #    "ClaudePet이 키체인에 접근하려 합니다" 프롬프트가 뜰 수 있다.
             if not tok and not c["declined"]:
                 st, tok = _keychain_token_native_bounded()
+                src = "native"
                 _dbg("read_oauth: native st", st, "tok?", bool(tok))
                 if st is None:
                     # 프롬프트가 떠 있고 아직 응답이 없다. 실패도 거부도 아니다.
                     c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY
+                    if force:
+                        _forget_oauth_token(c)   # 거부된 토큰은 쿨다운 동안 내지 않는다
                     return None
                 if not tok and st in _SEC_DENIED:
                     c["declined"] = True   # 명시적 거부/취소만 존중
         # 4) force 로 위가 다 실패했으면 마지막으로 파일이라도 본다.
         if not tok and force:
-            tok = _token_from_file()
+            tok, sig = _read_credentials_file()
+            src = "file"
         if tok:
-            c["tok"] = tok
-            c["next_retry"] = 0.0
+            _remember_oauth_token(c, tok, src, sig)
         else:
             c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY   # 나중에 다시 시도
-        _dbg("read_oauth: final tok?", bool(tok), "declined?", c["declined"])
+            if force:
+                _forget_oauth_token(c)       # 거부된 토큰은 쿨다운 동안 내지 않는다
+        _dbg("read_oauth: final tok?", bool(tok), "src", src if tok else None,
+             "declined?", c["declined"])
         return tok
+    finally:
+        _oauth_token_lock.release()
+
+
+def _forget_oauth_token(c):
+    """캐시된 토큰을 잊는다(출처·서명·suspect 포함). declined와 next_retry는 그대로."""
+    c["tok"] = None
+    c["src"] = None
+    c["file_sig"] = None
+    c["suspect"] = False
+
+
+def _remember_oauth_token(c, tok, src, sig=None):
+    c["tok"] = tok
+    c["src"] = src
+    c["file_sig"] = sig if src == "file" else None
+    c["suspect"] = False
+    c["next_retry"] = 0.0
+
+
+def _revalidate_oauth_token(c):
+    """인증 외 조회 실패 뒤의 자동 재검증 — 프롬프트 없는 소스만.
+
+    파일을 먼저 본다(키체인 설치에 파일이 새로 생겼을 수 있다). 토큰이 security
+    CLI에서 왔으면 CLI도 다시 묻는다(Claude Code가 항목을 다시 썼을 수 있다).
+    네이티브 키체인은 여기서 절대 타지 않는다 — 그 경로만 프롬프트를 띄울 수 있고,
+    '한 번 허용'한 사용자를 네트워크 장애 때마다 다시 묻는 것이 v0.16의 회귀였다.
+    바뀐 토큰이 있으면 교체하고, 없으면 캐시된 토큰을 그대로 쓴다. suspect는
+    어느 쪽이든 내린다(같은 실패가 반복되면 다음 실패가 다시 올린다).
+    """
+    if not _oauth_token_lock.acquire(blocking=False):
+        return c["tok"]                    # 다른 스레드가 읽는 중 — 있는 걸로 간다
+    try:
+        if not c["tok"] or not c["suspect"]:
+            return c["tok"]
+        old_src = c["src"]
+        tok, sig = _read_credentials_file()
+        src = "file"
+        if not tok and old_src == "cli" and sys.platform == "darwin":
+            tok, sig, src = _token_from_cli(), None, "cli"
+        c["suspect"] = False
+        if tok:
+            _dbg("read_oauth: revalidate src", src, "changed?", tok != c["tok"])
+            _remember_oauth_token(c, tok, src, sig)
+        else:
+            _dbg("read_oauth: revalidate found nothing; keep src", old_src)
+        return c["tok"]
     finally:
         _oauth_token_lock.release()
 
@@ -2496,14 +2616,30 @@ def _label_order(label):
     return 5
 
 
-# 정확 모드 상태 — 토큰 만료(401 지속) 시 폴백 필에 안내를 띄우기 위함
-OAUTH_STATUS = {"auth_error": False}
+# 정확 모드 상태 — 토큰 만료(401 지속) 시 폴백 필에 안내를 띄우기 위함.
+# last_error: 마지막 조회 실패의 종류("http:<code>"|"net"|"parse"), 성공하면 None.
+#   필에는 그리지 않는다(roam_summary_text의 memo 키도 그대로). fetch_exact_usage가
+#   실패 캐시 길이를 정할 때와 디버그 로그에만 쓴다.
+OAUTH_STATUS = {"auth_error": False, "last_error": None}
 
 
 def _fetch_oauth_usage():
+    """OAuth 사용량을 한 번 조회한다. 실패하면 None.
+
+    결과에 따른 토큰 캐시 처리:
+      200      → suspect·auth_error·last_error 모두 내린다.
+      401/403  → 키체인에서 1회 강제 재조회 후 재시도. 그래도 없거나 또 거부되면
+                 auth_error. 재조회가 아무것도 못 찾았으면 죽은 토큰은 캐시에서 지운다
+                 (_read_oauth_token(force=True)가 락 안에서 지우고, 락이 바빠 재조회를
+                 못 한 경우는 여기서 같은 토큰일 때만 지운다).
+      그 외     → 토큰은 그대로 두되 suspect를 올린다. 다음 읽기가 프롬프트 없는
+                 소스로 재검증한다. last_error에 종류를 남긴다.
+    _dbg 줄에는 상태 코드·클래스 이름·불리언만 쓴다. 토큰이나 응답 본문은 절대 안 쓴다.
+    """
     tok = _read_oauth_token()
     if not tok:
         return None
+    c = _oauth_token_cache
     for attempt in (0, 1):
         req = urllib.request.Request(OAUTH_USAGE_URL, headers={
             "Authorization": f"Bearer {tok}",
@@ -2513,21 +2649,45 @@ def _fetch_oauth_usage():
         })
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read().decode())
-            OAUTH_STATUS["auth_error"] = False
-            return _parse_oauth_usage(data)
+                raw = r.read()
         except urllib.error.HTTPError as e:
-            # 토큰 만료 추정 → 키체인에서 1회 재조회 후 재시도 (그래도 실패면 포기)
-            if e.code in (401, 403):
+            code = e.code
+            OAUTH_STATUS["last_error"] = "http:%s" % code
+            _dbg("oauth fetch: http", code, "attempt", attempt)
+            if code in (401, 403):
+                # 토큰 만료 추정 → 키체인에서 1회 재조회 후 재시도 (그래도 실패면 포기)
                 if attempt == 0:
-                    tok = _read_oauth_token(force=True)
-                    if tok:
+                    fresh = _read_oauth_token(force=True)
+                    if fresh:
+                        tok = fresh
                         continue
+                    # 대체 토큰이 없다 — 거부된 토큰을 계속 내지 않는다(락이 바빠
+                    # 재조회를 못 했을 때만 여기 남는다; 걸었다면 이미 지워졌다).
+                    if c["tok"] == tok:
+                        _forget_oauth_token(c)
                 # 재조회한 토큰도 거부 = 키체인 토큰 자체가 만료
                 OAUTH_STATUS["auth_error"] = True
+                return None
+            c["suspect"] = True
             return None
-        except Exception:
+        except Exception as e:
+            # URLError·socket.timeout·SSL·연결 끊김 등 전송 단계 실패 전부
+            OAUTH_STATUS["last_error"] = "net"
+            c["suspect"] = True
+            _dbg("oauth fetch: net", type(e).__name__, "attempt", attempt)
             return None
+        try:
+            rows = _parse_oauth_usage(json.loads(raw.decode()))
+        except Exception as e:
+            OAUTH_STATUS["last_error"] = "parse"
+            c["suspect"] = True
+            _dbg("oauth fetch: parse", type(e).__name__)
+            return None
+        OAUTH_STATUS["auth_error"] = False
+        OAUTH_STATUS["last_error"] = None
+        c["suspect"] = False
+        _dbg("oauth fetch: ok rows", len(rows) if rows else 0)
+        return rows
     return None
 
 
@@ -2688,13 +2848,18 @@ def _fetch_cli_usage():
 def fetch_exact_usage():
     """정확 사용량 [(label, pct, reset_dt, reset_text)] 최대 4줄.
     OAuth 우선, 모델별(Fable 등) 줄이 없으면 CLI(claude -p /usage)에서 보충.
-    180초 캐시 (과호출 시 429)."""
+    180초 캐시 (과호출 시 429). 실패한 조회는 OAUTH_FAIL_RETRY_SEC(60초)만 캐시하되
+    429는 예외로 180초를 그대로 둔다 — 캐시가 존재하는 이유가 과호출이다."""
     now = time.time()
     if now - _oauth_cache["t"] < OAUTH_CACHE_SEC:
         return _oauth_cache["gauges"]
-    _oauth_cache["t"] = now
+    _oauth_cache["t"] = now          # 조회 중인 동안 다른 호출자는 이전 값을 받는다
     rows = _fetch_oauth_usage()
     if rows is None:
+        err = OAUTH_STATUS.get("last_error")
+        if err and err != "http:429":
+            # 실패는 짧게 캐시: t를 과거로 물려 OAUTH_FAIL_RETRY_SEC 뒤에 만료되게 한다.
+            _oauth_cache["t"] = now - (OAUTH_CACHE_SEC - OAUTH_FAIL_RETRY_SEC)
         rows = _fetch_cli_usage()
     elif not any(_label_order(r[0]) == 2 for r in rows):
         # OAuth 응답에 모델별 항목이 없으면 CLI에서 Fable 줄 보충
