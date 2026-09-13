@@ -1,13 +1,27 @@
-# 🐱 Claude Pet (Patch 에디션)
+# 🐱 Claude Pet
 
 [English](README.md) · **한국어** · [日本語](README.ja.md) · [Español](README.es.md)
 
-Codex Pets처럼 화면에 떠 있는 Patch가 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
+Codex Pets처럼 화면에 떠서 Claude 토큰 사용량을 지켜보는 데스크톱 펫.
 macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
-> 🧪 v0.24 — macOS 앱은 공증됐고, Windows 판은 베타(서명 없음)예요.
+> 🧪 v0.24 — macOS 앱은 공증됐고, Windows 판은 설치 파일과 zip으로 제공돼요(서명 없음 — 아래 Windows 절 참고).
 
-![Patch](preview.png)
+![Claude Pet](preview.png)
+
+## 지원 사양
+
+|  | macOS | Windows |
+| --- | --- | --- |
+| 운영체제 | macOS 12 이상 | Windows 10/11 (64비트) |
+| 칩 | Apple Silicon · Intel (universal 빌드) | x64 |
+| 다운로드 | `ClaudePet.dmg` (Apple Silicon) · `ClaudePet-universal.dmg` (Intel) | `claude-pet-win-setup.exe` (설치 파일) · `claude-pet-win.zip` (무설치) |
+| 서명 | Developer ID 서명 + Apple 공증 | 서명 없음 — 처음 실행 때 Windows가 한 번 물어요 |
+| 업데이트 | 앱 안에서 1시간마다 확인하고 우클릭 메뉴에서 설치해요 | 앱 안에서 확인(우클릭 메뉴)하고, 새 설치 파일은 릴리즈 페이지에서 받아요 |
+| 로그인 시 시작 | 시스템 설정 → 일반 → 로그인 항목 | 설치 파일의 “로그인 시 자동 실행” 옵션 |
+| Claude Code 연동 | Claude Code 자격 증명(키체인 또는 자격 증명 파일)을 읽어요 | Claude Code 자격 증명 파일을 읽어요 |
+| 펫 | 내장 고양이 + 4종, 그리고 `~/.claude_pet/pets`의 내 펫 | 동일, `%USERPROFILE%\.claude_pet\pets` |
+| 제거 | 우클릭 → 완전 삭제… | 설정 → 앱 → 제거 |
 
 ## 다운로드 & 설치 (권장)
 
@@ -45,7 +59,7 @@ macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
 ---
 
-## Windows (베타)
+## Windows
 
 Windows 10/11(64비트)에서도 같은 필·산책·설정·펫을 씁니다. 릴리즈마다 두 파일이 올라갑니다.
 

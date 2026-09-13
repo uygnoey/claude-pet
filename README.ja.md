@@ -1,13 +1,27 @@
-# 🐱 Claude Pet (Patch エディション)
+# 🐱 Claude Pet
 
 [English](README.md) · [한국어](README.ko.md) · **日本語** · [Español](README.es.md)
 
-Codex Pets のように、画面に浮かぶ Patch が Claude のトークン使用量を見守るデスクトップペット。
+Codex Pets のように、画面に浮かんで Claude のトークン使用量を見守るデスクトップペット。
 macOS ネイティブ（AppKit）描画 — ウィンドウ枠・背景・残像なし。
 
-> 🧪 v0.24 — macOS 版は公証済み、Windows 版はベータ（未署名）です。
+> 🧪 v0.24 — macOS 版は公証済み、Windows 版はインストーラーと zip で提供します（未署名 — 下の Windows 節を参照）。
 
-![Patch](preview.png)
+![Claude Pet](preview.png)
+
+## 対応環境
+
+|  | macOS | Windows |
+| --- | --- | --- |
+| OS | macOS 12 以降 | Windows 10/11（64 ビット） |
+| チップ | Apple Silicon・Intel（universal ビルド） | x64 |
+| ダウンロード | `ClaudePet.dmg`（Apple Silicon）・`ClaudePet-universal.dmg`（Intel） | `claude-pet-win-setup.exe`（インストーラー）・`claude-pet-win.zip`（ポータブル） |
+| 署名 | Developer ID 署名 + Apple 公証 | 未署名 — 初回起動時に Windows が一度確認します |
+| 更新 | アプリ内で 1 時間ごとに確認し、右クリックメニューからインストール | アプリ内で確認（右クリックメニュー）。新しいインストーラーはリリースページから |
+| サインイン時に起動 | システム設定 → 一般 → ログイン項目 | インストーラーの「サインイン時に起動」オプション |
+| Claude Code 連携 | Claude Code の資格情報（キーチェーンまたは資格情報ファイル）を読みます | Claude Code の資格情報ファイルを読みます |
+| ペット | 内蔵の猫 + 4 種、さらに `~/.claude_pet/pets` の自作ペット | 同じ。`%USERPROFILE%\.claude_pet\pets` |
+| アンインストール | 右クリック → 完全に削除… | 設定 → アプリ → アンインストール |
 
 ## ダウンロードとインストール（推奨）
 
@@ -45,7 +59,7 @@ macOS ネイティブ（AppKit）描画 — ウィンドウ枠・背景・残像
 
 ---
 
-## Windows（ベータ）
+## Windows
 
 Windows 10/11（64 ビット）でも同じピル・散歩・設定・ペットが使えます。リリースごとに 2 つのファイルを公開します。
 

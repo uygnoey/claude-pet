@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch(idle 프레임)로 macOS 앱 아이콘(icon.icns) 생성."""
+"""내장 고양이(idle 프레임)로 macOS 앱 아이콘(icon.icns) 생성."""
 import os, subprocess
 from PIL import Image, ImageDraw
 
@@ -41,7 +41,7 @@ hi.putalpha(Image.composite(hi.getchannel("A"), Image.new("L", (rect, rect), 0),
                             rounded_mask(rect, radius)))
 canvas.alpha_composite(hi, (margin, margin))
 
-# 2) Patch 합성 (중앙, 살짝 아래)
+# 2) 고양이 합성 (중앙, 살짝 아래)
 patch = Image.open(SRC).convert("RGBA")
 target_w = int(S * 0.62)
 scale = target_w / patch.width

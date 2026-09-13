@@ -3,7 +3,7 @@
 Claude Pet — Codex Pets 스타일 투명 오버레이 펫 + Claude 토큰 사용량
 =====================================================================
 - 창 프레임/타이틀 없음, 배경 완전 투명 (펫과 게이지만 화면에 떠 있음)
-- 스프라이트: ~/.codex/pet-runs/patch-entp-cat/frames 의 Patch 고양이 프레임 사용
+- 스프라이트: ~/.codex/pet-runs/patch-entp-cat/frames 의 내장 고양이 프레임 사용
 - 게이지 3종: 현재 세션(5h) / 주간 전체 / 주간 Opus — 남은량 + 리셋 카운트다운
 - 한도 도달 정도에 따라 펫 모션이 변함 (모션별 고유 속도/반복 설정)
     <50%  idle(평온)  /  50~85% waiting(초조)  /  ≥85% failed(패닉)
@@ -1057,6 +1057,12 @@ TR = {
     "menu_settings": "Settings…", "menu_toggle": "Show/hide the usage pill",
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_roam": "Roam the screen",
+    "menu_autostart": "Start at sign-in",
+    "autostart_title": "Start at sign-in",
+    "autostart_approval": "macOS needs your approval: System Settings → General → Login Items.",
+    "autostart_open_settings": "Open Login Items",
+    "autostart_fail": "Could not change the sign-in setting.",
+    "autostart_unavailable": "Start at sign-in (not available here)",
     "menu_update": "⬆︎ Install v{v}",
     "menu_check_update": "⬆︎ Check for updates…",
     "upd_title": "Claude Pet update",
@@ -1138,6 +1144,12 @@ TR = {
     "menu_settings": "설정…", "menu_toggle": "사용량 필 접기/펴기",
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_roam": "화면 돌아다니기",
+    "menu_autostart": "로그인 시 자동 실행",
+    "autostart_title": "로그인 시 자동 실행",
+    "autostart_approval": "macOS 승인이 필요합니다: 시스템 설정 → 일반 → 로그인 항목",
+    "autostart_open_settings": "로그인 항목 열기",
+    "autostart_fail": "로그인 시 자동 실행 설정을 바꾸지 못했습니다.",
+    "autostart_unavailable": "로그인 시 자동 실행 (여기서는 사용 불가)",
     "menu_uninstall": "완전 삭제…",
     "menu_pets": "펫", "pet_default": "고양이 🐱",
     "pet_add": "➕ 펫 추가… (폴더 열기)",
@@ -1215,6 +1227,12 @@ TR = {
     "menu_settings": "設定…", "menu_toggle": "使用量ピルの表示/非表示",
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_roam": "画面を歩き回る",
+    "menu_autostart": "サインイン時に自動起動",
+    "autostart_title": "サインイン時に自動起動",
+    "autostart_approval": "macOS の承認が必要です: システム設定 → 一般 → ログイン項目",
+    "autostart_open_settings": "ログイン項目を開く",
+    "autostart_fail": "サインイン時の起動設定を変更できませんでした。",
+    "autostart_unavailable": "サインイン時に自動起動（ここでは利用不可）",
     "menu_uninstall": "完全に削除…",
     "menu_pets": "ペット", "pet_default": "ネコ 🐱",
     "pet_add": "➕ ペットを追加…（フォルダを開く）",
@@ -1297,6 +1315,12 @@ TR = {
     "menu_settings": "Ajustes…", "menu_toggle": "Mostrar/ocultar la píldora",
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_roam": "Pasear por la pantalla",
+    "menu_autostart": "Abrir al iniciar sesión",
+    "autostart_title": "Abrir al iniciar sesión",
+    "autostart_approval": "macOS necesita tu aprobación: Ajustes del Sistema → General → Ítems de inicio",
+    "autostart_open_settings": "Abrir Ítems de inicio",
+    "autostart_fail": "No se pudo cambiar el inicio al iniciar sesión.",
+    "autostart_unavailable": "Abrir al iniciar sesión (no disponible aquí)",
     "menu_uninstall": "Desinstalar por completo…",
     "menu_pets": "Mascota", "pet_default": "Gato 🐱",
     "pet_add": "➕ Añadir mascota… (abrir carpeta)",
@@ -2109,6 +2133,10 @@ def fetch_api_cost_month():
 
 OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
+# 실패한 조회는 이만큼만 캐시한다(성공과 429는 OAUTH_CACHE_SEC 그대로). 일시적 네트워크
+# 장애나 5xx 뒤에 3분 내내 추정 모드에 머물지 않기 위함. 429만은 예외 — 위 캐시가
+# 존재하는 이유가 바로 과호출이라, 429 뒤에 더 빨리 다시 두드리면 안 된다.
+OAUTH_FAIL_RETRY_SEC = 60
 OAUTH_TOKEN_RETRY = 120   # 토큰 못 읽었을 때 재시도 간격(초)
 _oauth_cache = {"t": 0.0, "gauges": None}
 # 토큰은 성공 시 메모리에 캐시 — 재조회 시 macOS 허용 프롬프트가 반복되기 때문.
@@ -2116,7 +2144,18 @@ _oauth_cache = {"t": 0.0, "gauges": None}
 # 못 읽으면 "포기"하지 않고 next_retry 이후 다시 시도한다 → 새로 설치/업데이트해
 # 아직 Claude Code 인증 전이거나 키체인 허용 전이어도, 나중에 인증/허용하면
 # 재시작 없이 정확 모드로 자동 복구된다. declined=사용자가 명시적으로 거부.
-_oauth_token_cache = {"tok": None, "next_retry": 0.0, "declined": False}
+#
+# src: 토큰이 어디서 왔는지("file"|"cli"|"native"|None). 자동 재검증이 프롬프트 없는
+#      경로만 타도록 고르는 근거다.
+# file_sig: src=="file"일 때 credentials 파일의 (st_mtime_ns, st_size, st_ino).
+#      다음 읽기에서 서명이 달라졌거나 파일이 사라졌으면 캐시를 버리고 새로 읽는다 —
+#      Claude Code가 토큰을 갱신해도 재시작 없이 따라가는 신호다. Windows는 파일이
+#      유일한 소스라 이것만이 회전 신호다.
+# suspect: 인증 외 실패(5xx/429/네트워크/파싱) 뒤 True. 다음 읽기에서 프롬프트 없는
+#      소스(파일, 그리고 cli에서 온 토큰이면 security CLI)로만 재검증하고 내린다.
+#      네이티브 키체인은 자동 재검증에서 절대 타지 않는다(v0.16의 재프롬프트 회귀).
+_oauth_token_cache = {"tok": None, "next_retry": 0.0, "declined": False,
+                      "src": None, "file_sig": None, "suspect": False}
 _oauth_token_lock = threading.Lock()
 
 # 키체인 API 상태 코드 (Security.framework)
@@ -2144,13 +2183,48 @@ def _dbg(*a):
         pass
 
 
+def _credentials_path():
+    """~/.claude/.credentials.json — 일부 설치는 키체인 대신 여기에 토큰을 둔다."""
+    return os.path.expanduser("~/.claude/.credentials.json")
+
+
+def _stat_sig(st):
+    return (st.st_mtime_ns, st.st_size, st.st_ino)
+
+
+def _credentials_sig():
+    """credentials 파일의 서명 (st_mtime_ns, st_size, st_ino). 파일이 없으면 None.
+
+    세 필드가 모두 필요하다: 제자리 덮어쓰기는 mtime_ns만, 원자적 rename은 ino만
+    바꾸고, 같은 길이의 토큰은 size를 바꾸지 않는다. 초 단위 mtime은 같은 초 안의
+    갱신을 놓친다.
+    """
+    try:
+        return _stat_sig(os.stat(_credentials_path()))
+    except OSError:
+        return None
+
+
+def _read_credentials_file():
+    """(token, sig) — 파일이 없거나 못 읽으면 (None, None). 무프롬프트.
+
+    stat을 open보다 먼저 한다: 그 사이에 파일이 바뀌면 옛 서명 + 새 내용이 되고,
+    다음 읽기에서 서명 불일치로 한 번 더 읽을 뿐이다. 반대 순서(읽고 나서 stat)는
+    새 서명 + 옛 토큰이 되어 다음 갱신까지 옛 토큰을 계속 낸다.
+    """
+    path = _credentials_path()
+    try:
+        sig = _stat_sig(os.stat(path))
+        with open(path, encoding="utf-8") as f:
+            tok = (json.load(f).get("claudeAiOauth") or {}).get("accessToken")
+    except Exception:
+        return None, None
+    return (tok or None), sig
+
+
 def _token_from_file():
     """~/.claude/.credentials.json (일부 설치는 키체인 대신 파일에 저장) — 무프롬프트."""
-    try:
-        with open(os.path.expanduser("~/.claude/.credentials.json"), encoding="utf-8") as f:
-            return (json.load(f).get("claudeAiOauth") or {}).get("accessToken")
-    except Exception:
-        return None
+    return _read_credentials_file()[0]
 
 
 def _token_from_cli():
@@ -2281,9 +2355,25 @@ def _read_oauth_token(force=False):
     (declined) 그 실행 동안 키체인은 다시 묻지 않는다.
     401 만료 시엔 force=True — 이땐 만료된 파일 토큰을 다시 집어 무한루프에
     빠지지 않도록 파일을 건너뛰고 키체인부터 읽는다.
+
+    캐시된 토큰을 그냥 돌려주지 않는 경우가 둘 있다(둘 다 프롬프트 없는 경로만 탄다):
+      - src=="file"인데 파일 서명이 바뀌었거나 파일이 사라졌다 → 캐시를 버리고
+        새로 읽는다. Claude Code가 토큰을 갱신하면 재시작 없이 따라간다.
+      - suspect(인증 외 조회 실패 뒤) → _revalidate_oauth_token()으로 파일과
+        (cli 출처면) security CLI만 다시 묻는다. 네이티브 키체인은 타지 않는다.
+    force(401)로 걸어서도 대체 토큰을 못 찾으면 거부된 토큰을 캐시에서 지운다 —
+    쿨다운 동안 죽은 토큰을 계속 돌려주지 않기 위해서다.
     """
     c = _oauth_token_cache
+    if not force and c["tok"] and c["src"] == "file":
+        sig = _credentials_sig()
+        if sig != c["file_sig"]:
+            # 파일이 갱신됐거나(서명 변경) 사라졌다(None). 캐시를 버리고 새로 읽는다.
+            _dbg("read_oauth: file sig changed; vanished?", sig is None)
+            _forget_oauth_token(c)
     if c["tok"] and not force:
+        if c["suspect"]:
+            return _revalidate_oauth_token(c)
         return c["tok"]
     if not force and time.time() < c["next_retry"]:
         return None                        # 재시도 쿨다운 중
@@ -2292,18 +2382,19 @@ def _read_oauth_token(force=False):
     #    단 force(=401 만료)면 건너뛴다. 만료된 파일 토큰을 계속 집어오면
     #    401 → force → 같은 파일 → 401 루프에 빠진다.
     if not force:
-        tok = _token_from_file()
+        tok, sig = _read_credentials_file()
         _dbg("read_oauth: file tok?", bool(tok))
         if tok:
-            c["tok"] = tok
-            c["next_retry"] = 0.0
+            _remember_oauth_token(c, tok, "file", sig)
             return tok
     if not _oauth_token_lock.acquire(blocking=False):
-        return c["tok"]                    # 다른 스레드가 읽는 중(프롬프트 대기)
+        # 다른 스레드가 읽는 중(프롬프트 대기). force(=401)면 지금 캐시된 토큰은
+        # 서버가 방금 거부한 그 토큰이므로 돌려주지 않는다.
+        return None if force else c["tok"]
     try:
         if c["tok"] and not force:
             return c["tok"]
-        tok = None
+        tok, src, sig = None, None, None
         if sys.platform == "darwin":
             # 2) security CLI — 이게 1순위여야 한다. 이 키체인 항목은 Claude Code가
             #    `security` 로 만들기 때문에 항목 ACL의 신뢰 앱 목록에 /usr/bin/security
@@ -2313,29 +2404,82 @@ def _read_oauth_token(force=False):
             #    키체인 '암호' 프롬프트를 요구하고, UI를 못 띄우면 -25308로 조용히 죽는다.
             #    예전엔 네이티브를 앞에 뒀던 탓에, 프롬프트 없이 성공하던 유일한 경로를
             #    뒤로 밀어내고 프롬프트가 필요한 경로를 먼저 타고 있었다.
-            tok = _token_from_cli()
+            tok, src = _token_from_cli(), "cli"
             _dbg("read_oauth: cli tok?", bool(tok))
             # 3) 네이티브 — 최후 수단. CLI가 막힌 환경에서만 쓴다. 여기서만
             #    "ClaudePet이 키체인에 접근하려 합니다" 프롬프트가 뜰 수 있다.
             if not tok and not c["declined"]:
                 st, tok = _keychain_token_native_bounded()
+                src = "native"
                 _dbg("read_oauth: native st", st, "tok?", bool(tok))
                 if st is None:
                     # 프롬프트가 떠 있고 아직 응답이 없다. 실패도 거부도 아니다.
                     c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY
+                    if force:
+                        _forget_oauth_token(c)   # 거부된 토큰은 쿨다운 동안 내지 않는다
                     return None
                 if not tok and st in _SEC_DENIED:
                     c["declined"] = True   # 명시적 거부/취소만 존중
         # 4) force 로 위가 다 실패했으면 마지막으로 파일이라도 본다.
         if not tok and force:
-            tok = _token_from_file()
+            tok, sig = _read_credentials_file()
+            src = "file"
         if tok:
-            c["tok"] = tok
-            c["next_retry"] = 0.0
+            _remember_oauth_token(c, tok, src, sig)
         else:
             c["next_retry"] = time.time() + OAUTH_TOKEN_RETRY   # 나중에 다시 시도
-        _dbg("read_oauth: final tok?", bool(tok), "declined?", c["declined"])
+            if force:
+                _forget_oauth_token(c)       # 거부된 토큰은 쿨다운 동안 내지 않는다
+        _dbg("read_oauth: final tok?", bool(tok), "src", src if tok else None,
+             "declined?", c["declined"])
         return tok
+    finally:
+        _oauth_token_lock.release()
+
+
+def _forget_oauth_token(c):
+    """캐시된 토큰을 잊는다(출처·서명·suspect 포함). declined와 next_retry는 그대로."""
+    c["tok"] = None
+    c["src"] = None
+    c["file_sig"] = None
+    c["suspect"] = False
+
+
+def _remember_oauth_token(c, tok, src, sig=None):
+    c["tok"] = tok
+    c["src"] = src
+    c["file_sig"] = sig if src == "file" else None
+    c["suspect"] = False
+    c["next_retry"] = 0.0
+
+
+def _revalidate_oauth_token(c):
+    """인증 외 조회 실패 뒤의 자동 재검증 — 프롬프트 없는 소스만.
+
+    파일을 먼저 본다(키체인 설치에 파일이 새로 생겼을 수 있다). 토큰이 security
+    CLI에서 왔으면 CLI도 다시 묻는다(Claude Code가 항목을 다시 썼을 수 있다).
+    네이티브 키체인은 여기서 절대 타지 않는다 — 그 경로만 프롬프트를 띄울 수 있고,
+    '한 번 허용'한 사용자를 네트워크 장애 때마다 다시 묻는 것이 v0.16의 회귀였다.
+    바뀐 토큰이 있으면 교체하고, 없으면 캐시된 토큰을 그대로 쓴다. suspect는
+    어느 쪽이든 내린다(같은 실패가 반복되면 다음 실패가 다시 올린다).
+    """
+    if not _oauth_token_lock.acquire(blocking=False):
+        return c["tok"]                    # 다른 스레드가 읽는 중 — 있는 걸로 간다
+    try:
+        if not c["tok"] or not c["suspect"]:
+            return c["tok"]
+        old_src = c["src"]
+        tok, sig = _read_credentials_file()
+        src = "file"
+        if not tok and old_src == "cli" and sys.platform == "darwin":
+            tok, sig, src = _token_from_cli(), None, "cli"
+        c["suspect"] = False
+        if tok:
+            _dbg("read_oauth: revalidate src", src, "changed?", tok != c["tok"])
+            _remember_oauth_token(c, tok, src, sig)
+        else:
+            _dbg("read_oauth: revalidate found nothing; keep src", old_src)
+        return c["tok"]
     finally:
         _oauth_token_lock.release()
 
@@ -2496,14 +2640,30 @@ def _label_order(label):
     return 5
 
 
-# 정확 모드 상태 — 토큰 만료(401 지속) 시 폴백 필에 안내를 띄우기 위함
-OAUTH_STATUS = {"auth_error": False}
+# 정확 모드 상태 — 토큰 만료(401 지속) 시 폴백 필에 안내를 띄우기 위함.
+# last_error: 마지막 조회 실패의 종류("http:<code>"|"net"|"parse"), 성공하면 None.
+#   필에는 그리지 않는다(roam_summary_text의 memo 키도 그대로). fetch_exact_usage가
+#   실패 캐시 길이를 정할 때와 디버그 로그에만 쓴다.
+OAUTH_STATUS = {"auth_error": False, "last_error": None}
 
 
 def _fetch_oauth_usage():
+    """OAuth 사용량을 한 번 조회한다. 실패하면 None.
+
+    결과에 따른 토큰 캐시 처리:
+      200      → suspect·auth_error·last_error 모두 내린다.
+      401/403  → 키체인에서 1회 강제 재조회 후 재시도. 그래도 없거나 또 거부되면
+                 auth_error. 재조회가 아무것도 못 찾았으면 죽은 토큰은 캐시에서 지운다
+                 (_read_oauth_token(force=True)가 락 안에서 지우고, 락이 바빠 재조회를
+                 못 한 경우는 여기서 같은 토큰일 때만 지운다).
+      그 외     → 토큰은 그대로 두되 suspect를 올린다. 다음 읽기가 프롬프트 없는
+                 소스로 재검증한다. last_error에 종류를 남긴다.
+    _dbg 줄에는 상태 코드·클래스 이름·불리언만 쓴다. 토큰이나 응답 본문은 절대 안 쓴다.
+    """
     tok = _read_oauth_token()
     if not tok:
         return None
+    c = _oauth_token_cache
     for attempt in (0, 1):
         req = urllib.request.Request(OAUTH_USAGE_URL, headers={
             "Authorization": f"Bearer {tok}",
@@ -2513,21 +2673,45 @@ def _fetch_oauth_usage():
         })
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read().decode())
-            OAUTH_STATUS["auth_error"] = False
-            return _parse_oauth_usage(data)
+                raw = r.read()
         except urllib.error.HTTPError as e:
-            # 토큰 만료 추정 → 키체인에서 1회 재조회 후 재시도 (그래도 실패면 포기)
-            if e.code in (401, 403):
+            code = e.code
+            OAUTH_STATUS["last_error"] = "http:%s" % code
+            _dbg("oauth fetch: http", code, "attempt", attempt)
+            if code in (401, 403):
+                # 토큰 만료 추정 → 키체인에서 1회 재조회 후 재시도 (그래도 실패면 포기)
                 if attempt == 0:
-                    tok = _read_oauth_token(force=True)
-                    if tok:
+                    fresh = _read_oauth_token(force=True)
+                    if fresh:
+                        tok = fresh
                         continue
+                    # 대체 토큰이 없다 — 거부된 토큰을 계속 내지 않는다(락이 바빠
+                    # 재조회를 못 했을 때만 여기 남는다; 걸었다면 이미 지워졌다).
+                    if c["tok"] == tok:
+                        _forget_oauth_token(c)
                 # 재조회한 토큰도 거부 = 키체인 토큰 자체가 만료
                 OAUTH_STATUS["auth_error"] = True
+                return None
+            c["suspect"] = True
             return None
-        except Exception:
+        except Exception as e:
+            # URLError·socket.timeout·SSL·연결 끊김 등 전송 단계 실패 전부
+            OAUTH_STATUS["last_error"] = "net"
+            c["suspect"] = True
+            _dbg("oauth fetch: net", type(e).__name__, "attempt", attempt)
             return None
+        try:
+            rows = _parse_oauth_usage(json.loads(raw.decode()))
+        except Exception as e:
+            OAUTH_STATUS["last_error"] = "parse"
+            c["suspect"] = True
+            _dbg("oauth fetch: parse", type(e).__name__)
+            return None
+        OAUTH_STATUS["auth_error"] = False
+        OAUTH_STATUS["last_error"] = None
+        c["suspect"] = False
+        _dbg("oauth fetch: ok rows", len(rows) if rows else 0)
+        return rows
     return None
 
 
@@ -2688,13 +2872,18 @@ def _fetch_cli_usage():
 def fetch_exact_usage():
     """정확 사용량 [(label, pct, reset_dt, reset_text)] 최대 4줄.
     OAuth 우선, 모델별(Fable 등) 줄이 없으면 CLI(claude -p /usage)에서 보충.
-    180초 캐시 (과호출 시 429)."""
+    180초 캐시 (과호출 시 429). 실패한 조회는 OAUTH_FAIL_RETRY_SEC(60초)만 캐시하되
+    429는 예외로 180초를 그대로 둔다 — 캐시가 존재하는 이유가 과호출이다."""
     now = time.time()
     if now - _oauth_cache["t"] < OAUTH_CACHE_SEC:
         return _oauth_cache["gauges"]
-    _oauth_cache["t"] = now
+    _oauth_cache["t"] = now          # 조회 중인 동안 다른 호출자는 이전 값을 받는다
     rows = _fetch_oauth_usage()
     if rows is None:
+        err = OAUTH_STATUS.get("last_error")
+        if err and err != "http:429":
+            # 실패는 짧게 캐시: t를 과거로 물려 OAUTH_FAIL_RETRY_SEC 뒤에 만료되게 한다.
+            _oauth_cache["t"] = now - (OAUTH_CACHE_SEC - OAUTH_FAIL_RETRY_SEC)
         rows = _fetch_cli_usage()
     elif not any(_label_order(r[0]) == 2 for r in rows):
         # OAuth 응답에 모델별 항목이 없으면 CLI에서 Fable 줄 보충
@@ -4942,6 +5131,178 @@ def app_bundle_path():
     return p
 
 
+# ─────────────────────── 로그인 시 자동 실행 (SMAppService) ───────────────────────
+# 우클릭 메뉴의 체크 항목 하나가 전부다. 설정 파일에는 아무것도 적지 않는다 — OS 의
+# 등록 상태가 유일한 진실이라, 사용자가 시스템 설정에서 끄면 여기서도 꺼진 것으로
+# 보이고, 앱이 몰래 다시 켜는 일이 없다.
+#
+# SMAppService.status() 가 돌려주는 정수. 프레임워크 상수와 같은 값이지만 여기 다시
+# 적는다 — 프레임워크가 없는 곳(macOS 12, 시험)에서도 순수 함수들은 돌아가야 한다.
+SM_STATUS_NOT_REGISTERED = 0
+SM_STATUS_ENABLED = 1
+SM_STATUS_REQUIRES_APPROVAL = 2
+SM_STATUS_NOT_FOUND = 3
+
+# 3(NotFound) 은 설치본에서 "off" 다 — "unavailable" 이 아니다. SDK 헤더는 NotFound 를
+# "An error occurred and no such service could be found" 라고 적어서 첫 구현(794c66f 에서
+# 병합)은 그대로 "unavailable" 로 보냈고, 그 결과 새로 설치한 모든 사용자에게 항목이
+# '(여기서는 사용 불가)' 로 비활성으로 떠서 켤 수 없었다 — 실제 번들 화면에서 확인됐다.
+# 하드웨어 관측(Coordinator, 2026-09-13, macOS 26.5 / Darwin 25.5, Developer ID 서명 번들을
+# 번들 자신의 인터프리터에서 조사 — 기기 하나, 조사 한 번): 한 번도 등록한 적 없는 번들의
+# status() 는 3 이고, 거기서 registerAndReturnError_ 는 (True, None) 을 돌려주며 상태는
+# 1 이 된다; 해제하면 0 이다. 등록이 되는 상태는 '등록 안 됨' 이지 오류가 아니다. 다른
+# macOS 가 같은 자리에서 0 을 돌려주는지는 이 관측으로는 모른다 — 그래서 0 과 3 이 같은
+# 상태로 간다. 어떤 3 이 정말 헤더가 말하는 오류라면, 사용자는 켤 수 있는 항목을 누르고
+# 등록이 (False, err) 로 실패해 autostart_fail 창을 본다 — 켤 수 없는 항목보다 낫다.
+# 0~3 밖의 값은 여전히 "unavailable" 이다.
+_AUTOSTART_STATE_BY_STATUS = {
+    SM_STATUS_NOT_REGISTERED: "off",
+    SM_STATUS_ENABLED: "on",
+    SM_STATUS_REQUIRES_APPROVAL: "approval",
+    SM_STATUS_NOT_FOUND: "off",          # 한 번도 등록한 적 없는 설치본 — 위 주석
+}
+
+
+def autostart_state(status, is_bundle):
+    """SMAppService 상태값 → 메뉴 상태 ("on" | "off" | "approval" | "unavailable").
+
+    설치본: 0 → "off", 1 → "on", 2 → "approval", 3 → "off". 3(NotFound) 이 "off" 인
+    이유는 _AUTOSTART_STATE_BY_STATUS 위 주석에 있다 — 한 번도 등록한 적 없는 번들이
+    돌려주는 값이고, 거기서 등록이 된다. 설치본이 아니면(소스 실행) 상태값이 무엇이든
+    "unavailable" 이다: 소스에서 본 mainAppService 는 파이썬 자신의 서비스라 그 값은
+    우리 것이 아니다. 0~3 밖의 모르는 상태값도 "unavailable" — 켜져 있다고 단정하고
+    해제를 누르게 하지도, 무슨 뜻인지 모르는 값에서 등록을 부르지도 않는다. 3 은
+    모르는 값이 아니다.
+    """
+    if not is_bundle:
+        return "unavailable"
+    return _AUTOSTART_STATE_BY_STATUS.get(status, "unavailable")
+
+
+def autostart_service():
+    """SMAppService.mainAppService(), 없으면 None.
+
+    프레임워크는 호출 시점에 가져온다(app_bundle_path 의 in-function import 와 같은
+    선례). macOS 12 에는 SMAppService 클래스가 없고, py2app 이 프레임워크를 빠뜨린
+    번들도 같은 모양으로 실패한다 — 어느 쪽이든 항목이 비활성으로 보일 뿐 앱은
+    뜬다. mainAppService 를 부르는 곳은 이 함수 하나다.
+    """
+    try:
+        from ServiceManagement import SMAppService
+    except Exception:
+        return None
+    try:
+        return SMAppService.mainAppService()
+    except Exception:
+        return None
+
+
+def autostart_current():
+    """(service, is_bundle) — 메뉴와 핸들러가 같은 규칙으로 서비스를 고른다.
+
+    설치본이 아니면 서비스는 None 이다: 소스 실행의 mainAppService 는 파이썬 자신의
+    서비스라 status() 조차 부르지 않는다. 결과는 그대로 autostart_read_state /
+    autostart_toggle 의 인자다.
+    """
+    is_bundle = bool(app_bundle_path())
+    return (autostart_service() if is_bundle else None), is_bundle
+
+
+def autostart_read_state(service, is_bundle):
+    """지금 상태 — 메뉴가 state["autostart_read"] 훅으로 읽는 값.
+
+    설치본이 아니거나 서비스가 없으면 서비스를 전혀 건드리지 않고 "unavailable"
+    (status() 조차) — 소스 실행에서 읽히는 값은 파이썬 자신의 것이다. status() 가
+    예외를 던져도 "unavailable" — 프레임워크가 오작동한 것이지 상태가 아니다. 새로
+    설치해 한 번도 등록한 적 없는 번들은 status() 가 3(NotFound) 을 돌려주고, 그것은
+    "off" 다(autostart_state) — 항목은 체크 없이 활성으로 보이고, 누르면 등록된다.
+    """
+    if not is_bundle or service is None:
+        return "unavailable"
+    try:
+        status = service.status()
+    except Exception:
+        return "unavailable"
+    return autostart_state(status, is_bundle)
+
+
+def autostart_toggle(service, is_bundle):
+    """메뉴 클릭 한 번. 반환 (새 상태, 오류 키 | None).
+
+    꺼져 있으면(상태 0 또는 3) 등록, 켜져 있으면(1) 해제. 3(NotFound) 은 새 설치가
+    시작하는 자리다 — 한 번도 등록한 적 없는 번들이 돌려주는 값이고, 하드웨어에서 거기서
+    등록이 (True, None) 으로 성공해 1 이 됐다(_AUTOSTART_STATE_BY_STATUS 위 주석). 그래서
+    3 에서 이 함수는 registerAndReturnError_ 를 부른다; 3 을 "unavailable" 로 보던 첫
+    구현은 여기서 아무것도 부르지 않고 ("unavailable", None) 을 돌려줘 항목을 켤 수
+    없었다. 새 상태는 부른 뒤 서비스에서 **다시 읽는다**
+    — 등록이 승인 대기(2)로 떨어질 수 있어서, "등록했으니 켜졌다" 고 가정하면 사용자에게
+    승인 안내를 못 한다. 실패((False, err))는 상태를 바꾸지 않고 "autostart_fail" 로
+    보고한다. 승인 대기 상태에서는 아무것도 부르지 않고 "approval" 을 돌려준다 —
+    호출자가 승인 안내창을 띄운다. 해제해 버리면 사용자가 켜려고 누른 등록이 사라진다.
+    설치본이 아니거나 서비스가 없으면 ("unavailable", None), 서비스는 건드리지 않는다.
+    0~3 밖의 모르는 상태값도 ("unavailable", None) — status() 는 읽었지만 등록·해제는
+    부르지 않는다. 설정 파일·RUNTIME 에는 아무것도 쓰지 않는다.
+    """
+    state = autostart_read_state(service, is_bundle)
+    if state in ("unavailable", "approval"):
+        return state, None
+    try:
+        if state == "on":
+            ok, err = service.unregisterAndReturnError_(None)
+        else:
+            ok, err = service.registerAndReturnError_(None)
+    except Exception as e:
+        ok, err = False, e
+    if not ok:
+        _dbg("autostart: toggle from", state, "failed:", _autostart_err_summary(err))
+        return state, "autostart_fail"
+    return autostart_read_state(service, is_bundle), None
+
+
+def uninstall_autostart(service):
+    """완전 삭제 전에 로그인 항목을 해제한다. 반환 오류 키 | None.
+
+    등록돼 있을 때(1, 2)만 해제한다. 등록한 적 없는 사용자(0, 3)에게 해제를 부르면
+    OS 가 실패를 돌려주고, 그 실패로 삭제를 거절하면 그 사용자는 지울 수 없다.
+    해제 실패는 "autostart_fail" — do_uninstall 은 이것을 받으면 아무것도 지우지
+    않는다(로그인 항목이 사라진 번들을 가리키게 두지 않는다).
+    """
+    if service is None:
+        return None
+    try:
+        status = service.status()
+    except Exception:
+        return "autostart_fail"      # 등록 여부를 모른 채 지우지 않는다
+    if status not in (SM_STATUS_ENABLED, SM_STATUS_REQUIRES_APPROVAL):
+        return None
+    try:
+        ok, err = service.unregisterAndReturnError_(None)
+    except Exception as e:
+        ok, err = False, e
+    if not ok:
+        _dbg("autostart: uninstall unregister failed:", _autostart_err_summary(err))
+        return "autostart_fail"
+    return None
+
+
+def _autostart_err_summary(err):
+    """디버그 로그용 요약 — 도메인과 코드만. 설명문은 경로를 품을 수 있어 적지 않는다."""
+    try:
+        return "%s/%s" % (err.domain(), err.code())
+    except Exception:
+        return type(err).__name__
+
+
+def autostart_open_login_items():
+    """시스템 설정 → 일반 → 로그인 항목을 연다(승인 안내창의 버튼). 반환 성공 여부."""
+    try:
+        from ServiceManagement import SMAppService
+        SMAppService.openSystemSettingsLoginItems()
+        return True
+    except Exception:
+        return False
+
+
 def _uninstall_cleanup_script(app, app_id, lock_dir, lock_id):
     """앱 번들 → 잠금 폴더 순으로, '신원이 맞을 때만' 지우는 /bin/sh 명령.
 
@@ -4997,6 +5358,10 @@ def do_uninstall():
       1. 잠금을 잡는다. 못 잡으면 아무것도 지우지 않고 물러난다.
       2. 지울 번들의 신원을 잠금 안에서 읽는다. 못 읽으면 역시 아무것도 지우지
          않고 물러난다 — 무엇을 지울지 모르는 채로 시작하지 않는다.
+      2½. 로그인 항목을 해제한다(uninstall_autostart). 실패하면 아무것도 지우지
+         않고 물러난다 — 앱은 지워졌는데 로그인 항목이 그 자리를 가리키는 상태를
+         만들지 않는다. 설치본(app)일 때만이다: 소스 실행이 읽는 서비스는 파이썬
+         자신의 것이라 건드리지 않는다.
       3. 번들을 지울 분리된 셸을 **먼저** 띄운다. Popen 이 실패하면 그때까지
          지운 것이 하나도 없으므로 설치는 통째로 그대로다.
       4. 그다음에야 사용자 쪽 파일들을 지운다.
@@ -5029,6 +5394,11 @@ def do_uninstall():
                 # 무엇을 지울지 모르는 채로는 시작하지 않는다. 여기서 물러나면
                 # 지운 것이 없으므로 설치는 그대로다.
                 return False, "could not identify the installed app bundle"
+            # 로그인 항목 해제 — 아직 거절할 수 있는 마지막 단계. 잠금 안에서,
+            # 셸을 띄우기 전에. 실패하면 지운 것이 없으므로 설치는 그대로다.
+            err = uninstall_autostart(autostart_service())
+            if err:
+                return False, err
             # 잠긴 fd 를 그 셸에 그대로 물려준다(업데이트 교체 셸과 같은
             # 방식이다). 여기서 놓아 버리면 '앱을 지우는 2초'가 무방비가 되어,
             # 그 사이에 시작한 업데이터가 잠금을 잡고 이미 사라지는 중인 앱을
@@ -6301,6 +6671,10 @@ def run_gui():
              "roam_display": None, "roam_env": None, "roam_crop": None,
              "roam_rects": None, "roam_mode": None,
              "roam_toggle": None, "roam_interrupt": None,
+             # 로그인 시 자동 실행: rightMouseDown_ 이 부르는 훅 → "on"|"off"|"approval"|
+             # "unavailable". 메뉴를 열 때마다 OS 등록 상태를 다시 읽는다(설정 파일 아님).
+             # 창 없는 시험(직접 만든 state)에선 없다 → 항목이 '사용 불가' 로 비활성.
+             "autostart_read": lambda: autostart_read_state(*autostart_current()),
              # 구독 모드인데 Claude Code 데이터가 전혀 없을 때: None|'install'|'login'.
              # refresh 워커가 매 주기 갱신한다(아래 compute_onboard_state).
              "onboard": None,
@@ -6571,6 +6945,7 @@ def run_gui():
             for title, action in ((t("menu_settings"), "openSettings:"),
                                   (t("menu_toggle"), "togglePanel:"),
                                   (t("menu_roam"), "toggleRoam:"),
+                                  (t("menu_autostart"), "toggleAutostart:"),
                                   (t("menu_reset_size"), "resetScale:"),
                                   (None, None),
                                   (t("menu_uninstall"), "uninstallApp:"),
@@ -6585,6 +6960,20 @@ def run_gui():
                     mi.setState_(1 if RUNTIME.get("roam") else 0)   # 체크 표시
                     # macOS '동작 줄이기' 가 켜져 있으면 어차피 움직이지 않는다 → 비활성
                     mi.setEnabled_(not state["reduce_motion"])
+                elif action == "toggleAutostart:":
+                    # 체크 표시는 설정 파일이 아니라 OS 등록 상태에서 온다 — 메뉴를 열
+                    # 때마다 훅으로 다시 읽으므로 시스템 설정에서 바꾼 것도 그대로 보인다.
+                    # 훅은 state 에 있다(roam_interrupt 와 같은 모양): 창 없는 시험에선
+                    # 없고, 그때는 '사용 불가' 다.
+                    read = state.get("autostart_read")
+                    a_state = read() if read is not None else "unavailable"
+                    if a_state == "unavailable":
+                        # 소스 실행, macOS 12(SMAppService 없음), 또는 서비스가 없음
+                        mi.setTitle_(t("autostart_unavailable"))
+                        mi.setEnabled_(False)
+                    else:
+                        # -1 = NSControlStateValueMixed: 등록은 됐지만 승인 대기
+                        mi.setState_({"on": 1, "off": 0}.get(a_state, -1))
                 menu.addItem_(mi)
             # 펫 선택 서브메뉴 (우클릭 때마다 폴더를 새로 스캔 → 새로 넣은 펫 즉시 반영)
             pet_list = discover_pets()
@@ -6607,7 +6996,7 @@ def run_gui():
                 pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_pets"), None, "")
                 pet_item.setSubmenu_(sub)
-                menu.insertItem_atIndex_(pet_item, 4)       # '크기 원래대로' 다음
+                menu.insertItem_atIndex_(pet_item, 5)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -7484,6 +7873,31 @@ def run_gui():
             else:
                 cfg["roam"] = value
 
+        def toggleAutostart_(self, sender):
+            # 우클릭 체크 항목. 결정은 autostart_toggle 이 하고, 여기서는 결과를 알릴
+            # 뿐이다. 설정 파일에는 아무것도 쓰지 않는다 — 다음에 메뉴를 열면 OS 에서
+            # 다시 읽는다.
+            new_state, err = autostart_toggle(*autostart_current())
+            if err:
+                a = NSAlert.alloc().init()
+                a.setMessageText_(t("autostart_title"))
+                a.setInformativeText_(t("autostart_fail"))
+                a.setAlertStyle_(2)                      # NSAlertStyleCritical
+                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+                a.runModal()
+                return
+            if new_state == "approval":
+                # 등록은 됐지만 macOS 가 사용자의 승인을 기다린다. 첫 버튼이 기본값이라
+                # 엔터가 곧 '로그인 항목 열기' 다.
+                a = NSAlert.alloc().init()
+                a.setMessageText_(t("autostart_title"))
+                a.setInformativeText_(t("autostart_approval"))
+                a.addButtonWithTitle_(t("autostart_open_settings"))
+                a.addButtonWithTitle_(t("unin_cancel"))
+                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+                if a.runModal() == 1000:                 # 1000 = 첫 버튼
+                    autostart_open_login_items()
+
         def resetScale_(self, sender):
             set_scale(0.5)
 
@@ -7529,7 +7943,12 @@ def run_gui():
                 return
             b = NSAlert.alloc().init()
             b.setMessageText_(t("unin_title"))
-            b.setInformativeText_(t("unin_fail") if err else t("unin_devmode"))
+            if err == "autostart_fail":
+                # 로그인 항목을 못 풀어 삭제를 거절했다 — 앱도 설정도 그대로다.
+                msg = t("unin_fail") + "\n\n" + t("autostart_fail")
+            else:
+                msg = t("unin_fail") if err else t("unin_devmode")
+            b.setInformativeText_(msg)
             b.runModal()
 
         def doUpdate_(self, sender):

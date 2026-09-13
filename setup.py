@@ -31,7 +31,9 @@ setup(
             },
             # certifi: HTTPS 인증서 검증용 CA 번들(특히 CA 없는 python.org 빌드 대비)
             "packages": ["objc", "certifi"],
-            "includes": ["Foundation", "AppKit", "Quartz"],
+            # ServiceManagement: 우클릭 '로그인 시 자동 실행'(SMAppService). 빠지면
+            # 번들에서는 항목이 영영 비활성이고 소스 실행만 되는 상태가 된다.
+            "includes": ["Foundation", "AppKit", "Quartz", "ServiceManagement"],
             # 사용 안 하는 대형 모듈 제외해 용량 축소
             "excludes": ["test", "tkinter", "lib2to3", "pydoc_data",
                          "idlelib", "distutils", "setuptools", "pip"],
