@@ -53,10 +53,10 @@ def check_version_resource(exe_path):
     """ClaudePet.exe 가 버전 리소스를 달고 있는가 → 문제 목록(비어 있으면 통과). 절대 예외를 던지지 않는다.
 
     없으면 Windows 가 항목 이름을 "ClaudePet.exe", 게시자를 빈칸으로 보여 준다(실기 관찰, 기기 한 대, Windows 11,
-    2026-09-14 — 보고에 남은 자리는 "설정/작업 관리자" 까지이고 어느 화면이었는지는 기록되지 않았다. 어느 쪽이든
-    고치는 것은 같다: 시작 앱 목록(설정 › 시작 앱, 작업 관리자 › 시작 앱·세부 정보)은 exe 의
-    FileDescription/CompanyName 을 읽고, 설정 › 앱 → 설치된 앱은 Inno 의 ARP 값을 읽는데 그쪽 AppPublisher 는
-    installer.iss 에 이미 있다. 화면 이름 확정은 다음 실기 몫 — windows/README.md "실기에서 확인할 것").
+    2026-09-14 — 화면은 `설정 › 앱 › 시작 앱` 이었다. 작업 관리자도, 설정 › 앱 → 설치된 앱도 아니었고, 고친 뒤 그 줄은
+    "Claude Pet / Yeongyu Yang" 으로 보였다. 화면과 무관하게 참인 것: 시작 앱 목록(설정 › 앱 › 시작 앱,
+    작업 관리자 › 시작 앱·세부 정보)은 exe 의 FileDescription/CompanyName 을 읽고, 설정 › 앱 → 설치된 앱은 Inno 의 ARP
+    값을 읽는데 그쪽 AppPublisher 는 installer.iss 에 이미 있다 — windows/README.md "exe 의 버전 리소스").
     PyInstaller 는 --version-file 을 준 경우에만 리소스를 넣으므로, 이 검사는 그 인자가 빠진 빌드를 잡는 것이다.
 
     검사 방법은 호스트에 기대지 않는다: 버전 리소스의 문자열은 PE 안에 UTF-16LE 로 들어가므로 파일 바이트에서

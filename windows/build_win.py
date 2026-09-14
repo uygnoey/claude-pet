@@ -80,11 +80,12 @@ def app_version():
 
 VERSION_RESOURCE_NAME = "version_info.txt"
 # exe 의 버전 리소스에 박히는 고정 문자열 — 이 dict 가 유일한 출처다(게이트의 verify_win_artifact 도 여기서 읽는다).
-# 관찰(기기 한 대, Windows 11, 2026-09-14): 항목 이름이 "ClaudePet.exe", 게시자가 빈칸으로 보였고, 바로 위 Claude 항목은
-# "Claude / Anthropic, PBC" 였다. 보고에 남은 자리는 "설정/작업 관리자" 까지이고 어느 화면인지는 기록되지 않았다 — 그러니
-# 여기서 화면 이름을 단정하지 않는다(AGENTS.md §5). 어느 쪽이든 고치는 것은 같다: 시작 앱 목록(설정 › 시작 앱,
-# 작업 관리자 › 시작 앱·세부 정보)은 exe 의 FileDescription/CompanyName 을 읽고, 설정 › 앱 → 설치된 앱은 Inno 의 ARP 값을
-# 읽는데 그쪽 AppPublisher 는 installer.iss 에 이미 있다. 화면 확정은 다음 실기 몫(windows/README.md "실기에서 확인할 것").
+# 관찰(기기 한 대, Windows 11, 2026-09-14): 화면은 `설정 › 앱 › 시작 앱` 이었다(작업 관리자도, 설정 › 앱 → 설치된 앱도 아니다 —
+# 이번 실기에서 확정됐다). 거기서 항목 이름이 "ClaudePet.exe", 게시자가 빈칸으로 보였고, 바로 위 Claude 항목은
+# "Claude / Anthropic, PBC" 였다. 고친 뒤 그 줄은 "Claude Pet / Yeongyu Yang" 으로 보인다. 화면과 무관하게 참인 것도 그대로다:
+# 시작 앱 목록(설정 › 앱 › 시작 앱, 작업 관리자 › 시작 앱·세부 정보)은 exe 의 FileDescription/CompanyName 을 읽고,
+# 설정 › 앱 → 설치된 앱은 Inno 의 ARP 값을 읽는데 그쪽 AppPublisher 는 installer.iss 에 이미 있다 — 그래서 고치는 자리는
+# 어느 쪽이든 exe 의 버전 리소스 하나다(windows/README.md "exe 의 버전 리소스").
 VERSION_STRINGS = {
     "CompanyName": "Yeongyu Yang",
     "FileDescription": "Claude Pet",

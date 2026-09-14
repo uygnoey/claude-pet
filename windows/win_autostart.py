@@ -9,22 +9,25 @@ completely" therefore all act on one value, and what this module writes is
 what ``claude_pet_win.delete_run_value_if_ours`` recognises: both sides
 compare through ``win_update.run_value_is_ours``.
 
-Windows keeps a second location the Run value alone cannot show. Task Manager
-› Startup apps does not delete the value when the user disables an app; it
-writes a REG_BINARY of the same name under
-``HKCU\\…\\Explorer\\StartupApproved\\Run``. ``startup_approved_enabled`` is the
-one place that byte encoding lives — the **low bit of the first byte**: even is
-enabled, odd is disabled. The hardware run that settled this (one Windows 11
-machine, 2026-09-14) wrote ``0x00`` on re-enable and ``0x01`` on disable, and
-found ``0x02`` on third-party entries the UI had never touched; the shipped
-guess ("``0x02`` enabled, ``0x03`` disabled") read the enabled state as
-disabled, so a machine Windows was launching us on showed the item unchecked.
-If a later hardware run moves a byte, that one function and its test table
-change together and nothing else does.
+Windows keeps a second location the Run value alone cannot show. Neither
+startup UI — Settings › Apps › Startup apps, nor Task Manager › Startup apps —
+deletes the value when the user disables an app; **both write a REG_BINARY of
+the same name** under ``HKCU\\…\\Explorer\\StartupApproved\\Run``, so naming one
+of them as *the* source of that record is a slip: they are two front ends on
+one key. ``startup_approved_enabled`` is the one place that byte encoding
+lives — the **low bit of the first byte**: even is enabled, odd is disabled.
+The hardware run that settled this (one Windows 11 machine, 2026-09-14) saw two
+pairs from the same UI — ``0x01`` on disable / ``0x00`` on re-enable from no
+prior record, and ``0x03`` / ``0x02`` from an existing ``0x02`` record — plus
+``0x02`` on the machine's eight third-party entries, which that UI had never
+touched; the shipped guess ("``0x02`` enabled, ``0x03`` disabled") read the
+enabled state as disabled, so a machine Windows was launching us on showed the
+item unchecked. If a later hardware run moves a byte, that one function and its
+test table change together and nothing else does.
 
 There is no persisted preference, mirroring the macOS half (CLAUDE.md
 § "Start at sign-in"): the registry is the only source of truth, re-read every
-time the menu opens, so a change the user makes in Task Manager shows as-is
+time the menu opens, so a change the user makes in either startup UI shows as-is
 and is never re-applied behind their back. Nothing here reads or writes the
 settings file.
 
@@ -53,7 +56,7 @@ except ImportError:                     # imported bare with windows/ first on s
 # The two names the installer, the updater's uninstall and this toggle share — one source, so they cannot drift.
 RUN_SUBKEY = _wu.RUN_SUBKEY                              # Software\Microsoft\Windows\CurrentVersion\Run
 RUN_VALUE_NAME = _wu.RUN_VALUE_NAME                      # ClaudePet
-# Explorer's mirror of the Run value: Task Manager › Startup apps writes its enabled/disabled verdict here.
+# Explorer's mirror of the Run value: Settings › Apps › Startup apps and Task Manager › Startup apps both write their verdict here.
 STARTUP_APPROVED_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
 
 _STARTUP_APPROVED_DISABLED_BIT = 0x01   # low bit of the first byte: set = disabled, clear = enabled
@@ -77,23 +80,41 @@ def startup_approved_enabled(blob):
     disabled.** So ``0x00`` and ``0x02`` are enabled, ``0x01`` and ``0x03`` are
     disabled.
 
-    Which half of that is measured and which is extrapolated, kept apart on
-    purpose (AGENTS.md §5):
+    What was measured, the mechanism those measurements point to, and what is
+    still extrapolated, kept in three separate items on purpose (AGENTS.md §5):
 
-    * **Observed**, on one machine — Windows 11, through Settings › Startup
-      apps and Task Manager › Startup apps, 2026-09-14. Disabling our entry
-      wrote ``01 00 00 00`` followed by an 8-byte FILETIME (first byte
-      ``0x01``); re-enabling it wrote twelve zero bytes (first byte ``0x00``);
-      third-party entries that UI had never touched carried ``0x02``. One
-      machine, one Windows build: enough to *refute* the encoding this code
-      shipped with ("``0x02`` enabled, ``0x03`` disabled"), which read the
-      enabled state as disabled and showed the menu item unchecked while
-      Windows was launching us.
-    * **Extrapolated** — that the same low bit decides it for every other
-      first byte (``0x04`` enabled, ``0x05`` disabled, …). That is a hypothesis
-      from the shape of the three observed values, not an observation, and no
-      second party has reproduced it. A later hardware run may refute it
-      without disturbing the observed half.
+    * **Observed**, on one machine — Windows 11, 2026-09-14, toggling through
+      the startup UI (Settings › Apps › Startup apps and Task Manager › Startup
+      apps write the same key; both pairs below came from the same UI). **Two
+      pairs, from two starting states:**
+
+      - from *no record*: disable wrote ``01 00 00 00`` followed by an 8-byte
+        FILETIME (first byte ``0x01``); re-enable wrote twelve zero bytes
+        (first byte ``0x00``);
+      - from an existing ``02 00 00 00 00 …`` record: disable wrote ``0x03``,
+        re-enable wrote ``0x02`` again.
+
+      Disabling is what appends the FILETIME; enabling writes the first byte
+      followed by zeros. The machine's **eight** third-party entries, none of
+      them ever touched through that UI, all carried ``0x02``.
+    * **The mechanism those pairs point to** — Windows keeps the existing
+      record's upper bits and flips only the lowest one. One rule accounts for
+      ``0x00``/``0x01`` and for ``0x02``/``0x03``, and it is the rule this
+      function implements — so on the four bytes it saw the observation
+      *confirms* the even/odd code, and nothing here changes. It is still an
+      inference
+      from one machine's behaviour and not a documented contract, and no second
+      party has reproduced it (AGENTS.md §5) — what it is no longer is a bare
+      extrapolation from a single value pair: ``0x02`` ↔ ``0x03`` is a directly
+      observed first byte other than ``0x00``/``0x01`` obeying the same bit.
+      (One machine, one Windows build: still enough only to *refute*. It did
+      refute the encoding this code shipped with — "``0x02`` enabled, ``0x03``
+      disabled" — which read the enabled state as disabled and showed the menu
+      item unchecked while Windows was launching us.)
+    * **Still extrapolated** — first bytes above ``0x03`` (``0x04`` enabled,
+      ``0x05`` disabled, …). No record carrying one was seen; they follow from
+      the mechanism above, not from an observation. A later hardware run may
+      refute this half without disturbing the observed one.
 
     Anything that is not a non-empty ``bytes``/``bytearray`` — ``None``, an
     empty blob, a ``str``, a ``memoryview`` — reads as *not* enabled, and
@@ -112,7 +133,7 @@ def _state_of(run, approved, exe):
     if not _wu.run_value_is_ours(run, exe):
         return "off"                    # absent, someone else's path, or not a string at all
     if approved is None:
-        return "on"                     # Task Manager has never ruled on us: the Run value stands
+        return "on"                     # neither startup UI has ruled on us: the Run value stands
     return "on" if startup_approved_enabled(approved) else "off"
 
 

@@ -41,8 +41,9 @@ macOS 판의 같은 상수·같은 문자열·같은 좌표로 그린다. 폰트
   · 모든 단계는 %LOCALAPPDATA%\\me.yeongyu.claudepet\\update.log 에 개수·상태만 남긴다(경로 없음 — CLAUDE.md § Privacy).
 로그인 시 자동 실행(Track B-W, 2026-09-13): 우클릭 체크 항목 — macOS 판과 같은 자리(화면 돌아다니기 다음)·같은 TR 키. 판단은
   windows/win_autostart.py(순수, macOS 에서 시험): 설치 파일의 startup 옵션이 쓰는 HKCU Run 값 `ClaudePet` = "<exe>" 그대로 읽고 쓰며,
-  작업 관리자 › 시작 앱의 사용 안 함(Explorer StartupApproved)도 본다. 설정 키는 없다 — 메뉴를 열 때마다 OS 에서 다시 읽는다
-  (CLAUDE.md § "Start at sign-in" 과 같은 계약). 소스 실행(pythonw)은 항목이 '(여기서는 사용 불가)' 로 비활성이다.
+  시작 앱 UI 의 사용 안 함(Explorer StartupApproved — 설정 › 앱 › 시작 앱과 작업 관리자 › 시작 앱이 같은 키에 쓴다)도 본다.
+  설정 키는 없다 — 메뉴를 열 때마다 OS 에서 다시 읽는다(CLAUDE.md § "Start at sign-in" 과 같은 계약).
+  소스 실행(pythonw)은 항목이 '(여기서는 사용 불가)' 로 비활성이다.
 `claude_pet.py` 와 macOS 빌드·릴리즈 스크립트는 이 파일로 바뀌지 않는다.
 
 실행: `pythonw windows\\claude_pet_win.py` (저장소 루트에서, Python 3.13 + PySide6 + Pillow)
@@ -1096,7 +1097,8 @@ class PetWindow(QWidget):
         m.addAction(roam)
         # 로그인 시 자동 실행 — macOS 판 rightMouseDown_ 과 같은 자리(화면 돌아다니기 다음, 크기 원래대로 앞), 같은 TR 키.
         # 체크 표시는 설정 파일이 아니라 OS(HKCU Run 값 + Explorer StartupApproved)에서 오고, 메뉴가 열릴 때마다(aboutToShow)
-        # 다시 읽는다 — 작업 관리자에서 끈 것도 그대로 보인다. 판단은 win_autostart, 여기서는 항목과 알림창만.
+        # 다시 읽는다 — 설정 › 앱 › 시작 앱이나 작업 관리자에서 끈 것도 그대로 보인다(두 화면이 같은 키에 쓴다).
+        # 판단은 win_autostart, 여기서는 항목과 알림창만.
         autostart = QAction(cp.t("menu_autostart"), m, checkable=True)
         autostart.triggered.connect(self._toggle_autostart)
         m.addAction(autostart)
