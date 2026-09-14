@@ -69,6 +69,8 @@ Windows provides an update check in the right-click menu. If a newer version is 
 
 Usage log parsing happens locally on the user's computer. Exact mode sends the existing Claude Code credential to Anthropic to request account usage. Update checking and downloading contact GitHub. Those usage and update paths do not upload prompts, transcripts or source code. The app also reads its settings, assets and installed resources; it is not an offline-only program.
 
+The website at claude-pet.yeongyu.me is separate from the app. It runs Google Analytics 4 on every page to count visits; measurement is not optional there. The app never contacts the website or Google.
+
 Optional Admin API mode reports Anthropic Console organization costs and a configured budget. This is separate from Claude subscription limits. A configured Admin API key is stored in plaintext in ~/.claude_pet.json, under the user profile on Windows.
 
 ## Scope and independence
@@ -78,6 +80,7 @@ This release monitors Claude, not other AI services. Claude Pet is an independen
 ## Canonical links
 
 Website: https://claude-pet.yeongyu.me/
+Website privacy: https://claude-pet.yeongyu.me/privacy.html
 Repository: https://github.com/uygnoey/claude-pet
 Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.24
 Latest downloads: https://github.com/uygnoey/claude-pet/releases/latest
