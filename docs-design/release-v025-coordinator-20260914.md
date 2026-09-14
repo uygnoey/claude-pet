@@ -118,3 +118,43 @@ no production file, its wording was prescribed in advance and in writing by the 
 that did not write it, and no test reads these READMEs.
 
 Signed: Coordinator, main session `55c3dee4-727f-4a94-b960-66540b129014`, 2026-09-14.
+
+## Addendum — the Windows artefacts, corrected twice (2026-09-14)
+
+Two things above are wrong and are corrected here rather than edited away.
+
+**1. The digests to check are not the ones this file names.** It quotes the `6d94c4d`
+build (`6f2be9f2…` / `e0c46194…`). Those are superseded: the Windows session rebuilt from
+`38b2eb4`, the branch HEAD that carries the documentation corrections, and that build is
+what goes on the release. Its digests, to be re-measured here before any upload rather
+than taken on report:
+
+| file | bytes | sha256 |
+| --- | --- | --- |
+| `claude-pet-win.zip` | 72,507,793 | `98f440b35368f46f16d8d15480ca6f08565b34da4ebf0683360e1c132ba9cc9e` |
+| `claude-pet-win-setup.exe` | 56,054,985 | `e1c39d764e3a102a96bb4efb1ac280d2f811b44f00b5d3123e7e6b1abb7f572c` |
+
+The in-zip marker reads version 0.25, the exe carries the new version resource
+(FileDescription "Claude Pet", CompanyName "Yeongyu Yang", FileVersion 0.25), and both are
+**unsigned**. The `6d94c4d` → `38b2eb4` change to `windows/*.py` is comments and docstrings
+only, so behaviour is identical — but docstrings land in the PyInstaller archive, so the
+bytes differ and the earlier pair must not be used.
+
+**2. "They arrive here on a temporary branch" was a false premise, and the transfer is not
+happening that way.** I wrote that from a belief that v0.24's Windows assets had been moved
+through a `windows-assets-v024` branch. The Windows session checked and I confirmed it here:
+`git log --all -- 'release/claude-pet-win*'` returns no commit, the reflog names no such
+branch, and no such branch exists on the remote. It never happened. On top of that
+`.gitignore` carries `*.zip`, so committing the zip would need `git add -f` to override the
+repository's own rule, and this clone's `.git` is already 159 MB — 128 MB of binaries would
+stay in GitHub's copy even after the branch was deleted.
+
+The Windows session put the three options to the user, who chose to keep binaries out of
+git and upload them as release assets directly. That decision stands over anything this
+file says, and over my request to that session. **The upload is therefore the user's, not
+this session's**; what remains for me is to verify the two assets after they are up — names
+exactly `claude-pet-win.zip` and `claude-pet-win-setup.exe`, since the in-app updater finds
+them by those names — and only then ask for the end-to-end upgrade check.
+
+Until they are up, `v0.25` is Latest with no Windows download, and the third release-notes
+bullet has nothing behind it for Windows users.
