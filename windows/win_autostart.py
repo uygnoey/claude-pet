@@ -13,10 +13,14 @@ Windows keeps a second location the Run value alone cannot show. Task Manager
 › Startup apps does not delete the value when the user disables an app; it
 writes a REG_BINARY of the same name under
 ``HKCU\\…\\Explorer\\StartupApproved\\Run``. ``startup_approved_enabled`` is the
-one place that byte encoding lives — first byte ``0x02`` enabled, ``0x03``
-disabled — because the encoding is from memory and is to be confirmed on
-hardware (windows/README.md, "실기에서 확인할 것"); if the hardware run moves a
-byte, that function and its test table change together and nothing else does.
+one place that byte encoding lives — the **low bit of the first byte**: even is
+enabled, odd is disabled. The hardware run that settled this (one Windows 11
+machine, 2026-09-14) wrote ``0x00`` on re-enable and ``0x01`` on disable, and
+found ``0x02`` on third-party entries the UI had never touched; the shipped
+guess ("``0x02`` enabled, ``0x03`` disabled") read the enabled state as
+disabled, so a machine Windows was launching us on showed the item unchecked.
+If a later hardware run moves a byte, that one function and its test table
+change together and nothing else does.
 
 There is no persisted preference, mirroring the macOS half (CLAUDE.md
 § "Start at sign-in"): the registry is the only source of truth, re-read every
@@ -52,8 +56,7 @@ RUN_VALUE_NAME = _wu.RUN_VALUE_NAME                      # ClaudePet
 # Explorer's mirror of the Run value: Task Manager › Startup apps writes its enabled/disabled verdict here.
 STARTUP_APPROVED_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
 
-_STARTUP_APPROVED_ENABLED = 0x02        # first byte; the rest is padding
-_STARTUP_APPROVED_DISABLED = 0x03       # first byte; followed by the FILETIME of the disable
+_STARTUP_APPROVED_DISABLED_BIT = 0x01   # low bit of the first byte: set = disabled, clear = enabled
 
 
 def run_value_for(exe):
@@ -70,16 +73,38 @@ def run_value_for(exe):
 def startup_approved_enabled(blob):
     """True iff a StartupApproved blob says "enabled" — the only place the byte encoding lives.
 
-    ``0x02`` as the first byte is enabled; anything else — ``0x03``
-    (disabled), an empty blob, ``None``, a value of the wrong type — reads as
-    *not* enabled, never raises. The fail-safe direction is deliberate: a blob
-    this code cannot read is not evidence that Windows will launch us. Read as
-    "off", the item shows unchecked and the next click deletes the entry
-    (absent = enabled), which is the self-healing path; read as "on" it would
-    show a checkmark Windows does not honour and no click would fix it.
+    **The rule: the low bit of the first byte. Even means enabled, odd means
+    disabled.** So ``0x00`` and ``0x02`` are enabled, ``0x01`` and ``0x03`` are
+    disabled.
+
+    Which half of that is measured and which is extrapolated, kept apart on
+    purpose (AGENTS.md §5):
+
+    * **Observed**, on one machine — Windows 11, through Settings › Startup
+      apps and Task Manager › Startup apps, 2026-09-14. Disabling our entry
+      wrote ``01 00 00 00`` followed by an 8-byte FILETIME (first byte
+      ``0x01``); re-enabling it wrote twelve zero bytes (first byte ``0x00``);
+      third-party entries that UI had never touched carried ``0x02``. One
+      machine, one Windows build: enough to *refute* the encoding this code
+      shipped with ("``0x02`` enabled, ``0x03`` disabled"), which read the
+      enabled state as disabled and showed the menu item unchecked while
+      Windows was launching us.
+    * **Extrapolated** — that the same low bit decides it for every other
+      first byte (``0x04`` enabled, ``0x05`` disabled, …). That is a hypothesis
+      from the shape of the three observed values, not an observation, and no
+      second party has reproduced it. A later hardware run may refute it
+      without disturbing the observed half.
+
+    Anything that is not a non-empty ``bytes``/``bytearray`` — ``None``, an
+    empty blob, a ``str``, a ``memoryview`` — reads as *not* enabled, and
+    nothing raises. The fail-safe direction is unchanged: a blob this code
+    cannot read is not evidence that Windows will launch us. Read as "off" the
+    item shows unchecked and the next click deletes the entry (absent =
+    enabled), which is the self-healing path; read as "on" it would show a
+    checkmark Windows does not honour and no click would fix it.
     """
     return bool(isinstance(blob, (bytes, bytearray)) and len(blob) > 0
-                and blob[0] == _STARTUP_APPROVED_ENABLED)
+                and not blob[0] & _STARTUP_APPROVED_DISABLED_BIT)
 
 
 def _state_of(run, approved, exe):

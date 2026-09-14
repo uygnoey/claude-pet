@@ -12,10 +12,13 @@ Everything here is testable on macOS: no ``winreg``, no ``msvcrt``, no
 ``ctypes.windll`` at import time, and nothing touches the network except
 through an injected ``fetch_json``.
 
-The core is reached as a module attribute (``cp._zip_members_are_safe``,
+The core is reached through ``win_core.import_core()`` — the one module that
+owns that import — and kept as a module attribute (``cp._zip_members_are_safe``,
 ``cp._ver_tuple``) rather than bound with ``from claude_pet import …``, so the
 delegation stays observable and the two ports cannot drift on what "newer"
 or "safe archive" means. ``verify_release_artifact.py`` takes the same stance.
+A bare ``import claude_pet`` here would work on macOS and die on Windows at the
+core's ``import fcntl``, which is exactly what it used to do (windows/win_core.py).
 
 Privacy (CLAUDE.md § Privacy): ``log_update()`` writes counts and status
 tokens only. Callers must never pass a path, a project name or a session id
@@ -28,16 +31,19 @@ import json
 import ntpath
 import os
 import re
-import sys
 import urllib.parse
 import urllib.request
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(_HERE)
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+try:                                    # imported as windows.win_update — the test suite, from the repo root
+    from . import win_core as _win_core
+except ImportError:                     # imported bare with windows/ first on sys.path — the port and the bundle
+    import win_core as _win_core
 
-import claude_pet as cp  # noqa: E402  — the core; attribute access on purpose (see module docstring)
+# The core, through the one module that owns that import (windows/win_core.py).
+# Never `import claude_pet` here: on Windows the core needs the fcntl shim and
+# the CDLL detour, and this module is reached by build_win.py and
+# verify_win_artifact.py, which used to die at this line on a real machine.
+cp = _win_core.import_core()  # attribute access on purpose (see module docstring)
 
 # ── names shared with build_win.py / installer.iss / verify_win_artifact.py ──
 CACHE_DIR_NAME = "me.yeongyu.claudepet"            # %LOCALAPPDATA%\me.yeongyu.claudepet (mirrors UPDATE_LOCK_DIR)
@@ -50,7 +56,17 @@ APP_DIR_NAME = "ClaudePet"                         # the one root inside claude-
 EXE_NAME = "ClaudePet.exe"
 UNINS_NAME = "unins000.exe"
 RELEASE_MARKER = os.path.join("_internal", "claudepet-release.json")
-INNO_UNINSTALL_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{me.yeongyu.claudepet}_is1"
+# Derived from installer.iss's `AppId={{me.yeongyu.claudepet}}`, and it is not a
+# transcription error: Inno expands a *leading* "{{" to one literal "{" and
+# carries everything else — the trailing "}}" included — through unchanged; the
+# uninstaller then appends its own suffix, giving
+# `{me.yeongyu.claudepet}}_is1`. Two closing braces is what the real hive holds
+# (an uninstall log on Windows 11 printed
+# `Deleting registry key: …\{me.yeongyu.claudepet}}_is1`, 2026-09-14). With one
+# brace this key is never found, install_kind() answers "portable" on a genuine
+# installed copy, and both the uninstall plan and the in-app update then take
+# the wrong branch.
+INNO_UNINSTALL_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{me.yeongyu.claudepet}}_is1"
 RUN_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_VALUE_NAME = "ClaudePet"
 MUTEX_NAME = r"Local\me.yeongyu.claudepet"
@@ -650,6 +666,42 @@ def build_uninstall_script(app_dir, pid):
         f"    try {{ Remove-Item -LiteralPath {q(app_dir)} -Recurse -Force -ErrorAction Stop; break }}",
         "    catch { Start-Sleep -Milliseconds 500 }",
         "  }",
+        "}",
+        "try { Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue } catch { }",
+        "exit 0",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def build_inno_uninstall_script(argv, pid):
+    """PowerShell text that runs the Inno uninstaller **after** the pet has exited.
+
+    Same shape as ``build_uninstall_script``, for the other install kind: wait
+    for ``pid`` → refuse if it is still alive → run ``argv`` (the plan's
+    ``unins000.exe /SILENT`` step) → delete itself.
+
+    Launching ``unins000.exe`` from a live pet is the race the hardware hit
+    from the Settings UI: the uninstaller deletes the ARP entry and the Run
+    value first, then fails on every file the running process holds open
+    ("Failed to delete the file; it may be in use (5)"), and still exits 0 —
+    leaving the app folder behind with no entry left to retry from. The
+    installer's own ``[UninstallRun]`` kill step covers an uninstall started
+    from Settings; this covers the one we start ourselves, without killing the
+    process that is asking.
+    """
+    q = ps_quote
+    pid = int(pid)
+    items = [str(a) for a in argv]
+    exe_q = q(items[0])
+    rest = ", ".join(q(a) for a in items[1:])
+    start = (f"Start-Process -FilePath {exe_q}" + (f" -ArgumentList {rest}" if rest else ""))
+    lines = [
+        "# ClaudePet inno uninstall helper — generated by windows/win_update.py.",
+        "$ErrorActionPreference = 'Stop'",
+        f"try {{ Wait-Process -Id {pid} -Timeout 120 -ErrorAction Stop }} catch {{ }}",
+        f"if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ exit 2 }}",
+        f"if (Test-Path -LiteralPath {exe_q}) {{",
+        f"  try {{ {start} }} catch {{ exit 3 }}",
         "}",
         "try { Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue } catch { }",
         "exit 0",

@@ -34,8 +34,10 @@ macOS 판의 같은 상수·같은 문자열·같은 좌표로 그린다. 폰트
   · 잠금: portable 은 공유 모드 없는 잠금 핸들을 헬퍼에 물려주어 헬퍼가 끝날 때까지 산다. inno 설치 파일은 핸들을 물려받지 않고
     앱 쪽 핸들도 띄운 직후 닫히므로, 설치 파일이 도는 동안 두 번째 업데이트와 완전 삭제를 막는 것은 state["installing"] 표시다
     (win_update.uninstall_refusal); 설치 파일이 앱을 닫지 않고 끝나면 _reap_installer 가 표시를 지운다.
-  · 완전 삭제: macOS 판 UNINSTALL_PATHS 의 사용자 파일 + 캐시 폴더 + HKCU Run 값(우리 exe 일 때만) 을 지우고, inno 는
-    unins000.exe /SILENT, portable 은 종료 뒤 폴더를 지우는 헬퍼. %USERPROFILE%\\.claude_pet(펫)은 남긴다.
+  · 완전 삭제: macOS 판 UNINSTALL_PATHS 의 사용자 파일 + 캐시 폴더 + HKCU Run 값(우리 exe 일 때만) 을 지우고, 두 종류 다
+    "펫이 끝난 뒤" 에 도는 헬퍼에 맡긴다 — inno 는 pid 를 기다렸다가 unins000.exe /SILENT 를 부르는 PowerShell 헬퍼,
+    portable 은 종료 뒤 폴더를 지우는 헬퍼. 펫이 살아 있는 채로 제거 프로그램을 띄우면 ARP 항목과 Run 값만 지워지고
+    앱 트리는 "사용 중" 으로 남는다(실기 2026-09-14). %USERPROFILE%\\.claude_pet(펫)은 남긴다.
   · 모든 단계는 %LOCALAPPDATA%\\me.yeongyu.claudepet\\update.log 에 개수·상태만 남긴다(경로 없음 — CLAUDE.md § Privacy).
 로그인 시 자동 실행(Track B-W, 2026-09-13): 우클릭 체크 항목 — macOS 판과 같은 자리(화면 돌아다니기 다음)·같은 TR 키. 판단은
   windows/win_autostart.py(순수, macOS 에서 시험): 설치 파일의 startup 옵션이 쓰는 HKCU Run 값 `ClaudePet` = "<exe>" 그대로 읽고 쓰며,
@@ -64,37 +66,11 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)             # win_update.py 는 이 파일 옆 (소스 실행·PyInstaller 번들 모두)
 
 
-def _import_core():
-    """`claude_pet` 을 Windows 에서 import 한다 — 기존 파일을 고치지 않고 두 가지만 우회한다.
+import win_core  # noqa: E402  — 코어 import 의 유일한 주인 (windows/win_core.py)
 
-    1. `import fcntl`: POSIX 전용 모듈. windows/compat/fcntl.py(msvcrt 기반 flock) 를 sys.path 맨 앞에 둔다.
-    2. `ctypes.CDLL(None)`: macOS 의 renameatx_np 탐색이 Windows 에서는 OSError 가 아니라 TypeError 를 내
-       모듈 최상단에서 죽는다. import 하는 동안만 CDLL 을 감싸 None 인자에 OSError 를 내게 하면 기존
-       `except (OSError, AttributeError)` 가 잡아 `_RENAMEATX_NP = None` 폴백(이 OS 에는 없음)을 탄다.
-    macOS 에서는 둘 다 적용하지 않는다(표준 fcntl·CDLL 그대로).
-    """
-    import importlib
-    if sys.platform != "win32":
-        return importlib.import_module("claude_pet")
-    compat = os.path.join(_HERE, "compat")
-    if compat not in sys.path:
-        sys.path.insert(0, compat)
-    import ctypes
-    real_cdll = ctypes.CDLL
-
-    class _CDLL(real_cdll):
-        def __init__(self, name, *args, **kwargs):
-            if name is None:
-                raise OSError("CDLL(None) is not available on Windows")
-            super().__init__(name, *args, **kwargs)
-    ctypes.CDLL = _CDLL
-    try:
-        return importlib.import_module("claude_pet")
-    finally:
-        ctypes.CDLL = real_cdll
-
-
-cp = _import_core()  # AppKit 은 run_gui 안에서만 import 되므로 GUI 없이 코어를 쓸 수 있다 (설계 문서 §0)
+# 두 가지 Windows 우회(compat/fcntl, CDLL(None))는 이제 win_core 한 곳에만 있다. 예전에는 이 파일 안에만 있어서
+# win_update.py·build_win.py·verify_win_artifact.py 는 그냥 `import claude_pet` 을 했고, 실기에서 첫 줄에 죽었다.
+cp = win_core.import_core()  # AppKit 은 run_gui 안에서만 import 되므로 GUI 없이 코어를 쓸 수 있다 (설계 문서 §0)
 import win_update as wu  # noqa: E402  — cp 를 먼저 import 한 뒤 (같은 sys.modules 항목을 본다)
 import win_autostart as wa  # noqa: E402  — 로그인 시 자동 실행의 순수 부분 (HKCU Run 값 + StartupApproved 판단)
 
@@ -282,7 +258,9 @@ def app_exe_path():
 
 
 def _inno_registry_reader(value_name):
-    """HKCU\\…\\Uninstall\\{me.yeongyu.claudepet}_is1 의 값. 키가 없으면 winreg 가 OSError 를 낸다 — install_kind 는 그것을 portable 로 읽는다."""
+    """HKCU\\…\\Uninstall\\{me.yeongyu.claudepet}}_is1 의 값(닫는 중괄호 둘 — installer.iss 의 AppId 에서 Inno 가 앞의 `{{` 만 푼다).
+
+    키가 없으면 winreg 가 OSError 를 낸다 — install_kind 는 그것을 portable 로 읽는다."""
     import winreg
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, wu.INNO_UNINSTALL_SUBKEY) as k:
         value, _type = winreg.QueryValueEx(k, value_name)
@@ -1270,8 +1248,9 @@ class PetWindow(QWidget):
     def _uninstall(self):
         """제거 — macOS 판과 같은 확인 창(취소가 기본 버튼). 설치 종류별로:
           source   설정·잠금·디버그 로그·캐시 폴더만 (macOS 판 개발 모드와 같은 unin_devmode 안내)
-          inno     위 파일들 + HKCU Run 값(우리 exe 일 때만) 을 지우고 unins000.exe /SILENT → 종료. 제거 프로그램이 프로그램·바로가기·
-                   등록 항목을 지운다.
+          inno     위 파일들 + HKCU Run 값(우리 exe 일 때만) 을 지우고, 종료 뒤 unins000.exe /SILENT 를 부르는 헬퍼 → 종료.
+                   제거 프로그램이 프로그램·바로가기·등록 항목을 지운다. 살아 있는 펫 위에서 돌리면 파일이 "사용 중" 으로
+                   남으므로 헬퍼가 pid 를 기다린다(실기 2026-09-14).
           portable 위 파일들을 지우고, 종료 뒤 앱 폴더를 지우는 PowerShell 헬퍼 → 종료.
         %USERPROFILE%\\.claude_pet(펫) 은 어느 경우에도 남긴다."""
         why = wu.uninstall_refusal(self.state)        # 설치 파일이 이 앱을 닫길 기다리는 중 — 확인 창을 띄울 것도 없다
@@ -1318,12 +1297,21 @@ class PetWindow(QWidget):
         try:
             # 1. 거절할 수 있는 단계: 제거 프로그램/헬퍼를 먼저 띄운다. Popen 이 실패하면 아직 아무것도 지우지 않았다.
             if kind == "inno":
+                # unins000.exe 를 지금 바로 띄우면 펫이 살아 있는 채로 제거가 돌아, ARP 항목과 Run 값은 지워지고
+                # ClaudePet.exe·_internal\ 은 "사용 중" 으로 남는다(실기 H20). portable 과 같은 모양으로 — 우리 pid 가
+                # 끝난 뒤에 제거 프로그램을 부르는 PowerShell 헬퍼에 맡긴다. 설정에서 시작한 제거는 installer.iss 의
+                # [UninstallRun] taskkill 이 막는다.
                 argv = plan[-1][1]
                 if not os.path.isfile(argv[0]):
                     self._info(cp.t("unin_title"), cp.t("unin_fail"))
                     return
+                script = os.path.join(os.environ.get("TEMP") or home,
+                                      f"claudepet-uninstall-inno-{os.getpid()}.ps1")
                 try:
-                    popen_detached(argv)
+                    with open(script, "w", encoding="utf-8-sig") as f:
+                        f.write(wu.build_inno_uninstall_script(argv, os.getpid()))
+                    popen_detached([powershell_exe(), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                                    "-File", script])
                 except Exception as e:
                     wu.log_update("uninstall", kind=kind, status="failed", at="run-uninstaller", error=type(e).__name__)
                     self._info(cp.t("unin_title"), cp.t("unin_fail"))

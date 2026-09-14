@@ -66,6 +66,36 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 ; 앱의 단일 인스턴스 뮤텍스(Local\me.yeongyu.claudepet)가 두 번째를 바로 끝낸다.
 Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: RelaunchRequested
 
+[UninstallRun]
+; 제거는 파일을 지우기 전에 실행 중인 펫을 먼저 닫는다 — 여기서 기대는 것은 taskkill 이지 Restart Manager 가 아니다.
+; CloseApplications=yes / RestartApplications=yes 는 이 파일에 이미 있었지만, 펫이 떠 있는 채로 제거했을 때 제거 로그에
+; Restart Manager/CloseApplications 단계가 아예 없었고 ClaudePet.exe 와 _internal\ 44개가 "사용 중(5)" 으로 남았다
+; (실기 관찰, Windows 11, 2026-09-14). 그래서 명시적인 종료 단계를 둔다.
+; 순서는 조건부가 아니라 무조건이다. Inno Setup 6 문서의 [Run] & [UninstallRun] 절
+; (https://jrsoftware.org/ishelp/topic_runsection.htm): "The [UninstallRun] section ... specifies any number of
+; programs to execute as the first step of uninstallation." 플래그로 켜고 끄는 것이 아니라 절의 정의가 그렇다.
+; 그리고 postuninstall 은 애초에 Inno 의 플래그가 아니다 — 그 페이지의 Flags 목록(32bit, 64bit, dontlogparameters,
+; hidewizard, logoutput, nowait, postinstall, runascurrentuser, runasoriginaluser, runhidden, runmaximized,
+; runminimized, shellexec, skipifdoesntexist, skipifnotsilent, skipifsilent, unchecked, waituntilidle,
+; waituntilterminated)에 없다. 제거가 끝난 뒤에 무언가를 돌리는 것은 [Code] 의 CurUninstallStepChanged 와
+; usPostUninstall 이지 [UninstallRun] 항목이 아니다. 예전 주석은 이 순서가 "postuninstall 을 안 붙인 덕" 이라고
+; 적어 두었는데, 없는 플래그를 근거로 든 틀린 설명이었다.
+; 이 항목을 실제로 망가뜨릴 수 있는 것은 nowait, shellexec, waituntilidle 셋이다. 같은 문서: "By default, when
+; processing a [Run]/[UninstallRun] entry, Setup/Uninstall will wait until the program has terminated before
+; proceeding to the next one, unless the nowait, shellexec, or waituntilidle flags are used." 셋 중 하나라도 붙으면
+; Inno 는 taskkill 이 끝나기를 기다리지 않고 파일 삭제로 넘어가고, "사용 중(5)" 가 그대로 돌아온다. 그때도 단계 순서는
+; 그대로 남고 대기만 사라지므로 제거 로그의 순서만 봐서는 티가 나지 않는다. 셋 다 붙이지 않는다.
+; 펫이 떠 있지 않으면 taskkill 이 0 이 아닌 값을 돌려주지만 Inno 는 종료 코드를 보지 않고, taskkill.exe 가 없는 기기에서도
+; skipifdoesntexist 로 제거가 실패하지 않는다 — 문서는 이 플래그에 Filename 이 절대 경로일 것을 요구하는데
+; {sys}\taskkill.exe 는 절대 경로로 펼쳐지므로 그 조건을 만족한다. /T 는 쓰지 않는다 — 앱 안의 '완전 삭제…'
+; 에서는 제거 프로그램이 펫의 자식이므로 자기 자신을 끊는다.
+; 두 가지는 적어 둘 값이 있다. (1) /IM 은 이름으로 고르므로 지금 제거하는 설치본이 아닌 같은 이름의 프로세스까지 닫는다.
+; 설치 프로그램이 PID 를 겨눌 방법은 없고, 앱의 단일 인스턴스 뮤텍스(Local\me.yeongyu.claudepet) 때문에 다른 폴더의
+; 두 번째 사본이 같이 떠 있을 수는 없으므로 실제로는 한 개다. (2) /F 라 펫은 정상 종료 절차 없이 끝난다 — 설정은 바뀔 때
+; 바로 쓰므로 잃을 것이 없어야 하지만, 그것과 "핸들이 곧바로 풀려 다음 삭제 단계가 한 번에 성공하는가" 는 실기에서
+; 확인할 항목이다(windows/README.md).
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM ClaudePet.exe /F"; RunOnceId: "CloseClaudePet"; Flags: runhidden skipifdoesntexist
+
 [UninstallDelete]
 ; 설치 파일이 놓은 것만 지운다 — {app} 통째로가 아니다. DisableDirPage=auto 라 사용자가 기존 폴더(예: C:\Tools)에 설치했을 수
 ; 있고, 그때 filesandordirs {app} 은 우리 것이 아닌 파일까지 지운다. 빈 {app} 은 Inno 가 알아서 없앤다.
