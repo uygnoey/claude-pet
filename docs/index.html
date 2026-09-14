@@ -5,25 +5,25 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
 
     <!-- Google tag (gtag.js) -->
-    <!-- Required: analytics_storage is granted on every page. Counting a visit is
-         not optional here and is never gated.
-         Optional: the ad_* signals stay denied until the visitor opts in, for the
-         advertising planned for this site but not yet running. -->
+    <!-- Required: analytics_storage is granted on every page. Counting a visit
+         cannot be refused here and is never gated.
+         Optional: the ad_* signals are granted by default and turned off only
+         when the visitor opts out, which is stored as claudepet-ads=denied. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('consent', 'default', {
         analytics_storage: 'granted',
-        ad_storage: 'denied',
-        ad_user_data: 'denied',
-        ad_personalization: 'denied'
+        ad_storage: 'granted',
+        ad_user_data: 'granted',
+        ad_personalization: 'granted'
       });
       try {
-        if (localStorage.getItem('claudepet-ads') === 'granted') {
+        if (localStorage.getItem('claudepet-ads') === 'denied') {
           gtag('consent', 'update', {
-            ad_storage: 'granted',
-            ad_user_data: 'granted',
-            ad_personalization: 'granted'
+            ad_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied'
           });
         }
       } catch (e) {}
@@ -1492,6 +1492,81 @@
           padding-block:55px;
         }
       }
+      .notice {
+        position:fixed;
+        z-index:60;
+        left:16px;
+        right:16px;
+        bottom:16px;
+        margin:0 auto;
+        max-width:720px;
+        display:flex;
+        flex-wrap:wrap;
+        align-items:center;
+        gap:12px 18px;
+        padding:14px 20px;
+        background:var(--surface);
+        border:1px solid var(--line);
+        border-radius:12px;
+        box-shadow:var(--shadow);
+        color:var(--ink);
+        font-size:13px;
+        line-height:1.55
+      }
+      .notice[hidden] {
+        display:none
+      }
+      .notice p {
+        flex:1 1 280px;
+        margin:0;
+        color:var(--muted)
+      }
+      .notice a {
+        color:var(--ink);
+        text-decoration:underline;
+        text-underline-offset:2px
+      }
+      .notice-opt {
+        display:flex;
+        align-items:center;
+        gap:7px;
+        color:var(--ink);
+        font-weight:700;
+        white-space:nowrap;
+        cursor:pointer
+      }
+      .notice-opt input {
+        width:16px;
+        height:16px;
+        accent-color:var(--teal);
+        cursor:pointer
+      }
+      .notice button {
+        min-height:38px;
+        padding:8px 20px;
+        border-radius:5px;
+        border:1px solid var(--ink);
+        background:var(--ink);
+        color:var(--paper);
+        font-family:inherit;
+        font-size:13px;
+        font-weight:700;
+        cursor:pointer
+      }
+      html[data-theme=dark] .notice button {
+        color:#172333
+      }
+      @media (max-width:560px) {
+        .notice {
+          left:10px;
+          right:10px;
+          bottom:10px;
+          padding:12px 16px
+        }
+        .notice button {
+          width:100%
+        }
+      }
     </style>
     <script type="application/ld+json" id="structured-data">
       {
@@ -2325,6 +2400,19 @@
         </p>
       </div>
     </footer>
+    <div class="notice" id="notice" role="region" aria-label="Cookie notice" hidden>
+      <p>
+        <span data-copy="notice.text">This site uses Google Analytics cookies to count visits. Counting visits is required here and cannot be turned off.</span>
+        <a href="privacy.html" data-copy="notice.more">What we collect</a>
+      </p>
+      <label class="notice-opt">
+        <input type="checkbox" id="notice-ads" checked>
+        <span data-copy="notice.ads">Allow advertising cookies</span>
+      </label>
+      <button type="button" id="notice-ok" data-copy="notice.ok">
+        Got it
+      </button>
+    </div>
     <script>
       const I18N={
         "en": {
@@ -2486,6 +2574,11 @@
           "support.cta": "Sponsor on GitHub",
           "support.fine": "One-time or monthly, through GitHub Sponsors. Using the app never requires a sponsorship.",
           "star.note": "Opens GitHub in a new tab. Sign in there to add your star.",
+          "notice.label": "Cookie notice",
+          "notice.text": "This site uses Google Analytics cookies to count visits. Counting visits is required here and cannot be turned off.",
+          "notice.more": "What we collect",
+          "notice.ads": "Allow advertising cookies",
+          "notice.ok": "Got it",
           "footer.privacy": "Privacy"
         },
         "ko": {
@@ -2647,6 +2740,11 @@
           "support.cta": "GitHub에서 후원하기",
           "support.fine": "GitHub Sponsors에서 일회성·정기 후원을 선택할 수 있어요. 앱을 사용하기 위해 후원할 필요는 없어요.",
           "star.note": "GitHub를 새 탭으로 열어요. 그곳에서 로그인하고 Star를 눌러 주세요.",
+          "notice.label": "쿠키 안내",
+          "notice.text": "이 사이트는 방문 수를 세기 위해 Google Analytics 쿠키를 사용합니다. 방문 집계는 필수라 끌 수 없어요.",
+          "notice.more": "수집 항목 보기",
+          "notice.ads": "광고 쿠키 허용",
+          "notice.ok": "확인",
           "footer.privacy": "개인정보"
         },
         "ja": {
@@ -2808,6 +2906,11 @@
           "support.cta": "GitHub で支援する",
           "support.fine": "GitHub Sponsors で一回または毎月の支援を選べます。アプリの利用に支援は必要ありません。",
           "star.note": "GitHub を新しいタブで開きます。そこでログインして Star を付けてください。",
+          "notice.label": "Cookie のお知らせ",
+          "notice.text": "このサイトは訪問数の集計に Google Analytics の Cookie を使用します。訪問数の集計は必須でオフにはできません。",
+          "notice.more": "収集する項目",
+          "notice.ads": "広告 Cookie を許可",
+          "notice.ok": "了解",
           "footer.privacy": "プライバシー"
         },
         "es": {
@@ -2969,6 +3072,11 @@
           "support.cta": "Patrocinar en GitHub",
           "support.fine": "Puedes elegir una aportación única o mensual en GitHub Sponsors. No necesitas patrocinar para usar la app.",
           "star.note": "Abre GitHub en una pestaña nueva. Inicia sesión allí para dar tu estrella.",
+          "notice.label": "Aviso de cookies",
+          "notice.text": "Este sitio usa cookies de Google Analytics para contar visitas. Contar visitas es obligatorio aquí y no se puede desactivar.",
+          "notice.more": "Qué recopilamos",
+          "notice.ads": "Permitir cookies publicitarias",
+          "notice.ok": "Entendido",
           "footer.privacy": "Privacidad"
         }
       };
@@ -2997,6 +3105,7 @@
        document.documentElement.lang=lang;document.getElementById('language').value=lang;
        document.querySelectorAll('[data-copy]').forEach(el=>{if(t[el.dataset.copy]!==undefined)el.innerHTML=t[el.dataset.copy]});
        document.getElementById('theme-toggle').setAttribute('aria-label',t.theme);
+       document.getElementById('notice').setAttribute('aria-label',t['notice.label']);
        document.getElementById('demo-collapse').setAttribute('aria-label',t['demo.collapse']);
        document.getElementById('pet-choices').setAttribute('aria-label',t['pets.choose']);
        document.querySelector('#platform-table tbody').innerHTML=t.table.map(r=>'<tr><th scope="row">'+r[0]+'</th><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');
@@ -3023,6 +3132,14 @@
       tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activateTab(tab.id));tab.addEventListener('keydown',e=>{let target;if(e.key==='ArrowRight'||e.key==='ArrowDown')target=(index+1)%tabs.length;if(e.key==='ArrowLeft'||e.key==='ArrowUp')target=(index+tabs.length-1)%tabs.length;if(e.key==='Home')target=0;if(e.key==='End')target=tabs.length-1;if(target!==undefined){e.preventDefault();activateTab(tabs[target].id,true)}})});
       document.documentElement.classList.add('js');
       activateTab(/Windows/.test(navigator.userAgent)?'install-windows':'install-mac');
+      const noticeBar=document.getElementById('notice'),adsBox=document.getElementById('notice-ads');
+      adsBox.checked=stored('claudepet-ads')!=='denied';
+      adsBox.addEventListener('change',()=>{
+       const on=adsBox.checked;persist('claudepet-ads',on?'granted':'denied');
+       gtag('consent','update',{ad_storage:on?'granted':'denied',ad_user_data:on?'granted':'denied',ad_personalization:on?'granted':'denied'});
+      });
+      document.getElementById('notice-ok').addEventListener('click',()=>{noticeBar.hidden=true;persist('claudepet-notice','seen')});
+      if(stored('claudepet-notice')!=='seen')noticeBar.hidden=false;
       setLanguage(lang);
     </script>
   </body>

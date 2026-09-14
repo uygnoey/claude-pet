@@ -5,25 +5,25 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
 
     <!-- Google tag (gtag.js) -->
-    <!-- Required: analytics_storage is granted on every page. Counting a visit is
-         not optional here and is never gated.
-         Optional: the ad_* signals stay denied until the visitor opts in, for the
-         advertising planned for this site but not yet running. -->
+    <!-- Required: analytics_storage is granted on every page. Counting a visit
+         cannot be refused here and is never gated.
+         Optional: the ad_* signals are granted by default and turned off only
+         when the visitor opts out, which is stored as claudepet-ads=denied. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('consent', 'default', {
         analytics_storage: 'granted',
-        ad_storage: 'denied',
-        ad_user_data: 'denied',
-        ad_personalization: 'denied'
+        ad_storage: 'granted',
+        ad_user_data: 'granted',
+        ad_personalization: 'granted'
       });
       try {
-        if (localStorage.getItem('claudepet-ads') === 'granted') {
+        if (localStorage.getItem('claudepet-ads') === 'denied') {
           gtag('consent', 'update', {
-            ad_storage: 'granted',
-            ad_user_data: 'granted',
-            ad_personalization: 'granted'
+            ad_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied'
           });
         }
       } catch (e) {}
@@ -285,7 +285,7 @@
         Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.
       </p>
       <p data-copy="site.off">
-        Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are denied on every page unless you turn them on below. This site carries no advertising today; the switch is here so that it is your choice in advance, not a surprise later.
+        Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are on by default, and you can turn them off below at any time. This site carries no advertising today; the switch is here so the choice is yours before that changes.
       </p>
       <div class="opt-box">
         <p>
@@ -293,16 +293,16 @@
           <span class="opt-state" id="ads-state"></span>
         </p>
         <div>
-          <button type="button" class="on" id="ads-enable" data-copy="ads.enable">
+          <button type="button" id="ads-enable" data-copy="ads.enable">
             Allow
           </button>
-          <button type="button" id="ads-disable" data-copy="ads.disable">
+          <button type="button" class="on" id="ads-disable" data-copy="ads.disable">
             Keep off
           </button>
         </div>
       </div>
       <p data-copy="ads.note">
-        Turning this off is the default and needs no action. Counting visits, above, is unaffected either way.
+        Counting visits, above, is required and is unaffected by this switch either way.
       </p>
 
       <h2 data-copy="cookies.title">
@@ -383,13 +383,13 @@
           "site.title": "What this website collects",
           "site.body": "This site uses Google Analytics 4 to count visits. <strong>It runs on every page and is not optional</strong> — a visit is measured whether or not you do anything here.",
           "site.collect": "Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.",
-          "site.off": "Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are denied on every page unless you turn them on below. This site carries no advertising today; the switch is here so that it is your choice in advance, not a surprise later.",
+          "site.off": "Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are on by default, and you can turn them off below at any time. This site carries no advertising today; the switch is here so the choice is yours before that changes.",
           "ads.now": "Advertising cookies:",
           "ads.enable": "Allow",
-          "ads.disable": "Keep off",
+          "ads.disable": "Turn off",
           "ads.on": "Allowed",
           "ads.off": "Off",
-          "ads.note": "Turning this off is the default and needs no action. Counting visits, above, is unaffected either way.",
+          "ads.note": "Counting visits, above, is required and is unaffected by this switch either way.",
           "cookies.title": "Cookies",
           "cookies.body": "Google Analytics sets these first-party cookies. Google documents a two-year default; Chrome currently caps cookies set this way at about 400 days, and some browsers keep them for less.",
           "optout": "If you would rather not be counted, your browser's settings can block cookies for this site, and Google publishes an opt-out add-on that turns Analytics off across every site you visit.",
@@ -427,13 +427,13 @@
           "site.title": "이 웹사이트가 수집하는 것",
           "site.body": "이 사이트는 방문 수를 세기 위해 Google Analytics 4를 씁니다. <strong>모든 페이지에서 동작하며 선택 사항이 아니에요</strong> — 여기서 무엇을 하든 방문 자체는 집계됩니다.",
           "site.collect": "Google Analytics는 열어 본 페이지, 유입된 링크나 검색, 브라우저와 기기 종류, IP 주소에서 추정한 대략적 위치를 받습니다. 이름·이메일이나 입력한 내용은 받지 않아요.",
-          "site.off": "선택인 쪽은 광고예요. Google의 광고 신호 — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — 는 아래에서 켜지 않는 한 모든 페이지에서 거부됩니다. 지금 이 사이트에 광고는 없어요. 나중에 갑자기 생기지 않도록 미리 고를 수 있게 둔 스위치예요.",
+          "site.off": "선택인 쪽은 광고예요. Google의 광고 신호 — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — 는 기본으로 켜져 있고, 아래에서 언제든 끌 수 있어요. 지금 이 사이트에 광고는 없어요. 나중에 생기기 전에 미리 고를 수 있게 둔 스위치예요.",
           "ads.now": "광고 쿠키:",
           "ads.enable": "허용",
-          "ads.disable": "끈 채로 두기",
+          "ads.disable": "끄기",
           "ads.on": "허용됨",
           "ads.off": "꺼짐",
-          "ads.note": "끄는 쪽이 기본값이라 아무것도 안 해도 돼요. 위의 방문 집계는 어느 쪽이든 영향받지 않아요.",
+          "ads.note": "위의 방문 집계는 필수라서 이 스위치와 무관하게 항상 동작해요.",
           "cookies.title": "쿠키",
           "cookies.body": "Google Analytics가 심는 퍼스트파티 쿠키예요. Google 문서상 기본값은 2년이지만, Chrome은 현재 이런 방식으로 심긴 쿠키를 약 400일로 제한하고, 더 짧게 보관하는 브라우저도 있어요.",
           "optout": "집계에서 빠지고 싶다면 브라우저 설정에서 이 사이트의 쿠키를 차단할 수 있고, Google이 배포하는 옵트아웃 확장 프로그램을 쓰면 모든 사이트에서 애널리틱스를 끌 수 있어요.",
@@ -471,13 +471,13 @@
           "site.title": "このウェブサイトが収集するもの",
           "site.body": "このサイトは訪問数の集計に Google Analytics 4 を使います。<strong>すべてのページで動作し、任意ではありません</strong> — ここで何をするかに関わらず訪問自体は計測されます。",
           "site.collect": "Google Analytics は開いたページ、参照元のリンクや検索、ブラウザーと端末の種類、IP アドレスから推定したおおよその位置を受け取ります。氏名やメールアドレス、入力した内容は受け取りません。",
-          "site.off": "任意なのは広告のほうです。Google の広告シグナル — <code>ad_storage</code>、<code>ad_user_data</code>、<code>ad_personalization</code> — は、下でオンにしない限りすべてのページで拒否されます。現在このサイトに広告はありません。あとから突然始まらないよう、前もって選べるようにしたスイッチです。",
+          "site.off": "任意なのは広告のほうです。Google の広告シグナル — <code>ad_storage</code>、<code>ad_user_data</code>、<code>ad_personalization</code> — は既定でオンで、下からいつでもオフにできます。現在このサイトに広告はありません。そうなる前に選べるようにしたスイッチです。",
           "ads.now": "広告 Cookie:",
           "ads.enable": "許可する",
-          "ads.disable": "オフのままにする",
+          "ads.disable": "オフにする",
           "ads.on": "許可済み",
           "ads.off": "オフ",
-          "ads.note": "オフが既定なので、何もしなくて構いません。上の訪問数の集計はどちらでも変わりません。",
+          "ads.note": "上の訪問数の集計は必須で、このスイッチに関わらず常に動作します。",
           "cookies.title": "Cookie",
           "cookies.body": "Google Analytics が設定するファーストパーティ Cookie です。Google の文書上の既定は 2 年ですが、Chrome は現在この方法で設定された Cookie を約 400 日に制限しており、より短く保持するブラウザーもあります。",
           "optout": "計測されたくない場合は、ブラウザーの設定でこのサイトの Cookie をブロックできます。また Google が配布しているオプトアウト アドオンを使うと、すべてのサイトで解析を無効にできます。",
@@ -515,13 +515,13 @@
           "site.title": "Qué recopila este sitio web",
           "site.body": "Este sitio usa Google Analytics 4 para contar visitas. <strong>Funciona en todas las páginas y no es opcional</strong>: la visita se mide hagas lo que hagas aquí.",
           "site.collect": "Google Analytics recibe las páginas que abres, el enlace o la búsqueda que te trajo, tu tipo de navegador y dispositivo, y una ubicación aproximada derivada de tu dirección IP. No recibe tu nombre, tu correo ni nada de lo que escribas.",
-          "site.off": "Lo opcional es la publicidad. Las señales publicitarias de Google — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — se deniegan en todas las páginas salvo que las actives abajo. Hoy este sitio no lleva publicidad; el interruptor está aquí para que sea tu elección de antemano y no una sorpresa después.",
+          "site.off": "Lo opcional es la publicidad. Las señales publicitarias de Google — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — están activadas por defecto y puedes desactivarlas abajo cuando quieras. Hoy este sitio no lleva publicidad; el interruptor está aquí para que la elección sea tuya antes de que eso cambie.",
           "ads.now": "Cookies publicitarias:",
           "ads.enable": "Permitir",
-          "ads.disable": "Dejar apagadas",
+          "ads.disable": "Desactivar",
           "ads.on": "Permitidas",
           "ads.off": "Apagadas",
-          "ads.note": "Dejarlas apagadas es lo predeterminado y no requiere hacer nada. El recuento de visitas de arriba no cambia en ningún caso.",
+          "ads.note": "El recuento de visitas de arriba es obligatorio y no cambia con este interruptor.",
           "cookies.title": "Cookies",
           "cookies.body": "Google Analytics crea estas cookies propias. Google documenta dos años por defecto; Chrome limita actualmente a unos 400 días las cookies creadas así, y algunos navegadores las guardan menos tiempo.",
           "optout": "Si prefieres no aparecer en el recuento, la configuración de tu navegador puede bloquear las cookies de este sitio, y Google publica un complemento de exclusión que desactiva Analytics en todos los sitios que visites.",
@@ -556,7 +556,7 @@
       const savedLang=stored('claudepet-lang');
       const browserLang=(navigator.language||'en').slice(0,2);
       let lang=supported.includes(savedLang)?savedLang:(supported.includes(browserLang)?browserLang:'en');
-      function adsOn(){return stored('claudepet-ads')==='granted'}
+      function adsOn(){return stored('claudepet-ads')!=='denied'}
       function renderAds(){document.getElementById('ads-state').textContent=I18N[lang][adsOn()?'ads.on':'ads.off']}
       function setAds(on){
        persist('claudepet-ads',on?'granted':'denied');
