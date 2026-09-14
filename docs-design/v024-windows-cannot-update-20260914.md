@@ -87,7 +87,12 @@ place and keeps their pets and settings (the Windows session overwrote v0.24 wit
 several times during this work and `%USERPROFILE%\.claude_pet` — seven pets — and
 `.claude_pet.json` survived every time).
 
-Telling them so means editing published material: the v0.25 release body, and the
+Telling them so would mean editing published material: the v0.25 release body, and the
 `RELEASE_NOTES.md` section that is now frozen because the tag is pushed and the release
 exists with that entry as its body. Under CLAUDE.md that is the user's call, not an
-agent's, and it is the one open question left from this release.
+agent's. It was put to the user on 2026-09-14 with the download counts above, and the
+answer was to leave it: "냅둬 24버전 다운받은 사람 없을거야". So nothing published was
+edited, and this file is the record of why.
+
+If a v0.24 Windows user does turn up, the fix on their side is to download v0.25's
+installer and run it over the existing install; their pets and settings survive.
