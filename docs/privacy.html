@@ -5,21 +5,26 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
 
     <!-- Google tag (gtag.js) -->
-    <!-- Consent Mode v2: storage stays denied until the visitor accepts, on the
-         home page banner or with the controls further down this page. -->
+    <!-- Required: analytics_storage is granted on every page. Counting a visit is
+         not optional here and is never gated.
+         Optional: the ad_* signals stay denied until the visitor opts in, for the
+         advertising planned for this site but not yet running. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('consent', 'default', {
+        analytics_storage: 'granted',
         ad_storage: 'denied',
         ad_user_data: 'denied',
-        ad_personalization: 'denied',
-        analytics_storage: 'denied',
-        wait_for_update: 500
+        ad_personalization: 'denied'
       });
       try {
-        if (localStorage.getItem('claudepet-consent') === 'granted') {
-          gtag('consent', 'update', { analytics_storage: 'granted' });
+        if (localStorage.getItem('claudepet-ads') === 'granted') {
+          gtag('consent', 'update', {
+            ad_storage: 'granted',
+            ad_user_data: 'granted',
+            ad_personalization: 'granted'
+          });
         }
       } catch (e) {}
     </script>
@@ -32,7 +37,7 @@
     <title>
       Privacy — Claude Pet
     </title>
-    <meta name="description" content="What the Claude Pet website collects, the cookies it sets only after you accept, and how the desktop app differs.">
+    <meta name="description" content="What the Claude Pet website measures, the cookies it sets, what it deliberately leaves off, and how the desktop app differs.">
     <meta name="robots" content="index,follow">
     <meta name="theme-color" content="#17283b">
     <link rel="canonical" href="https://claude-pet.yeongyu.me/privacy.html">
@@ -40,7 +45,7 @@
     <meta property="og:site_name" content="Claude Pet">
     <meta property="og:url" content="https://claude-pet.yeongyu.me/privacy.html">
     <meta property="og:title" content="Privacy — Claude Pet">
-    <meta property="og:description" content="What the Claude Pet website collects, the cookies it sets only after you accept, and how the desktop app differs.">
+    <meta property="og:description" content="What the Claude Pet website measures, the cookies it sets, what it deliberately leaves off, and how the desktop app differs.">
     <link rel="icon" href="assets/frames/idle/00.png">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
@@ -189,7 +194,7 @@
       td {
         color:var(--muted)
       }
-      .consent-box {
+      .opt-box {
         margin:18px 0 8px;
         padding:18px 20px;
         background:var(--surface);
@@ -197,19 +202,14 @@
         border-radius:12px;
         box-shadow:var(--shadow)
       }
-      .consent-box p {
+      .opt-box p {
         margin:0 0 12px
       }
-      .consent-state {
+      .opt-state {
         color:var(--ink);
         font-weight:700
       }
-      .consent-actions {
-        display:flex;
-        gap:10px;
-        flex-wrap:wrap
-      }
-      .consent-actions button {
+      .opt-box button {
         min-height:40px;
         padding:9px 18px;
         border-radius:5px;
@@ -220,12 +220,9 @@
         font-size:13px;
         font-weight:700;
         cursor:pointer;
-        transition:transform .18s
+        margin-right:10px
       }
-      .consent-actions button:hover {
-        transform:translateY(-2px)
-      }
-      .consent-actions button.accept {
+      .opt-box button.on {
         background:var(--lime);
         border-color:var(--lime);
         color:#17283b
@@ -242,17 +239,6 @@
       @media (max-width:560px) {
         h1 {
           font-size:29px
-        }
-        .consent-actions button {
-          flex:1 1 0
-        }
-      }
-      @media (prefers-reduced-motion:reduce) {
-        .consent-actions button {
-          transition:none
-        }
-        .consent-actions button:hover {
-          transform:none
         }
       }
     </style>
@@ -293,17 +279,37 @@
         What this website collects
       </h2>
       <p data-copy="site.body">
-        This site uses Google Analytics 4 to count visits. It is off by default: Google Consent Mode starts with storage denied, so <strong>no analytics cookie is set and no measurement is recorded until you accept</strong> the cookie notice. If you decline, or simply ignore the notice, that stays the case.
+        This site uses Google Analytics 4 to count visits. <strong>It runs on every page and is not optional</strong> — a visit is measured whether or not you do anything here.
       </p>
       <p data-copy="site.collect">
-        Once you accept, Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.
+        Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.
+      </p>
+      <p data-copy="site.off">
+        Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are denied on every page unless you turn them on below. This site carries no advertising today; the switch is here so that it is your choice in advance, not a surprise later.
+      </p>
+      <div class="opt-box">
+        <p>
+          <span data-copy="ads.now">Advertising cookies:</span>
+          <span class="opt-state" id="ads-state"></span>
+        </p>
+        <div>
+          <button type="button" class="on" id="ads-enable" data-copy="ads.enable">
+            Allow
+          </button>
+          <button type="button" id="ads-disable" data-copy="ads.disable">
+            Keep off
+          </button>
+        </div>
+      </div>
+      <p data-copy="ads.note">
+        Turning this off is the default and needs no action. Counting visits, above, is unaffected either way.
       </p>
 
       <h2 data-copy="cookies.title">
         Cookies
       </h2>
       <p data-copy="cookies.body">
-        Only after you accept. Both are first-party cookies set by Google Analytics; the durations are Google's documented defaults.
+        Google Analytics sets these first-party cookies. Google documents a two-year default; Chrome currently caps cookies set this way at about 400 days, and some browsers keep them for less.
       </p>
       <div class="table-scroll">
         <table>
@@ -317,26 +323,11 @@
           <tbody id="cookie-table"></tbody>
         </table>
       </div>
-      <p data-copy="cookies.choice">
-        Your own choice is kept in your browser's local storage under <code>claudepet-consent</code>. That never leaves your device, and clearing your browser data removes it.
+      <p data-copy="optout">
+        If you would rather not be counted, your browser's settings can block cookies for this site, and Google publishes an opt-out add-on that turns Analytics off across every site you visit.
       </p>
-
-      <div class="consent-box">
-        <p>
-          <span data-copy="consent.now">Current setting:</span>
-          <span class="consent-state" id="consent-state"></span>
-        </p>
-        <div class="consent-actions">
-          <button type="button" class="accept" id="consent-accept" data-copy="consent.accept">
-            Accept
-          </button>
-          <button type="button" id="consent-decline" data-copy="consent.decline">
-            Decline
-          </button>
-        </div>
-      </div>
-      <p data-copy="consent.note">
-        Withdrawing consent stops any further measurement immediately. Cookies already set are removed by clearing site data in your browser.
+      <p>
+        <a href="https://tools.google.com/dlpage/gaoptout" data-copy="optout.link">Google Analytics opt-out add-on</a>
       </p>
 
       <h2 data-copy="host.title">
@@ -390,10 +381,19 @@
           "updated": "Last updated",
           "intro": "This page covers <strong>this website</strong> — claude-pet.yeongyu.me. The Claude Pet desktop app is a separate thing and is described further down.",
           "site.title": "What this website collects",
-          "site.body": "This site uses Google Analytics 4 to count visits. It is off by default: Google Consent Mode starts with storage denied, so <strong>no analytics cookie is set and no measurement is recorded until you accept</strong> the cookie notice. If you decline, or simply ignore the notice, that stays the case.",
-          "site.collect": "Once you accept, Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.",
+          "site.body": "This site uses Google Analytics 4 to count visits. <strong>It runs on every page and is not optional</strong> — a visit is measured whether or not you do anything here.",
+          "site.collect": "Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.",
+          "site.off": "Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are denied on every page unless you turn them on below. This site carries no advertising today; the switch is here so that it is your choice in advance, not a surprise later.",
+          "ads.now": "Advertising cookies:",
+          "ads.enable": "Allow",
+          "ads.disable": "Keep off",
+          "ads.on": "Allowed",
+          "ads.off": "Off",
+          "ads.note": "Turning this off is the default and needs no action. Counting visits, above, is unaffected either way.",
           "cookies.title": "Cookies",
-          "cookies.body": "Only after you accept. Both are first-party cookies set by Google Analytics; the durations are Google's documented defaults.",
+          "cookies.body": "Google Analytics sets these first-party cookies. Google documents a two-year default; Chrome currently caps cookies set this way at about 400 days, and some browsers keep them for less.",
+          "optout": "If you would rather not be counted, your browser's settings can block cookies for this site, and Google publishes an opt-out add-on that turns Analytics off across every site you visit.",
+          "optout.link": "Google Analytics opt-out add-on",
           "cookies.h1": "Name",
           "cookies.h2": "Expires",
           "cookies.h3": "Purpose",
@@ -401,14 +401,6 @@
             ["_ga", "2 years", "Distinguishes one visitor from another."],
             ["_ga_FW4M0S94JZ", "2 years", "Keeps session state for this site's Analytics property."]
           ],
-          "cookies.choice": "Your own choice is kept in your browser's local storage under <code>claudepet-consent</code>. That never leaves your device, and clearing your browser data removes it.",
-          "consent.now": "Current setting:",
-          "consent.accept": "Accept",
-          "consent.decline": "Decline",
-          "consent.granted": "Analytics allowed",
-          "consent.denied": "Analytics declined",
-          "consent.unset": "Not chosen yet — analytics is off",
-          "consent.note": "Withdrawing consent stops any further measurement immediately. Cookies already set are removed by clearing site data in your browser.",
           "host.title": "Hosting",
           "host.body": "The site is served by GitHub Pages. GitHub's own documentation states that when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes, whether or not the visitor is signed in to GitHub. That logging belongs to GitHub and is not affected by the choice above.",
           "host.link": "GitHub Pages documentation",
@@ -433,10 +425,19 @@
           "updated": "마지막 업데이트",
           "intro": "이 페이지는 <strong>이 웹사이트</strong>(claude-pet.yeongyu.me)에 대한 설명이에요. 데스크톱 앱 Claude Pet은 별개이며 아래에서 따로 다룹니다.",
           "site.title": "이 웹사이트가 수집하는 것",
-          "site.body": "이 사이트는 방문 수를 세기 위해 Google Analytics 4를 씁니다. 기본값은 꺼짐이에요. Google Consent Mode가 저장을 거부된 상태로 시작하기 때문에, <strong>동의하기 전까지는 애널리틱스 쿠키가 생성되지 않고 측정도 기록되지 않아요</strong>. 거부하거나 안내를 그냥 지나쳐도 마찬가지입니다.",
-          "site.collect": "동의한 뒤에는 Google Analytics가 열어 본 페이지, 유입된 링크나 검색, 브라우저와 기기 종류, IP 주소에서 추정한 대략적 위치를 받습니다. 이름·이메일이나 입력한 내용은 받지 않아요.",
+          "site.body": "이 사이트는 방문 수를 세기 위해 Google Analytics 4를 씁니다. <strong>모든 페이지에서 동작하며 선택 사항이 아니에요</strong> — 여기서 무엇을 하든 방문 자체는 집계됩니다.",
+          "site.collect": "Google Analytics는 열어 본 페이지, 유입된 링크나 검색, 브라우저와 기기 종류, IP 주소에서 추정한 대략적 위치를 받습니다. 이름·이메일이나 입력한 내용은 받지 않아요.",
+          "site.off": "선택인 쪽은 광고예요. Google의 광고 신호 — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — 는 아래에서 켜지 않는 한 모든 페이지에서 거부됩니다. 지금 이 사이트에 광고는 없어요. 나중에 갑자기 생기지 않도록 미리 고를 수 있게 둔 스위치예요.",
+          "ads.now": "광고 쿠키:",
+          "ads.enable": "허용",
+          "ads.disable": "끈 채로 두기",
+          "ads.on": "허용됨",
+          "ads.off": "꺼짐",
+          "ads.note": "끄는 쪽이 기본값이라 아무것도 안 해도 돼요. 위의 방문 집계는 어느 쪽이든 영향받지 않아요.",
           "cookies.title": "쿠키",
-          "cookies.body": "동의한 뒤에만 생성됩니다. 둘 다 Google Analytics가 심는 퍼스트파티 쿠키이고, 유효 기간은 Google이 문서에 명시한 기본값이에요.",
+          "cookies.body": "Google Analytics가 심는 퍼스트파티 쿠키예요. Google 문서상 기본값은 2년이지만, Chrome은 현재 이런 방식으로 심긴 쿠키를 약 400일로 제한하고, 더 짧게 보관하는 브라우저도 있어요.",
+          "optout": "집계에서 빠지고 싶다면 브라우저 설정에서 이 사이트의 쿠키를 차단할 수 있고, Google이 배포하는 옵트아웃 확장 프로그램을 쓰면 모든 사이트에서 애널리틱스를 끌 수 있어요.",
+          "optout.link": "Google Analytics 옵트아웃 확장 프로그램",
           "cookies.h1": "이름",
           "cookies.h2": "만료",
           "cookies.h3": "용도",
@@ -444,14 +445,6 @@
             ["_ga", "2년", "방문자를 서로 구분합니다."],
             ["_ga_FW4M0S94JZ", "2년", "이 사이트 애널리틱스 속성의 세션 상태를 유지합니다."]
           ],
-          "cookies.choice": "동의 여부 자체는 브라우저 로컬 저장소의 <code>claudepet-consent</code> 항목에 보관돼요. 이 값은 기기 밖으로 나가지 않고, 브라우저 데이터를 지우면 함께 사라집니다.",
-          "consent.now": "현재 설정:",
-          "consent.accept": "동의",
-          "consent.decline": "거부",
-          "consent.granted": "애널리틱스 허용됨",
-          "consent.denied": "애널리틱스 거부됨",
-          "consent.unset": "아직 선택하지 않음 — 애널리틱스 꺼짐",
-          "consent.note": "동의를 철회하면 이후 측정은 즉시 중단돼요. 이미 만들어진 쿠키는 브라우저에서 사이트 데이터를 지우면 삭제됩니다.",
           "host.title": "호스팅",
           "host.body": "이 사이트는 GitHub Pages로 제공됩니다. GitHub 공식 문서에 따르면 GitHub Pages 사이트를 방문하면 GitHub 로그인 여부와 관계없이 방문자의 IP 주소가 보안 목적으로 기록·저장돼요. 이 기록은 GitHub의 것이고, 위 선택의 영향을 받지 않습니다.",
           "host.link": "GitHub Pages 문서",
@@ -476,10 +469,19 @@
           "updated": "最終更新",
           "intro": "このページは<strong>このウェブサイト</strong>（claude-pet.yeongyu.me）についての説明です。デスクトップアプリの Claude Pet は別物で、下のほうで扱います。",
           "site.title": "このウェブサイトが収集するもの",
-          "site.body": "このサイトは訪問数の集計に Google Analytics 4 を使います。既定はオフです。Google の同意モードが保存を拒否した状態で始まるため、<strong>同意するまでは解析 Cookie は作られず、測定も記録されません</strong>。拒否した場合も、お知らせを無視した場合も同じです。",
-          "site.collect": "同意すると、Google Analytics は開いたページ、参照元のリンクや検索、ブラウザーと端末の種類、IP アドレスから推定したおおよその位置を受け取ります。氏名やメールアドレス、入力した内容は受け取りません。",
+          "site.body": "このサイトは訪問数の集計に Google Analytics 4 を使います。<strong>すべてのページで動作し、任意ではありません</strong> — ここで何をするかに関わらず訪問自体は計測されます。",
+          "site.collect": "Google Analytics は開いたページ、参照元のリンクや検索、ブラウザーと端末の種類、IP アドレスから推定したおおよその位置を受け取ります。氏名やメールアドレス、入力した内容は受け取りません。",
+          "site.off": "任意なのは広告のほうです。Google の広告シグナル — <code>ad_storage</code>、<code>ad_user_data</code>、<code>ad_personalization</code> — は、下でオンにしない限りすべてのページで拒否されます。現在このサイトに広告はありません。あとから突然始まらないよう、前もって選べるようにしたスイッチです。",
+          "ads.now": "広告 Cookie:",
+          "ads.enable": "許可する",
+          "ads.disable": "オフのままにする",
+          "ads.on": "許可済み",
+          "ads.off": "オフ",
+          "ads.note": "オフが既定なので、何もしなくて構いません。上の訪問数の集計はどちらでも変わりません。",
           "cookies.title": "Cookie",
-          "cookies.body": "同意した後にのみ作られます。どちらも Google Analytics が設定するファーストパーティ Cookie で、有効期間は Google が文書化している既定値です。",
+          "cookies.body": "Google Analytics が設定するファーストパーティ Cookie です。Google の文書上の既定は 2 年ですが、Chrome は現在この方法で設定された Cookie を約 400 日に制限しており、より短く保持するブラウザーもあります。",
+          "optout": "計測されたくない場合は、ブラウザーの設定でこのサイトの Cookie をブロックできます。また Google が配布しているオプトアウト アドオンを使うと、すべてのサイトで解析を無効にできます。",
+          "optout.link": "Google Analytics オプトアウト アドオン",
           "cookies.h1": "名前",
           "cookies.h2": "有効期限",
           "cookies.h3": "用途",
@@ -487,14 +489,6 @@
             ["_ga", "2 年", "訪問者を区別します。"],
             ["_ga_FW4M0S94JZ", "2 年", "このサイトのアナリティクス プロパティのセッション状態を保持します。"]
           ],
-          "cookies.choice": "同意したかどうかはブラウザーのローカルストレージの <code>claudepet-consent</code> に保存されます。この値は端末の外に出ず、ブラウザーのデータを消すと一緒に消えます。",
-          "consent.now": "現在の設定：",
-          "consent.accept": "同意する",
-          "consent.decline": "拒否する",
-          "consent.granted": "解析を許可",
-          "consent.denied": "解析を拒否",
-          "consent.unset": "未選択 — 解析はオフ",
-          "consent.note": "同意を撤回すると以降の測定は直ちに止まります。すでに作られた Cookie は、ブラウザーでサイトデータを消すと削除されます。",
           "host.title": "ホスティング",
           "host.body": "このサイトは GitHub Pages で配信されています。GitHub の公式文書によれば、GitHub Pages のサイトを訪問すると、GitHub にログインしているかどうかに関わらず、訪問者の IP アドレスがセキュリティ目的で記録・保存されます。この記録は GitHub のもので、上の選択の影響を受けません。",
           "host.link": "GitHub Pages のドキュメント",
@@ -519,10 +513,19 @@
           "updated": "Última actualización",
           "intro": "Esta página trata sobre <strong>este sitio web</strong>: claude-pet.yeongyu.me. La app de escritorio Claude Pet es otra cosa y se explica más abajo.",
           "site.title": "Qué recopila este sitio web",
-          "site.body": "Este sitio usa Google Analytics 4 para contar visitas. Está desactivado por defecto: el modo de consentimiento de Google arranca con el almacenamiento denegado, así que <strong>no se crea ninguna cookie de analítica ni se registra ninguna medición hasta que aceptes</strong> el aviso. Si lo rechazas, o si simplemente lo ignoras, sigue siendo así.",
-          "site.collect": "Una vez que aceptas, Google Analytics recibe las páginas que abres, el enlace o la búsqueda que te trajo, tu tipo de navegador y dispositivo, y una ubicación aproximada derivada de tu dirección IP. No recibe tu nombre, tu correo ni nada de lo que escribas.",
+          "site.body": "Este sitio usa Google Analytics 4 para contar visitas. <strong>Funciona en todas las páginas y no es opcional</strong>: la visita se mide hagas lo que hagas aquí.",
+          "site.collect": "Google Analytics recibe las páginas que abres, el enlace o la búsqueda que te trajo, tu tipo de navegador y dispositivo, y una ubicación aproximada derivada de tu dirección IP. No recibe tu nombre, tu correo ni nada de lo que escribas.",
+          "site.off": "Lo opcional es la publicidad. Las señales publicitarias de Google — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — se deniegan en todas las páginas salvo que las actives abajo. Hoy este sitio no lleva publicidad; el interruptor está aquí para que sea tu elección de antemano y no una sorpresa después.",
+          "ads.now": "Cookies publicitarias:",
+          "ads.enable": "Permitir",
+          "ads.disable": "Dejar apagadas",
+          "ads.on": "Permitidas",
+          "ads.off": "Apagadas",
+          "ads.note": "Dejarlas apagadas es lo predeterminado y no requiere hacer nada. El recuento de visitas de arriba no cambia en ningún caso.",
           "cookies.title": "Cookies",
-          "cookies.body": "Solo después de que aceptes. Ambas son cookies propias que crea Google Analytics; las duraciones son los valores predeterminados documentados por Google.",
+          "cookies.body": "Google Analytics crea estas cookies propias. Google documenta dos años por defecto; Chrome limita actualmente a unos 400 días las cookies creadas así, y algunos navegadores las guardan menos tiempo.",
+          "optout": "Si prefieres no aparecer en el recuento, la configuración de tu navegador puede bloquear las cookies de este sitio, y Google publica un complemento de exclusión que desactiva Analytics en todos los sitios que visites.",
+          "optout.link": "Complemento de exclusión de Google Analytics",
           "cookies.h1": "Nombre",
           "cookies.h2": "Caduca",
           "cookies.h3": "Para qué",
@@ -530,14 +533,6 @@
             ["_ga", "2 años", "Distingue a un visitante de otro."],
             ["_ga_FW4M0S94JZ", "2 años", "Mantiene el estado de sesión de la propiedad de Analytics de este sitio."]
           ],
-          "cookies.choice": "Tu elección se guarda en el almacenamiento local del navegador, en <code>claudepet-consent</code>. Ese valor nunca sale de tu dispositivo y desaparece al borrar los datos del navegador.",
-          "consent.now": "Ajuste actual:",
-          "consent.accept": "Aceptar",
-          "consent.decline": "Rechazar",
-          "consent.granted": "Analítica permitida",
-          "consent.denied": "Analítica rechazada",
-          "consent.unset": "Sin elegir todavía: la analítica está apagada",
-          "consent.note": "Retirar el consentimiento detiene cualquier medición posterior de inmediato. Las cookies ya creadas se eliminan borrando los datos del sitio en tu navegador.",
           "host.title": "Alojamiento",
           "host.body": "El sitio se sirve con GitHub Pages. La propia documentación de GitHub indica que, al visitar un sitio de GitHub Pages, la dirección IP del visitante se registra y se almacena por motivos de seguridad, tenga o no sesión iniciada en GitHub. Ese registro es de GitHub y no depende de la elección anterior.",
           "host.link": "Documentación de GitHub Pages",
@@ -561,10 +556,12 @@
       const savedLang=stored('claudepet-lang');
       const browserLang=(navigator.language||'en').slice(0,2);
       let lang=supported.includes(savedLang)?savedLang:(supported.includes(browserLang)?browserLang:'en');
-      function consentChoice(){const v=stored('claudepet-consent');return ['granted','denied'].includes(v)?v:'unset'}
-      function renderConsent(){
-       const t=I18N[lang];
-       document.getElementById('consent-state').textContent=t['consent.'+consentChoice()];
+      function adsOn(){return stored('claudepet-ads')==='granted'}
+      function renderAds(){document.getElementById('ads-state').textContent=I18N[lang][adsOn()?'ads.on':'ads.off']}
+      function setAds(on){
+       persist('claudepet-ads',on?'granted':'denied');
+       gtag('consent','update',{ad_storage:on?'granted':'denied',ad_user_data:on?'granted':'denied',ad_personalization:on?'granted':'denied'});
+       renderAds();
       }
       function setLanguage(value){
        lang=supported.includes(value)?value:'en';const t=I18N[lang];
@@ -573,21 +570,16 @@
        document.querySelectorAll('[data-copy]').forEach(el=>{if(t[el.dataset.copy]!==undefined)el.innerHTML=t[el.dataset.copy]});
        document.getElementById('language').setAttribute('aria-label',t.language);
        document.getElementById('theme-toggle').setAttribute('aria-label',t.theme);
+       renderAds();
        document.getElementById('cookie-table').innerHTML=t.cookies.map(r=>'<tr><th scope="row"><code>'+r[0]+'</code></th><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');
-       renderConsent();
       }
       function setTheme(theme){document.documentElement.dataset.theme=theme;document.getElementById('theme-toggle').setAttribute('aria-pressed',String(theme==='dark'))}
       const savedTheme=stored('claudepet-theme');
       setTheme(['light','dark'].includes(savedTheme)?savedTheme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
       document.getElementById('theme-toggle').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';setTheme(theme);persist('claudepet-theme',theme)});
       document.getElementById('language').addEventListener('change',e=>{setLanguage(e.target.value);persist('claudepet-lang',lang)});
-      function setConsent(choice){
-       persist('claudepet-consent',choice);
-       gtag('consent','update',{analytics_storage:choice==='granted'?'granted':'denied'});
-       renderConsent();
-      }
-      document.getElementById('consent-accept').addEventListener('click',()=>setConsent('granted'));
-      document.getElementById('consent-decline').addEventListener('click',()=>setConsent('denied'));
+      document.getElementById('ads-enable').addEventListener('click',()=>setAds(true));
+      document.getElementById('ads-disable').addEventListener('click',()=>setAds(false));
       setLanguage(lang);
     </script>
   </body>

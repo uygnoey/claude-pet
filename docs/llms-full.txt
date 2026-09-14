@@ -69,7 +69,7 @@ Windows provides an update check in the right-click menu. If a newer version is 
 
 Usage log parsing happens locally on the user's computer. Exact mode sends the existing Claude Code credential to Anthropic to request account usage. Update checking and downloading contact GitHub. Those usage and update paths do not upload prompts, transcripts or source code. The app also reads its settings, assets and installed resources; it is not an offline-only program.
 
-The website at claude-pet.yeongyu.me is separate from the app. It loads Google Analytics 4 under Google Consent Mode, denied by default, so no analytics cookie is set until a visitor accepts its cookie notice. The app never contacts the website or Google.
+The website at claude-pet.yeongyu.me is separate from the app. It runs Google Analytics 4 on every page to count visits; measurement is not optional there. The app never contacts the website or Google.
 
 Optional Admin API mode reports Anthropic Console organization costs and a configured budget. This is separate from Claude subscription limits. A configured Admin API key is stored in plaintext in ~/.claude_pet.json, under the user profile on Windows.
 
