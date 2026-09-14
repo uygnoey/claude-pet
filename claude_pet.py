@@ -934,7 +934,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.24"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.25"                 # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 3600             # 새 릴리즈 확인 주기(1시간). 시작 시엔 확인하지 않고 한 주기 뒤부터 — run_gui 참조
 _upd_cache = {"t": 0.0, "busy": False}
