@@ -5,10 +5,26 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
 
     <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FW4M0S94JZ"></script>
+    <!-- Consent Mode v2: storage stays denied until the visitor accepts in the
+         banner at the foot of the page. See privacy.html. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        wait_for_update: 500
+      });
+      try {
+        if (localStorage.getItem('claudepet-consent') === 'granted') {
+          gtag('consent', 'update', { analytics_storage: 'granted' });
+        }
+      } catch (e) {}
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FW4M0S94JZ"></script>
+    <script>
       gtag('js', new Date());
 
       gtag('config', 'G-FW4M0S94JZ');
@@ -1471,6 +1487,88 @@
           padding-block:55px;
         }
       }
+      .consent {
+        position:fixed;
+        z-index:60;
+        left:16px;
+        right:16px;
+        bottom:16px;
+        margin:0 auto;
+        max-width:720px;
+        display:flex;
+        flex-wrap:wrap;
+        align-items:center;
+        gap:14px 18px;
+        padding:16px 20px;
+        background:var(--surface);
+        border:1px solid var(--line);
+        border-radius:12px;
+        box-shadow:var(--shadow);
+        color:var(--ink);
+        font-size:13px;
+        line-height:1.55
+      }
+      .consent[hidden] {
+        display:none
+      }
+      .consent p {
+        flex:1 1 280px;
+        margin:0;
+        color:var(--muted)
+      }
+      .consent a {
+        color:var(--ink);
+        text-decoration:underline;
+        text-underline-offset:2px
+      }
+      .consent-actions {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap
+      }
+      .consent button {
+        min-height:40px;
+        padding:9px 18px;
+        border-radius:5px;
+        border:1px solid var(--ink);
+        background:transparent;
+        color:var(--ink);
+        font-family:inherit;
+        font-size:13px;
+        font-weight:700;
+        cursor:pointer;
+        transition:transform .18s
+      }
+      .consent button:hover {
+        transform:translateY(-2px)
+      }
+      .consent button.accept {
+        background:var(--lime);
+        border-color:var(--lime);
+        color:#17283b
+      }
+      @media (max-width:560px) {
+        .consent {
+          left:10px;
+          right:10px;
+          bottom:10px;
+          padding:14px 16px
+        }
+        .consent-actions {
+          width:100%
+        }
+        .consent-actions button {
+          flex:1 1 0
+        }
+      }
+      @media (prefers-reduced-motion:reduce) {
+        .consent button {
+          transition:none
+        }
+        .consent button:hover {
+          transform:none
+        }
+      }
     </style>
     <script type="application/ld+json" id="structured-data">
       {
@@ -1555,7 +1653,7 @@
                 "name": "What leaves my computer?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Exact mode sends your existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Local usage parsing happens on your computer; those usage and update paths do not upload prompts, transcripts or source code. The optional Admin API key is stored in plaintext in ~/.claude_pet.json (under your Windows user folder on Windows)."
+                  "text": "Exact mode sends your existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Local usage parsing happens on your computer; those usage and update paths do not upload prompts, transcripts or source code. The optional Admin API key is stored in plaintext in ~/.claude_pet.json (under your Windows user folder on Windows). That list covers the app. This website is separate: it loads Google Analytics only after you accept the cookie notice."
                 }
               },
               {
@@ -2213,7 +2311,7 @@
               What leaves my computer?
             </summary>
             <p>
-              Exact mode sends your existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Local usage parsing happens on your computer; those usage and update paths do not upload prompts, transcripts or source code. The optional Admin API key is stored in plaintext in ~/.claude_pet.json (under your Windows user folder on Windows).
+              Exact mode sends your existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Local usage parsing happens on your computer; those usage and update paths do not upload prompts, transcripts or source code. The optional Admin API key is stored in plaintext in ~/.claude_pet.json (under your Windows user folder on Windows). That list covers the app. This website is separate: it loads Google Analytics only after you accept the cookie notice.
             </p>
           </details>
           <details>
@@ -2288,6 +2386,9 @@
             <a data-copy="footer.sponsor" href="https://github.com/sponsors/uygnoey">
               Support the project
             </a>
+            <a data-copy="footer.privacy" href="privacy.html">
+              Privacy
+            </a>
             <a href="llms.txt">
               llms.txt
             </a>
@@ -2301,6 +2402,20 @@
         </p>
       </div>
     </footer>
+    <div class="consent" id="consent" role="region" aria-label="Cookie notice" hidden>
+      <p>
+        <span data-copy="consent.text">This site uses Google Analytics cookies to count visits. The app itself sends nothing here.</span>
+        <a href="privacy.html" data-copy="consent.more">What we collect</a>
+      </p>
+      <div class="consent-actions">
+        <button type="button" id="consent-decline" data-copy="consent.decline">
+          Decline
+        </button>
+        <button type="button" class="accept" id="consent-accept" data-copy="consent.accept">
+          Accept
+        </button>
+      </div>
+    </div>
     <script>
       const I18N={
         "en": {
@@ -2441,7 +2556,7 @@
             ],
             [
               "What leaves my computer?",
-              "Exact mode sends your existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Local usage parsing happens on your computer; those usage and update paths do not upload prompts, transcripts or source code. The optional Admin API key is stored in plaintext in ~/.claude_pet.json (under your Windows user folder on Windows)."
+              "Exact mode sends your existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Local usage parsing happens on your computer; those usage and update paths do not upload prompts, transcripts or source code. The optional Admin API key is stored in plaintext in ~/.claude_pet.json (under your Windows user folder on Windows). That list covers the app. This website is separate: it loads Google Analytics only after you accept the cookie notice."
             ],
             [
               "Can I use it for API costs or other AI services?",
@@ -2461,7 +2576,13 @@
           "support.body": "Claude Pet is free to download. If it makes your desk a little better, optional sponsorship helps support development and maintenance.",
           "support.cta": "Sponsor on GitHub",
           "support.fine": "One-time or monthly, through GitHub Sponsors. Using the app never requires a sponsorship.",
-          "star.note": "Opens GitHub in a new tab. Sign in there to add your star."
+          "star.note": "Opens GitHub in a new tab. Sign in there to add your star.",
+          "consent.label": "Cookie notice",
+          "consent.text": "This site uses Google Analytics cookies to count visits. The app itself sends nothing here.",
+          "consent.more": "What we collect",
+          "consent.accept": "Accept",
+          "consent.decline": "Decline",
+          "footer.privacy": "Privacy"
         },
         "ko": {
           "skip": "본문으로 건너뛰기",
@@ -2601,7 +2722,7 @@
             ],
             [
               "어떤 정보가 컴퓨터 밖으로 나가나요?",
-              "정확 모드는 기존 Claude Code 인증 정보를 Anthropic에 보내 계정 사용량을 요청해요. 업데이트 확인·다운로드는 GitHub에 연결해요. 로컬 사용량 파싱은 내 컴퓨터에서 하며, 이 사용량·업데이트 경로는 프롬프트·대화 내용·소스 코드를 업로드하지 않아요. 선택적 Admin API 키는 ~/.claude_pet.json에 평문으로 저장돼요(Windows에서는 사용자 폴더 아래)."
+              "정확 모드는 기존 Claude Code 인증 정보를 Anthropic에 보내 계정 사용량을 요청해요. 업데이트 확인·다운로드는 GitHub에 연결해요. 로컬 사용량 파싱은 내 컴퓨터에서 하며, 이 사용량·업데이트 경로는 프롬프트·대화 내용·소스 코드를 업로드하지 않아요. 선택적 Admin API 키는 ~/.claude_pet.json에 평문으로 저장돼요(Windows에서는 사용자 폴더 아래). 여기까지는 앱 이야기예요. 이 웹사이트는 별개로, 쿠키 안내에 동의한 뒤에만 Google Analytics를 불러옵니다."
             ],
             [
               "API 비용이나 다른 AI도 지원하나요?",
@@ -2621,7 +2742,13 @@
           "support.body": "Claude Pet은 무료로 다운로드할 수 있어요. 내 데스크톱이 조금 더 즐거워졌다면, 자발적인 후원으로 개발과 유지보수를 응원해 주세요.",
           "support.cta": "GitHub에서 후원하기",
           "support.fine": "GitHub Sponsors에서 일회성·정기 후원을 선택할 수 있어요. 앱을 사용하기 위해 후원할 필요는 없어요.",
-          "star.note": "GitHub를 새 탭으로 열어요. 그곳에서 로그인하고 Star를 눌러 주세요."
+          "star.note": "GitHub를 새 탭으로 열어요. 그곳에서 로그인하고 Star를 눌러 주세요.",
+          "consent.label": "쿠키 안내",
+          "consent.text": "이 사이트는 방문 수를 세기 위해 Google Analytics 쿠키를 씁니다. 앱은 여기로 아무것도 보내지 않아요.",
+          "consent.more": "수집 항목 보기",
+          "consent.accept": "동의",
+          "consent.decline": "거부",
+          "footer.privacy": "개인정보"
         },
         "ja": {
           "skip": "本文へスキップ",
@@ -2761,7 +2888,7 @@
             ],
             [
               "何がパソコンの外に送られますか？",
-              "正確モードは既存の Claude Code 認証情報を Anthropic に送って使用量を要求。更新確認とダウンロードは GitHub に接続します。ログ解析はローカルで行い、これらの処理はプロンプト・会話・ソースコードをアップロードしません。任意の Admin API キーは ~/.claude_pet.json に平文で保存されます（Windows はユーザーフォルダ内）。"
+              "正確モードは既存の Claude Code 認証情報を Anthropic に送って使用量を要求。更新確認とダウンロードは GitHub に接続します。ログ解析はローカルで行い、これらの処理はプロンプト・会話・ソースコードをアップロードしません。任意の Admin API キーは ~/.claude_pet.json に平文で保存されます（Windows はユーザーフォルダ内）。 ここまではアプリの話です。このウェブサイトは別で、Cookie のお知らせに同意した後にのみ Google Analytics を読み込みます。"
             ],
             [
               "API コストや他の AI にも対応しますか？",
@@ -2781,7 +2908,13 @@
           "support.body": "Claude Pet は無料でダウンロードできます。デスクトップが少し楽しくなったら、任意のスポンサーで開発とメンテナンスを応援してください。",
           "support.cta": "GitHub で支援する",
           "support.fine": "GitHub Sponsors で一回または毎月の支援を選べます。アプリの利用に支援は必要ありません。",
-          "star.note": "GitHub を新しいタブで開きます。そこでログインして Star を付けてください。"
+          "star.note": "GitHub を新しいタブで開きます。そこでログインして Star を付けてください。",
+          "consent.label": "Cookie のお知らせ",
+          "consent.text": "このサイトは訪問数の集計に Google Analytics の Cookie を使います。アプリ自体はここへ何も送りません。",
+          "consent.more": "収集する項目",
+          "consent.accept": "同意する",
+          "consent.decline": "拒否する",
+          "footer.privacy": "プライバシー"
         },
         "es": {
           "skip": "Ir al contenido",
@@ -2921,7 +3054,7 @@
             ],
             [
               "¿Qué sale de mi equipo?",
-              "El modo exacto envía la credencial de Claude Code a Anthropic para consultar el uso. Las actualizaciones contactan con GitHub. El análisis de registros se hace localmente; esas rutas no suben prompts, conversaciones ni código. La clave opcional de Admin API se guarda en texto plano en ~/.claude_pet.json (en la carpeta de usuario de Windows)."
+              "El modo exacto envía la credencial de Claude Code a Anthropic para consultar el uso. Las actualizaciones contactan con GitHub. El análisis de registros se hace localmente; esas rutas no suben prompts, conversaciones ni código. La clave opcional de Admin API se guarda en texto plano en ~/.claude_pet.json (en la carpeta de usuario de Windows). Eso es la app. Este sitio web es aparte: carga Google Analytics solo después de que aceptes el aviso de cookies."
             ],
             [
               "¿Admite costes de API u otras IA?",
@@ -2941,7 +3074,13 @@
           "support.body": "Claude Pet se descarga gratis. Si mejora tu escritorio, un patrocinio voluntario ayuda a apoyar su desarrollo y mantenimiento.",
           "support.cta": "Patrocinar en GitHub",
           "support.fine": "Puedes elegir una aportación única o mensual en GitHub Sponsors. No necesitas patrocinar para usar la app.",
-          "star.note": "Abre GitHub en una pestaña nueva. Inicia sesión allí para dar tu estrella."
+          "star.note": "Abre GitHub en una pestaña nueva. Inicia sesión allí para dar tu estrella.",
+          "consent.label": "Aviso de cookies",
+          "consent.text": "Este sitio usa cookies de Google Analytics para contar visitas. La app en sí no envía nada aquí.",
+          "consent.more": "Qué recopilamos",
+          "consent.accept": "Aceptar",
+          "consent.decline": "Rechazar",
+          "footer.privacy": "Privacidad"
         }
       };
       const PETS={"cat": "assets/frames/idle/00.png", "dog": "assets/pets/dog.png", "fox": "assets/pets/fox.png", "scorpion": "assets/pets/scorpion.png", "elephant": "assets/pets/elephant.png"};
@@ -2969,6 +3108,7 @@
        document.documentElement.lang=lang;document.getElementById('language').value=lang;
        document.querySelectorAll('[data-copy]').forEach(el=>{if(t[el.dataset.copy]!==undefined)el.innerHTML=t[el.dataset.copy]});
        document.getElementById('theme-toggle').setAttribute('aria-label',t.theme);
+       document.getElementById('consent').setAttribute('aria-label',t['consent.label']);
        document.getElementById('demo-collapse').setAttribute('aria-label',t['demo.collapse']);
        document.getElementById('pet-choices').setAttribute('aria-label',t['pets.choose']);
        document.querySelector('#platform-table tbody').innerHTML=t.table.map(r=>'<tr><th scope="row">'+r[0]+'</th><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');
@@ -2995,6 +3135,15 @@
       tabs.forEach((tab,index)=>{tab.addEventListener('click',()=>activateTab(tab.id));tab.addEventListener('keydown',e=>{let target;if(e.key==='ArrowRight'||e.key==='ArrowDown')target=(index+1)%tabs.length;if(e.key==='ArrowLeft'||e.key==='ArrowUp')target=(index+tabs.length-1)%tabs.length;if(e.key==='Home')target=0;if(e.key==='End')target=tabs.length-1;if(target!==undefined){e.preventDefault();activateTab(tabs[target].id,true)}})});
       document.documentElement.classList.add('js');
       activateTab(/Windows/.test(navigator.userAgent)?'install-windows':'install-mac');
+      const consentBar=document.getElementById('consent');
+      function setConsent(choice){
+       persist('claudepet-consent',choice);
+       if(choice==='granted')gtag('consent','update',{analytics_storage:'granted'});
+       consentBar.hidden=true;
+      }
+      document.getElementById('consent-accept').addEventListener('click',()=>setConsent('granted'));
+      document.getElementById('consent-decline').addEventListener('click',()=>setConsent('denied'));
+      if(!['granted','denied'].includes(stored('claudepet-consent')))consentBar.hidden=false;
       setLanguage(lang);
     </script>
   </body>

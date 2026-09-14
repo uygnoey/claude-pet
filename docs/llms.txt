@@ -31,12 +31,15 @@ Reference: v0.24. Published at 2026-09-12T15:55:00Z (2026-09-13 00:55 KST). Refe
 
 Local usage parsing happens on the computer. Exact mode sends the existing Claude Code credential to Anthropic to request account usage. Update checks and downloads contact GitHub. Those usage and update paths do not upload prompts, transcripts or source code. This is not an offline-only app.
 
+The website at claude-pet.yeongyu.me is separate from the app: it loads Google Analytics only after a visitor accepts its cookie notice, and the app never contacts it. See https://claude-pet.yeongyu.me/privacy.html
+
 Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC. Public source availability does not establish a particular software license.
 
 ## Links
 
 - [Website and installation](https://claude-pet.yeongyu.me/)
 - [Full reference](https://claude-pet.yeongyu.me/llms-full.txt)
+- [Website privacy](https://claude-pet.yeongyu.me/privacy.html)
 - [Repository](https://github.com/uygnoey/claude-pet)
 - [v0.24 release](https://github.com/uygnoey/claude-pet/releases/tag/v0.24)
 - [Latest release](https://github.com/uygnoey/claude-pet/releases/latest)

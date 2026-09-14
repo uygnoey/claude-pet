@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <!-- Google tag (gtag.js) -->
+    <!-- Consent Mode v2: storage stays denied until the visitor accepts, on the
+         home page banner or with the controls further down this page. -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        wait_for_update: 500
+      });
+      try {
+        if (localStorage.getItem('claudepet-consent') === 'granted') {
+          gtag('consent', 'update', { analytics_storage: 'granted' });
+        }
+      } catch (e) {}
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FW4M0S94JZ"></script>
+    <script>
+      gtag('js', new Date());
+
+      gtag('config', 'G-FW4M0S94JZ');
+    </script>
+    <title>
+      Privacy — Claude Pet
+    </title>
+    <meta name="description" content="What the Claude Pet website collects, the cookies it sets only after you accept, and how the desktop app differs.">
+    <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#17283b">
+    <link rel="canonical" href="https://claude-pet.yeongyu.me/privacy.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Claude Pet">
+    <meta property="og:url" content="https://claude-pet.yeongyu.me/privacy.html">
+    <meta property="og:title" content="Privacy — Claude Pet">
+    <meta property="og:description" content="What the Claude Pet website collects, the cookies it sets only after you accept, and how the desktop app differs.">
+    <link rel="icon" href="assets/frames/idle/00.png">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.5/latin.css" crossorigin>
+    <style>
+      :root {
+        --font-ui:"Inter","Segoe UI",sans-serif;
+        --paper:#f4f3ec;
+        --surface:#fffef8;
+        --ink:#17283b;
+        --muted:#566374;
+        --line:#ccd1ce;
+        --lime:#d7f46d;
+        --shadow:0 25px 70px #17283b16;
+        color-scheme:light
+      }
+      html[data-theme=dark] {
+        --paper:#172333;
+        --surface:#1d2b3b;
+        --ink:#f2f3eb;
+        --muted:#b7c5d1;
+        --line:#42515e;
+        --shadow:0 25px 70px #0003;
+        color-scheme:dark
+      }
+      html[lang="ko"] body, html[lang="ja"] body {
+        font-family:"Pretendard Variable","Pretendard",var(--font-ui)
+      }
+      * {
+        box-sizing:border-box
+      }
+      body {
+        margin:0;
+        background:var(--paper);
+        color:var(--ink);
+        font-family:var(--font-ui);
+        font-size:15px;
+        line-height:1.7;
+        -webkit-font-smoothing:antialiased
+      }
+      .wrap {
+        width:100%;
+        max-width:760px;
+        margin:0 auto;
+        padding-inline:24px
+      }
+      header.bar {
+        border-bottom:1px solid var(--line)
+      }
+      .bar-inner {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:16px;
+        padding-block:18px
+      }
+      .brand {
+        font-weight:800;
+        font-size:16px;
+        color:var(--ink);
+        text-decoration:none;
+        letter-spacing:-.01em
+      }
+      .bar-tools {
+        display:flex;
+        align-items:center;
+        gap:10px
+      }
+      .bar-tools select, .bar-tools button {
+        min-height:36px;
+        padding:6px 10px;
+        border:1px solid var(--line);
+        border-radius:5px;
+        background:var(--surface);
+        color:var(--ink);
+        font-family:inherit;
+        font-size:13px;
+        cursor:pointer
+      }
+      main {
+        padding-block:48px 72px
+      }
+      h1 {
+        margin:0 0 6px;
+        font-size:38px;
+        line-height:1.15;
+        letter-spacing:-.02em
+      }
+      .updated {
+        margin:0 0 40px;
+        color:var(--muted);
+        font-size:13px
+      }
+      h2 {
+        margin:44px 0 10px;
+        font-size:20px;
+        letter-spacing:-.01em
+      }
+      p {
+        margin:0 0 14px;
+        color:var(--muted)
+      }
+      p strong {
+        color:var(--ink)
+      }
+      a {
+        color:var(--ink)
+      }
+      ul {
+        margin:0 0 14px;
+        padding-left:20px;
+        color:var(--muted)
+      }
+      li {
+        margin-bottom:6px
+      }
+      code {
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:.92em;
+        background:var(--surface);
+        border:1px solid var(--line);
+        border-radius:4px;
+        padding:1px 5px
+      }
+      .table-scroll {
+        overflow-x:auto;
+        margin-bottom:14px
+      }
+      table {
+        width:100%;
+        border-collapse:collapse;
+        font-size:14px;
+        min-width:420px
+      }
+      th, td {
+        text-align:left;
+        padding:10px 12px;
+        border-bottom:1px solid var(--line);
+        vertical-align:top
+      }
+      th {
+        color:var(--ink);
+        font-weight:700;
+        white-space:nowrap
+      }
+      td {
+        color:var(--muted)
+      }
+      .consent-box {
+        margin:18px 0 8px;
+        padding:18px 20px;
+        background:var(--surface);
+        border:1px solid var(--line);
+        border-radius:12px;
+        box-shadow:var(--shadow)
+      }
+      .consent-box p {
+        margin:0 0 12px
+      }
+      .consent-state {
+        color:var(--ink);
+        font-weight:700
+      }
+      .consent-actions {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap
+      }
+      .consent-actions button {
+        min-height:40px;
+        padding:9px 18px;
+        border-radius:5px;
+        border:1px solid var(--ink);
+        background:transparent;
+        color:var(--ink);
+        font-family:inherit;
+        font-size:13px;
+        font-weight:700;
+        cursor:pointer;
+        transition:transform .18s
+      }
+      .consent-actions button:hover {
+        transform:translateY(-2px)
+      }
+      .consent-actions button.accept {
+        background:var(--lime);
+        border-color:var(--lime);
+        color:#17283b
+      }
+      footer.foot {
+        border-top:1px solid var(--line);
+        padding-block:24px 40px;
+        color:var(--muted);
+        font-size:13px
+      }
+      footer.foot a {
+        margin-right:16px
+      }
+      @media (max-width:560px) {
+        h1 {
+          font-size:29px
+        }
+        .consent-actions button {
+          flex:1 1 0
+        }
+      }
+      @media (prefers-reduced-motion:reduce) {
+        .consent-actions button {
+          transition:none
+        }
+        .consent-actions button:hover {
+          transform:none
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="wrap bar-inner">
+        <a class="brand" href="./">
+          Claude Pet
+        </a>
+        <div class="bar-tools">
+          <select id="language" aria-label="Language">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+            <option value="ja">日本語</option>
+            <option value="es">Español</option>
+          </select>
+          <button type="button" id="theme-toggle" aria-label="Switch color theme" aria-pressed="false">
+            ◐
+          </button>
+        </div>
+      </div>
+    </header>
+    <main class="wrap">
+      <h1 data-copy="title">
+        Privacy
+      </h1>
+      <p class="updated">
+        <span data-copy="updated">Last updated</span>
+        2026-09-14
+      </p>
+
+      <p data-copy="intro">
+        This page covers <strong>this website</strong> — claude-pet.yeongyu.me. The Claude Pet desktop app is a separate thing and is described further down.
+      </p>
+
+      <h2 data-copy="site.title">
+        What this website collects
+      </h2>
+      <p data-copy="site.body">
+        This site uses Google Analytics 4 to count visits. It is off by default: Google Consent Mode starts with storage denied, so <strong>no analytics cookie is set and no measurement is recorded until you accept</strong> the cookie notice. If you decline, or simply ignore the notice, that stays the case.
+      </p>
+      <p data-copy="site.collect">
+        Once you accept, Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.
+      </p>
+
+      <h2 data-copy="cookies.title">
+        Cookies
+      </h2>
+      <p data-copy="cookies.body">
+        Only after you accept. Both are first-party cookies set by Google Analytics; the durations are Google's documented defaults.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-copy="cookies.h1">Name</th>
+              <th data-copy="cookies.h2">Expires</th>
+              <th data-copy="cookies.h3">Purpose</th>
+            </tr>
+          </thead>
+          <tbody id="cookie-table"></tbody>
+        </table>
+      </div>
+      <p data-copy="cookies.choice">
+        Your own choice is kept in your browser's local storage under <code>claudepet-consent</code>. That never leaves your device, and clearing your browser data removes it.
+      </p>
+
+      <div class="consent-box">
+        <p>
+          <span data-copy="consent.now">Current setting:</span>
+          <span class="consent-state" id="consent-state"></span>
+        </p>
+        <div class="consent-actions">
+          <button type="button" class="accept" id="consent-accept" data-copy="consent.accept">
+            Accept
+          </button>
+          <button type="button" id="consent-decline" data-copy="consent.decline">
+            Decline
+          </button>
+        </div>
+      </div>
+      <p data-copy="consent.note">
+        Withdrawing consent stops any further measurement immediately. Cookies already set are removed by clearing site data in your browser.
+      </p>
+
+      <h2 data-copy="host.title">
+        Hosting
+      </h2>
+      <p data-copy="host.body">
+        The site is served by GitHub Pages. GitHub's own documentation states that when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes, whether or not the visitor is signed in to GitHub. That logging belongs to GitHub and is not affected by the choice above.
+      </p>
+      <p>
+        <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages" data-copy="host.link">GitHub Pages documentation</a>
+      </p>
+
+      <h2 data-copy="app.title">
+        The desktop app is separate
+      </h2>
+      <p data-copy="app.body">
+        Claude Pet the app has nothing to do with this website's analytics. It does not contact Google, and it does not report anything to this site. What it does do:
+      </p>
+      <ul>
+        <li data-copy="app.li1">Exact mode sends your existing Claude Code credential to Anthropic to ask for your account usage.</li>
+        <li data-copy="app.li2">Update checks and downloads contact GitHub.</li>
+        <li data-copy="app.li3">Usage parsing happens on your computer. Prompts, transcripts and source code are never uploaded by those paths.</li>
+        <li data-copy="app.li4">An optional Admin API key is stored in plaintext in <code>~/.claude_pet.json</code> on your own machine.</li>
+      </ul>
+
+      <h2 data-copy="contact.title">
+        Questions
+      </h2>
+      <p data-copy="contact.body">
+        Open an issue on GitHub and I will answer there.
+      </p>
+      <p>
+        <a href="https://github.com/uygnoey/claude-pet/issues" data-copy="contact.link">Open an issue</a>
+      </p>
+    </main>
+    <footer class="foot">
+      <div class="wrap">
+        <a href="./" data-copy="foot.home">Back to Claude Pet</a>
+        <a href="https://github.com/uygnoey/claude-pet" data-copy="foot.source">Explore the source</a>
+        <br>
+        <span data-copy="foot.fine">An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.</span>
+      </div>
+    </footer>
+    <script>
+      const I18N={
+        "en": {
+          "docTitle": "Privacy — Claude Pet",
+          "language": "Language",
+          "theme": "Switch color theme",
+          "title": "Privacy",
+          "updated": "Last updated",
+          "intro": "This page covers <strong>this website</strong> — claude-pet.yeongyu.me. The Claude Pet desktop app is a separate thing and is described further down.",
+          "site.title": "What this website collects",
+          "site.body": "This site uses Google Analytics 4 to count visits. It is off by default: Google Consent Mode starts with storage denied, so <strong>no analytics cookie is set and no measurement is recorded until you accept</strong> the cookie notice. If you decline, or simply ignore the notice, that stays the case.",
+          "site.collect": "Once you accept, Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.",
+          "cookies.title": "Cookies",
+          "cookies.body": "Only after you accept. Both are first-party cookies set by Google Analytics; the durations are Google's documented defaults.",
+          "cookies.h1": "Name",
+          "cookies.h2": "Expires",
+          "cookies.h3": "Purpose",
+          "cookies": [
+            ["_ga", "2 years", "Distinguishes one visitor from another."],
+            ["_ga_FW4M0S94JZ", "2 years", "Keeps session state for this site's Analytics property."]
+          ],
+          "cookies.choice": "Your own choice is kept in your browser's local storage under <code>claudepet-consent</code>. That never leaves your device, and clearing your browser data removes it.",
+          "consent.now": "Current setting:",
+          "consent.accept": "Accept",
+          "consent.decline": "Decline",
+          "consent.granted": "Analytics allowed",
+          "consent.denied": "Analytics declined",
+          "consent.unset": "Not chosen yet — analytics is off",
+          "consent.note": "Withdrawing consent stops any further measurement immediately. Cookies already set are removed by clearing site data in your browser.",
+          "host.title": "Hosting",
+          "host.body": "The site is served by GitHub Pages. GitHub's own documentation states that when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes, whether or not the visitor is signed in to GitHub. That logging belongs to GitHub and is not affected by the choice above.",
+          "host.link": "GitHub Pages documentation",
+          "app.title": "The desktop app is separate",
+          "app.body": "Claude Pet the app has nothing to do with this website's analytics. It does not contact Google, and it does not report anything to this site. What it does do:",
+          "app.li1": "Exact mode sends your existing Claude Code credential to Anthropic to ask for your account usage.",
+          "app.li2": "Update checks and downloads contact GitHub.",
+          "app.li3": "Usage parsing happens on your computer. Prompts, transcripts and source code are never uploaded by those paths.",
+          "app.li4": "An optional Admin API key is stored in plaintext in <code>~/.claude_pet.json</code> on your own machine.",
+          "contact.title": "Questions",
+          "contact.body": "Open an issue on GitHub and I will answer there.",
+          "contact.link": "Open an issue",
+          "foot.home": "Back to Claude Pet",
+          "foot.source": "Explore the source",
+          "foot.fine": "An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC."
+        },
+        "ko": {
+          "docTitle": "개인정보 — Claude Pet",
+          "language": "언어",
+          "theme": "색 테마 전환",
+          "title": "개인정보",
+          "updated": "마지막 업데이트",
+          "intro": "이 페이지는 <strong>이 웹사이트</strong>(claude-pet.yeongyu.me)에 대한 설명이에요. 데스크톱 앱 Claude Pet은 별개이며 아래에서 따로 다룹니다.",
+          "site.title": "이 웹사이트가 수집하는 것",
+          "site.body": "이 사이트는 방문 수를 세기 위해 Google Analytics 4를 씁니다. 기본값은 꺼짐이에요. Google Consent Mode가 저장을 거부된 상태로 시작하기 때문에, <strong>동의하기 전까지는 애널리틱스 쿠키가 생성되지 않고 측정도 기록되지 않아요</strong>. 거부하거나 안내를 그냥 지나쳐도 마찬가지입니다.",
+          "site.collect": "동의한 뒤에는 Google Analytics가 열어 본 페이지, 유입된 링크나 검색, 브라우저와 기기 종류, IP 주소에서 추정한 대략적 위치를 받습니다. 이름·이메일이나 입력한 내용은 받지 않아요.",
+          "cookies.title": "쿠키",
+          "cookies.body": "동의한 뒤에만 생성됩니다. 둘 다 Google Analytics가 심는 퍼스트파티 쿠키이고, 유효 기간은 Google이 문서에 명시한 기본값이에요.",
+          "cookies.h1": "이름",
+          "cookies.h2": "만료",
+          "cookies.h3": "용도",
+          "cookies": [
+            ["_ga", "2년", "방문자를 서로 구분합니다."],
+            ["_ga_FW4M0S94JZ", "2년", "이 사이트 애널리틱스 속성의 세션 상태를 유지합니다."]
+          ],
+          "cookies.choice": "동의 여부 자체는 브라우저 로컬 저장소의 <code>claudepet-consent</code> 항목에 보관돼요. 이 값은 기기 밖으로 나가지 않고, 브라우저 데이터를 지우면 함께 사라집니다.",
+          "consent.now": "현재 설정:",
+          "consent.accept": "동의",
+          "consent.decline": "거부",
+          "consent.granted": "애널리틱스 허용됨",
+          "consent.denied": "애널리틱스 거부됨",
+          "consent.unset": "아직 선택하지 않음 — 애널리틱스 꺼짐",
+          "consent.note": "동의를 철회하면 이후 측정은 즉시 중단돼요. 이미 만들어진 쿠키는 브라우저에서 사이트 데이터를 지우면 삭제됩니다.",
+          "host.title": "호스팅",
+          "host.body": "이 사이트는 GitHub Pages로 제공됩니다. GitHub 공식 문서에 따르면 GitHub Pages 사이트를 방문하면 GitHub 로그인 여부와 관계없이 방문자의 IP 주소가 보안 목적으로 기록·저장돼요. 이 기록은 GitHub의 것이고, 위 선택의 영향을 받지 않습니다.",
+          "host.link": "GitHub Pages 문서",
+          "app.title": "데스크톱 앱은 별개예요",
+          "app.body": "앱 Claude Pet은 이 웹사이트의 애널리틱스와 아무 관계가 없어요. Google에 연결하지 않고, 이 사이트로 무엇도 보고하지 않습니다. 앱이 실제로 하는 일은:",
+          "app.li1": "정확 모드는 기존 Claude Code 인증 정보를 Anthropic에 보내 계정 사용량을 요청해요.",
+          "app.li2": "업데이트 확인과 다운로드는 GitHub에 연결해요.",
+          "app.li3": "사용량 파싱은 내 컴퓨터에서 이뤄져요. 이 경로들은 프롬프트·대화 내용·소스 코드를 업로드하지 않습니다.",
+          "app.li4": "선택적 Admin API 키는 내 컴퓨터의 <code>~/.claude_pet.json</code>에 평문으로 저장돼요.",
+          "contact.title": "문의",
+          "contact.body": "GitHub에 이슈를 남겨 주시면 거기서 답변할게요.",
+          "contact.link": "이슈 남기기",
+          "foot.home": "Claude Pet으로 돌아가기",
+          "foot.source": "소스 보기",
+          "foot.fine": "Yeongyu Yang의 개인 프로젝트입니다. Anthropic과 제휴하거나 보증받지 않았어요. Claude는 Anthropic PBC의 상표입니다."
+        },
+        "ja": {
+          "docTitle": "プライバシー — Claude Pet",
+          "language": "言語",
+          "theme": "カラーテーマを切り替え",
+          "title": "プライバシー",
+          "updated": "最終更新",
+          "intro": "このページは<strong>このウェブサイト</strong>（claude-pet.yeongyu.me）についての説明です。デスクトップアプリの Claude Pet は別物で、下のほうで扱います。",
+          "site.title": "このウェブサイトが収集するもの",
+          "site.body": "このサイトは訪問数の集計に Google Analytics 4 を使います。既定はオフです。Google の同意モードが保存を拒否した状態で始まるため、<strong>同意するまでは解析 Cookie は作られず、測定も記録されません</strong>。拒否した場合も、お知らせを無視した場合も同じです。",
+          "site.collect": "同意すると、Google Analytics は開いたページ、参照元のリンクや検索、ブラウザーと端末の種類、IP アドレスから推定したおおよその位置を受け取ります。氏名やメールアドレス、入力した内容は受け取りません。",
+          "cookies.title": "Cookie",
+          "cookies.body": "同意した後にのみ作られます。どちらも Google Analytics が設定するファーストパーティ Cookie で、有効期間は Google が文書化している既定値です。",
+          "cookies.h1": "名前",
+          "cookies.h2": "有効期限",
+          "cookies.h3": "用途",
+          "cookies": [
+            ["_ga", "2 年", "訪問者を区別します。"],
+            ["_ga_FW4M0S94JZ", "2 年", "このサイトのアナリティクス プロパティのセッション状態を保持します。"]
+          ],
+          "cookies.choice": "同意したかどうかはブラウザーのローカルストレージの <code>claudepet-consent</code> に保存されます。この値は端末の外に出ず、ブラウザーのデータを消すと一緒に消えます。",
+          "consent.now": "現在の設定：",
+          "consent.accept": "同意する",
+          "consent.decline": "拒否する",
+          "consent.granted": "解析を許可",
+          "consent.denied": "解析を拒否",
+          "consent.unset": "未選択 — 解析はオフ",
+          "consent.note": "同意を撤回すると以降の測定は直ちに止まります。すでに作られた Cookie は、ブラウザーでサイトデータを消すと削除されます。",
+          "host.title": "ホスティング",
+          "host.body": "このサイトは GitHub Pages で配信されています。GitHub の公式文書によれば、GitHub Pages のサイトを訪問すると、GitHub にログインしているかどうかに関わらず、訪問者の IP アドレスがセキュリティ目的で記録・保存されます。この記録は GitHub のもので、上の選択の影響を受けません。",
+          "host.link": "GitHub Pages のドキュメント",
+          "app.title": "デスクトップアプリは別です",
+          "app.body": "アプリの Claude Pet は、このウェブサイトの解析とは無関係です。Google には接続せず、このサイトへ何も報告しません。アプリが実際に行うのは次のことです。",
+          "app.li1": "正確モードは既存の Claude Code 認証情報を Anthropic に送り、アカウントの使用量を要求します。",
+          "app.li2": "更新の確認とダウンロードは GitHub に接続します。",
+          "app.li3": "使用量の解析は自分のコンピューター上で行われます。これらの経路がプロンプト・会話・ソースコードをアップロードすることはありません。",
+          "app.li4": "任意の Admin API キーは自分のマシンの <code>~/.claude_pet.json</code> に平文で保存されます。",
+          "contact.title": "お問い合わせ",
+          "contact.body": "GitHub で issue を立てていただければ、そこでお答えします。",
+          "contact.link": "issue を立てる",
+          "foot.home": "Claude Pet に戻る",
+          "foot.source": "ソースを見る",
+          "foot.fine": "Yeongyu Yang による個人プロジェクトです。Anthropic とは提携しておらず、承認も受けていません。Claude は Anthropic PBC の商標です。"
+        },
+        "es": {
+          "docTitle": "Privacidad — Claude Pet",
+          "language": "Idioma",
+          "theme": "Cambiar tema",
+          "title": "Privacidad",
+          "updated": "Última actualización",
+          "intro": "Esta página trata sobre <strong>este sitio web</strong>: claude-pet.yeongyu.me. La app de escritorio Claude Pet es otra cosa y se explica más abajo.",
+          "site.title": "Qué recopila este sitio web",
+          "site.body": "Este sitio usa Google Analytics 4 para contar visitas. Está desactivado por defecto: el modo de consentimiento de Google arranca con el almacenamiento denegado, así que <strong>no se crea ninguna cookie de analítica ni se registra ninguna medición hasta que aceptes</strong> el aviso. Si lo rechazas, o si simplemente lo ignoras, sigue siendo así.",
+          "site.collect": "Una vez que aceptas, Google Analytics recibe las páginas que abres, el enlace o la búsqueda que te trajo, tu tipo de navegador y dispositivo, y una ubicación aproximada derivada de tu dirección IP. No recibe tu nombre, tu correo ni nada de lo que escribas.",
+          "cookies.title": "Cookies",
+          "cookies.body": "Solo después de que aceptes. Ambas son cookies propias que crea Google Analytics; las duraciones son los valores predeterminados documentados por Google.",
+          "cookies.h1": "Nombre",
+          "cookies.h2": "Caduca",
+          "cookies.h3": "Para qué",
+          "cookies": [
+            ["_ga", "2 años", "Distingue a un visitante de otro."],
+            ["_ga_FW4M0S94JZ", "2 años", "Mantiene el estado de sesión de la propiedad de Analytics de este sitio."]
+          ],
+          "cookies.choice": "Tu elección se guarda en el almacenamiento local del navegador, en <code>claudepet-consent</code>. Ese valor nunca sale de tu dispositivo y desaparece al borrar los datos del navegador.",
+          "consent.now": "Ajuste actual:",
+          "consent.accept": "Aceptar",
+          "consent.decline": "Rechazar",
+          "consent.granted": "Analítica permitida",
+          "consent.denied": "Analítica rechazada",
+          "consent.unset": "Sin elegir todavía: la analítica está apagada",
+          "consent.note": "Retirar el consentimiento detiene cualquier medición posterior de inmediato. Las cookies ya creadas se eliminan borrando los datos del sitio en tu navegador.",
+          "host.title": "Alojamiento",
+          "host.body": "El sitio se sirve con GitHub Pages. La propia documentación de GitHub indica que, al visitar un sitio de GitHub Pages, la dirección IP del visitante se registra y se almacena por motivos de seguridad, tenga o no sesión iniciada en GitHub. Ese registro es de GitHub y no depende de la elección anterior.",
+          "host.link": "Documentación de GitHub Pages",
+          "app.title": "La app de escritorio es aparte",
+          "app.body": "La app Claude Pet no tiene nada que ver con la analítica de este sitio web. No contacta con Google ni informa de nada a este sitio. Lo que sí hace:",
+          "app.li1": "El modo exacto envía tu credencial de Claude Code a Anthropic para consultar el uso de tu cuenta.",
+          "app.li2": "Las comprobaciones de actualización y las descargas contactan con GitHub.",
+          "app.li3": "El análisis del uso ocurre en tu ordenador. Esas rutas nunca suben prompts, conversaciones ni código fuente.",
+          "app.li4": "Una clave opcional de Admin API se guarda en texto plano en <code>~/.claude_pet.json</code>, en tu propia máquina.",
+          "contact.title": "Preguntas",
+          "contact.body": "Abre una issue en GitHub y te responderé allí.",
+          "contact.link": "Abrir una issue",
+          "foot.home": "Volver a Claude Pet",
+          "foot.source": "Ver el código",
+          "foot.fine": "Un proyecto independiente de Yeongyu Yang. Sin afiliación ni respaldo de Anthropic. Claude es una marca de Anthropic PBC."
+        }
+      };
+      const supported=Object.keys(I18N);
+      function stored(key){try{return localStorage.getItem(key)}catch{return null}}
+      function persist(key,value){try{localStorage.setItem(key,value)}catch{}}
+      const savedLang=stored('claudepet-lang');
+      const browserLang=(navigator.language||'en').slice(0,2);
+      let lang=supported.includes(savedLang)?savedLang:(supported.includes(browserLang)?browserLang:'en');
+      function consentChoice(){const v=stored('claudepet-consent');return ['granted','denied'].includes(v)?v:'unset'}
+      function renderConsent(){
+       const t=I18N[lang];
+       document.getElementById('consent-state').textContent=t['consent.'+consentChoice()];
+      }
+      function setLanguage(value){
+       lang=supported.includes(value)?value:'en';const t=I18N[lang];
+       document.documentElement.lang=lang;document.getElementById('language').value=lang;
+       document.title=t.docTitle;
+       document.querySelectorAll('[data-copy]').forEach(el=>{if(t[el.dataset.copy]!==undefined)el.innerHTML=t[el.dataset.copy]});
+       document.getElementById('language').setAttribute('aria-label',t.language);
+       document.getElementById('theme-toggle').setAttribute('aria-label',t.theme);
+       document.getElementById('cookie-table').innerHTML=t.cookies.map(r=>'<tr><th scope="row"><code>'+r[0]+'</code></th><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');
+       renderConsent();
+      }
+      function setTheme(theme){document.documentElement.dataset.theme=theme;document.getElementById('theme-toggle').setAttribute('aria-pressed',String(theme==='dark'))}
+      const savedTheme=stored('claudepet-theme');
+      setTheme(['light','dark'].includes(savedTheme)?savedTheme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+      document.getElementById('theme-toggle').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';setTheme(theme);persist('claudepet-theme',theme)});
+      document.getElementById('language').addEventListener('change',e=>{setLanguage(e.target.value);persist('claudepet-lang',lang)});
+      function setConsent(choice){
+       persist('claudepet-consent',choice);
+       gtag('consent','update',{analytics_storage:choice==='granted'?'granted':'denied'});
+       renderConsent();
+      }
+      document.getElementById('consent-accept').addEventListener('click',()=>setConsent('granted'));
+      document.getElementById('consent-decline').addEventListener('click',()=>setConsent('denied'));
+      setLanguage(lang);
+    </script>
+  </body>
+</html>
