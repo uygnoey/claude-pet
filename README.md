@@ -18,7 +18,7 @@ Rendered natively on macOS (AppKit) — no window frame, no background, no ghost
 | Download | `ClaudePet.dmg` (Apple Silicon) · `ClaudePet-universal.dmg` (Intel) | `claude-pet-win-setup.exe` (installer) · `claude-pet-win.zip` (portable) |
 | Signing | Developer ID signed, notarized by Apple | Unsigned — Windows asks once before the first run |
 | Updates | In-app: checks every hour, installs from the right-click menu | In-app: checks every hour, installs from the right-click menu (installer or portable zip) |
-| Start at sign-in | Right-click menu → “Start at sign-in” | Right-click menu → “Start at sign-in” (also an installer option) |
+| Start at sign-in | Right-click menu → “Start at sign-in” (macOS 13+; on macOS 12, System Preferences → Users & Groups → Login Items) | Right-click menu → “Start at sign-in” (also an installer option) |
 | Claude Code | Reads the Claude Code credential (Keychain or credentials file) | Reads the Claude Code credentials file |
 | Pets | Built-in cat + 4 bundled pets, plus your own in `~/.claude_pet/pets` | Same, under `%USERPROFILE%\.claude_pet\pets` |
 | Uninstall | Right-click → Uninstall completely… | Settings → Apps → Uninstall |
