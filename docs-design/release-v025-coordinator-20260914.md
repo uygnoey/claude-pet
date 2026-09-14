@@ -158,3 +158,34 @@ them by those names — and only then ask for the end-to-end upgrade check.
 
 Until they are up, `v0.25` is Latest with no Windows download, and the third release-notes
 bullet has nothing behind it for Windows users.
+
+## Windows assets verified on the release (2026-09-14)
+
+The user had the Windows session upload the two files with `gh release upload`, so the
+transfer never touched git. I verified them here without relying on that session's report,
+which is what this record required:
+
+- **Downloaded both assets from the release and hashed them locally.**
+  `claude-pet-win.zip` → `98f440b35368f46f16d8d15480ca6f08565b34da4ebf0683360e1c132ba9cc9e`,
+  72,507,793 bytes. `claude-pet-win-setup.exe` →
+  `e1c39d764e3a102a96bb4efb1ac280d2f811b44f00b5d3123e7e6b1abb7f572c`, 56,054,985 bytes.
+  Both equal GitHub's own server-side `assets[].digest` and the `38b2eb4` digests recorded
+  in the addendum above. The superseded `6d94c4d` pair appears nowhere on the release.
+- **Opened the published zip.** 248 members, exactly one top-level root `ClaudePet/`, zero
+  members that are absolute or escape the root, `ClaudePet/ClaudePet.exe` present, and
+  `ClaudePet/_internal/claudepet-release.json` reading
+  `{"version": "0.25", "built": "2026-09-14T10:21:47Z", "asset": "claude-pet-win.zip",
+  "installer": "claude-pet-win-setup.exe", "machine": "AMD64"}` — the version matching
+  `APP_VERSION` at the build commit `38b2eb4`.
+- **The names are the ones the updater looks for**: `win_update.py` defines
+  `SETUP_ASSET = "claude-pet-win-setup.exe"`, `ZIP_ASSET = "claude-pet-win.zip"` and
+  `APP_DIR_NAME = "ClaudePet"`, all three satisfied.
+- The release now carries six assets, the same set v0.24 had. Gate finding **W1 is closed**.
+
+Both Windows files are **unsigned**, as v0.24's were; that is stated on the site and in the
+READMEs, and Windows asks once before the first run.
+
+What remains is the end-to-end in-app upgrade (v0.24 → v0.25) on the Windows machine, for
+both install kinds. It could not run before now because it needs a published higher version
+to climb to, and it is the only claim in the third release-notes bullet not yet exercised
+against a real release.
