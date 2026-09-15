@@ -1761,3 +1761,25 @@ scratchpad, `green-full.txt`.
   the fresh-install-reads-3 claim still rests on the Coordinator's single observation, labelled
   as such in the code comment, CLAUDE.md, the test docstring and §11.3.
 Record closed 2026-09-13T13:45Z.
+
+## Hardware check on the merged code (Coordinator, 2026-09-13, macOS 26.5 / Darwin 25.5)
+
+Bundle built by `./build_app.sh build` from f09c97d (the NotFound-mapping fix) in a detached
+worktree, launched with `open -n … --env HOME=<scratch>` so the user's config was untouched,
+driven with synthetic Quartz events (right-click on the pet, Down ×4, Return), the menu
+captured after each step with `screencapture -R`, and the service status read from the
+bundle's own interpreter (`Contents/MacOS/ClaudePet_py`, so `NSBundle.mainBundle()` was
+the app):
+
+| step | menu | `SMAppService.mainAppService().status()` |
+| --- | --- | --- |
+| fresh bundle, before launch | — | 3 (NotFound) |
+| first right-click | "로그인 시 자동 실행" enabled, unchecked | — |
+| after selecting it once | ✓ checked | (registered) |
+| after selecting it again | unchecked | 0 (NotRegistered) |
+
+The item was disabled with "(여기서는 사용 불가)" on the pre-fix build of 794c66f from the
+same location; two causes were found and fixed that day — the pyenv build Python lacked
+`pyobjc-framework-ServiceManagement` (installed), and status 3 was mapped to
+"unavailable" (f09c97d). Screenshots: session scratchpad `autostart_1_menu.png`,
+`autostart_3_after_on.png`, `autostart_4_after_off.png` (not committed).

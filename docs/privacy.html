@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <!-- Google tag (gtag.js) -->
+    <!-- Required: analytics_storage is granted on every page. Counting a visit
+         cannot be refused here and is never gated.
+         Optional: the ad_* signals are granted by default and turned off only
+         when the visitor opts out, which is stored as claudepet-ads=denied. -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        analytics_storage: 'granted',
+        ad_storage: 'granted',
+        ad_user_data: 'granted',
+        ad_personalization: 'granted'
+      });
+      try {
+        if (localStorage.getItem('claudepet-ads') === 'denied') {
+          gtag('consent', 'update', {
+            ad_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied'
+          });
+        }
+      } catch (e) {}
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FW4M0S94JZ"></script>
+    <script>
+      gtag('js', new Date());
+
+      gtag('config', 'G-FW4M0S94JZ');
+    </script>
+    <title>
+      Privacy — Claude Pet
+    </title>
+    <meta name="description" content="What the Claude Pet website measures, the cookies it sets, what it deliberately leaves off, and how the desktop app differs.">
+    <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#17283b">
+    <link rel="canonical" href="https://claude-pet.yeongyu.me/privacy.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Claude Pet">
+    <meta property="og:url" content="https://claude-pet.yeongyu.me/privacy.html">
+    <meta property="og:title" content="Privacy — Claude Pet">
+    <meta property="og:description" content="What the Claude Pet website measures, the cookies it sets, what it deliberately leaves off, and how the desktop app differs.">
+    <link rel="icon" href="assets/frames/idle/00.png">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.2.5/latin.css" crossorigin>
+    <style>
+      :root {
+        --font-ui:"Inter","Segoe UI",sans-serif;
+        --paper:#f4f3ec;
+        --surface:#fffef8;
+        --ink:#17283b;
+        --muted:#566374;
+        --line:#ccd1ce;
+        --lime:#d7f46d;
+        --shadow:0 25px 70px #17283b16;
+        color-scheme:light
+      }
+      html[data-theme=dark] {
+        --paper:#172333;
+        --surface:#1d2b3b;
+        --ink:#f2f3eb;
+        --muted:#b7c5d1;
+        --line:#42515e;
+        --shadow:0 25px 70px #0003;
+        color-scheme:dark
+      }
+      html[lang="ko"] body, html[lang="ja"] body {
+        font-family:"Pretendard Variable","Pretendard",var(--font-ui)
+      }
+      * {
+        box-sizing:border-box
+      }
+      body {
+        margin:0;
+        background:var(--paper);
+        color:var(--ink);
+        font-family:var(--font-ui);
+        font-size:15px;
+        line-height:1.7;
+        -webkit-font-smoothing:antialiased
+      }
+      .wrap {
+        width:100%;
+        max-width:760px;
+        margin:0 auto;
+        padding-inline:24px
+      }
+      header.bar {
+        border-bottom:1px solid var(--line)
+      }
+      .bar-inner {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:16px;
+        padding-block:18px
+      }
+      .brand {
+        font-weight:800;
+        font-size:16px;
+        color:var(--ink);
+        text-decoration:none;
+        letter-spacing:-.01em
+      }
+      .bar-tools {
+        display:flex;
+        align-items:center;
+        gap:10px
+      }
+      .bar-tools select, .bar-tools button {
+        min-height:36px;
+        padding:6px 10px;
+        border:1px solid var(--line);
+        border-radius:5px;
+        background:var(--surface);
+        color:var(--ink);
+        font-family:inherit;
+        font-size:13px;
+        cursor:pointer
+      }
+      main {
+        padding-block:48px 72px
+      }
+      h1 {
+        margin:0 0 6px;
+        font-size:38px;
+        line-height:1.15;
+        letter-spacing:-.02em
+      }
+      .updated {
+        margin:0 0 40px;
+        color:var(--muted);
+        font-size:13px
+      }
+      h2 {
+        margin:44px 0 10px;
+        font-size:20px;
+        letter-spacing:-.01em
+      }
+      p {
+        margin:0 0 14px;
+        color:var(--muted)
+      }
+      p strong {
+        color:var(--ink)
+      }
+      a {
+        color:var(--ink)
+      }
+      ul {
+        margin:0 0 14px;
+        padding-left:20px;
+        color:var(--muted)
+      }
+      li {
+        margin-bottom:6px
+      }
+      code {
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:.92em;
+        background:var(--surface);
+        border:1px solid var(--line);
+        border-radius:4px;
+        padding:1px 5px
+      }
+      .table-scroll {
+        overflow-x:auto;
+        margin-bottom:14px
+      }
+      table {
+        width:100%;
+        border-collapse:collapse;
+        font-size:14px;
+        min-width:420px
+      }
+      th, td {
+        text-align:left;
+        padding:10px 12px;
+        border-bottom:1px solid var(--line);
+        vertical-align:top
+      }
+      th {
+        color:var(--ink);
+        font-weight:700;
+        white-space:nowrap
+      }
+      td {
+        color:var(--muted)
+      }
+      .opt-box {
+        margin:18px 0 8px;
+        padding:18px 20px;
+        background:var(--surface);
+        border:1px solid var(--line);
+        border-radius:12px;
+        box-shadow:var(--shadow)
+      }
+      .opt-box p {
+        margin:0 0 12px
+      }
+      .opt-state {
+        color:var(--ink);
+        font-weight:700
+      }
+      .opt-box button {
+        min-height:40px;
+        padding:9px 18px;
+        border-radius:5px;
+        border:1px solid var(--ink);
+        background:transparent;
+        color:var(--ink);
+        font-family:inherit;
+        font-size:13px;
+        font-weight:700;
+        cursor:pointer;
+        margin-right:10px
+      }
+      .opt-box button.on {
+        background:var(--lime);
+        border-color:var(--lime);
+        color:#17283b
+      }
+      footer.foot {
+        border-top:1px solid var(--line);
+        padding-block:24px 40px;
+        color:var(--muted);
+        font-size:13px
+      }
+      footer.foot a {
+        margin-right:16px
+      }
+      @media (max-width:560px) {
+        h1 {
+          font-size:29px
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="wrap bar-inner">
+        <a class="brand" href="./">
+          Claude Pet
+        </a>
+        <div class="bar-tools">
+          <select id="language" aria-label="Language">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+            <option value="ja">日本語</option>
+            <option value="es">Español</option>
+          </select>
+          <button type="button" id="theme-toggle" aria-label="Switch color theme" aria-pressed="false">
+            ◐
+          </button>
+        </div>
+      </div>
+    </header>
+    <main class="wrap">
+      <h1 data-copy="title">
+        Privacy
+      </h1>
+      <p class="updated">
+        <span data-copy="updated">Last updated</span>
+        2026-09-14
+      </p>
+
+      <p data-copy="intro">
+        This page covers <strong>this website</strong> — claude-pet.yeongyu.me. The Claude Pet desktop app is a separate thing and is described further down.
+      </p>
+
+      <h2 data-copy="site.title">
+        What this website collects
+      </h2>
+      <p data-copy="site.body">
+        This site uses Google Analytics 4 to count visits. <strong>It runs on every page and is not optional</strong> — a visit is measured whether or not you do anything here.
+      </p>
+      <p data-copy="site.collect">
+        Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.
+      </p>
+      <p data-copy="site.off">
+        Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are on by default, and you can turn them off below at any time. This site carries no advertising today; the switch is here so the choice is yours before that changes.
+      </p>
+      <div class="opt-box">
+        <p>
+          <span data-copy="ads.now">Advertising cookies:</span>
+          <span class="opt-state" id="ads-state"></span>
+        </p>
+        <div>
+          <button type="button" id="ads-enable" data-copy="ads.enable">
+            Allow
+          </button>
+          <button type="button" class="on" id="ads-disable" data-copy="ads.disable">
+            Keep off
+          </button>
+        </div>
+      </div>
+      <p data-copy="ads.note">
+        Counting visits, above, is required and is unaffected by this switch either way.
+      </p>
+
+      <h2 data-copy="cookies.title">
+        Cookies
+      </h2>
+      <p data-copy="cookies.body">
+        Google Analytics sets these first-party cookies. Google documents a two-year default; Chrome currently caps cookies set this way at about 400 days, and some browsers keep them for less.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-copy="cookies.h1">Name</th>
+              <th data-copy="cookies.h2">Expires</th>
+              <th data-copy="cookies.h3">Purpose</th>
+            </tr>
+          </thead>
+          <tbody id="cookie-table"></tbody>
+        </table>
+      </div>
+      <p data-copy="optout">
+        If you would rather not be counted, your browser's settings can block cookies for this site, and Google publishes an opt-out add-on that turns Analytics off across every site you visit.
+      </p>
+      <p>
+        <a href="https://tools.google.com/dlpage/gaoptout" data-copy="optout.link">Google Analytics opt-out add-on</a>
+      </p>
+
+      <h2 data-copy="host.title">
+        Hosting
+      </h2>
+      <p data-copy="host.body">
+        The site is served by GitHub Pages. GitHub's own documentation states that when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes, whether or not the visitor is signed in to GitHub. That logging belongs to GitHub and is not affected by the choice above.
+      </p>
+      <p>
+        <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages" data-copy="host.link">GitHub Pages documentation</a>
+      </p>
+
+      <h2 data-copy="app.title">
+        The desktop app is separate
+      </h2>
+      <p data-copy="app.body">
+        Claude Pet the app has nothing to do with this website's analytics. It does not contact Google, and it does not report anything to this site. What it does do:
+      </p>
+      <ul>
+        <li data-copy="app.li1">Exact mode sends your existing Claude Code credential to Anthropic to ask for your account usage.</li>
+        <li data-copy="app.li2">Update checks and downloads contact GitHub.</li>
+        <li data-copy="app.li3">Usage parsing happens on your computer. Prompts, transcripts and source code are never uploaded by those paths.</li>
+        <li data-copy="app.li4">An optional Admin API key is stored in plaintext in <code>~/.claude_pet.json</code> on your own machine.</li>
+      </ul>
+
+      <h2 data-copy="contact.title">
+        Questions
+      </h2>
+      <p data-copy="contact.body">
+        Open an issue on GitHub and I will answer there.
+      </p>
+      <p>
+        <a href="https://github.com/uygnoey/claude-pet/issues" data-copy="contact.link">Open an issue</a>
+      </p>
+    </main>
+    <footer class="foot">
+      <div class="wrap">
+        <a href="./" data-copy="foot.home">Back to Claude Pet</a>
+        <a href="https://github.com/uygnoey/claude-pet" data-copy="foot.source">Explore the source</a>
+        <br>
+        <span data-copy="foot.fine">An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.</span>
+      </div>
+    </footer>
+    <script>
+      const I18N={
+        "en": {
+          "docTitle": "Privacy — Claude Pet",
+          "language": "Language",
+          "theme": "Switch color theme",
+          "title": "Privacy",
+          "updated": "Last updated",
+          "intro": "This page covers <strong>this website</strong> — claude-pet.yeongyu.me. The Claude Pet desktop app is a separate thing and is described further down.",
+          "site.title": "What this website collects",
+          "site.body": "This site uses Google Analytics 4 to count visits. <strong>It runs on every page and is not optional</strong> — a visit is measured whether or not you do anything here.",
+          "site.collect": "Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.",
+          "site.off": "Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are on by default, and you can turn them off below at any time. This site carries no advertising today; the switch is here so the choice is yours before that changes.",
+          "ads.now": "Advertising cookies:",
+          "ads.enable": "Allow",
+          "ads.disable": "Turn off",
+          "ads.on": "Allowed",
+          "ads.off": "Off",
+          "ads.note": "Counting visits, above, is required and is unaffected by this switch either way.",
+          "cookies.title": "Cookies",
+          "cookies.body": "Google Analytics sets these first-party cookies. Google documents a two-year default; Chrome currently caps cookies set this way at about 400 days, and some browsers keep them for less.",
+          "optout": "If you would rather not be counted, your browser's settings can block cookies for this site, and Google publishes an opt-out add-on that turns Analytics off across every site you visit.",
+          "optout.link": "Google Analytics opt-out add-on",
+          "cookies.h1": "Name",
+          "cookies.h2": "Expires",
+          "cookies.h3": "Purpose",
+          "cookies": [
+            ["_ga", "2 years", "Distinguishes one visitor from another."],
+            ["_ga_FW4M0S94JZ", "2 years", "Keeps session state for this site's Analytics property."]
+          ],
+          "host.title": "Hosting",
+          "host.body": "The site is served by GitHub Pages. GitHub's own documentation states that when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes, whether or not the visitor is signed in to GitHub. That logging belongs to GitHub and is not affected by the choice above.",
+          "host.link": "GitHub Pages documentation",
+          "app.title": "The desktop app is separate",
+          "app.body": "Claude Pet the app has nothing to do with this website's analytics. It does not contact Google, and it does not report anything to this site. What it does do:",
+          "app.li1": "Exact mode sends your existing Claude Code credential to Anthropic to ask for your account usage.",
+          "app.li2": "Update checks and downloads contact GitHub.",
+          "app.li3": "Usage parsing happens on your computer. Prompts, transcripts and source code are never uploaded by those paths.",
+          "app.li4": "An optional Admin API key is stored in plaintext in <code>~/.claude_pet.json</code> on your own machine.",
+          "contact.title": "Questions",
+          "contact.body": "Open an issue on GitHub and I will answer there.",
+          "contact.link": "Open an issue",
+          "foot.home": "Back to Claude Pet",
+          "foot.source": "Explore the source",
+          "foot.fine": "An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC."
+        },
+        "ko": {
+          "docTitle": "개인정보 — Claude Pet",
+          "language": "언어",
+          "theme": "색 테마 전환",
+          "title": "개인정보",
+          "updated": "마지막 업데이트",
+          "intro": "이 페이지는 <strong>이 웹사이트</strong>(claude-pet.yeongyu.me)에 대한 설명이에요. 데스크톱 앱 Claude Pet은 별개이며 아래에서 따로 다룹니다.",
+          "site.title": "이 웹사이트가 수집하는 것",
+          "site.body": "이 사이트는 방문 수를 세기 위해 Google Analytics 4를 씁니다. <strong>모든 페이지에서 동작하며 선택 사항이 아니에요</strong> — 여기서 무엇을 하든 방문 자체는 집계됩니다.",
+          "site.collect": "Google Analytics는 열어 본 페이지, 유입된 링크나 검색, 브라우저와 기기 종류, IP 주소에서 추정한 대략적 위치를 받습니다. 이름·이메일이나 입력한 내용은 받지 않아요.",
+          "site.off": "선택인 쪽은 광고예요. Google의 광고 신호 — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — 는 기본으로 켜져 있고, 아래에서 언제든 끌 수 있어요. 지금 이 사이트에 광고는 없어요. 나중에 생기기 전에 미리 고를 수 있게 둔 스위치예요.",
+          "ads.now": "광고 쿠키:",
+          "ads.enable": "허용",
+          "ads.disable": "끄기",
+          "ads.on": "허용됨",
+          "ads.off": "꺼짐",
+          "ads.note": "위의 방문 집계는 필수라서 이 스위치와 무관하게 항상 동작해요.",
+          "cookies.title": "쿠키",
+          "cookies.body": "Google Analytics가 심는 퍼스트파티 쿠키예요. Google 문서상 기본값은 2년이지만, Chrome은 현재 이런 방식으로 심긴 쿠키를 약 400일로 제한하고, 더 짧게 보관하는 브라우저도 있어요.",
+          "optout": "집계에서 빠지고 싶다면 브라우저 설정에서 이 사이트의 쿠키를 차단할 수 있고, Google이 배포하는 옵트아웃 확장 프로그램을 쓰면 모든 사이트에서 애널리틱스를 끌 수 있어요.",
+          "optout.link": "Google Analytics 옵트아웃 확장 프로그램",
+          "cookies.h1": "이름",
+          "cookies.h2": "만료",
+          "cookies.h3": "용도",
+          "cookies": [
+            ["_ga", "2년", "방문자를 서로 구분합니다."],
+            ["_ga_FW4M0S94JZ", "2년", "이 사이트 애널리틱스 속성의 세션 상태를 유지합니다."]
+          ],
+          "host.title": "호스팅",
+          "host.body": "이 사이트는 GitHub Pages로 제공됩니다. GitHub 공식 문서에 따르면 GitHub Pages 사이트를 방문하면 GitHub 로그인 여부와 관계없이 방문자의 IP 주소가 보안 목적으로 기록·저장돼요. 이 기록은 GitHub의 것이고, 위 선택의 영향을 받지 않습니다.",
+          "host.link": "GitHub Pages 문서",
+          "app.title": "데스크톱 앱은 별개예요",
+          "app.body": "앱 Claude Pet은 이 웹사이트의 애널리틱스와 아무 관계가 없어요. Google에 연결하지 않고, 이 사이트로 무엇도 보고하지 않습니다. 앱이 실제로 하는 일은:",
+          "app.li1": "정확 모드는 기존 Claude Code 인증 정보를 Anthropic에 보내 계정 사용량을 요청해요.",
+          "app.li2": "업데이트 확인과 다운로드는 GitHub에 연결해요.",
+          "app.li3": "사용량 파싱은 내 컴퓨터에서 이뤄져요. 이 경로들은 프롬프트·대화 내용·소스 코드를 업로드하지 않습니다.",
+          "app.li4": "선택적 Admin API 키는 내 컴퓨터의 <code>~/.claude_pet.json</code>에 평문으로 저장돼요.",
+          "contact.title": "문의",
+          "contact.body": "GitHub에 이슈를 남겨 주시면 거기서 답변할게요.",
+          "contact.link": "이슈 남기기",
+          "foot.home": "Claude Pet으로 돌아가기",
+          "foot.source": "소스 보기",
+          "foot.fine": "Yeongyu Yang의 개인 프로젝트입니다. Anthropic과 제휴하거나 보증받지 않았어요. Claude는 Anthropic PBC의 상표입니다."
+        },
+        "ja": {
+          "docTitle": "プライバシー — Claude Pet",
+          "language": "言語",
+          "theme": "カラーテーマを切り替え",
+          "title": "プライバシー",
+          "updated": "最終更新",
+          "intro": "このページは<strong>このウェブサイト</strong>（claude-pet.yeongyu.me）についての説明です。デスクトップアプリの Claude Pet は別物で、下のほうで扱います。",
+          "site.title": "このウェブサイトが収集するもの",
+          "site.body": "このサイトは訪問数の集計に Google Analytics 4 を使います。<strong>すべてのページで動作し、任意ではありません</strong> — ここで何をするかに関わらず訪問自体は計測されます。",
+          "site.collect": "Google Analytics は開いたページ、参照元のリンクや検索、ブラウザーと端末の種類、IP アドレスから推定したおおよその位置を受け取ります。氏名やメールアドレス、入力した内容は受け取りません。",
+          "site.off": "任意なのは広告のほうです。Google の広告シグナル — <code>ad_storage</code>、<code>ad_user_data</code>、<code>ad_personalization</code> — は既定でオンで、下からいつでもオフにできます。現在このサイトに広告はありません。そうなる前に選べるようにしたスイッチです。",
+          "ads.now": "広告 Cookie:",
+          "ads.enable": "許可する",
+          "ads.disable": "オフにする",
+          "ads.on": "許可済み",
+          "ads.off": "オフ",
+          "ads.note": "上の訪問数の集計は必須で、このスイッチに関わらず常に動作します。",
+          "cookies.title": "Cookie",
+          "cookies.body": "Google Analytics が設定するファーストパーティ Cookie です。Google の文書上の既定は 2 年ですが、Chrome は現在この方法で設定された Cookie を約 400 日に制限しており、より短く保持するブラウザーもあります。",
+          "optout": "計測されたくない場合は、ブラウザーの設定でこのサイトの Cookie をブロックできます。また Google が配布しているオプトアウト アドオンを使うと、すべてのサイトで解析を無効にできます。",
+          "optout.link": "Google Analytics オプトアウト アドオン",
+          "cookies.h1": "名前",
+          "cookies.h2": "有効期限",
+          "cookies.h3": "用途",
+          "cookies": [
+            ["_ga", "2 年", "訪問者を区別します。"],
+            ["_ga_FW4M0S94JZ", "2 年", "このサイトのアナリティクス プロパティのセッション状態を保持します。"]
+          ],
+          "host.title": "ホスティング",
+          "host.body": "このサイトは GitHub Pages で配信されています。GitHub の公式文書によれば、GitHub Pages のサイトを訪問すると、GitHub にログインしているかどうかに関わらず、訪問者の IP アドレスがセキュリティ目的で記録・保存されます。この記録は GitHub のもので、上の選択の影響を受けません。",
+          "host.link": "GitHub Pages のドキュメント",
+          "app.title": "デスクトップアプリは別です",
+          "app.body": "アプリの Claude Pet は、このウェブサイトの解析とは無関係です。Google には接続せず、このサイトへ何も報告しません。アプリが実際に行うのは次のことです。",
+          "app.li1": "正確モードは既存の Claude Code 認証情報を Anthropic に送り、アカウントの使用量を要求します。",
+          "app.li2": "更新の確認とダウンロードは GitHub に接続します。",
+          "app.li3": "使用量の解析は自分のコンピューター上で行われます。これらの経路がプロンプト・会話・ソースコードをアップロードすることはありません。",
+          "app.li4": "任意の Admin API キーは自分のマシンの <code>~/.claude_pet.json</code> に平文で保存されます。",
+          "contact.title": "お問い合わせ",
+          "contact.body": "GitHub で issue を立てていただければ、そこでお答えします。",
+          "contact.link": "issue を立てる",
+          "foot.home": "Claude Pet に戻る",
+          "foot.source": "ソースを見る",
+          "foot.fine": "Yeongyu Yang による個人プロジェクトです。Anthropic とは提携しておらず、承認も受けていません。Claude は Anthropic PBC の商標です。"
+        },
+        "es": {
+          "docTitle": "Privacidad — Claude Pet",
+          "language": "Idioma",
+          "theme": "Cambiar tema",
+          "title": "Privacidad",
+          "updated": "Última actualización",
+          "intro": "Esta página trata sobre <strong>este sitio web</strong>: claude-pet.yeongyu.me. La app de escritorio Claude Pet es otra cosa y se explica más abajo.",
+          "site.title": "Qué recopila este sitio web",
+          "site.body": "Este sitio usa Google Analytics 4 para contar visitas. <strong>Funciona en todas las páginas y no es opcional</strong>: la visita se mide hagas lo que hagas aquí.",
+          "site.collect": "Google Analytics recibe las páginas que abres, el enlace o la búsqueda que te trajo, tu tipo de navegador y dispositivo, y una ubicación aproximada derivada de tu dirección IP. No recibe tu nombre, tu correo ni nada de lo que escribas.",
+          "site.off": "Lo opcional es la publicidad. Las señales publicitarias de Google — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — están activadas por defecto y puedes desactivarlas abajo cuando quieras. Hoy este sitio no lleva publicidad; el interruptor está aquí para que la elección sea tuya antes de que eso cambie.",
+          "ads.now": "Cookies publicitarias:",
+          "ads.enable": "Permitir",
+          "ads.disable": "Desactivar",
+          "ads.on": "Permitidas",
+          "ads.off": "Apagadas",
+          "ads.note": "El recuento de visitas de arriba es obligatorio y no cambia con este interruptor.",
+          "cookies.title": "Cookies",
+          "cookies.body": "Google Analytics crea estas cookies propias. Google documenta dos años por defecto; Chrome limita actualmente a unos 400 días las cookies creadas así, y algunos navegadores las guardan menos tiempo.",
+          "optout": "Si prefieres no aparecer en el recuento, la configuración de tu navegador puede bloquear las cookies de este sitio, y Google publica un complemento de exclusión que desactiva Analytics en todos los sitios que visites.",
+          "optout.link": "Complemento de exclusión de Google Analytics",
+          "cookies.h1": "Nombre",
+          "cookies.h2": "Caduca",
+          "cookies.h3": "Para qué",
+          "cookies": [
+            ["_ga", "2 años", "Distingue a un visitante de otro."],
+            ["_ga_FW4M0S94JZ", "2 años", "Mantiene el estado de sesión de la propiedad de Analytics de este sitio."]
+          ],
+          "host.title": "Alojamiento",
+          "host.body": "El sitio se sirve con GitHub Pages. La propia documentación de GitHub indica que, al visitar un sitio de GitHub Pages, la dirección IP del visitante se registra y se almacena por motivos de seguridad, tenga o no sesión iniciada en GitHub. Ese registro es de GitHub y no depende de la elección anterior.",
+          "host.link": "Documentación de GitHub Pages",
+          "app.title": "La app de escritorio es aparte",
+          "app.body": "La app Claude Pet no tiene nada que ver con la analítica de este sitio web. No contacta con Google ni informa de nada a este sitio. Lo que sí hace:",
+          "app.li1": "El modo exacto envía tu credencial de Claude Code a Anthropic para consultar el uso de tu cuenta.",
+          "app.li2": "Las comprobaciones de actualización y las descargas contactan con GitHub.",
+          "app.li3": "El análisis del uso ocurre en tu ordenador. Esas rutas nunca suben prompts, conversaciones ni código fuente.",
+          "app.li4": "Una clave opcional de Admin API se guarda en texto plano en <code>~/.claude_pet.json</code>, en tu propia máquina.",
+          "contact.title": "Preguntas",
+          "contact.body": "Abre una issue en GitHub y te responderé allí.",
+          "contact.link": "Abrir una issue",
+          "foot.home": "Volver a Claude Pet",
+          "foot.source": "Ver el código",
+          "foot.fine": "Un proyecto independiente de Yeongyu Yang. Sin afiliación ni respaldo de Anthropic. Claude es una marca de Anthropic PBC."
+        }
+      };
+      const supported=Object.keys(I18N);
+      function stored(key){try{return localStorage.getItem(key)}catch{return null}}
+      function persist(key,value){try{localStorage.setItem(key,value)}catch{}}
+      const savedLang=stored('claudepet-lang');
+      const browserLang=(navigator.language||'en').slice(0,2);
+      let lang=supported.includes(savedLang)?savedLang:(supported.includes(browserLang)?browserLang:'en');
+      function adsOn(){return stored('claudepet-ads')!=='denied'}
+      function renderAds(){document.getElementById('ads-state').textContent=I18N[lang][adsOn()?'ads.on':'ads.off']}
+      function setAds(on){
+       persist('claudepet-ads',on?'granted':'denied');
+       gtag('consent','update',{ad_storage:on?'granted':'denied',ad_user_data:on?'granted':'denied',ad_personalization:on?'granted':'denied'});
+       renderAds();
+      }
+      function setLanguage(value){
+       lang=supported.includes(value)?value:'en';const t=I18N[lang];
+       document.documentElement.lang=lang;document.getElementById('language').value=lang;
+       document.title=t.docTitle;
+       document.querySelectorAll('[data-copy]').forEach(el=>{if(t[el.dataset.copy]!==undefined)el.innerHTML=t[el.dataset.copy]});
+       document.getElementById('language').setAttribute('aria-label',t.language);
+       document.getElementById('theme-toggle').setAttribute('aria-label',t.theme);
+       renderAds();
+       document.getElementById('cookie-table').innerHTML=t.cookies.map(r=>'<tr><th scope="row"><code>'+r[0]+'</code></th><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('');
+      }
+      function setTheme(theme){document.documentElement.dataset.theme=theme;document.getElementById('theme-toggle').setAttribute('aria-pressed',String(theme==='dark'))}
+      const savedTheme=stored('claudepet-theme');
+      setTheme(['light','dark'].includes(savedTheme)?savedTheme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+      document.getElementById('theme-toggle').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';setTheme(theme);persist('claudepet-theme',theme)});
+      document.getElementById('language').addEventListener('change',e=>{setLanguage(e.target.value);persist('claudepet-lang',lang)});
+      document.getElementById('ads-enable').addEventListener('click',()=>setAds(true));
+      document.getElementById('ads-disable').addEventListener('click',()=>setAds(false));
+      setLanguage(lang);
+    </script>
+  </body>
+</html>

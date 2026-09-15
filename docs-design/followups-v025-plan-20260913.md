@@ -107,29 +107,22 @@ in parallel with Track A and is merged into main afterwards; the Windows half ru
   stubbed, size/digest verification, zip layout validation, helper generation, kind
   detection with temp dirs and an injected registry reader).
 
-## Track E — Codex, Gemini, Grok segments (after A and B merge)
+## Track E — Codex usage (deferred; API-based, Codex only)
 
-- Contract: `ProviderUsage` = `{"provider", "kind": "exact"|"estimate", "rows":
-  [(label, pct, reset_dt|None)], "as_of", "stale", "error"}`; per provider two pure
-  functions `discover_<p>(home=None)` and `read_<p>_usage(now, home=None)`; a pure
-  `provider_segment(usage, now)` produces the `(kind, [(label, pct, False, reset_text)])`
-  segment the pill already understands. Value colour keeps its v0.24 meaning (emerald =
-  server-computed, amber ≈ = local estimate).
-- Layout: provider rows go on a **third pill line** (`SUMMARY_H3`), their reset countdowns
-  are appended to the reset line after Claude's (trimmed from the end if too long).
-  `RoamDisplay`/`roam_frame`/renderer on both platforms grow accordingly.
-- Codex (first): newest `token_count.rate_limits` snapshot from
-  `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (both `primary` and `secondary`; label from
-  `window_minutes`; drop rows whose `resets_at` passed; `limit_id == "premium"` ignored);
-  exact. Grok (second): newest `billing: fetched credits config` line in
-  `~/.grok/logs/unified.jsonl` (`creditUsagePercent`, `currentPeriod.end`); exact. Gemini
-  (third): no local quota record exists, so an **estimate** — requests today counted from
-  `~/.gemini/tmp/*/chats/*.jsonl` against a configurable daily limit (default 1000, the
-  documented free-tier figure), amber ≈, reset `-`. **No network calls** to any provider.
-- Discovered providers show by default; a right-click checkbox per discovered provider
-  hides it (`RUNTIME["providers"]`, persisted).
-- Privacy: parsers read only the fields above; tests assert that sentinel session ids,
-  paths and message text never reach the result.
+**Stopped on 2026-09-13 before any code landed.** The user's directive (verbatim): "codex,
+grok, gemini는 아직 하지마! 한다면 제대로 해야하고 codex만 우선 할거야 그리고 로컬 로그를
+누가 봐 api로 봐야지". So:
+
+- Nothing from this track ships in v0.25. The site/README roadmap line ("Codex 및 다른 AI
+  서비스는 지원 예정, Codex가 가장 먼저") stays as the only public statement.
+- When the user asks for it: **Codex only**, read through the **API the Codex CLI itself
+  uses** (the survey found the ChatGPT backend usage endpoint, authenticated with
+  `tokens.access_token` and `tokens.account_id` from `~/.codex/auth.json`), designed like
+  `fetch_exact_usage` — token read with a cache and failure classes, no parsing of rollout
+  logs for percentages. Gemini and Grok stay out of scope until asked.
+- The earlier local-log design (third pill line, ProviderUsage contract, discover/read
+  functions) is withdrawn; the survey's format notes remain in `followups-survey.json` for
+  reference only.
 
 ## Release
 

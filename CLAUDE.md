@@ -168,6 +168,14 @@ this is your cause.
 ./release.sh build        # py2app build only, unsigned. Safe to run.
 ```
 
+**Both build Pythons must import `ServiceManagement`.** `build_app.sh` takes the first
+`python3` it finds (pyenv on the maintainer's Mac) and `release.sh` uses that one as `PY` and
+the python.org universal2 one as `UPY`; the "Start at sign-in" toggle imports the
+`ServiceManagement` framework at call time and `setup.py` lists it for py2app. A bundle built
+from a Python that lacks `pyobjc-framework-ServiceManagement` shows the menu item disabled on
+every machine — that happened on 2026-09-13 with pyenv's Python. Check
+`python3 -c 'import ServiceManagement'` for each interpreter before a release build.
+
 **`update` is a whole-bundle transaction: either all of it lands, or the installed
 bundle is exactly what it was.** It refreshes four things that have to move together —
 `claude_pet.py`, the bundled `.claude_pet` tree, the `Info.plist` version, and the

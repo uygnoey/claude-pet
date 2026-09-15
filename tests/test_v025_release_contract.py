@@ -1,47 +1,55 @@
-"""Static release-preparation gates for v0.24.
+"""Static release-preparation gates for v0.25.
 
-Status as of 2026-09-12 (Verifier verifier-v024, final pin run): v0.23 is published (tag
-``v0.23`` on origin, GitHub release of 2026-09-11, release commit 81619b3), so everything
-from the ``**v0.23**`` heading to the end of ``RELEASE_NOTES.md`` is frozen text and is
-pinned here byte for byte, alongside the older v0.22 pin.  The single unpublished section
-above it is ``**v0.24**``, and ``APP_VERSION`` is ``"0.24"`` — the bump the release commit
-carries.  ``PublishedV023NotesContractTests`` keeps holding the frozen v0.23 prose to the
-source it describes (a published promise outlives its release), and
-``StagedV024NotesFormatTests`` holds the v0.24 section to CLAUDE.md's release-note format
-rule and cross-checks every checkable claim in it against the source.
+Status as of 2026-09-13 (Verifier verifier-v025, final pin run): v0.24 is published (tag
+``v0.24`` on origin, GitHub release of 2026-09-12T15:55Z, release commit a1f3d22), so
+everything from the ``**v0.24**`` heading to the end of ``RELEASE_NOTES.md`` is frozen
+text and is pinned here byte for byte, alongside the older v0.23 and v0.22 pins.  The
+single unpublished section above it is ``**v0.25**``, and ``APP_VERSION`` is ``"0.25"`` —
+the bump the release commit carries.  ``PublishedV023NotesContractTests`` and
+``PublishedV024NotesContractTests`` keep holding the frozen v0.23 and v0.24 prose to the
+source they describe (a published promise outlives its release; the v0.24 class is the
+former ``StagedV024NotesFormatTests`` with its assertions unchanged, only its status
+renamed), and ``StagedV025NotesFormatTests`` holds the v0.25 section to CLAUDE.md's
+release-note format rule and cross-checks every checkable claim in it against the source.
 
-Lineage: ``test_v022_release_contract.py`` → ``test_v023_release_contract.py`` → this
-file; each release renames the module with ``git mv`` and rewrites it for the version its
-release commit carries.
+Lineage: ``test_v022_release_contract.py`` → ``test_v023_release_contract.py`` →
+``test_v024_release_contract.py`` → this file; each release renames the module with
+``git mv`` and rewrites it for the version its release commit carries.
 
 These tests deliberately do not import the application, source a shell script, inspect
 the installed app, or access the network/user home.  They only parse repository text and
-bytes (the tracked sources, plus the two files under ``fonts/`` the notes promise are
-bundled).  The source-pin assertions keep the executable manual-update and upload
-harnesses fail-closed when the final v0.24 application/verifier/script bytes change, and
+bytes (the tracked sources, plus the two files under ``fonts/`` the v0.24 notes promise
+are bundled).  The source-pin assertions keep the executable manual-update and upload
+harnesses fail-closed when the final v0.25 application/verifier/script bytes change, and
 the ``--expect-version`` usage example in ``verify_release_artifact.py`` is held to the
 bumped version because every release commit since v0.21 moved it with ``APP_VERSION``
-(``git log -S'--expect-version 0.22'``) and ``release.sh`` passes ``$(cur_version)``, so
-that example is the only place a stale version literal can survive a release.
+(``git log -S'--expect-version 0.22'``; a1f3d22 moved it to 0.24) and ``release.sh``
+passes ``$(cur_version)``, so that example is the only place a stale version literal can
+survive a release.
 
 Claims in the notes are cross-checked against the source rather than merely spelled out
-here, because a note and a constant can drift apart in either direction: the v0.24
-thresholds "50%"/"85%" are compared with ``summary_value_kind``; the marker glyphs with
-``SUMMARY_SPIKE`` / ``SUMMARY_APPROX`` and the ⚠ suffix ``roam_summary_text`` appends;
-the font name with ``SUMMARY_FONT_FILE``, the files under ``fonts/`` and both packagers;
-the nested pet layout with ``discover_pets`` resolving through ``_nested_pet_dir``; the
-"접기/펴기" wording with ``TR["ko"]["menu_toggle"]``; the colour roles with
-``draw_summary_pill``'s docstring.  The v0.23 promises keep their pairs: "1시간" against
-``UPDATE_CHECK_SEC``, the quoted menu label against ``TR["ko"]["menu_check_update"]``,
-"no check at launch" against ``run_gui``'s top level, "straight to the latest release"
-against the one endpoint ``check_github_update`` reads.  Pinning only one side of any of
-these pairs would let the other side move silently.  The behavioural gates for the pill
-are in tests/test_summary_pill.py and tests/test_companion_motion.py, for nested pets in
-tests/test_nested_pets.py; this module only ties the prose to them.
+here, because a note and a constant can drift apart in either direction.  The v0.25
+pairs: the quoted menu label "로그인 시 자동 실행" against ``TR["ko"]["menu_autostart"]``;
+"시스템 설정 … 에서 끄면 메뉴에도 꺼진 것으로 보입니다" against ``autostart_read_state``
+asking the service for ``status()`` on every read and none of the autostart functions
+writing to ``RUNTIME`` or the config; "토큰을 갱신하거나 서버 응답이 잠깐 실패해도 재시작
+없이" against ``_read_oauth_token``'s file-signature and re-validation paths, the forced
+re-read on 401/403 and the ``suspect`` flag in ``_fetch_oauth_usage``, and
+``OAUTH_FAIL_RETRY_SEC`` being shorter than ``OAUTH_CACHE_SEC`` and consulted by
+``fetch_exact_usage``; the quoted "완전 삭제…" against ``TR["ko"]["menu_uninstall"]`` and
+"내 펫 폴더는 남깁니다" against ``UNINSTALL_PATHS`` naming the config and the cache
+directory but never the user's pet home.  The v0.24 pairs keep theirs (thresholds,
+marker glyphs, font, nested layout, toggle wording, colour roles), and the v0.23 pairs
+theirs ("1시간" against ``UPDATE_CHECK_SEC``, the quoted menu label, no check at launch,
+straight to the latest release).  Pinning only one side of any of these pairs would let
+the other side move silently.  The behavioural gates for the token cache are in
+tests/test_oauth_token_cache.py and for the sign-in item in tests/test_autostart.py;
+this module only ties the prose to them.
 
-The Windows beta zip the notes announce (``claude-pet-win.zip``) is built on the Windows
-branch, not by this tree, so only its wording is pinned here — no gate in this checkout
-can say whether that file exists.
+The Windows claims in the v0.25 notes (the same menu item there, in-app update for the
+installer and the portable zip, "작업 관리자") are built on the Windows branch, not by
+this tree, so no gate in this checkout can say whether they hold — only the macOS half of
+each sentence is checked here.
 """
 
 from __future__ import annotations
@@ -79,6 +87,13 @@ PUBLISHED_V022_AND_OLDER_SHA256 = (
 PUBLISHED_V023_AND_OLDER_SHA256 = (
     "c7ddc40a8a25ce8eefac9867032a6a14f20425c6ae0368db41a86d859c96b562"
 )
+# v0.24-and-older: from the ``**v0.24**`` heading through EOF, computed from the v0.24
+# release commit's blob (`git show a1f3d22:RELEASE_NOTES.md`, 23826 bytes, of which the
+# suffix is 19446), identical in HEAD 36c2118 and confirmed identical in the working tree
+# after the v0.25 section was staged above it (2026-09-13).
+PUBLISHED_V024_AND_OLDER_SHA256 = (
+    "c38940804b5b94ef72bf49727ac41a82d672dc779d45e53a3436a2460a1cddb4"
+)
 
 # The cadence the published v0.23 notes promise, and the Korean label they name.
 EXPECTED_UPDATE_CHECK_SEC = 3600
@@ -88,6 +103,10 @@ KO_CHECK_LABEL = "⬆︎ 업데이트 확인…"
 # the gauges to the summary pill), and the Korean wording the v0.24 notes reuse.
 PILL_WORDS = {"en": "pill", "ko": "필", "ja": "ピル", "es": "píldora"}
 KO_TOGGLE_WORDING = "접기/펴기"
+
+# The two Korean menu labels the v0.25 notes quote, exactly as the source spells them.
+KO_AUTOSTART_LABEL = "로그인 시 자동 실행"
+KO_UNINSTALL_LABEL = "완전 삭제…"
 
 
 # CLAUDE.md release-note step 2 forbids these in a user-facing entry.
@@ -126,6 +145,15 @@ def _one_literal_string(path: Path, name: str) -> str:
     if len(values) != 1 or not isinstance(values[0], str):
         raise AssertionError(
             f"{path.name} must define exactly one literal string {name}; got {values!r}"
+        )
+    return values[0]
+
+
+def _one_literal_int(path: Path, name: str) -> int:
+    values = _literal_assignments(path, name)
+    if len(values) != 1 or type(values[0]) is not int:
+        raise AssertionError(
+            f"{path.name} must define exactly one literal int {name}; got {values!r}"
         )
     return values[0]
 
@@ -201,6 +229,18 @@ def _module_def(path: Path, name: str) -> ast.AST:
     return found[0]
 
 
+def _module_assignment(path: Path, name: str) -> ast.Assign:
+    """The single module-level ``name = …`` statement, unevaluated."""
+    found = [
+        n for n in _module_tree(path).body
+        if isinstance(n, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)
+    ]
+    if len(found) != 1:
+        raise AssertionError(f"{path.name} must assign module-level {name} exactly once")
+    return found[0]
+
+
 def _nested_function(outer: ast.AST, name: str) -> ast.FunctionDef:
     """The single function called name defined anywhere inside outer."""
     found = [n for n in ast.walk(outer) if isinstance(n, ast.FunctionDef) and n.name == name]
@@ -218,18 +258,36 @@ def _strings(nodes) -> set[str]:
     return out
 
 
+def _names(node: ast.AST) -> set[str]:
+    """Every bare name read or written anywhere inside node."""
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+
+def _calls_to(node: ast.AST, name: str) -> list[ast.Call]:
+    """Calls of the bare name ``name(...)`` anywhere inside node."""
+    return [n for n in ast.walk(node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == name]
+
+
+def _method_calls(node: ast.AST, attr: str) -> list[ast.Call]:
+    """Calls of ``<anything>.attr(...)`` anywhere inside node."""
+    return [n for n in ast.walk(node)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == attr]
+
+
 class VersionAndPinContractTests(unittest.TestCase):
-    def test_v024_version_and_final_source_pins_propagate(self):
+    def test_v025_version_and_final_source_pins_propagate(self):
         problems: list[str] = []
 
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
-        if versions != ["0.24"]:
-            problems.append(f"APP_VERSION must be one literal '0.24', got {versions!r}")
+        if versions != ["0.25"]:
+            problems.append(f"APP_VERSION must be one literal '0.25', got {versions!r}")
 
         verifier_text = RELEASE_VERIFIER.read_text(encoding="utf-8")
-        if "--expect-version 0.24" not in verifier_text:
-            problems.append("verify_release_artifact.py usage must show --expect-version 0.24")
-        for stale in ("0.23", "0.22", "0.25"):
+        if "--expect-version 0.25" not in verifier_text:
+            problems.append("verify_release_artifact.py usage must show --expect-version 0.25")
+        for stale in ("0.24", "0.23", "0.26"):
             if f"--expect-version {stale}" in verifier_text:
                 problems.append(
                     f"verify_release_artifact.py still advertises --expect-version {stale}"
@@ -282,7 +340,18 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
             "published v0.23-and-older bytes were rewritten or dropped",
         )
 
-    def test_v024_is_the_only_unpublished_heading_and_sits_directly_above_v023(self):
+    def test_published_v024_and_older_bytes_are_untouched(self):
+        raw = RELEASE_NOTES.read_bytes()
+        published_marker = b"**v0.24**"
+        self.assertEqual(raw.count(published_marker), 1, "published v0.24 heading changed")
+        published_suffix = raw[raw.index(published_marker) :]
+        self.assertEqual(
+            hashlib.sha256(published_suffix).hexdigest(),
+            PUBLISHED_V024_AND_OLDER_SHA256,
+            "published v0.24-and-older bytes were rewritten or dropped",
+        )
+
+    def test_v025_is_the_only_unpublished_heading_and_sits_directly_above_v024(self):
         text = RELEASE_NOTES.read_text(encoding="utf-8")
         changelog = "### 📝 변경 내역 / Changelog"
         self.assertEqual(text.count(changelog), 1)
@@ -291,11 +360,11 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
         self.assertTrue(headings, "changelog has no release heading")
         self.assertEqual(
             headings[:2],
-            ["0.24", "0.23"],
-            "the unpublished v0.24 section must sit directly above the published v0.23 "
+            ["0.25", "0.24"],
+            "the unpublished v0.25 section must sit directly above the published v0.24 "
             f"heading, with nothing newer above it; got {headings[:2]!r}",
         )
-        self.assertEqual(headings.count("0.24"), 1, "v0.24 heading must appear once")
+        self.assertEqual(headings.count("0.25"), 1, "v0.25 heading must appear once")
 
 
 class PublishedV023NotesContractTests(unittest.TestCase):
@@ -479,19 +548,21 @@ class ReleaseNotesPolicyTests(unittest.TestCase):
         self.assertNotIn("every 6 hours", text)
 
 
-class StagedV024NotesFormatTests(unittest.TestCase):
-    """The unpublished v0.24 section, held to CLAUDE.md's release-note format rule and to
-    the source it describes.
+class PublishedV024NotesContractTests(unittest.TestCase):
+    """The published v0.24 section: its bytes are frozen above, and the source must still
+    keep every promise it made.
 
-    The section is staged text until the tag is pushed, so correcting it is ordinary
-    work; the format gate only says what CLAUDE.md step 2 says: exactly three top-level
-    bullets, no nesting, at most 450 normalized characters, 1-2 Korean sentences per
-    bullet, and none of the forbidden token classes.  Every checkable claim in it is then
-    tied to the source: the threshold percentages to ``summary_value_kind``, the marker
-    glyphs to ``SUMMARY_SPIKE`` / ``SUMMARY_APPROX`` / the ⚠ suffix, the font to
-    ``SUMMARY_FONT_FILE`` and the bundled files, the nested layout to ``discover_pets``,
-    the toggle wording to ``TR["ko"]["menu_toggle"]``, and the colour roles to
-    ``draw_summary_pill``'s docstring — so neither side can drift alone.
+    This is the v0.24 release's ``StagedV024NotesFormatTests`` with its assertions and
+    method names unchanged — only its status moved from staged to published when the
+    ``v0.24`` tag and GitHub release went out on 2026-09-12.  The format gate still says
+    what CLAUDE.md step 2 says: exactly three top-level bullets, no nesting, at most 450
+    normalized characters, 1-2 Korean sentences per bullet, and none of the forbidden
+    token classes.  Every checkable claim in it stays tied to the source: the threshold
+    percentages to ``summary_value_kind``, the marker glyphs to ``SUMMARY_SPIKE`` /
+    ``SUMMARY_APPROX`` / the ⚠ suffix, the font to ``SUMMARY_FONT_FILE`` and the bundled
+    files, the nested layout to ``discover_pets``, the toggle wording to
+    ``TR["ko"]["menu_toggle"]``, and the colour roles to ``draw_summary_pill``'s docstring
+    — so neither side can drift alone.
     """
 
     def setUp(self):
@@ -628,6 +699,182 @@ class StagedV024NotesFormatTests(unittest.TestCase):
         self.assertIn("수치(출처 색)", doc, "draw_summary_pill's docstring must give values the source colour")
         self.assertNotIn("라벨(출처 색)", doc, "swapped roles in draw_summary_pill's docstring")
         self.assertNotIn("수치(잔여량 색)", doc, "swapped roles in draw_summary_pill's docstring")
+
+
+class StagedV025NotesFormatTests(unittest.TestCase):
+    """The unpublished v0.25 section, held to CLAUDE.md's release-note format rule and to
+    the source it describes.
+
+    The section is staged text until the tag is pushed, so correcting it is ordinary
+    work; the format gate only says what CLAUDE.md step 2 says: exactly three top-level
+    bullets, no nesting, at most 450 normalized characters, 1-2 Korean sentences per
+    bullet, and none of the forbidden token classes.  Every checkable claim in it is then
+    tied to the source: the quoted "로그인 시 자동 실행" to ``TR["ko"]["menu_autostart"]``;
+    "시스템 설정 … 에서 끄면 메뉴에도 꺼진 것으로 보입니다" to the menu reading the OS
+    registration through ``autostart_read_state`` (which asks the service for ``status()``)
+    and to no autostart function writing the config or ``RUNTIME``; "토큰을 갱신하거나 서버
+    응답이 잠깐 실패해도 재시작 없이" to the token cache's rotation and re-validation
+    paths, the forced re-read on 401/403, the ``suspect`` flag, and a failure-retry
+    interval shorter than the success cache; and the quoted "완전 삭제…" with "내 펫 폴더는
+    남깁니다" to ``TR["ko"]["menu_uninstall"]`` and to ``UNINSTALL_PATHS`` naming the config
+    and the cache directory but never the user's pet home.  The Windows halves of those
+    sentences are built on the Windows branch and are not checkable here.
+    """
+
+    def setUp(self):
+        text = RELEASE_NOTES.read_text(encoding="utf-8")
+        self.visible = _notes_block(text, "**v0.25**", "**v0.24**")
+        self.top_level, self.nested, self.bullets = _bullet_shape(self.visible)
+        self.body = "\n".join(self.bullets)
+
+    def test_v025_notes_follow_the_three_bullet_450_character_format(self):
+        problems: list[str] = []
+        if len(self.top_level) != 3:
+            problems.append(f"v0.25 must have exactly 3 top-level bullets, got {len(self.top_level)}")
+        if self.nested:
+            problems.append("v0.25 must not contain nested bullets")
+        normalized_body = " ".join(self.visible.split())
+        if len(normalized_body) > 450:
+            problems.append(f"v0.25 Korean body is {len(normalized_body)} Unicode characters; max is 450")
+        for index, bullet in enumerate(self.bullets, 1):
+            if not re.search(r"[가-힣]", bullet):
+                problems.append(f"bullet {index} must be Korean")
+            count = len(_sentences(bullet))
+            if not 1 <= count <= 2:
+                problems.append(f"bullet {index} has {count} sentences; CLAUDE.md allows 1-2")
+        prose_for_forbidden_scan = self.body.replace("`", "")
+        for label, pattern in FORBIDDEN_NOTE_PATTERNS.items():
+            match = re.search(pattern, prose_for_forbidden_scan, re.I)
+            if match:
+                problems.append(f"remove {label}: {match.group(0)!r}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v025_autostart_label_is_quoted_exactly_as_the_korean_source_string(self):
+        """"우클릭 메뉴에 "로그인 시 자동 실행"이 생겼습니다": the quoted label must be
+        TR["ko"]["menu_autostart"] verbatim, every locale must carry the item and its
+        companion strings, and the context menu built in run_gui must actually add the
+        item.  Rivals: a Korean label reworded on either side; a locale missing the key
+        (the v0.24 key-set test catches a missing key, not a wrong Korean label); a menu
+        that never adds the item although the strings exist."""
+        table = _tr_table()
+        for key in ("menu_autostart", "autostart_title", "autostart_approval",
+                    "autostart_open_settings", "autostart_fail", "autostart_unavailable"):
+            missing = [lang for lang in ("en", "ko", "ja", "es") if not table.get(lang, {}).get(key)]
+            self.assertEqual(missing, [], f"{key} missing from locales: {missing}")
+        label = table["ko"]["menu_autostart"]
+        self.assertEqual(label, KO_AUTOSTART_LABEL, "the v0.25 notes quote this context-menu label")
+        self.assertRegex(self.body, r"우클릭\s*메뉴에\s*\"" + re.escape(label) + r"\"",
+                         f"the v0.25 notes must quote the Korean menu label {label!r} verbatim")
+        run_gui = _module_def(APP_SOURCE, "run_gui")
+        menu_keys = {n.args[0].value for n in _calls_to(run_gui, "t")
+                     if n.args and isinstance(n.args[0], ast.Constant)}
+        self.assertIn("menu_autostart", menu_keys, "run_gui never puts menu_autostart in the menu")
+        self.assertIn("autostart_unavailable", menu_keys,
+                      "run_gui must retitle the item with autostart_unavailable when there is no service")
+
+    def test_v025_autostart_state_is_read_from_the_os_and_never_stored(self):
+        """"시스템 설정 … 에서 끄면 메뉴에도 꺼진 것으로 보입니다": the checkmark must come
+        from the OS registration, read afresh, never from a stored flag.  So
+        autostart_read_state asks the service for status(); autostart_toggle re-reads
+        the state through autostart_read_state after registering (a register can land in
+        "approval"); none of the four autostart functions touches RUNTIME, the config or
+        a config writer; and run_gui reaches autostart_read_state through the
+        "autostart_read" hook the menu consults.  Rivals: a stored flag that goes stale
+        the moment System Settings turns the item off; a toggle that assumes "registered
+        means on"; a menu that reads a config key instead of the hook."""
+        read_state = _module_def(APP_SOURCE, "autostart_read_state")
+        self.assertEqual(len(_method_calls(read_state, "status")), 1,
+                         "autostart_read_state must ask the service for status() exactly once")
+        toggle = _module_def(APP_SOURCE, "autostart_toggle")
+        self.assertEqual(len(_calls_to(toggle, "autostart_read_state")), 2,
+                         "autostart_toggle must read the state before and re-read it after the call")
+        self.assertTrue(_method_calls(toggle, "registerAndReturnError_"),
+                        "autostart_toggle never registers")
+        self.assertTrue(_method_calls(toggle, "unregisterAndReturnError_"),
+                        "autostart_toggle never unregisters")
+        forbidden = {"RUNTIME", "cfg", "CONFIG_PATH", "save_config", "merge_config_updates",
+                     "load_config", "USER_PET_HOME"}
+        for name in ("autostart_state", "autostart_read_state", "autostart_toggle",
+                     "uninstall_autostart"):
+            with self.subTest(function=name):
+                touched = sorted(_names(_module_def(APP_SOURCE, name)) & forbidden)
+                self.assertEqual(touched, [], f"{name} must not touch the config or RUNTIME: {touched}")
+        run_gui = _module_def(APP_SOURCE, "run_gui")
+        self.assertIn("autostart_read", _strings([run_gui]),
+                      "run_gui must expose the autostart_read hook the menu consults")
+        self.assertTrue(_calls_to(run_gui, "autostart_read_state"),
+                        "run_gui's hook must read the state through autostart_read_state")
+
+    def test_v025_exact_mode_recovery_is_backed_by_the_token_cache(self):
+        """"토큰을 갱신하거나 서버 응답이 잠깐 실패해도 재시작 없이 정확 모드로": three
+        mechanisms, each pinned to a name the behavioural gates in
+        tests/test_oauth_token_cache.py exercise.  Rotation: _read_oauth_token compares
+        the credentials file's signature (_credentials_sig) and re-validates a suspect
+        token (_revalidate_oauth_token).  Rejection: _fetch_oauth_usage re-reads the token
+        with force=True on 401/403 and raises the suspect flag on every other failure.
+        Transient failure: OAUTH_FAIL_RETRY_SEC is a literal shorter than OAUTH_CACHE_SEC
+        and fetch_exact_usage consults it, so a failed fetch is not cached for the full
+        success interval.  Rivals: a cache with no rotation signal; a fetch that gives up
+        on a 5xx without marking the token suspect; a failure cached for the full 180 s
+        (the v0.24 behaviour the note says is gone); a retry constant no shorter than the
+        cache, which changes nothing."""
+        self.assertRegex(self.body, r"재시작\s*없이")
+        self.assertRegex(self.body, r"정확\s*모드")
+        self.assertRegex(self.body, r"추정\s*모드")
+        read = _module_def(APP_SOURCE, "_read_oauth_token")
+        self.assertTrue(_calls_to(read, "_credentials_sig"),
+                        "_read_oauth_token must compare the credentials file signature (rotation signal)")
+        self.assertTrue(_calls_to(read, "_revalidate_oauth_token"),
+                        "_read_oauth_token must re-validate a suspect token")
+        fetch = _module_def(APP_SOURCE, "_fetch_oauth_usage")
+        forced = [c for c in _calls_to(fetch, "_read_oauth_token")
+                  if any(k.arg == "force" and isinstance(k.value, ast.Constant) and k.value.value is True
+                         for k in c.keywords)]
+        self.assertEqual(len(forced), 1, "_fetch_oauth_usage must re-read the token once with force=True")
+        fetch_src = ast.unparse(fetch)
+        self.assertIn("c['suspect'] = True", fetch_src, "a non-auth failure must mark the token suspect")
+        self.assertIn("c['suspect'] = False", fetch_src, "a success must clear the suspect flag")
+        retry = _one_literal_int(APP_SOURCE, "OAUTH_FAIL_RETRY_SEC")
+        cache = _one_literal_int(APP_SOURCE, "OAUTH_CACHE_SEC")
+        self.assertGreater(retry, 0)
+        self.assertLess(retry, cache,
+                        f"OAUTH_FAIL_RETRY_SEC={retry} must be shorter than OAUTH_CACHE_SEC={cache}")
+        exact = _module_def(APP_SOURCE, "fetch_exact_usage")
+        self.assertIn("OAUTH_FAIL_RETRY_SEC", _names(exact),
+                      "fetch_exact_usage must cache a failure for OAUTH_FAIL_RETRY_SEC, not the full interval")
+
+    def test_v025_uninstall_label_is_quoted_and_the_pet_folder_survives_it(self):
+        """""완전 삭제…"는 설정과 캐시까지 지우고 내 펫 폴더는 남깁니다": the quoted label
+        must be TR["ko"]["menu_uninstall"] verbatim; UNINSTALL_PATHS must name the config
+        (CONFIG_PATH) and the cache directory (UPDATE_LOCK_DIR) and must not name the
+        user's pet home, by constant or by path text; and do_uninstall must delete
+        through uninstall_targets rather than reaching for USER_PET_HOME itself.  Rivals:
+        a reworded label on either side; the pet home added to the list "to clean up
+        completely"; the cache directory dropped so the sentence over-promises; a direct
+        rmtree of the pet home outside the list."""
+        table = _tr_table()
+        label = table["ko"]["menu_uninstall"]
+        self.assertEqual(label, KO_UNINSTALL_LABEL, "the v0.25 notes quote this context-menu label")
+        self.assertIn(f'"{label}"', self.body,
+                      f"the v0.25 notes must quote the Korean menu label {label!r} verbatim")
+        self.assertRegex(self.body, r"펫\s*폴더는\s*남깁니다")
+        paths = _module_assignment(APP_SOURCE, "UNINSTALL_PATHS")
+        self.assertIsInstance(paths.value, ast.Tuple, "UNINSTALL_PATHS must stay a tuple literal")
+        names = _names(paths.value)
+        self.assertIn("CONFIG_PATH", names, "UNINSTALL_PATHS must delete the settings file")
+        self.assertIn("UPDATE_LOCK_DIR", names, "UNINSTALL_PATHS must delete the cache directory")
+        self.assertNotIn("USER_PET_HOME", names, "UNINSTALL_PATHS must never name the user's pet home")
+        for text in _strings([paths.value]):
+            self.assertNotIn(".claude_pet/", text, f"UNINSTALL_PATHS reaches into the pet home: {text!r}")
+            self.assertNotEqual(text.rstrip("/"), "~/.claude_pet",
+                                "UNINSTALL_PATHS must never name the user's pet home")
+        do_uninstall = _module_def(APP_SOURCE, "do_uninstall")
+        self.assertTrue(_calls_to(do_uninstall, "uninstall_targets"),
+                        "do_uninstall must delete through uninstall_targets")
+        self.assertNotIn("USER_PET_HOME", _names(do_uninstall),
+                         "do_uninstall must not reach for the pet home directly")
+        targets = _module_def(APP_SOURCE, "uninstall_targets")
+        self.assertIn("UNINSTALL_PATHS", _names(targets), "uninstall_targets must read UNINSTALL_PATHS")
 
 
 class SummaryMemoContractTests(unittest.TestCase):

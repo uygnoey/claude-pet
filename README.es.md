@@ -17,8 +17,8 @@ Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estel
 | Chip | Apple Silicon e Intel (compilación universal) | x64 |
 | Descarga | `ClaudePet.dmg` (Apple Silicon) · `ClaudePet-universal.dmg` (Intel) | `claude-pet-win-setup.exe` (instalador) · `claude-pet-win.zip` (portátil) |
 | Firma | Firmada con Developer ID y notarizada por Apple | Sin firmar: Windows pregunta una vez antes de la primera ejecución |
-| Actualizaciones | En la app: comprueba cada hora e instala desde el menú contextual | En la app: comprueba desde el menú contextual; el nuevo instalador se descarga de la página de versiones |
-| Inicio al iniciar sesión | Ajustes del Sistema → General → Ítems de inicio | Opción del instalador “Iniciar al iniciar sesión” |
+| Actualizaciones | En la app: comprueba cada hora e instala desde el menú contextual | En la app: comprueba cada hora e instala desde el menú contextual (instalador o zip portátil) |
+| Inicio al iniciar sesión | Menú contextual → “Abrir al iniciar sesión” (macOS 13+; en macOS 12, Preferencias del Sistema → Usuarios y grupos → Ítems de inicio) | Menú contextual → “Abrir al iniciar sesión” (también como opción del instalador) |
 | Claude Code | Lee la credencial de Claude Code (Llavero o archivo de credenciales) | Lee el archivo de credenciales de Claude Code |
 | Mascotas | Gato incluido + 4 más, y las tuyas en `~/.claude_pet/pets` | Igual, en `%USERPROFILE%\.claude_pet\pets` |
 | Desinstalar | Clic derecho → Desinstalar por completo… | Configuración → Aplicaciones → Desinstalar |

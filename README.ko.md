@@ -17,8 +17,8 @@ macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 | 칩 | Apple Silicon · Intel (universal 빌드) | x64 |
 | 다운로드 | `ClaudePet.dmg` (Apple Silicon) · `ClaudePet-universal.dmg` (Intel) | `claude-pet-win-setup.exe` (설치 파일) · `claude-pet-win.zip` (무설치) |
 | 서명 | Developer ID 서명 + Apple 공증 | 서명 없음 — 처음 실행 때 Windows가 한 번 물어요 |
-| 업데이트 | 앱 안에서 1시간마다 확인하고 우클릭 메뉴에서 설치해요 | 앱 안에서 확인(우클릭 메뉴)하고, 새 설치 파일은 릴리즈 페이지에서 받아요 |
-| 로그인 시 시작 | 시스템 설정 → 일반 → 로그인 항목 | 설치 파일의 “로그인 시 자동 실행” 옵션 |
+| 업데이트 | 앱 안에서 1시간마다 확인하고 우클릭 메뉴에서 설치해요 | 앱 안에서 1시간마다 확인하고 우클릭 메뉴에서 설치해요(설치 파일형·무설치 zip 모두) |
+| 로그인 시 시작 | 우클릭 메뉴 → “로그인 시 자동 실행”(macOS 13 이상. macOS 12에서는 시스템 환경설정 → 사용자 및 그룹 → 로그인 항목) | 우클릭 메뉴 → “로그인 시 자동 실행”(설치 파일 옵션으로도 가능) |
 | Claude Code 연동 | Claude Code 자격 증명(키체인 또는 자격 증명 파일)을 읽어요 | Claude Code 자격 증명 파일을 읽어요 |
 | 펫 | 내장 고양이 + 4종, 그리고 `~/.claude_pet/pets`의 내 펫 | 동일, `%USERPROFILE%\.claude_pet\pets` |
 | 제거 | 우클릭 → 완전 삭제… | 설정 → 앱 → 제거 |
