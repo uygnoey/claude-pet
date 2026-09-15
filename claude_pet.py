@@ -2090,6 +2090,10 @@ def compute_usage(runtime=None):
         "spikes": spikes,
         "model_kw": kw,
         "last_activity": last_activity,
+        # 창 안에서 실제로 집계된 항목 수. 0 은 '쓰지 않았다'가 아니라 '읽을 게 없다'는
+        # 뜻이고, 게이지 0% 와는 다른 사실이다 — 필이 0% 를 지어내지 않으려면 이 둘을
+        # 구분할 근거가 필요하다(roam_summary 참조).
+        "entries": len(entries),
         "now": now,
     }
 
@@ -2725,13 +2729,6 @@ def _find_claude_cli():
         if p and os.path.exists(p):
             return p
     return None
-
-
-def _has_claude_logs():
-    """사용 로그가 하나라도 있으면 True (있으면 로그 추정 모드가 동작하므로 온보딩 불필요)."""
-    for _ in _iter_log_files():
-        return True
-    return False
 
 
 CLAUDE_INSTALL_URL = "https://claude.ai/install.sh"   # Anthropic 공식(홈 디렉터리 설치)
@@ -6203,10 +6200,11 @@ def _roam_valid_pct(value):
 
 
 def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_month=None,
-                 reset_texts=None, spike_first=False, cost_budget=None):
+                 reset_texts=None, spike_first=False, cost_budget=None, auth_error=False):
     """요약 필 내용(Claude 구간) → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
 
-    ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login / scanning
+    ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login /
+                         scanning / token_expired
     ("cost", (today, month, budget))   API 모드의 오늘·이달 비용과 월 예산. month/budget 은 없으면 None
     ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 호출자는 크레딧 등 게이지가 아닌 행을
                          빼고 넘긴다(어댑터 roam_summary_text 참조).
@@ -6218,6 +6216,11 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
       reset_text 리셋 시각 문구(호출자가 fmt_countdown 으로 만든 문자열) 또는 None. exact 행은 row[2] 를 그대로
                  쓰고, estimate 는 reset_texts[gauge] 를 쓴다 — 이 함수는 시각을 계산하지 않는다(순수).
     정확 모드 행이 있는데 유효 행이 하나도 없으면 추정으로 내려가지 않고 상태를 준다.
+
+    auth_error 는 '서버가 토큰을 거부했다'는 사실(OAUTH_STATUS["auth_error"])이고, 어댑터가 넘긴다 —
+    이 함수는 순수하게 남는다. 창 안에 항목이 하나도 없는데(stats["entries"] == 0) 토큰까지 거부됐다면
+    게이지 0% 는 사실이 아니라 무지다. 그때만 token_expired 를 주고, 그 판정은 온보딩 안내보다 앞선다
+    (로그인은 이미 했고 토큰만 되살리면 되는 상태라, 'Claude Code 로그인 필요'보다 구체적이다).
     """
     if mode == "api":
         if not has_admin_key:
@@ -6235,9 +6238,16 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
             reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
             rows.append((row[0], float(row[1]), bool(spike_first) and i == 0, reset_text))
         return ("exact", rows) if rows else ("status", "scanning")
+    # 창 안에 집계된 항목이 0개면 추정 게이지의 0% 는 '안 썼다'가 아니라 '모른다'다.
+    # entries 키가 아예 없는 스냅샷은 그 사실을 말해 주지 않는 옛 모양이므로 0 으로 치지
+    # 않는다 — 여기서 `not stats.get("entries")` 를 쓰면 키 없는 스냅샷과 stats=None 까지
+    # '데이터 없음'으로 끌려들어와, 아직 첫 계산이 끝나지 않은 기동 직후에 만료를 외친다.
+    no_data = isinstance(stats, dict) and stats.get("entries") == 0
+    if auth_error and no_data:
+        return ("status", "token_expired")
     if onboard in ("install", "login"):
         return ("status", "onb_" + onboard)
-    if stats:
+    if stats and not no_data:
         rows = []
         spikes = stats.get("spikes") if isinstance(stats.get("spikes"), dict) else {}
         resets = reset_texts if isinstance(reset_texts, dict) else {}
@@ -7214,7 +7224,8 @@ def run_gui():
         segment = roam_summary(RUNTIME["mode"], oauth, stats, state.get("onboard"), state["cost"],
                                bool(RUNTIME.get("admin_key")), state["cost_month"],
                                reset_texts=resets, spike_first=bool(spike_info(stats)),
-                               cost_budget=float(RUNTIME.get("api_budget") or 0))
+                               cost_budget=float(RUNTIME.get("api_budget") or 0),
+                               auth_error=bool(OAUTH_STATUS.get("auth_error")))
         main, sub = roam_summary_runs([segment], t)
         if segment[0] == "estimate" and OAUTH_STATUS.get("auth_error"):
             main.append((" ⚠", "status"))
@@ -8106,8 +8117,11 @@ def run_gui():
                     if RUNTIME["mode"] == "api":
                         values["cost_month"] = fetch_api_cost_month()
                     # Claude Code 데이터가 전혀 없으면 온보딩(설치/로그인) 안내.
+                    # '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'로 본다 —
+                    # 몇 달 전 로그 파일 하나가 남아 있다고 해서 지금 보여 줄 데이터가
+                    # 있는 것은 아니고, 그 파일이 안내를 영원히 막고 있었다.
                     values["onboard"] = compute_onboard_state(
-                        oauth, _has_claude_logs())
+                        oauth, bool(s.get("entries")))
                     prev = state["stats"]
                     if not commit_refresh_result(state, gen, values):
                         return                             # 더 새 요청이 있다 → 버림
