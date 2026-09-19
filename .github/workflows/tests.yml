@@ -1,0 +1,90 @@
+name: tests
+
+# 게이팅 테스트는 머지 전에 **CI 에서** 초록이어야 한다. 로컬 실행은 기계 상태에
+# 휘둘린다 — 실제로 그랬다: 돌고 있던 ClaudePet.app 이 ~/claudepet_debug.log 에 쓰는
+# 바람에 격리 검사 51건이 빨갰고, 로컬 빌드를 설치했더니 공증이 깨져 서명 계약 2건이
+# 빨갰다. 둘 다 코드와 무관한 실패였다. CI 는 그런 잔여 상태가 없는 기계에서 돈다.
+#
+# macOS 와 Windows 를 **둘 다** 돌린다. 이 저장소의 원칙은 맥에서 되는 것은 윈도우에서도
+# 똑같이 돼야 한다는 것이고, 그 원칙은 테스트 커버리지에도 적용된다.
+
+on:
+  push:
+    branches: ["claude/**", "dev"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macOS — full suite
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # 코어 자체는 stdlib 만으로 임포트되지만, GUI 를 건드리는 모듈(test_companion_motion
+      # 등)은 AppKit 을 실제로 임포트한다. setup.py 의 py2app includes 와 같은 목록이다.
+      - name: Install PyObjC
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyobjc-framework-Cocoa pyobjc-framework-Quartz pyobjc-framework-ServiceManagement
+      - name: Show environment
+        run: |
+          python3 -VV
+          sw_vers
+      # 전체 스위트를 저장소 루트에서 돌린다. tests/ 에는 __init__.py 가 없고
+      # 그게 의도된 상태라, `-s tests` 가 cwd 를 sys.path 에 넣어 주는 것에 기댄다.
+      # (CLAUDE.md 의 "Run it from the repository root" 참조. __init__.py 를 만들지 말 것.)
+      - name: Run full suite
+        run: python3 -m unittest discover -s tests -v
+
+  windows:
+    name: Windows — gating contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # 코어(claude_pet.py)는 fcntl 과 ctypes.CDLL(None) 때문에 윈도우에서 그대로는
+      # 임포트되지 않는다. 그 우회로의 유일한 소유자가 포트의 windows/win_core.py 인데,
+      # 포트는 `windows` 브랜치에만 있다. 복제하는 대신 그 디렉터리만 가져온다 —
+      # 로직이 두 벌 생기지 않게. (main 계열에 포트를 들일지는 별도 결정 사항이다.)
+      - name: Bring in the port's core-import shim
+        shell: bash
+        run: |
+          git fetch origin windows --depth=1
+          git checkout origin/windows -- windows/
+          ls windows/
+      - name: Show environment
+        run: |
+          python -VV
+          systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+        shell: cmd
+      # 윈도우에서는 맥 전용 모듈(서명·launchctl·seeding 등)이 아니라 이 기능의
+      # 게이팅 계약만 돌린다.
+      #
+      # `-t .` 를 주면 안 된다 — tests/ 에 __init__.py 가 없는 것이 의도된 상태라
+      # unittest 가 그걸 패키지로 취급하려다 "Start directory is not importable" 로
+      # 죽는다. CLAUDE.md 의 known issue 목록에 이 에러가 그대로 적혀 있는데 실제로
+      # 한 번 밟았다. windows.win_core 는 테스트 파일이 저장소 루트를 sys.path 에
+      # 넣으므로 그것 없이도 임포트된다.
+      # 게이팅 파일이 늘면 단계를 하나 더한다. discover 는 패턴을 하나만 받고,
+      # 한 줄에 몰아넣으면 앞 명령의 실패가 묻힐 수 있어 단계를 나눈다.
+      - name: Run gating contract — token recovery
+        run: python -m unittest discover -s tests -v -p "test_token_recovery.py"
+      - name: Run gating contract — codex usage
+        run: python -m unittest discover -s tests -v -p "test_codex_usage.py"
+      # 포트 자신의 스위트는 **진짜 윈도우에서 통과하지 않는다** — 이 CI 가 처음
+      # 드러냈다(run 35452309458):
+      #   ModuleNotFoundError: No module named 'fcntl'  (test_win_autostart, test_win_update)
+      #   FAIL: windows/compat was put on sys.path on a non-Windows host
+      # win_core.py 독스트링은 "윈도우 스위트를 맥에서 돌려도 의미가 있다"고 적고
+      # 있는데, 그 반대 방향(진짜 윈도우)은 아무도 돌려 본 적이 없었다. 이 저장소와
+      # 무관한 기능 브랜치를 이 기존 결함이 막게 둘 수는 없으므로 실패해도 진행하되,
+      # **숨기지는 않는다** — 로그에 그대로 남고 잡은 노란색으로 보고된다.
+      # 포트 소유자가 고치면 이 줄을 지운다.
+      - name: Run the port's own suite (known-failing on real Windows)
+        continue-on-error: true
+        run: python -m unittest discover -s windows/tests -t . -v

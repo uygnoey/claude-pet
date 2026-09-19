@@ -27,6 +27,7 @@ import sys
 import glob
 import time
 import ctypes
+import hashlib
 import errno
 import fcntl
 import plistlib
@@ -995,12 +996,17 @@ RUNTIME = {
     # None이면 롤링 7일. 0=월 ... 5=토, 6=일
     "weekly_reset_day": None,
     "weekly_reset_hour": 20,
+    # 토큰 자동 갱신·복구. 만료가 임박하거나 서버가 토큰을 거부했을 때 Claude Code 를
+    # launchd 아래에서 한 번 돌려(우리 자식이 아니다) CLI 가 스스로 갱신하게 둔다.
+    # 우리는 절대 갱신하지 않는다 — 회전된 토큰을 되쓸 수 있는 쪽이 CLI 뿐이라서다.
+    "auto_recover": os.environ.get("CLAUDE_PET_AUTO_RECOVER", "1") != "0",
 }
 
 def apply_config(cfg):
     for k in ("mode", "session_limit", "weekly_limit", "opus_limit",
               "spike_mult", "greet", "roam", "admin_key", "api_budget",
-              "model_keyword", "weekly_reset_day", "weekly_reset_hour", "lang"):
+              "model_keyword", "weekly_reset_day", "weekly_reset_hour",
+              "auto_recover", "lang"):
         if k in cfg:
             RUNTIME[k] = cfg[k]
     set_lang(RUNTIME.get("lang"))
@@ -1008,6 +1014,9 @@ def apply_config(cfg):
 # ─────────────────────── 다국어 (i18n) ───────────────────────
 SUPPORTED_LANGS = ("en", "ko", "ja", "es")
 LANG_NAMES = {"en": "English", "ko": "한국어", "ja": "日本語", "es": "Español"}
+# 우클릭 메뉴 항목 제목의 글자 수 상한. 메뉴는 화면 아무 데서나 열리므로 제목이 길면
+# 그 자리에서 잘린다 — 번역이 영어보다 길어지는 로케일에서 먼저 터진다.
+MENU_TITLE_MAX = 24
 
 def _system_lang():
     try:
@@ -1042,6 +1051,7 @@ WEEKDAYS_FULL = {
 TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
+    "codex_session": "Codex session", "codex_weekly": "Codex weekly",
     "reset_done": "reset", "cd_days": "in {d}d {h}h", "cd_hm": "in {h}h {m}m",
     "cd_m": "in {m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
     "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
@@ -1058,6 +1068,7 @@ TR = {
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_roam": "Roam the screen",
     "menu_autostart": "Start at sign-in",
+    "menu_auto_recover": "Auto-refresh token",
     "autostart_title": "Start at sign-in",
     "autostart_approval": "macOS needs your approval: System Settings → General → Login Items.",
     "autostart_open_settings": "Open Login Items",
@@ -1129,6 +1140,7 @@ TR = {
   },
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
+    "codex_session": "Codex 세션", "codex_weekly": "Codex 주간",
     "reset_done": "리셋됨", "cd_days": "{d}일 {h}시간 후", "cd_hm": "{h}시간 {m}분 후",
     "cd_m": "{m}분 후", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
     "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
@@ -1145,6 +1157,7 @@ TR = {
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_roam": "화면 돌아다니기",
     "menu_autostart": "로그인 시 자동 실행",
+    "menu_auto_recover": "토큰 자동 갱신",
     "autostart_title": "로그인 시 자동 실행",
     "autostart_approval": "macOS 승인이 필요합니다: 시스템 설정 → 일반 → 로그인 항목",
     "autostart_open_settings": "로그인 항목 열기",
@@ -1212,6 +1225,7 @@ TR = {
   },
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
+    "codex_session": "Codex セッション", "codex_weekly": "Codex 週間",
     "reset_done": "リセット済み", "cd_days": "{d}日{h}時間後", "cd_hm": "{h}時間{m}分後",
     "cd_m": "{m}分後", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
     "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
@@ -1228,6 +1242,7 @@ TR = {
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_roam": "画面を歩き回る",
     "menu_autostart": "サインイン時に自動起動",
+    "menu_auto_recover": "トークン自動更新",
     "autostart_title": "サインイン時に自動起動",
     "autostart_approval": "macOS の承認が必要です: システム設定 → 一般 → ログイン項目",
     "autostart_open_settings": "ログイン項目を開く",
@@ -1300,6 +1315,7 @@ TR = {
   },
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
+    "codex_session": "Codex sesión", "codex_weekly": "Codex semanal",
     "reset_done": "reiniciado", "cd_days": "en {d}d {h}h", "cd_hm": "en {h}h {m}m",
     "cd_m": "en {m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
     "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
@@ -1316,6 +1332,7 @@ TR = {
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_roam": "Pasear por la pantalla",
     "menu_autostart": "Abrir al iniciar sesión",
+    "menu_auto_recover": "Auto-renovar token",
     "autostart_title": "Abrir al iniciar sesión",
     "autostart_approval": "macOS necesita tu aprobación: Ajustes del Sistema → General → Ítems de inicio",
     "autostart_open_settings": "Abrir Ítems de inicio",
@@ -1470,7 +1487,8 @@ def save_config(cfg, expect_stamp=_UNCHECKED):
 SETTINGS_OWNED_KEYS = ("pet", "lang", "mode", "model_keyword",
                        "weekly_reset_day", "weekly_reset_hour",
                        "session_limit", "weekly_limit", "opus_limit",
-                       "spike_mult", "greet", "admin_key", "api_budget")
+                       "spike_mult", "greet", "admin_key", "api_budget",
+                       "auto_recover")
 
 
 def _config_lock_path():
@@ -2090,6 +2108,10 @@ def compute_usage(runtime=None):
         "spikes": spikes,
         "model_kw": kw,
         "last_activity": last_activity,
+        # 창 안에서 실제로 집계된 항목 수. 0 은 '쓰지 않았다'가 아니라 '읽을 게 없다'는
+        # 뜻이고, 게이지 0% 와는 다른 사실이다 — 필이 0% 를 지어내지 않으려면 이 둘을
+        # 구분할 근거가 필요하다(roam_summary 참조).
+        "entries": len(entries),
         "now": now,
     }
 
@@ -2727,13 +2749,6 @@ def _find_claude_cli():
     return None
 
 
-def _has_claude_logs():
-    """사용 로그가 하나라도 있으면 True (있으면 로그 추정 모드가 동작하므로 온보딩 불필요)."""
-    for _ in _iter_log_files():
-        return True
-    return False
-
-
 CLAUDE_INSTALL_URL = "https://claude.ai/install.sh"   # Anthropic 공식(홈 디렉터리 설치)
 
 
@@ -2869,6 +2884,595 @@ def _fetch_cli_usage():
     return rows[:PILL_ROWS] or None
 
 
+# ─────────────────── 토큰 자동 갱신·복구 ───────────────────
+#
+# 문제: 액세스 토큰 수명은 8시간이고, 갱신하는 주체는 Claude Code 다. **돌고 있는**
+# Claude Code 세션은 만료가 가까워지면 스스로 갱신한다 — 쓰지 않고 있어도 그렇다
+# (관측: 2026-09-20, 윈도우, n=1. 외부 워처가 528 샘플·8시간 45분·샘플링 공백 0건으로
+# 지켜본 결과, 8시간 동안 입력도 API 호출도 없던 세션이 만료 262초 전에 갱신했고 새
+# expiresAt 은 파일을 쓴 시각 + 정확히 8시간이었다). 그러니 이 기능이 실제로 푸는 문제는
+# "게으른 갱신"이 아니라 그 앞 조건이다 — **Claude Code 를 아예 띄우지 않은 사용자에겐
+# 갱신할 주체가 없다.** 며칠 안 쓰면 죽은 토큰만 남고 정확 모드가 꺼진다. PR #9 가 그
+# 상태를 정직하게(token_expired) 말하게 했고, 여기는 그다음 — 애초에 죽지 않게 하고,
+# 죽으면 되살린다. REFRESH_MARGIN_SEC 가 이 범위를 지키는 장치다: CLI 가 있는 환경에서는
+# 우리 차례가 오기 전에 CLI 가 먼저 끝내므로 아무 일도 일어나지 않는다.
+#
+# 이 모듈이 절대 하지 않는 두 가지, 둘 다 실제로 데인 적이 있어서다:
+#
+# 1. **우리가 직접 갱신하지 않는다.** refresh 토큰은 쓸 때마다 회전하고, 회전된 것을
+#    같은 저장소에 되써 넣어야 한다. 이 맥에서 저장소는 파일이 아니라 키체인이고,
+#    Claude Code 가 소유한 항목을 우리가 안전하게 덮어쓸 수 없다. 못 쓰는 쪽이 갱신을
+#    시도하면 회전분이 유실돼 사용자가 재로그인해야 한다(2026-07 실제 발생). 위 관측이
+#    그 회전을 직접 보여 줬다 — 그 한 번의 갱신에서 refresh 토큰 지문이 바뀌었고,
+#    자격증명 파일은 원자적 rename 으로 교체됐다(ino 변경, size 동일). 원칙은 CodexBar 가
+#    문서에 못박은 것과 같다: read-only tokens, CLI-owned refresh. 그래서 우리는 CLI 를
+#    한 번 돌릴 뿐이고, 쓰는 것은 전부 CLI 가 한다.
+#
+# 2. **macOS 에서는 claude 를 직계 자식으로 띄우지 않는다.** 2026-07-13, `_fetch_cli_usage()`
+#    가 그렇게 했고 Claude Code(Node 앱)의 홈/프로젝트 스캔이 부모인 ClaudePet 에 귀속돼
+#    macOS 가 보호폴더 프롬프트를 쏟아냈다. 이 맥의 TCC DB 에 com.yeongyu.claudepet
+#    거부 8건(2026-07-13 22:08~23:08 KST)이 그대로 남아 있고, 같은 날 커밋 67849e4 가
+#    CLI 경로를 옵트인으로 내렸다. 그래서 여기서는 launchctl 로 launchd 에 일을 맡긴다.
+#
+#    두 경로를 같은 서명 번들 안에서 나란히 돌려 확인했다(2026-09-19, 이 레포에서 빌드한
+#    Developer ID 번들을 launchd 가 띄운 상태에서 `ls ~/Downloads` 를 두 방식으로):
+#      직계 자식        → 20초 제한까지 매달렸다가 TimeoutExpired. 즉 접근이 ClaudePet 에
+#                        귀속됐고, 메뉴바도 Dock 도 없는 이 앱은 그 판정 UI 를 띄울 수 없다.
+#      launchctl 경유   → ppid=1(launchd), 곧바로 "Operation not permitted".
+#    두 번째가 우리가 원하는 성질이다 — 우리 자손이 아니니 귀속 사슬에 ClaudePet 이 들어갈
+#    자리가 없고, 대신 스폰된 쪽이 자기 자격으로 판정받는다. 윈도우에는 TCC 가 없어 이
+#    간접화가 필요 없고(직계 자식으로 권한 프롬프트 0/11), 거기서 막아야 하는 것은 콘솔
+#    **창**이다 — _spawn_no_window_flags() 참조.
+#
+# 시점은 주기가 아니라 만료 기준이다. expiresAt 은 프롬프트 없이 읽히고 수명이 8시간이라
+# 만료 임박에 한 번이면 하루 세 번이 상한이고, 실제로는 CLI 를 쓰는 사용자에게 0 에
+# 가깝다(마진이 그렇게 잡혀 있다). 30초 틱마다 Node 앱을 띄우는 것과는 다른 세계다.
+#
+# **아직 관측되지 않은 것**: "만료가 임박했을 때 **우리가 띄운** `claude -p /usage` 가
+# 갱신을 일으킨다" 는 것은 전제이지 확인된 사실이 아니다. 위 윈도우 관측이 보여 준 것은
+# 이미 돌고 있는 세션이 스스로 갱신한다는 것이지, 우리가 새로 띄운 한 번이 같은 일을
+# 한다는 것이 아니다. 인접 증거는 둘이다 — 갱신이 만료 임박에 붙어 일어난다는 위 관측,
+# 그리고 2026-09-19 제어 터미널 없이 돌린 `claude auth login` 이 실제로 토큰을 교체한 것
+# (expiresAt·지문 모두 변경). 이 전제가 틀린 것으로 드러나면 선제 경로는 값을 잃지만,
+# 반응 경로와 가드는 그대로다.
+
+# 만료 이 시간 전부터 선제 갱신을 건다. **CLI 보다 늦게 도착하도록** 고른 값이다.
+#
+# 2026-09-20, 윈도우, n=1: 외부 워처가 528 샘플·8시간 45분·공백 0건으로 관측한 결과,
+# 8시간 동안 입력도 API 호출도 없이 완전히 idle 이던 Claude Code 세션이 **만료 262초
+# (4.37분) 전에 스스로 토큰을 갱신했다.** CLI 의 마진이 정확히 얼마인지는 이 표본으로
+# 알 수 없고(단정하지 말 것 — n=1 이다), 아는 것은 "262초 지점에는 이미 갱신한다" 뿐이다.
+#
+# 300 은 그 지점보다 38초 이르다. 그 값으로는 Claude Code 를 쓰는 사용자마다 CLI 가
+# 어차피 할 갱신을 우리가 매번 가로채 Node 앱을 한 번 더 띄우게 된다(윈도우에선 한 번에
+# 프로세스 트리 최대 7개). 그래서 관측 지점에서 두 배 이상 떨어진 120 으로 내린다 —
+# 관측이 1분쯤 틀렸더라도 경쟁이 되살아나지 않을 만큼의 여유다.
+#
+# 아래쪽 한계도 있다: 새로고침 워커가 REFRESH_SEC(30초)마다 도는 자리라, 120 이면 만료
+# 전에 네 번의 기회가 남는다. 한 번쯤 놓쳐도(스레드가 바쁘거나 기계가 잤거나) 괜찮고,
+# 3.6~4.2초짜리 스폰에는 남는 시간이다. 더 줄이면 기회가 두 번 이하로 떨어진다.
+#
+# 이 값이 하는 일은 결국 이 기능의 범위를 좁히는 것이다: CLI 가 있는 환경에서는 우리
+# 차례가 올 때 토큰이 이미 신선해 아무 일도 일어나지 않고, 8시간 넘게 Claude Code 를
+# 한 번도 띄우지 않은 사용자 — 애초에 이 기능이 있는 이유 — 에게만 우리가 뜬다.
+#
+# ("살아 있는 claude 프로세스가 있으면 스폰하지 않는다"는 가드는 검토 후 기각됐다.
+#  멈춘 CLI 가 복구를 영원히 막는 실패 모드를 만들고 플랫폼마다 프로세스 열거가 필요한데,
+#  마진 하나로 같은 결과를 얻는다.)
+REFRESH_MARGIN_SEC = 120
+RECOVERY_TIMEOUT_SEC = 120        # 한 번의 시도를 기다려 주는 상한(실측 3.6~4.2초)
+LOGIN_TIMEOUT_SEC = 180           # 로그인 한 번의 상한(실측 21초 — 브라우저에서 꾸물대는 몫)
+RECOVERY_DELAYS_SEC = (0, 300, 900)   # 거부당한 뒤 재시도 시각 — 첫 거부 기준. 총 3회
+RECOVERY_COOLDOWN_SEC = 900       # 선제 갱신의 최소 간격(참고: CodexBar 백그라운드 15분)
+
+RECOVERY_JOB_LABEL = "me.yeongyu.claudepet.token-refresh"
+LOGIN_JOB_LABEL = "me.yeongyu.claudepet.login"
+RECOVERY_CACHE_DIR = "~/Library/Caches/me.yeongyu.claudepet"
+LAUNCHCTL = "/bin/launchctl"
+# WMI 에 넘길 명령줄을 환경변수로 건넨다. PowerShell 인용 규칙을 통과시키지 않는 것이
+# 요점이다 — 경로에 공백·작은따옴표가 있어도 문자열이 그대로 도착한다.
+WIN_SPAWN_ENV = "CLAUDEPET_SPAWN_CMDLINE"
+
+
+def _windows_system32(name):
+    """%SystemRoot%\\System32\\<name> — PATH 를 믿지 않는다(윈도우 포트의 규칙과 같다)."""
+    root = os.environ.get("SystemRoot") or "C:\\Windows"
+    return "\\".join([root, "System32", name])
+
+
+def _windows_cmd_exe():
+    """cmd.exe 의 절대경로. %ComSpec% 가 표준이고, 없으면 System32 에서 찾는다."""
+    return os.environ.get("ComSpec") or _windows_system32("cmd.exe")
+
+
+def _windows_powershell_exe():
+    return "\\".join([_windows_system32("WindowsPowerShell"), "v1.0", "powershell.exe"])
+
+
+def _recovery_cache_dir():
+    """스폰 출력이 떨어질 디렉터리. macOS 는 UPDATE_LOCK_DIR 과 같은 자리,
+    윈도우는 포트의 cache_dir 과 같은 %LOCALAPPDATA%\\me.yeongyu.claudepet 이다."""
+    if sys.platform == "win32":
+        base = (os.environ.get("LOCALAPPDATA")
+                or os.path.join(os.path.expanduser("~"), "AppData", "Local"))
+        return os.path.join(base, "me.yeongyu.claudepet")
+    return os.path.expanduser(RECOVERY_CACHE_DIR)
+
+
+def _recovery_io_paths(stem):
+    """스폰이 쓸 (stdout, stderr) **절대경로**. 상대경로는 안 된다 — 작업 디렉터리가
+    우리 것이 아니다(launchd 도, WmiPrvSE 도 자기 자리에서 띄운다)."""
+    d = _recovery_cache_dir()
+    return os.path.join(d, stem + ".out"), os.path.join(d, stem + ".err")
+
+
+def new_recovery_state():
+    """복구 사이클의 초기 상태.
+
+    attempts/gave_up 은 계약이고 나머지는 일정 계산용이다. 재시작하면 이 상태가
+    새로 만들어지므로, 포기한 사용자도 앱을 다시 켜면 한 번 더 시도한다.
+    """
+    return {"attempts": 0, "gave_up": False, "first_at": None,
+            "last_spawn": None, "token_sig": None, "login_expired": False}
+
+
+def cli_says_login_expired(text):
+    """CLI 출력이 '다시 로그인해야 한다'고 말하는가.
+
+    부분일치는 안 된다 — "Run /login to switch accounts." 같은 안내 줄에 걸리면
+    멀쩡한 토큰을 두고 사이클을 끊어 버린다. 만료를 **단언하는** 문구만 본다.
+    """
+    return bool(_CLI_EXPIRED_RE.search(text or ""))
+
+
+_CLI_EXPIRED_RE = re.compile(
+    r"(?:\b(?:login|session|credentials?|token)\s+(?:has\s+)?expired\b"
+    r"|\binvalid\s+api\s+key\b)", re.I)
+
+
+def recovery_note_output(rec, text):
+    """스폰한 CLI 가 뭐라고 했는지 기록한다 → 새 상태.
+
+    로그인 자체가 만료됐다면 남은 시도는 전부 헛일이다(갱신할 근거가 없다). 그 자리에서
+    사이클을 닫는다. 출력의 나머지는 보지 않고 어디에도 남기지 않는다.
+    """
+    r = dict(rec)
+    if cli_says_login_expired(text):
+        r["login_expired"] = True
+        r["gave_up"] = True
+    return r
+
+
+def recovery_tick(rec, now, *, auth_error, token_sig, cli_present, enabled,
+                  creds_have_oauth, expires_at):
+    """지금 무엇을 해야 하는가 → (새 상태, None | "spawn" | "giveup" | "onboard_install").
+
+    순수 함수다. 판단만 하고 아무것도 띄우지 않는다 — 띄우는 것은 호출자 몫이고, 그래야
+    이 규칙 전체가 창 없이 시험된다.
+
+    인자
+      auth_error        서버가 토큰을 거부했다(OAUTH_STATUS["auth_error"]).
+      token_sig         지금 쥐고 있는 토큰의 지문. 달라졌다 = 갱신이 실제로 일어났다.
+      cli_present       claude 실행 파일이 있는가.
+      enabled           RUNTIME["auto_recover"].
+      creds_have_oauth  저장소에 claudeAiOauth 객체가 있는가.
+      expires_at        토큰 만료 시각(tz-aware) 또는 None(모름).
+
+    두 경로가 있고 서로 독립이다:
+
+    * **선제** — 만료까지 REFRESH_MARGIN_SEC 미만이면 한 번 띄운다. 만료가 가깝다는
+      이유만으로 매 틱 띄우면 안 되므로 RECOVERY_COOLDOWN_SEC 를 둔다. expires_at 이
+      None 이면 **만료로 치지 않는다** — 못 읽었다는 것과 죽었다는 것은 다른 사실이고,
+      섞으면 기동할 때마다 Node 앱을 띄우게 된다.
+    * **반응** — 그래도 거부당했으면 첫 거부 기준 RECOVERY_DELAYS_SEC 에 맞춰 3회.
+      다 쓰면 포기하고, 같은 토큰으로는 다시 띄우지 않는다.
+
+    사이클을 푸는 길은 셋이다: 성공(auth_error 가 내려감), 토큰 교체(token_sig 변경),
+    재시작(new_recovery_state).
+
+    막는 길도 셋이고 전부 fail-closed다: 설정이 꺼져 있음, claudeAiOauth 부재
+    (갱신할 대상이 없을 뿐 아니라, 그 상태에서 CLI 를 백그라운드로 돌리면 브라우저가
+    떠 버린다 — CodexBar PR #1848), 그리고 claude 미설치(이건 설치 안내로 돌린다).
+    """
+    r = dict(rec)
+    if r.get("token_sig") != token_sig:
+        # 토큰이 바뀌었다 = 누군가 갱신에 성공했다. 사이클을 처음부터 연다.
+        r.update(attempts=0, gave_up=False, first_at=None, last_spawn=None,
+                 login_expired=False, token_sig=token_sig)
+    if not auth_error:
+        # 서버가 받아 주는 토큰이다. 반응 경로의 카운터를 푼다(선제 쿨다운은 남긴다).
+        r.update(attempts=0, gave_up=False, first_at=None, login_expired=False)
+    if not enabled or r["gave_up"] or not creds_have_oauth:
+        return r, None
+
+    if auth_error:
+        if r["attempts"] >= len(RECOVERY_DELAYS_SEC):
+            r["gave_up"] = True
+            return r, "giveup"
+        first_at = r["first_at"] or now
+        if (now - first_at).total_seconds() < RECOVERY_DELAYS_SEC[r["attempts"]]:
+            return r, None
+        if not cli_present:
+            return r, "onboard_install"
+        r["first_at"] = first_at
+        r["attempts"] += 1
+        r["last_spawn"] = now
+        return r, "spawn"
+
+    if expires_at is None:
+        return r, None
+    if (expires_at - now).total_seconds() > REFRESH_MARGIN_SEC:
+        return r, None
+    last = r.get("last_spawn")
+    if last is not None and (now - last).total_seconds() < RECOVERY_COOLDOWN_SEC:
+        return r, None
+    if not cli_present:
+        return r, "onboard_install"
+    r["last_spawn"] = now
+    return r, "spawn"
+
+
+def recovery_spawn_argv(cli_path):
+    """갱신을 유발할 명령 → argv.
+
+    argv[0] 이 claude 가 **아닌** 것이 요점이고, 그것은 양쪽 플랫폼에 같이 적용된다.
+    이유는 다르지만 성질은 하나다 — CLI 를 우리 자손으로 띄우지 않는다.
+
+      macOS  launchctl 에 맡긴다. 뜨는 프로세스의 부모는 launchd 라서 우리 자손이
+             아니고, 보호폴더 접근이 ClaudePet 에 귀속될 길이 없다(2026-07-13 TCC
+             거부 8건, 커밋 67849e4).
+      Windows `cmd.exe /c` 를 한 겹 두고, 그 명령줄을 WMI(Win32_Process.Create)가
+             띄운다 — 부모는 WmiPrvSE.exe 다(_run_refresh_job 참조). cmd 한 겹은
+             장식이 아니라 두 가지를 산다: npm 설치판의 `claude.cmd`·`claude.bat` 이
+             CreateProcess 로는 직접 뜨지 않는다는 것과, 타임아웃 때 `taskkill /T` 가
+             걸 수 있는 안정된 트리 뿌리가 생긴다는 것.
+
+    터미널 창은 어느 쪽에서도 띄우지 않는다.
+
+    `-p /usage` 를 쓰는 이유는 출력이 아니라 **부수효과**를 노려서다: 실제 요청 한 번이
+    CLI 의 게으른 갱신을 깨운다는 전제다(위 모듈 주석의 '아직 관측되지 않은 것' 참조).
+    출력을 게이지에 연결하지는 않는다 — 수치는 OAuth API 가 계속 맡는다. CLI 의 수치 줄은
+    usage API 가 429 일 때 조용히 사라지므로 더 약한 출처다. 모델은 호출되지 않아 할당량을
+    쓰지 않는다(2026-09-19 실측: macOS 세션 로그 3개에 assistant 턴 0건 / Windows 11회분
+    88행에 message.usage 0행).
+
+    cli_path 는 **절대경로여야 한다**(_find_claude_cli 가 그렇게 준다). 윈도우의
+    CreateProcess 는 자식에게 넘긴 env 가 아니라 **호출자의** PATH 로 이미지를 찾으므로,
+    bare "claude" 에 기대면 GUI 앱의 최소 PATH 에서 조용히 실패한다.
+    """
+    if sys.platform != "darwin":
+        return [_windows_cmd_exe(), "/c", str(cli_path), "-p", "/usage"]
+    out, err = _recovery_io_paths("token-refresh")
+    return [LAUNCHCTL, "submit", "-l", RECOVERY_JOB_LABEL,
+            "-o", out, "-e", err, "--", str(cli_path), "-p", "/usage"]
+
+
+def login_spawn_argv(cli_path):
+    """로그인 → argv. 터미널 창 없이, 브라우저만 뜬다.
+
+    `--claudeai` 를 명시하는 것이 중요하다 — TTY 가 없으니 "구독/API 중 고르세요"
+    화면이 뜨면 거기서 그대로 멈추고, 사용자에겐 '눌렀는데 아무 일도 안 일어남'으로
+    보인다. 2026-09-19 실측: 제어 터미널 없이 21초 만에 스스로 exit 0 했고 토큰이
+    교체됐다. 붙여넣기 UI 는 필요 없다.
+
+    간접화는 복구 스폰과 같다. macOS 에서 브라우저를 여는 것 자체는 /usr/bin/open 이라
+    무해하지만 Node 앱의 폴더 스캔은 똑같이 일어나므로, 귀속을 끊어야 하는 이유도 똑같다.
+
+    **윈도우의 미확인 위험**: 이 경로는 WMI 가 띄우는데(_run_refresh_job), 로컬 WMI 가
+    만든 프로세스가 호출자와 같은 대화형 세션에 뜨는지는 여기서 확인되지 않았다. 세션 0
+    에 뜬다면 브라우저가 사용자 화면에 나타나지 않고, 그러면 사용자는 눌렀는데 아무 일도
+    안 일어난 것으로 본다. 복구 스폰은 화면에 뭘 띄울 일이 없어 이 위험이 없다 — 로그인만
+    다르다. 윈도우에서 이 항목을 처음 돌려 보는 사람은 이것부터 확인해라.
+    """
+    if sys.platform != "darwin":
+        return [_windows_cmd_exe(), "/c", str(cli_path), "auth", "login", "--claudeai"]
+    out, err = _recovery_io_paths("login")
+    return [LAUNCHCTL, "submit", "-l", LOGIN_JOB_LABEL,
+            "-o", out, "-e", err, "--", str(cli_path), "auth", "login", "--claudeai"]
+
+
+def _launchctl_job_alive(label):
+    """label 의 job 이 아직 돌고 있는가. launchctl list 는 끝난 job 에 PID 를 안 적는다."""
+    try:
+        r = subprocess.run([LAUNCHCTL, "list", label],
+                           capture_output=True, text=True, timeout=10)
+    except Exception:
+        return False
+    return r.returncode == 0 and '"PID"' in (r.stdout or "")
+
+
+def _launchctl_remove(label):
+    try:
+        subprocess.run([LAUNCHCTL, "remove", label],
+                       capture_output=True, timeout=10)
+    except Exception:
+        pass
+
+
+def _spawn_no_window_flags():
+    """윈도우에서 콘솔 창이 뜨지 않게 하는 creationflags. 그 밖의 플랫폼은 0.
+
+    CREATE_NO_WINDOW(0x08000000). 플래그 없이 띄우면 창이 실제로 뜬다(실측 2/2에서
+    PseudoConsoleWindow 관측). DETACHED_PROCESS 도 창은 막지만 콘솔 자체가 없어지므로,
+    Node 가 기대하는 환경에 더 가깝고 한 번 실행에 최대 7개까지 붙는 자식들(bash·conhost·
+    cmd)의 창까지 같이 막아 주는 CREATE_NO_WINDOW 를 쓴다.
+    """
+    return 0x08000000 if sys.platform == "win32" else 0
+
+
+def _drain_job_output(stem):
+    """스폰이 남긴 stdout/stderr 파일을 읽고 **지운다** → 합친 문자열.
+
+    지우는 이유: 읽고 나면 쓸 데가 없고, `/usage` 출력이라 전사 내용은 없어도 남겨 둘
+    이유가 없다. 다음 실행이 옛 출력을 자기 것으로 오해하는 것도 막는다.
+    """
+    text = ""
+    for p in _recovery_io_paths(stem):
+        try:
+            with open(p, encoding="utf-8", errors="replace") as f:
+                text += f.read()
+        except OSError:
+            pass
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    return text
+
+
+def _win_run_helper(argv, timeout=60):
+    """윈도우 보조 도구(powershell/tasklist/taskkill)를 조용히 한 번 돌린다 → CompletedProcess|None.
+
+    간접화의 대상이 아니다 — 이것들은 우리 자식이어도 괜찮은 짧은 도구고, 막아야 하는
+    것은 창뿐이다.
+    """
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout,
+                              stdin=subprocess.DEVNULL,
+                              creationflags=_spawn_no_window_flags())
+    except Exception as e:
+        _dbg("recovery: helper failed", os.path.basename(str(argv[0])), type(e).__name__)
+        return None
+
+
+def _win_wmi_create(cmdline):
+    """WMI Win32_Process.Create 로 명령줄 하나를 띄운다 → 스폰된 PID, 실패하면 None.
+
+    **왜 WMI 인가.** 맥에서 launchctl 을 고른 이유와 같은 자리다: 뜨는 프로세스가 우리
+    자손이 아니어야 한다. WMI 가 띄운 프로세스의 부모는 WmiPrvSE.exe 이고, 윈도우 피어가
+    자기 워처를 정확히 이 방식으로 띄워 '세션이 죽어도 살아남는다'를 확인했다.
+    PowerShell 로 부르지만 PowerShell 은 즉시 끝나는 중개일 뿐 CLI 의 부모가 아니다.
+
+    **PID 를 반드시 받아야 한다.** 간접화의 대가가 그것이다 — 자식이 우리 자손이 아니니
+    우리 쪽 Popen 객체로는 아무것도 못 잡는다. Create 가 돌려주는 ProcessId 가 나중에
+    taskkill 이 걸 유일한 손잡이다.
+
+    명령줄은 환경변수로 건넨다. PowerShell 인용을 거치지 않으므로 경로에 공백이나
+    작은따옴표가 있어도 그대로 도착한다.
+    """
+    script = ("$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
+              "-Arguments @{CommandLine=$env:%s}; "
+              "if ($r.ReturnValue -ne 0) { exit 1 }; "
+              "[Console]::Out.Write($r.ProcessId)" % WIN_SPAWN_ENV)
+    argv = [_windows_powershell_exe(), "-NoProfile", "-NonInteractive",
+            "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+            "-Command", script]
+    env = dict(os.environ)
+    env[WIN_SPAWN_ENV] = cmdline
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=60,
+                           stdin=subprocess.DEVNULL, env=env,
+                           creationflags=_spawn_no_window_flags())
+    except Exception as e:
+        _dbg("recovery: wmi create failed", type(e).__name__)
+        return None
+    if r.returncode != 0:
+        _dbg("recovery: wmi create rc", r.returncode)
+        return None
+    try:
+        pid = int((r.stdout or "").strip())
+    except ValueError:
+        _dbg("recovery: wmi create gave no pid")
+        return None
+    return pid if pid > 0 else None
+
+
+def _win_pid_alive(pid):
+    r = _win_run_helper([_windows_system32("tasklist.exe"),
+                         "/FI", "PID eq %d" % pid, "/NH", "/FO", "CSV"], timeout=30)
+    return bool(r) and ('"%d"' % pid) in (r.stdout or "")
+
+
+def _win_kill_tree(pid):
+    """스폰된 **그** PID 를 뿌리로 트리째 없앤다.
+
+    `/T` 가 있어야 한다. 우리가 받은 PID 는 cmd.exe 한 겹이고 claude.exe 와 그 밑의
+    bash·conhost 는 그 자손이다 — 윈도우는 부모가 죽어도 자식이 살아남으므로(피어 실측)
+    뿌리만 죽이면 고아 트리가 그대로 남는다. 한 번 실행에 최대 7개다.
+    """
+    _win_run_helper([_windows_system32("taskkill.exe"),
+                     "/F", "/T", "/PID", str(pid)], timeout=30)
+
+
+def _run_refresh_job(argv, label, stem, timeout):
+    """argv 를 한 번 돌리고 끝날 때까지(최대 timeout) 기다렸다가 출력을 돌려준다.
+
+    반환은 문자열이고, 띄우는 것 자체가 실패하면 None 이다(호출자가 폴백을 고를 수 있게).
+    플랫폼 분기는 **여기와 *_spawn_argv 두 곳뿐**이고, 양쪽이 같은 성질을 산다 —
+    **CLI 는 우리 자손이 아니다.**
+
+    * macOS — launchd 에 제출한다(부모 = launchd, ppid 1). 출력은 launchd 가 파일로
+      적어 주므로 그 파일을 읽고 지운다. 다 끝났든 제한을 넘겼든 `launchctl remove` 가
+      돌고 있는 job 을 실제로 끝낸다(실측).
+    * Windows — argv 를 명령줄로 조립해 WMI 가 띄운다(부모 = WmiPrvSE.exe). 출력은
+      명령줄 안의 리디렉션으로 파일에 받는다. 여기서 놓치기 쉬운 것이 정리다:
+      간접화했으니 우리에겐 Popen 객체가 없고, **WMI 가 돌려준 PID 만이 손잡이다.**
+      제한을 넘기면 그 PID 를 뿌리로 `taskkill /F /T` 한다.
+
+    **미측정**: 이 윈도우 경로는 윈도우 기계에서 실행되지 않았다. WMI 가 우리 트리에서
+    떨어진다는 것은 피어의 실측이고, 여기서 그 위에 얹은 PID 배선·리디렉션·폴링은
+    아직 아무도 돌려 보지 않았다. `claude.cmd`(npm 설치판)도 같다 — `cmd.exe /c` 한 겹이
+    그것까지 받아 내도록 넣었지만 확인된 바는 없다.
+    """
+    if sys.platform != "darwin":
+        out, err = _recovery_io_paths(stem)
+        try:
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+        except OSError:
+            pass
+        for p in (out, err):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        # 출력은 cmd 의 리디렉션으로 받는다. list2cmdline 이 공백 있는 경로만 인용하고
+        # `>` 와 `2>&1` 은 그대로 두므로 cmd 가 연산자로 읽는다.
+        cmdline = subprocess.list2cmdline(list(argv) + [">", out, "2>&1"])
+        pid = _win_wmi_create(cmdline)
+        if pid is None:
+            return None
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            time.sleep(2.0)
+            if not _win_pid_alive(pid):
+                break
+        else:
+            _win_kill_tree(pid)
+        return _drain_job_output(stem)
+    out, err = _recovery_io_paths(stem)
+    try:
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        for p in (out, err):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        _launchctl_remove(label)
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            _dbg("recovery: submit rc", r.returncode)
+            _launchctl_remove(label)
+            return None
+    except Exception as e:
+        _dbg("recovery: submit failed", type(e).__name__)
+        return None
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(2.0)
+        if not _launchctl_job_alive(label):
+            break
+    # 제한을 넘겼든 제때 끝났든 여기서 지운다. remove 는 아직 돌고 있는 job 을 실제로
+    # 끝낸다(실측) — 붙어 있는 자식이 다음 시도를 영원히 막는 상태를 만들지 않는다.
+    _launchctl_remove(label)
+    return _drain_job_output(stem)
+
+
+def _oauth_blob_noprompt():
+    """저장소의 claudeAiOauth 객체(dict) 또는 None. **프롬프트가 뜰 수 있는 경로는 타지 않는다.**
+
+    파일 → security CLI 까지만이다. 네이티브 키체인 API 는 여기서 절대 쓰지 않는다 —
+    30초마다 불리는 자리에서 그 경로를 타면 v0.16 의 재프롬프트 회귀가 그대로 돌아온다.
+    """
+    try:
+        with open(_credentials_path(), encoding="utf-8") as f:
+            obj = json.load(f).get("claudeAiOauth")
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+    if sys.platform != "darwin":
+        return None
+    try:
+        r = subprocess.run(
+            ["security", "find-generic-password",
+             "-s", "Claude Code-credentials", "-w"],
+            capture_output=True, text=True, timeout=15)
+        if r.returncode == 0 and r.stdout.strip():
+            obj = json.loads(r.stdout.strip()).get("claudeAiOauth")
+            if isinstance(obj, dict):
+                return obj
+    except Exception:
+        pass
+    return None
+
+
+def oauth_token_facts():
+    """(creds_have_oauth, expires_at, token_sig) — recovery_tick 이 필요한 사실들.
+
+    expires_at 은 tz-aware UTC 또는 None(모름). token_sig 는 액세스 토큰의 지문이고
+    토큰 자체가 아니다 — 회전을 감지하는 데만 쓰고 어디에도 기록하지 않는다.
+    """
+    obj = _oauth_blob_noprompt()
+    if not obj:
+        return False, None, None
+    exp = None
+    raw = obj.get("expiresAt")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool) and raw > 0:
+        try:
+            exp = datetime.fromtimestamp(float(raw) / 1000.0, timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            exp = None
+    tok = obj.get("accessToken")
+    sig = (hashlib.sha256(tok.encode("utf-8")).hexdigest()[:16]
+           if isinstance(tok, str) and tok else None)
+    return True, exp, sig
+
+
+_recovery_busy = threading.Lock()
+
+
+def run_token_refresh(rec_holder, key="recovery"):
+    """갱신 스폰을 백그라운드 스레드에서 한 번 돌리고, 출력을 상태에 반영한다.
+
+    rec_holder 는 state 같은 매핑이고 key 자리에 복구 상태를 들고 있다. 이미 한 번이
+    돌고 있으면 아무것도 하지 않는다 — 붙어 있는 자식이 쌓이면 그게 재앙이다.
+    """
+    cli = _find_claude_cli()
+    if not cli:
+        return False
+    if not _recovery_busy.acquire(blocking=False):
+        return False
+
+    def work():
+        try:
+            text = _run_refresh_job(recovery_spawn_argv(cli), RECOVERY_JOB_LABEL,
+                                    "token-refresh", RECOVERY_TIMEOUT_SEC)
+            _dbg("recovery: finished, output?", text is not None)
+            if text:
+                rec_holder[key] = recovery_note_output(rec_holder[key], text)
+        finally:
+            _recovery_busy.release()
+    threading.Thread(target=work, daemon=True).start()
+    return True
+
+
+def start_claude_login_background():
+    """터미널 없이 로그인 — 창 대신 브라우저가 뜨고 CLI 가 스스로 끝낸다. 띄우지 못했으면 False.
+
+    **메인 스레드에서 부르면 안 된다.** 로그인이 끝날 때까지(최대 LOGIN_TIMEOUT_SEC)
+    막힌다. 반환값이 False 인 것은 '로그인 실패' 가 아니라 '띄우지도 못했다' 는 뜻이고,
+    그때만 호출자가 예전의 터미널 창 경로로 내려간다.
+    """
+    cli = _find_claude_cli()
+    if not cli:
+        return False
+    return _run_refresh_job(login_spawn_argv(cli), LOGIN_JOB_LABEL, "login",
+                            LOGIN_TIMEOUT_SEC) is not None
+
+
+def summary_click_action(*, status_key, in_pill, click_count, moved):
+    """요약 필 클릭이 무엇을 뜻하는가 → None | "login" | "install" | "recover".
+
+    상태 문구가 떠 있을 때만 클릭이 뜻을 갖는다. 기존 상호작용을 건드리지 않는 것이
+    이 함수의 절반이다 — 더블클릭은 즉시 갱신 몫이고, 드래그는 클릭이 아니며, 필 밖은
+    접기 버튼과 펫의 몫이다.
+    """
+    if moved or not in_pill or click_count != 1:
+        return None
+    return {"onb_login": "login", "onb_install": "install",
+            "token_expired": "recover"}.get(status_key)
+
+
 def fetch_exact_usage():
     """정확 사용량 [(label, pct, reset_dt, reset_text)] 최대 4줄.
     OAuth 우선, 모델별(Fable 등) 줄이 없으면 CLI(claude -p /usage)에서 보충.
@@ -2895,6 +3499,164 @@ def fetch_exact_usage():
     if rows:
         rows = sorted(rows, key=lambda r: _label_order(r[0]))[:PILL_ROWS]
     _oauth_cache["gauges"] = rows
+    return rows
+
+
+# ─────────────── Codex(OpenAI) 사용량 — 읽기만 하는 관찰자 ───────────────
+#
+# 엔드포인트와 필드 대응은 우리가 발명한 것이 아니다. 같은 일을 하는 구현 둘을
+# 2026-09-19 에 교차확인했고 둘이 일치한다: Orca(로컬 앱)와 CodexBar(문서 docs/codex.md)
+# 모두 chatgpt.com 의 wham/usage 를 부르고 rate_limit.primary_window 를 세션,
+# secondary_window 를 주간 레인으로 읽는다. 자격증명은 $CODEX_HOME 또는 홈의 .codex 아래
+# auth.json 이다.
+#
+# 원칙 셋, 전부 Claude 쪽과 같다:
+#   1. 읽기만 한다. 그 파일의 주인은 Codex CLI 이고, 회전된 자격증명을 되쓸 수 없는 쪽이
+#      갱신을 시도하면 사용자가 재로그인하게 된다. 우리는 관찰자지 ADE 가 아니다.
+#   2. 0% 를 지어내지 않는다. 자격증명이 없거나 응답에 쓸 수치가 없으면 행을 **아예 그리지
+#      않는다** — 0% 행은 "안 썼다"로 읽히기 때문이다.
+#   3. 토큰 값은 로그에도 예외 메시지에도 반환값에도 남기지 않는다(CLAUDE.md Privacy).
+#      경로도 남기지 않는다 — 경로는 신원 정보다.
+
+def codex_auth_path(env=None, home=None):
+    """Codex 자격증명 파일의 경로. CODEX_HOME 이 있으면 그 아래, 없으면 홈의 .codex 아래.
+
+    env/home 을 주입받는 이유는 둘이다. 테스트가 실제 환경을 읽지 않아도 되고, 맥과
+    윈도우에서 이 함수가 같은 뜻이 되는지를 양쪽 CI 에서 같은 픽스처로 확인할 수 있다.
+    공백뿐인 CODEX_HOME 은 설정된 것이 아니다 — 그걸 루트로 삼으면 상대경로가 되어
+    프로세스의 작업 디렉터리 아래를 보게 된다.
+    """
+    env = os.environ if env is None else env
+    root = (env.get("CODEX_HOME") or "").strip()
+    if not root:
+        root = os.path.join(os.path.expanduser("~") if home is None else home, ".codex")
+    return os.path.join(root, "auth.json")
+
+
+def read_codex_token(path):
+    """auth.json 에서 OAuth 액세스 토큰만 읽어 돌려준다. 없으면 None — 예외는 내보내지 않는다.
+
+    없는 파일, 깨진 JSON, tokens 가 없는 파일(API 키만 있는 설치), 공백뿐인 토큰은 모두
+    '토큰 없음'이다. 셋을 구분해 봐야 할 일이 다르지 않고, 구분해서 보고하려면 경로나
+    본문을 로그에 흘려야 한다. 남기는 것은 개수와 모양뿐이다.
+    """
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        _dbg("codex auth: unreadable", type(e).__name__)
+        return None
+    tokens = data.get("tokens") if isinstance(data, dict) else None
+    if not isinstance(tokens, dict):
+        _dbg("codex auth: no oauth tokens")
+        return None
+    tok = tokens.get("access_token")
+    if not isinstance(tok, str) or not tok.strip():
+        _dbg("codex auth: blank token")
+        return None
+    return tok.strip()
+
+
+def _codex_pct(value):
+    """used_percent → 0..100 실수, 못 쓰면 None.
+
+    문자열은 숫자로 바꾸지 않는다(bool 도 마찬가지 — 파이썬에서 True 는 int 다). 범위를
+    벗어난 값은 버리지 않고 자른다: 서버가 102% 를 주는 것은 '한도를 넘었다'는 뜻이지
+    '모른다'는 뜻이 아니다.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    v = float(value)
+    if not math.isfinite(v):
+        return None
+    return max(0.0, min(100.0, v))
+
+
+def _codex_reset_dt(value):
+    """reset_at(에폭 초) → UTC datetime, 못 쓰면 None. 리셋 시각이 없어도 수치 행은 살린다."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        return datetime.fromtimestamp(float(value), timezone.utc)
+    except Exception:
+        return None
+
+
+CODEX_LANES = (("primary_window", "codex_session"), ("secondary_window", "codex_weekly"))
+
+
+def parse_codex_usage(payload, now=None):
+    """wham/usage 응답 → [(label, pct, reset_dt, reset_text)] 또는 None.
+
+    label 은 TR 키다 — 옮기는 것은 렌더 쪽(roam_summary_codex)의 일이라, 언어를 바꿔도
+    캐시된 행이 옛 언어로 남지 않는다.
+    primary → 세션, secondary → 주간. 이 대응이 뒤집히면 숫자가 조용히 거짓말을 한다.
+    수치가 없거나 수치가 아닌 창은 **그 창만** 버린다. 쓸 행이 하나도 없으면 빈 목록이
+    아니라 None 을 준다 — 호출자가 '행 없음'과 '0% 행'을 헷갈릴 자리를 만들지 않는다.
+    """
+    limits = payload.get("rate_limit") if isinstance(payload, dict) else None
+    if not isinstance(limits, dict):
+        return None
+    now = datetime.now(timezone.utc) if now is None else now
+    rows = []
+    for key, label in CODEX_LANES:
+        window = limits.get(key)
+        if not isinstance(window, dict):
+            continue
+        pct = _codex_pct(window.get("used_percent"))
+        if pct is None:
+            continue
+        reset = _codex_reset_dt(window.get("reset_at"))
+        rows.append((label, pct, reset, fmt_countdown(reset, now) if reset else None))
+    return rows or None
+
+
+_codex_cache = {"t": 0.0, "rows": None}
+
+
+def fetch_codex_usage():
+    """Codex 사용량 행 [(label, pct, reset_dt, reset_text)], 읽을 게 없으면 None.
+
+    엔드포인트는 Orca 와 CodexBar 가 함께 쓰는 https://chatgpt.com/backend-api/wham/usage 하나다.
+    캐시 규율은 Claude 쪽과 같다: 성공과 429 는 OAUTH_CACHE_SEC(180초) 그대로, 그 밖의 실패는
+    OAUTH_FAIL_RETRY_SEC(60초)만 — 캐시가 존재하는 이유가 과호출이라 429 만 줄이면 안 된다.
+    조회하는 동안 다른 호출자는 직전 값을 받는다.
+    토큰은 읽기만 한다. 만료됐다면 되살리는 것은 Codex CLI 의 일이고, 우리는 그 자리에서
+    행을 지울 뿐이다 — 자격증명을 되쓸 수 없는 쪽이 갱신을 시도하면 사용자가 재로그인한다.
+    """
+    now = time.time()
+    if now - _codex_cache["t"] < OAUTH_CACHE_SEC:
+        return _codex_cache["rows"]
+    _codex_cache["t"] = now
+    tok = read_codex_token(codex_auth_path())
+    if not tok:
+        _codex_cache["rows"] = None
+        return None
+    req = urllib.request.Request(
+        "https://chatgpt.com/backend-api/wham/usage",
+        headers={"Authorization": "Bearer " + tok,
+                 "Accept": "application/json",
+                 "User-Agent": "claude-pet"})
+    rows, err = None, None
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            raw = r.read()
+    except urllib.error.HTTPError as e:
+        err = "http:%s" % e.code
+        _dbg("codex fetch: http", e.code)
+    except Exception as e:
+        err = "net"
+        _dbg("codex fetch: net", type(e).__name__)
+    else:
+        try:
+            rows = parse_codex_usage(json.loads(raw.decode("utf-8")))
+        except Exception as e:
+            err = "parse"
+            _dbg("codex fetch: parse", type(e).__name__)
+    if rows is None and err and err != "http:429":
+        _codex_cache["t"] = now - (OAUTH_CACHE_SEC - OAUTH_FAIL_RETRY_SEC)
+    _codex_cache["rows"] = rows
+    _dbg("codex fetch: rows", len(rows or ()))
     return rows
 
 
@@ -6203,10 +6965,11 @@ def _roam_valid_pct(value):
 
 
 def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_month=None,
-                 reset_texts=None, spike_first=False, cost_budget=None):
+                 reset_texts=None, spike_first=False, cost_budget=None, auth_error=False):
     """요약 필 내용(Claude 구간) → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
 
-    ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login / scanning
+    ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login /
+                         scanning / token_expired
     ("cost", (today, month, budget))   API 모드의 오늘·이달 비용과 월 예산. month/budget 은 없으면 None
     ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 호출자는 크레딧 등 게이지가 아닌 행을
                          빼고 넘긴다(어댑터 roam_summary_text 참조).
@@ -6218,6 +6981,11 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
       reset_text 리셋 시각 문구(호출자가 fmt_countdown 으로 만든 문자열) 또는 None. exact 행은 row[2] 를 그대로
                  쓰고, estimate 는 reset_texts[gauge] 를 쓴다 — 이 함수는 시각을 계산하지 않는다(순수).
     정확 모드 행이 있는데 유효 행이 하나도 없으면 추정으로 내려가지 않고 상태를 준다.
+
+    auth_error 는 '서버가 토큰을 거부했다'는 사실(OAUTH_STATUS["auth_error"])이고, 어댑터가 넘긴다 —
+    이 함수는 순수하게 남는다. 창 안에 항목이 하나도 없는데(stats["entries"] == 0) 토큰까지 거부됐다면
+    게이지 0% 는 사실이 아니라 무지다. 그때만 token_expired 를 주고, 그 판정은 온보딩 안내보다 앞선다
+    (로그인은 이미 했고 토큰만 되살리면 되는 상태라, 'Claude Code 로그인 필요'보다 구체적이다).
     """
     if mode == "api":
         if not has_admin_key:
@@ -6235,9 +7003,16 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
             reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
             rows.append((row[0], float(row[1]), bool(spike_first) and i == 0, reset_text))
         return ("exact", rows) if rows else ("status", "scanning")
+    # 창 안에 집계된 항목이 0개면 추정 게이지의 0% 는 '안 썼다'가 아니라 '모른다'다.
+    # entries 키가 아예 없는 스냅샷은 그 사실을 말해 주지 않는 옛 모양이므로 0 으로 치지
+    # 않는다 — 여기서 `not stats.get("entries")` 를 쓰면 키 없는 스냅샷과 stats=None 까지
+    # '데이터 없음'으로 끌려들어와, 아직 첫 계산이 끝나지 않은 기동 직후에 만료를 외친다.
+    no_data = isinstance(stats, dict) and stats.get("entries") == 0
+    if auth_error and no_data:
+        return ("status", "token_expired")
     if onboard in ("install", "login"):
         return ("status", "onb_" + onboard)
-    if stats:
+    if stats and not no_data:
         rows = []
         spikes = stats.get("spikes") if isinstance(stats.get("spikes"), dict) else {}
         resets = reset_texts if isinstance(reset_texts, dict) else {}
@@ -6299,8 +7074,15 @@ def roam_summary_reset_line(kind, payload, tr):
     return "".join(text for text, _kind in roam_summary_runs([(kind, payload)], tr)[1])
 
 
-def _summary_segment_runs(kind, payload, tr):
-    """구간 하나 → (첫 줄 run 들, 둘째 줄 run 들)."""
+def _summary_segment_runs(kind, payload, tr, reset_prefix=True):
+    """구간 하나 → (첫 줄 run 들, 둘째 줄 run 들).
+
+    reset_prefix 는 '이 구간이 둘째 줄을 여는 구간인가'다. 리셋 안내어는 줄 전체에 한 번이고
+    (CLAUDE.md: 리셋 단어를 한 번 쓰고, 그 다음 "<라벨> <카운트다운>"), 구간마다 붙이면 제공자가
+    둘일 때 "리셋 … · 리셋 …" 이 된다. 조립하는 쪽(roam_summary_runs)만이 자기가 몇 번째인지 알므로
+    거기서 정해 넘긴다 — 만들어 놓고 글자를 잘라 내지 않는다. 안내어는 로케일마다 다르고(en "reset ",
+    ko "리셋 "), 사용자 데이터에 같은 글자가 들어 있을 수도 있어서 문자열 비교로 지우는 것은 틀린다.
+    """
     if kind in ("exact", "estimate"):
         main, sub, last_reset = [], [], None
         approx = SUMMARY_APPROX if kind == "estimate" else ""
@@ -6312,7 +7094,12 @@ def _summary_segment_runs(kind, payload, tr):
             main.append(((SUMMARY_SPIKE if spiking else "") + shown, summary_value_kind(pct, spiking)))
             main.append((f" {approx}{pct:.0f}%", kind))
             if reset_text and reset_text != last_reset:
-                sub.append((SUMMARY_SEP, "sub") if sub else (tr("reset_prefix"), "sub"))
+                if sub:
+                    sub.append((SUMMARY_SEP, "sub"))
+                elif reset_prefix:
+                    sub.append((tr("reset_prefix"), "sub"))
+                # reset_prefix 가 False 이고 sub 가 비어 있으면 아무것도 앞에 붙이지 않는다 —
+                # 구간 사이 구분자는 조립하는 쪽이 이미 넣는다.
                 sub.append((f"{shown} {reset_text}", "sub"))
             last_reset = reset_text or last_reset
         return main, sub
@@ -6333,12 +7120,16 @@ def roam_summary_runs(segments, tr):
     """구간 목록 → (첫 줄 run 들, 둘째 줄 run 들); run 은 (text, kind), kind 는 SUMMARY_COLORS 의 키.
 
     첫 줄은 라벨(흰색 → 경고 → 위험, 잔여량)과 수치(출처 색) 조각, 둘째 줄은 리셋 시각(보조색). 구간 사이는 기본색
-    구분자. 지금은 Claude 구간 하나다 — GPT·Gemini 등 다른 제공자의 사용량은 (kind, payload) 구간을 뒤에
+    구분자. Claude 옆에 GPT·Gemini·Codex 등 다른 제공자의 사용량은 (kind, payload) 구간을 뒤에
     붙이면 같은 줄에 이어진다. 그리기(draw_summary_pill)와 폭 계산은 run 단위라 손댈 곳이 없다.
+
+    둘째 줄은 구간별 조각의 **문자 그대로의 연결이 아니다**: 리셋 안내어는 줄 전체에 한 번이므로
+    둘째 줄을 여는 구간에만 붙인다(reset_prefix). 그 구간이 첫 번째 구간이라는 보장은 없다 —
+    앞 구간이 비용 구간처럼 둘째 줄을 내지 않을 수 있어서, 'sub 가 아직 비었는가'로 정한다.
     """
     main, sub = [], []
     for kind, payload in segments:
-        m, s_ = _summary_segment_runs(kind, payload, tr)
+        m, s_ = _summary_segment_runs(kind, payload, tr, reset_prefix=not sub)
         if not m:
             continue
         if main:
@@ -6349,6 +7140,30 @@ def roam_summary_runs(segments, tr):
                 sub.append((SUMMARY_SEP, "sub"))
             sub.extend(s_)
     return main, sub
+
+
+def roam_summary_codex(payload):
+    """Codex 사용량 → 요약 필 구간 하나 (kind, payload), 읽을 게 없으면 None.
+
+    payload 는 wham/usage 응답 원문(dict)이거나 parse_codex_usage 가 이미 낸 행 목록이다.
+    그리기 코드는 손대지 않는다 — 기존 ("exact", rows) 구간 모양 그대로 뒤에 붙고,
+    roam_summary_runs 가 구분자를 넣어 Claude 구간 옆에 이어 준다. 값이 서버가 계산한
+    퍼센트라 kind 도 exact(에메랄드)다: 우리 추정치가 아니라는 사실이 색으로 드러난다.
+    급증 표식은 붙이지 않는다 — 급증 판정은 Claude 로그 추정기의 것이고, 남의 제공자
+    행에 그 신호를 옮겨 달 근거가 없다.
+    읽을 게 없으면 None 이다. 0% 행을 만들어 "거의 안 썼다"로 읽히게 하지 않는다.
+    """
+    rows = payload if isinstance(payload, list) else parse_codex_usage(payload)
+    if not rows:
+        return None
+    now_utc = datetime.now(timezone.utc)
+    out = []
+    for row in rows:
+        label, pct, reset_dt, reset_text = (list(row) + [None, None])[:4]
+        # 남은 시간은 여기서 다시 센다 — 캐시된 행의 문구는 최대 180초까지 묵은 값이다.
+        shown = fmt_countdown(reset_dt, now_utc) if reset_dt is not None else (reset_text or None)
+        out.append((t(label), float(pct), False, shown))
+    return ("exact", out)
 
 
 def roam_fit_runs(runs, max_w, measure, ellipsis="…"):
@@ -6653,6 +7468,9 @@ def run_gui():
     PW, PH, W, H = geom()
 
     state = {"stats": None, "cost": None, "cost_month": None, "oauth": None,
+             # codex: Codex(OpenAI) 사용량 행 또는 None. None 이면 구간 자체를 안 붙인다 —
+             # Codex 를 안 쓰는 사용자에게 0% 행을 보여 주지 않기 위해서다.
+             "codex": None,
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
@@ -6678,12 +7496,25 @@ def run_gui():
              # 구독 모드인데 Claude Code 데이터가 전혀 없을 때: None|'install'|'login'.
              # refresh 워커가 매 주기 갱신한다(아래 compute_onboard_state).
              "onboard": None,
+             # 토큰 자동 갱신·복구 상태(recovery_tick). 재시작하면 새로 만들어지므로
+             # 포기한 사이클도 다음 실행에서 한 번 더 시도한다.
+             "recovery": new_recovery_state(),
+             # 지금 필에 떠 있는 상태 키(roam_summary 의 ("status", key)) 또는 None.
+             # summary_click 훅이 summary_click_action 에 넘긴다.
+             "summary_status": None,
+             # 요약 필 클릭 훅 — mouseUp_ 이 부른다(view, loc, click_count, moved).
+             # roam_release 와 같은 이유로 훅이다: 창 없는 시험의 state 에는 없어야 한다.
+             "summary_click": None,
              # 새로고침 워커(백그라운드 스레드)가 stats/oauth를 갱신한 뒤 세우는 플래그.
              # AppKit 뷰를 워커에서 직접 건드리면 안 되므로, 메인 스레드인 tick_이
              # 이 플래그를 보고 다시 그린다(TICK=0.05초 → 최대 50ms 지연).
              "repaint": False,
              # 새로고침 세대 번호(begin_refresh_generation/commit_refresh_result).
              "refresh_generation": 0}
+    # 다른 제공자(Codex) 요약 구간 훅 — roam_summary_text 가 부른다. summary_click 과 같은
+    # 이유로 훅이고, state 를 손으로 만드는 시험에는 이 키가 없다. Codex 행이 없으면 None 을
+    # 돌려주고, 그러면 구간이 붙지 않는다.
+    state["codex_summary"] = lambda: roam_summary_codex(state.get("codex"))
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
     def _run_update_check():
@@ -6929,6 +7760,15 @@ def run_gui():
                 state["show_panel"] = (toggle() if toggle is not None
                                        else not state["show_panel"])
                 self.setNeedsDisplay_(True)
+                return
+            # 상태 문구가 떠 있는 필을 한 번 누르면 그 문구가 말한 일을 한다. 판정은
+            # summary_click_action(순수)이 하고, 실행은 state 훅이 한다 — roam_release·
+            # autostart_read 와 같은 모양이다. 창 없는 시험은 자기 손으로 만든 state 를
+            # 넘기므로 훅이 아예 없고, 그래서 이 항목이 협력자를 얻어도 그 시험들의
+            # scope 는 그대로다(state 주석 참조).
+            click = state.get("summary_click")
+            if click is not None:
+                click(self, loc, event.clickCount(), moved)
 
         def rightMouseDown_(self, event):
             # 메뉴는 '시작 시 복원': 요약 래치를 먼저 끄고 메뉴를 띄운다. 그래서 메뉴의
@@ -6944,6 +7784,11 @@ def run_gui():
             menu.setAutoenablesItems_(False)
             for title, action in ((t("menu_settings"), "openSettings:"),
                                   (t("menu_toggle"), "togglePanel:"),
+                                  # 체크 항목 셋은 붙여 둔다. menu_autostart 가
+                                  # menu_roam 과 menu_reset_size 사이라는 것은 AST 로
+                                  # 고정돼 있으니(tests/test_autostart.py) 새 항목은
+                                  # 그 쌍 사이가 아니라 앞에 놓는다.
+                                  (t("menu_auto_recover"), "toggleAutoRecover:"),
                                   (t("menu_roam"), "toggleRoam:"),
                                   (t("menu_autostart"), "toggleAutostart:"),
                                   (t("menu_reset_size"), "resetScale:"),
@@ -6956,7 +7801,11 @@ def run_gui():
                 mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     title, action, "")
                 mi.setTarget_(handler)
-                if action == "toggleRoam:":
+                if action == "toggleAutoRecover:":
+                    # 체크 표시는 RUNTIME 에서 온다 — autostart 와 달리 OS 등록 상태가
+                    # 아니라 우리 설정 키가 진실의 출처다(SETTINGS_OWNED_KEYS 에 있다).
+                    mi.setState_(1 if RUNTIME.get("auto_recover") else 0)
+                elif action == "toggleRoam:":
                     mi.setState_(1 if RUNTIME.get("roam") else 0)   # 체크 표시
                     # macOS '동작 줄이기' 가 켜져 있으면 어차피 움직이지 않는다 → 비활성
                     mi.setEnabled_(not state["reduce_motion"])
@@ -6996,7 +7845,7 @@ def run_gui():
                 pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_pets"), None, "")
                 pet_item.setSubmenu_(sub)
-                menu.insertItem_atIndex_(pet_item, 5)       # '크기 원래대로' 다음
+                menu.insertItem_atIndex_(pet_item, 6)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -7195,7 +8044,7 @@ def run_gui():
         oauth = state["oauth"]
         key = (RUNTIME["mode"], L["lang"], state.get("onboard"), id(stats), id(oauth), state["cost"],
                state["cost_month"], RUNTIME.get("api_budget"), bool(OAUTH_STATUS.get("auth_error")),
-               int(_time.time() / 5))
+               id(state.get("codex")), int(_time.time() / 5))
         if _summary_memo["key"] == key:
             return _summary_memo["value"]
         if oauth:
@@ -7214,8 +8063,18 @@ def run_gui():
         segment = roam_summary(RUNTIME["mode"], oauth, stats, state.get("onboard"), state["cost"],
                                bool(RUNTIME.get("admin_key")), state["cost_month"],
                                reset_texts=resets, spike_first=bool(spike_info(stats)),
-                               cost_budget=float(RUNTIME.get("api_budget") or 0))
-        main, sub = roam_summary_runs([segment], t)
+                               cost_budget=float(RUNTIME.get("api_budget") or 0),
+                               auth_error=bool(OAUTH_STATUS.get("auth_error")))
+        # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
+        # 상태 문구가 아니면 None 이라, 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
+        state["summary_status"] = segment[1] if segment[0] == "status" else None
+        # 다른 제공자는 구간을 뒤에 덧붙이기만 한다 — 그리기·폭 계산은 run 단위라 손댈 곳이 없다.
+        # 모듈 함수를 이름으로 부르지 않고 state 훅으로 받는다(roam_release 와 같은 이유):
+        # 창 없는 시험은 손으로 만든 state 로 이 함수를 돌리고, 훅이 그냥 없으면 그 시험의
+        # 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 구간 자체가 없다 — 0% 를 지어내지 않는다.
+        codex_hook = state.get("codex_summary")
+        segments = [segment] + [s for s in ((codex_hook() if codex_hook else None),) if s]
+        main, sub = roam_summary_runs(segments, t)
         if segment[0] == "estimate" and OAUTH_STATUS.get("auth_error"):
             main.append((" ⚠", "status"))
         w_main = sum(astr(text, F_SUMMARY).size().width for text, _kind in main)
@@ -7862,6 +8721,21 @@ def run_gui():
                                    else not state["show_panel"])
             view.setNeedsDisplay_(True)
 
+        def toggleAutoRecover_(self, sender):
+            """토큰 자동 갱신·복구 켜기/끄기.
+
+            선택은 ~/.claude_pet.json 에 남는다 — 껐는데 다음 실행에 다시 켜져 있으면
+            끈 게 아니다. toggleRoam_ 과 같은 모양으로 이 경로가 가진 키만 얹는다.
+            """
+            value = not RUNTIME.get("auto_recover")
+            RUNTIME["auto_recover"] = value
+            ok, merged = merge_config_updates({"auto_recover": value})
+            if ok:
+                cfg.clear()
+                cfg.update(merged)
+            else:
+                cfg["auto_recover"] = value
+
         def toggleRoam_(self, sender):
             # 우클릭 체크 항목. 끄면 다음 틱에 그 자리에서 선다(집으로 되돌리지 않는다).
             value = not RUNTIME.get("roam")
@@ -8015,6 +8889,68 @@ def run_gui():
             elif w is ui.get("panel"):
                 close_main_panel()      # 자식 먼저, 그다음 본 창
 
+    # ── 토큰 자동 갱신·복구 ──
+    def _recovery_step(force=False):
+        """새로고침 워커가 매 주기 부르는 자리. 판단은 recovery_tick 이, 실행만 여기서.
+
+        force 는 사용자가 만료 문구를 직접 눌렀을 때다 — 포기한 사이클을 다시 열고
+        한 번 더 띄운다. 자동 경로가 포기하는 것과 사용자가 다시 시도하는 것은 다른 일이다.
+        """
+        try:
+            have_oauth, expires_at, token_sig = oauth_token_facts()
+            if force:
+                state["recovery"] = dict(state["recovery"],
+                                         attempts=0, gave_up=False, first_at=None,
+                                         last_spawn=None, login_expired=False)
+            rec, action = recovery_tick(
+                state["recovery"], datetime.now(timezone.utc),
+                auth_error=bool(OAUTH_STATUS.get("auth_error")),
+                token_sig=token_sig,
+                cli_present=bool(_find_claude_cli()),
+                enabled=bool(RUNTIME.get("auto_recover")) or force,
+                creds_have_oauth=have_oauth,
+                expires_at=expires_at)
+            state["recovery"] = rec
+            _dbg("recovery: action", action, "attempts", rec["attempts"])
+            if action == "spawn":
+                run_token_refresh(state)
+            return action
+        except Exception as e:
+            _dbg("recovery: step failed", type(e).__name__)
+            return None
+
+    def _summary_click(view, loc, click_count, moved):
+        """mouseUp_ 의 요약 필 클릭 훅. 필 안인지만 여기서 재고, 뜻은 순수 함수가 정한다."""
+        pill = view.pillRect()
+        in_pill = bool(pill) and (pill[0] <= loc.x <= pill[0] + pill[2] and
+                                  pill[1] <= loc.y <= pill[1] + pill[3])
+        act = summary_click_action(status_key=state.get("summary_status"),
+                                   in_pill=in_pill, click_count=click_count, moved=moved)
+        if act is None:
+            return
+        set_override("waving")      # 눌렸다는 것만은 즉시 보여 준다
+        # 세 갈래 모두 키체인 읽기나 프로세스 제출이라 메인 스레드에서 하면 펫이 멈춘다.
+        threading.Thread(target=_summary_click_work, args=(act,), daemon=True).start()
+
+    def _summary_click_work(act):
+        """필 클릭이 고른 일을 실제로 한다(백그라운드 스레드).
+
+        login 은 터미널 없는 경로를 먼저 쓰고, launchd 가 받아 주지 않으면 예전의
+        터미널 창 경로로 내려간다 — 눌렀는데 아무 일도 안 일어나는 것보다는 창이 낫다.
+        install 은 그대로 터미널이다: curl | bash 는 사용자가 보고 있어야 하는 일이다.
+        """
+        try:
+            if act == "recover":
+                _recovery_step(force=True)
+            elif act == "install":
+                start_claude_install()
+            elif act == "login" and not start_claude_login_background():
+                start_claude_login()
+        except Exception as e:
+            _dbg("summary click: failed", act, type(e).__name__)
+
+    state["summary_click"] = _summary_click
+
     # ── 타이머 ──
     class Ticker(NSObject):
         def tick_(self, timer):
@@ -8102,12 +9038,25 @@ def run_gui():
                     s = compute_usage()
                     oauth = fetch_exact_usage()            # 정확 모드 (180s 캐시)
                     values = {"stats": s, "oauth": oauth,
+                              # Codex 자격증명이 없으면 파일 한 번 못 열고 끝난다 — 망을
+                              # 타지 않으므로 Codex 를 안 쓰는 사용자에게 드는 비용은 없다.
+                              "codex": fetch_codex_usage(),
                               "cost": fetch_api_cost_today()}
                     if RUNTIME["mode"] == "api":
                         values["cost_month"] = fetch_api_cost_month()
                     # Claude Code 데이터가 전혀 없으면 온보딩(설치/로그인) 안내.
+                    # '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'로 본다 —
+                    # 몇 달 전 로그 파일 하나가 남아 있다고 해서 지금 보여 줄 데이터가
+                    # 있는 것은 아니고, 그 파일이 안내를 영원히 막고 있었다.
                     values["onboard"] = compute_onboard_state(
-                        oauth, _has_claude_logs())
+                        oauth, bool(s.get("entries")))
+                    # 토큰을 살려 두는 자리. 판단은 순수 함수가 하고 여기서는 실행만 한다.
+                    # 복구가 'claude 가 없다'로 끝났고 **이미 온보딩이 필요한 상태였다면**
+                    # 둘 중 더 구체적인 쪽으로 좁힌다(로그인 안내 → 설치 안내). 이미
+                    # None 이면 건드리지 않는다 — 보여 줄 수치가 있는 사용자의 필을
+                    # '미설치' 문구로 덮어 버리는 것이 그 반대 구현의 대가다.
+                    if _recovery_step() == "onboard_install" and values["onboard"]:
+                        values["onboard"] = "install"
                     prev = state["stats"]
                     if not commit_refresh_result(state, gen, values):
                         return                             # 더 새 요청이 있다 → 버림
