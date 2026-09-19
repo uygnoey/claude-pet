@@ -94,6 +94,43 @@ class QuietStateTests(unittest.TestCase):
         self.assertEqual(rec["attempts"], 0)
 
 
+class RefreshMarginTests(unittest.TestCase):
+    """우리 마진은 CLI 보다 **늦어야** 한다 — 안 그러면 남의 일을 가로챈다.
+
+    2026-09-20 윈도우 실측(n=1): Claude Code 세션이 **완전히 idle 인 상태에서도**
+    만료 4.37분 전에 스스로 토큰을 갱신했다. 그 세션은 23:37 이후 입력도 API 호출도
+    없었다. 새 expiresAt 은 파일을 쓴 시각 + 정확히 8시간이었고, refresh 토큰도
+    회전했다(`bbfafecf3f37` → `beae7081dc9d`).
+
+    4.37분은 5분 임계를 체크 주기만큼 늦게 지난 값으로 보인다 — 즉 CLI 의 마진도
+    사실상 5분이고, 우리 마진이 같은 300초면 **둘이 같은 지점에서 경쟁한다.** 실제로
+    우리가 38초 빨라서, Claude Code 가 떠 있는 사용자에게는 CLI 가 어차피 할 갱신을
+    우리가 매번 가로채 Node 앱을 한 번씩 더 띄우게 된다(윈도우에선 최대 7프로세스).
+
+    그래서 마진을 CLI 보다 작게 둔다. 그러면 CLI 가 있는 환경에서는 우리 차례가 올 때
+    토큰이 이미 신선해 아무 일도 하지 않고, CLI 가 없는 환경에서만 우리가 뜬다.
+    "살아 있는 claude 프로세스가 있으면 스폰하지 않는다"는 가드를 대신 두는 안도
+    있었지만 기각했다 — 멈춘 CLI 가 복구를 영원히 막는 실패 모드를 만들고, 플랫폼마다
+    프로세스 열거가 필요하다. 마진 하나로 같은 결과를 얻는다.
+
+    n=1 이므로 CLI 마진을 300초로 **단정하지는 않는다.** 대신 우리 마진이 거기에
+    닿지 않도록 여유를 둔다.
+    """
+
+    CLI_OBSERVED_MARGIN_SEC = 262    # 4.37분, 2026-09-20 윈도우 실측
+
+    def test_our_margin_is_well_inside_the_clis(self):
+        self.assertLess(
+            claude_pet.REFRESH_MARGIN_SEC, self.CLI_OBSERVED_MARGIN_SEC,
+            "CLI 가 만료 %d초 전에 스스로 갱신한다. 우리 마진이 그보다 이르면 "
+            "Claude Code 를 쓰는 사용자에게 매번 불필요한 스폰이 생긴다."
+            % self.CLI_OBSERVED_MARGIN_SEC)
+
+    def test_the_margin_still_leaves_room_to_act_before_the_outage(self):
+        """너무 줄이면 이미 만료된 뒤에야 움직여 사용자가 깨진 상태를 본다."""
+        self.assertGreaterEqual(claude_pet.REFRESH_MARGIN_SEC, 30)
+
+
 class ProactiveRefreshTests(unittest.TestCase):
     """만료 임박 갱신 — 애초에 만료되지 않게 한다."""
 
