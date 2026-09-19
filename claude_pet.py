@@ -1014,6 +1014,9 @@ def apply_config(cfg):
 # ─────────────────────── 다국어 (i18n) ───────────────────────
 SUPPORTED_LANGS = ("en", "ko", "ja", "es")
 LANG_NAMES = {"en": "English", "ko": "한국어", "ja": "日本語", "es": "Español"}
+# 우클릭 메뉴 항목 제목의 글자 수 상한. 메뉴는 화면 아무 데서나 열리므로 제목이 길면
+# 그 자리에서 잘린다 — 번역이 영어보다 길어지는 로케일에서 먼저 터진다.
+MENU_TITLE_MAX = 24
 
 def _system_lang():
     try:
@@ -1064,6 +1067,7 @@ TR = {
     "menu_reset_size": "Reset size", "menu_quit": "Quit Claude Pet",
     "menu_roam": "Roam the screen",
     "menu_autostart": "Start at sign-in",
+    "menu_auto_recover": "Auto-refresh token",
     "autostart_title": "Start at sign-in",
     "autostart_approval": "macOS needs your approval: System Settings → General → Login Items.",
     "autostart_open_settings": "Open Login Items",
@@ -1151,6 +1155,7 @@ TR = {
     "menu_reset_size": "크기 원래대로", "menu_quit": "Claude Pet 종료",
     "menu_roam": "화면 돌아다니기",
     "menu_autostart": "로그인 시 자동 실행",
+    "menu_auto_recover": "토큰 자동 갱신",
     "autostart_title": "로그인 시 자동 실행",
     "autostart_approval": "macOS 승인이 필요합니다: 시스템 설정 → 일반 → 로그인 항목",
     "autostart_open_settings": "로그인 항목 열기",
@@ -1234,6 +1239,7 @@ TR = {
     "menu_reset_size": "サイズを元に戻す", "menu_quit": "Claude Pet を終了",
     "menu_roam": "画面を歩き回る",
     "menu_autostart": "サインイン時に自動起動",
+    "menu_auto_recover": "トークン自動更新",
     "autostart_title": "サインイン時に自動起動",
     "autostart_approval": "macOS の承認が必要です: システム設定 → 一般 → ログイン項目",
     "autostart_open_settings": "ログイン項目を開く",
@@ -1322,6 +1328,7 @@ TR = {
     "menu_reset_size": "Restablecer tamaño", "menu_quit": "Salir de Claude Pet",
     "menu_roam": "Pasear por la pantalla",
     "menu_autostart": "Abrir al iniciar sesión",
+    "menu_auto_recover": "Auto-renovar token",
     "autostart_title": "Abrir al iniciar sesión",
     "autostart_approval": "macOS necesita tu aprobación: Ajustes del Sistema → General → Ítems de inicio",
     "autostart_open_settings": "Abrir Ítems de inicio",
@@ -2924,11 +2931,40 @@ RECOVERY_JOB_LABEL = "me.yeongyu.claudepet.token-refresh"
 LOGIN_JOB_LABEL = "me.yeongyu.claudepet.login"
 RECOVERY_CACHE_DIR = "~/Library/Caches/me.yeongyu.claudepet"
 LAUNCHCTL = "/bin/launchctl"
+# WMI 에 넘길 명령줄을 환경변수로 건넨다. PowerShell 인용 규칙을 통과시키지 않는 것이
+# 요점이다 — 경로에 공백·작은따옴표가 있어도 문자열이 그대로 도착한다.
+WIN_SPAWN_ENV = "CLAUDEPET_SPAWN_CMDLINE"
+
+
+def _windows_system32(name):
+    """%SystemRoot%\\System32\\<name> — PATH 를 믿지 않는다(윈도우 포트의 규칙과 같다)."""
+    root = os.environ.get("SystemRoot") or "C:\\Windows"
+    return "\\".join([root, "System32", name])
+
+
+def _windows_cmd_exe():
+    """cmd.exe 의 절대경로. %ComSpec% 가 표준이고, 없으면 System32 에서 찾는다."""
+    return os.environ.get("ComSpec") or _windows_system32("cmd.exe")
+
+
+def _windows_powershell_exe():
+    return "\\".join([_windows_system32("WindowsPowerShell"), "v1.0", "powershell.exe"])
+
+
+def _recovery_cache_dir():
+    """스폰 출력이 떨어질 디렉터리. macOS 는 UPDATE_LOCK_DIR 과 같은 자리,
+    윈도우는 포트의 cache_dir 과 같은 %LOCALAPPDATA%\\me.yeongyu.claudepet 이다."""
+    if sys.platform == "win32":
+        base = (os.environ.get("LOCALAPPDATA")
+                or os.path.join(os.path.expanduser("~"), "AppData", "Local"))
+        return os.path.join(base, "me.yeongyu.claudepet")
+    return os.path.expanduser(RECOVERY_CACHE_DIR)
 
 
 def _recovery_io_paths(stem):
-    """launchd 가 쓸 (stdout, stderr) 절대경로. 상대경로는 안 된다 — 작업 디렉터리가 우리 것이 아니다."""
-    d = os.path.expanduser(RECOVERY_CACHE_DIR)
+    """스폰이 쓸 (stdout, stderr) **절대경로**. 상대경로는 안 된다 — 작업 디렉터리가
+    우리 것이 아니다(launchd 도, WmiPrvSE 도 자기 자리에서 띄운다)."""
+    d = _recovery_cache_dir()
     return os.path.join(d, stem + ".out"), os.path.join(d, stem + ".err")
 
 
@@ -3041,9 +3077,19 @@ def recovery_tick(rec, now, *, auth_error, token_sig, cli_present, enabled,
 def recovery_spawn_argv(cli_path):
     """갱신을 유발할 명령 → argv.
 
-    argv[0] 이 claude 가 **아닌** 것이 요점이다. launchctl 에 맡기면 뜨는 프로세스의
-    부모는 launchd 라서 우리 자손이 아니고, 보호폴더 접근이 ClaudePet 에 귀속될 길이
-    없다(2026-07-13 TCC 거부 8건, 커밋 67849e4). 터미널 창도 띄우지 않는다.
+    argv[0] 이 claude 가 **아닌** 것이 요점이고, 그것은 양쪽 플랫폼에 같이 적용된다.
+    이유는 다르지만 성질은 하나다 — CLI 를 우리 자손으로 띄우지 않는다.
+
+      macOS  launchctl 에 맡긴다. 뜨는 프로세스의 부모는 launchd 라서 우리 자손이
+             아니고, 보호폴더 접근이 ClaudePet 에 귀속될 길이 없다(2026-07-13 TCC
+             거부 8건, 커밋 67849e4).
+      Windows `cmd.exe /c` 를 한 겹 두고, 그 명령줄을 WMI(Win32_Process.Create)가
+             띄운다 — 부모는 WmiPrvSE.exe 다(_run_refresh_job 참조). cmd 한 겹은
+             장식이 아니라 두 가지를 산다: npm 설치판의 `claude.cmd`·`claude.bat` 이
+             CreateProcess 로는 직접 뜨지 않는다는 것과, 타임아웃 때 `taskkill /T` 가
+             걸 수 있는 안정된 트리 뿌리가 생긴다는 것.
+
+    터미널 창은 어느 쪽에서도 띄우지 않는다.
 
     `-p /usage` 를 쓰는 이유는 출력이 아니라 **부수효과**를 노려서다: 실제 요청 한 번이
     CLI 의 게으른 갱신을 깨운다는 전제다(위 모듈 주석의 '아직 관측되지 않은 것' 참조).
@@ -3057,10 +3103,7 @@ def recovery_spawn_argv(cli_path):
     bare "claude" 에 기대면 GUI 앱의 최소 PATH 에서 조용히 실패한다.
     """
     if sys.platform != "darwin":
-        # 윈도우엔 TCC 가 없고 간접화도 필요 없다(직계 자식으로 띄워 권한 프롬프트 0/11).
-        # 거기서 막아야 하는 것은 콘솔 **창**이고, 그것은 argv 가 아니라 creationflags 의
-        # 일이다 — _spawn_no_window_flags() 를 보라.
-        return [str(cli_path), "-p", "/usage"]
+        return [_windows_cmd_exe(), "/c", str(cli_path), "-p", "/usage"]
     out, err = _recovery_io_paths("token-refresh")
     return [LAUNCHCTL, "submit", "-l", RECOVERY_JOB_LABEL,
             "-o", out, "-e", err, "--", str(cli_path), "-p", "/usage"]
@@ -3074,12 +3117,17 @@ def login_spawn_argv(cli_path):
     보인다. 2026-09-19 실측: 제어 터미널 없이 21초 만에 스스로 exit 0 했고 토큰이
     교체됐다. 붙여넣기 UI 는 필요 없다.
 
-    macOS 에서는 복구 스폰과 같은 간접화를 쓴다. 브라우저를 여는 것 자체는 /usr/bin/open
-    이라 무해하지만 Node 앱의 폴더 스캔은 똑같이 일어나므로, 귀속을 끊어야 하는 이유도
-    똑같다. 그 밖의 플랫폼은 recovery_spawn_argv 와 같은 이유로 직계 자식이다.
+    간접화는 복구 스폰과 같다. macOS 에서 브라우저를 여는 것 자체는 /usr/bin/open 이라
+    무해하지만 Node 앱의 폴더 스캔은 똑같이 일어나므로, 귀속을 끊어야 하는 이유도 똑같다.
+
+    **윈도우의 미확인 위험**: 이 경로는 WMI 가 띄우는데(_run_refresh_job), 로컬 WMI 가
+    만든 프로세스가 호출자와 같은 대화형 세션에 뜨는지는 여기서 확인되지 않았다. 세션 0
+    에 뜬다면 브라우저가 사용자 화면에 나타나지 않고, 그러면 사용자는 눌렀는데 아무 일도
+    안 일어난 것으로 본다. 복구 스폰은 화면에 뭘 띄울 일이 없어 이 위험이 없다 — 로그인만
+    다르다. 윈도우에서 이 항목을 처음 돌려 보는 사람은 이것부터 확인해라.
     """
     if sys.platform != "darwin":
-        return [str(cli_path), "auth", "login", "--claudeai"]
+        return [_windows_cmd_exe(), "/c", str(cli_path), "auth", "login", "--claudeai"]
     out, err = _recovery_io_paths("login")
     return [LAUNCHCTL, "submit", "-l", LOGIN_JOB_LABEL,
             "-o", out, "-e", err, "--", str(cli_path), "auth", "login", "--claudeai"]
@@ -3114,65 +3162,145 @@ def _spawn_no_window_flags():
     return 0x08000000 if sys.platform == "win32" else 0
 
 
-def _kill_process_tree(proc):
-    """timeout 을 장식으로 두지 않는다 — 실제로 정리한다.
+def _drain_job_output(stem):
+    """스폰이 남긴 stdout/stderr 파일을 읽고 **지운다** → 합친 문자열.
 
-    윈도우에서는 부모를 죽여도 자식이 산다(실측: 중간 부모 kill 후 1.5초 뒤 claude.exe
-    생존). 한 번 실행에 7개까지 붙으므로 고아 트리가 쌓이는 쪽이 진짜 위험이고,
-    그래서 taskkill /T 로 트리째 없앤다. POSIX 는 자기 세션을 통째로 정리한다.
+    지우는 이유: 읽고 나면 쓸 데가 없고, `/usage` 출력이라 전사 내용은 없어도 남겨 둘
+    이유가 없다. 다음 실행이 옛 출력을 자기 것으로 오해하는 것도 막는다.
+    """
+    text = ""
+    for p in _recovery_io_paths(stem):
+        try:
+            with open(p, encoding="utf-8", errors="replace") as f:
+                text += f.read()
+        except OSError:
+            pass
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    return text
+
+
+def _win_run_helper(argv, timeout=60):
+    """윈도우 보조 도구(powershell/tasklist/taskkill)를 조용히 한 번 돌린다 → CompletedProcess|None.
+
+    간접화의 대상이 아니다 — 이것들은 우리 자식이어도 괜찮은 짧은 도구고, 막아야 하는
+    것은 창뿐이다.
     """
     try:
-        if sys.platform == "win32":
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                           capture_output=True, timeout=20,
-                           creationflags=_spawn_no_window_flags())
-        else:
-            proc.kill()
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout,
+                              stdin=subprocess.DEVNULL,
+                              creationflags=_spawn_no_window_flags())
     except Exception as e:
-        _dbg("recovery: kill failed", type(e).__name__)
+        _dbg("recovery: helper failed", os.path.basename(str(argv[0])), type(e).__name__)
+        return None
+
+
+def _win_wmi_create(cmdline):
+    """WMI Win32_Process.Create 로 명령줄 하나를 띄운다 → 스폰된 PID, 실패하면 None.
+
+    **왜 WMI 인가.** 맥에서 launchctl 을 고른 이유와 같은 자리다: 뜨는 프로세스가 우리
+    자손이 아니어야 한다. WMI 가 띄운 프로세스의 부모는 WmiPrvSE.exe 이고, 윈도우 피어가
+    자기 워처를 정확히 이 방식으로 띄워 '세션이 죽어도 살아남는다'를 확인했다.
+    PowerShell 로 부르지만 PowerShell 은 즉시 끝나는 중개일 뿐 CLI 의 부모가 아니다.
+
+    **PID 를 반드시 받아야 한다.** 간접화의 대가가 그것이다 — 자식이 우리 자손이 아니니
+    우리 쪽 Popen 객체로는 아무것도 못 잡는다. Create 가 돌려주는 ProcessId 가 나중에
+    taskkill 이 걸 유일한 손잡이다.
+
+    명령줄은 환경변수로 건넨다. PowerShell 인용을 거치지 않으므로 경로에 공백이나
+    작은따옴표가 있어도 그대로 도착한다.
+    """
+    script = ("$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
+              "-Arguments @{CommandLine=$env:%s}; "
+              "if ($r.ReturnValue -ne 0) { exit 1 }; "
+              "[Console]::Out.Write($r.ProcessId)" % WIN_SPAWN_ENV)
+    argv = [_windows_powershell_exe(), "-NoProfile", "-NonInteractive",
+            "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+            "-Command", script]
+    env = dict(os.environ)
+    env[WIN_SPAWN_ENV] = cmdline
     try:
-        proc.wait(timeout=10)
-    except Exception:
-        pass
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=60,
+                           stdin=subprocess.DEVNULL, env=env,
+                           creationflags=_spawn_no_window_flags())
+    except Exception as e:
+        _dbg("recovery: wmi create failed", type(e).__name__)
+        return None
+    if r.returncode != 0:
+        _dbg("recovery: wmi create rc", r.returncode)
+        return None
+    try:
+        pid = int((r.stdout or "").strip())
+    except ValueError:
+        _dbg("recovery: wmi create gave no pid")
+        return None
+    return pid if pid > 0 else None
+
+
+def _win_pid_alive(pid):
+    r = _win_run_helper([_windows_system32("tasklist.exe"),
+                         "/FI", "PID eq %d" % pid, "/NH", "/FO", "CSV"], timeout=30)
+    return bool(r) and ('"%d"' % pid) in (r.stdout or "")
+
+
+def _win_kill_tree(pid):
+    """스폰된 **그** PID 를 뿌리로 트리째 없앤다.
+
+    `/T` 가 있어야 한다. 우리가 받은 PID 는 cmd.exe 한 겹이고 claude.exe 와 그 밑의
+    bash·conhost 는 그 자손이다 — 윈도우는 부모가 죽어도 자식이 살아남으므로(피어 실측)
+    뿌리만 죽이면 고아 트리가 그대로 남는다. 한 번 실행에 최대 7개다.
+    """
+    _win_run_helper([_windows_system32("taskkill.exe"),
+                     "/F", "/T", "/PID", str(pid)], timeout=30)
 
 
 def _run_refresh_job(argv, label, stem, timeout):
     """argv 를 한 번 돌리고 끝날 때까지(최대 timeout) 기다렸다가 출력을 돌려준다.
 
     반환은 문자열이고, 띄우는 것 자체가 실패하면 None 이다(호출자가 폴백을 고를 수 있게).
-    플랫폼 분기는 **여기와 *_spawn_argv 두 곳뿐**이다:
+    플랫폼 분기는 **여기와 *_spawn_argv 두 곳뿐**이고, 양쪽이 같은 성질을 산다 —
+    **CLI 는 우리 자손이 아니다.**
 
-    * macOS — launchd 에 제출한다. 뜨는 프로세스의 부모는 launchd(ppid 1)라 우리 자손이
-      아니고, 그래서 보호폴더 접근이 ClaudePet 에 귀속되지 않는다. 출력은 launchd 가
-      파일로 적어 주므로 그 파일을 읽고 지운다.
-    * 그 밖 — 직계 자식. 콘솔 창만 막으면 되고(creationflags), 제어 터미널과 stdin 은
-      떼어 둔다. timeout 이면 트리째 죽인다.
+    * macOS — launchd 에 제출한다(부모 = launchd, ppid 1). 출력은 launchd 가 파일로
+      적어 주므로 그 파일을 읽고 지운다. 다 끝났든 제한을 넘겼든 `launchctl remove` 가
+      돌고 있는 job 을 실제로 끝낸다(실측).
+    * Windows — argv 를 명령줄로 조립해 WMI 가 띄운다(부모 = WmiPrvSE.exe). 출력은
+      명령줄 안의 리디렉션으로 파일에 받는다. 여기서 놓치기 쉬운 것이 정리다:
+      간접화했으니 우리에겐 Popen 객체가 없고, **WMI 가 돌려준 PID 만이 손잡이다.**
+      제한을 넘기면 그 PID 를 뿌리로 `taskkill /F /T` 한다.
 
-    **미측정 경로**: npm 으로 설치된 윈도우판은 실행 파일이 `claude.cmd` 라
-    CreateProcess 가 직접 띄우지 못하고 `cmd.exe /c` 가 필요하다. 아무도 그 경로를
-    측정하지 않았고 _find_claude_cli() 도 지금은 그 이름을 찾지 않는다. 그 분기를
-    나중에 넣는 사람은 거기에도 반드시 creationflags 를 붙여야 한다 — 빠뜨리면
-    cmd 창이 그대로 뜬다.
+    **미측정**: 이 윈도우 경로는 윈도우 기계에서 실행되지 않았다. WMI 가 우리 트리에서
+    떨어진다는 것은 피어의 실측이고, 여기서 그 위에 얹은 PID 배선·리디렉션·폴링은
+    아직 아무도 돌려 보지 않았다. `claude.cmd`(npm 설치판)도 같다 — `cmd.exe /c` 한 겹이
+    그것까지 받아 내도록 넣었지만 확인된 바는 없다.
     """
     if sys.platform != "darwin":
+        out, err = _recovery_io_paths(stem)
         try:
-            proc = subprocess.Popen(
-                argv, stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                creationflags=_spawn_no_window_flags(),
-                **({} if sys.platform == "win32" else {"start_new_session": True}))
-        except Exception as e:
-            _dbg("recovery: spawn failed", type(e).__name__)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+        except OSError:
+            pass
+        for p in (out, err):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        # 출력은 cmd 의 리디렉션으로 받는다. list2cmdline 이 공백 있는 경로만 인용하고
+        # `>` 와 `2>&1` 은 그대로 두므로 cmd 가 연산자로 읽는다.
+        cmdline = subprocess.list2cmdline(list(argv) + [">", out, "2>&1"])
+        pid = _win_wmi_create(cmdline)
+        if pid is None:
             return None
-        try:
-            return proc.communicate(timeout=timeout)[0] or ""
-        except subprocess.TimeoutExpired:
-            _kill_process_tree(proc)
-            return ""
-        except Exception as e:
-            _dbg("recovery: wait failed", type(e).__name__)
-            _kill_process_tree(proc)
-            return ""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            time.sleep(2.0)
+            if not _win_pid_alive(pid):
+                break
+        else:
+            _win_kill_tree(pid)
+        return _drain_job_output(stem)
     out, err = _recovery_io_paths(stem)
     try:
         os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -3198,18 +3326,7 @@ def _run_refresh_job(argv, label, stem, timeout):
     # 제한을 넘겼든 제때 끝났든 여기서 지운다. remove 는 아직 돌고 있는 job 을 실제로
     # 끝낸다(실측) — 붙어 있는 자식이 다음 시도를 영원히 막는 상태를 만들지 않는다.
     _launchctl_remove(label)
-    text = ""
-    for p in (out, err):
-        try:
-            with open(p, encoding="utf-8", errors="replace") as f:
-                text += f.read()
-        except OSError:
-            pass
-        try:
-            os.remove(p)
-        except OSError:
-            pass
-    return text
+    return _drain_job_output(stem)
 
 
 def _oauth_blob_noprompt():
@@ -7424,6 +7541,11 @@ def run_gui():
             menu.setAutoenablesItems_(False)
             for title, action in ((t("menu_settings"), "openSettings:"),
                                   (t("menu_toggle"), "togglePanel:"),
+                                  # 체크 항목 셋은 붙여 둔다. menu_autostart 가
+                                  # menu_roam 과 menu_reset_size 사이라는 것은 AST 로
+                                  # 고정돼 있으니(tests/test_autostart.py) 새 항목은
+                                  # 그 쌍 사이가 아니라 앞에 놓는다.
+                                  (t("menu_auto_recover"), "toggleAutoRecover:"),
                                   (t("menu_roam"), "toggleRoam:"),
                                   (t("menu_autostart"), "toggleAutostart:"),
                                   (t("menu_reset_size"), "resetScale:"),
@@ -7436,7 +7558,11 @@ def run_gui():
                 mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     title, action, "")
                 mi.setTarget_(handler)
-                if action == "toggleRoam:":
+                if action == "toggleAutoRecover:":
+                    # 체크 표시는 RUNTIME 에서 온다 — autostart 와 달리 OS 등록 상태가
+                    # 아니라 우리 설정 키가 진실의 출처다(SETTINGS_OWNED_KEYS 에 있다).
+                    mi.setState_(1 if RUNTIME.get("auto_recover") else 0)
+                elif action == "toggleRoam:":
                     mi.setState_(1 if RUNTIME.get("roam") else 0)   # 체크 표시
                     # macOS '동작 줄이기' 가 켜져 있으면 어차피 움직이지 않는다 → 비활성
                     mi.setEnabled_(not state["reduce_motion"])
@@ -7476,7 +7602,7 @@ def run_gui():
                 pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_pets"), None, "")
                 pet_item.setSubmenu_(sub)
-                menu.insertItem_atIndex_(pet_item, 5)       # '크기 원래대로' 다음
+                menu.insertItem_atIndex_(pet_item, 6)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -8345,6 +8471,21 @@ def run_gui():
             state["show_panel"] = (toggle() if toggle is not None
                                    else not state["show_panel"])
             view.setNeedsDisplay_(True)
+
+        def toggleAutoRecover_(self, sender):
+            """토큰 자동 갱신·복구 켜기/끄기.
+
+            선택은 ~/.claude_pet.json 에 남는다 — 껐는데 다음 실행에 다시 켜져 있으면
+            끈 게 아니다. toggleRoam_ 과 같은 모양으로 이 경로가 가진 키만 얹는다.
+            """
+            value = not RUNTIME.get("auto_recover")
+            RUNTIME["auto_recover"] = value
+            ok, merged = merge_config_updates({"auto_recover": value})
+            if ok:
+                cfg.clear()
+                cfg.update(merged)
+            else:
+                cfg["auto_recover"] = value
 
         def toggleRoam_(self, sender):
             # 우클릭 체크 항목. 끄면 다음 틱에 그 자리에서 선다(집으로 되돌리지 않는다).
