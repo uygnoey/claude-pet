@@ -345,7 +345,28 @@ class SummaryRunsTests(unittest.TestCase):
         main, sub = claude_pet.roam_summary_runs(
             [("exact", self.exact_rows), ("estimate", gpt)], tr)
         self.assertEqual(main, a_main + [(" · ", "status")] + b_main)
-        self.assertEqual(sub, a_sub + [(" · ", "sub")] + b_sub)
+
+        # 둘째 줄은 **문자 그대로의 연결이 아니다.** 리셋 안내어는 줄 전체에 한 번만
+        # 나온다 — 제공자가 둘이면 "리셋 … · 리셋 …" 이 되어 버리기 때문이다. 이
+        # 계약은 Codex 행이 붙으면서 처음 눈에 보였고, CLAUDE.md 가 이 줄을 "리셋
+        # 단어를 한 번 쓰고 그 다음 <라벨> <카운트다운>" 으로 규정한 것과 맞춘다.
+        #
+        # 그래도 이 테스트가 원래 막던 세 가지 오답은 그대로 막는다: 구간이 줄을
+        # 나눠 찍히는 것, 맨 앞의 구분자, 빈 구간이 남기는 구분자.
+        self.assertEqual(sub[:len(a_sub)], a_sub, "첫 구간은 혼자일 때와 같아야 한다")
+        self.assertEqual(sub[len(a_sub)], (" · ", "sub"), "구간 사이 구분자가 없다")
+        tail = sub[len(a_sub) + 1:]
+        self.assertTrue(tail, "둘째 구간의 리셋 조각이 통째로 사라졌다")
+        self.assertNotEqual(tail, b_sub,
+                            "리셋 안내어가 구간마다 반복되고 있다")
+        joined_tail = "".join(t for t, _ in tail)
+        for text, _ in b_sub:
+            bare = text.replace(tr("reset_prefix"), "").strip()
+            if bare:
+                self.assertIn(bare, joined_tail,
+                              "안내어만 빼야 하는데 내용까지 사라졌다: %r" % bare)
+        self.assertNotIn(tr("reset_prefix"), joined_tail,
+                         "둘째 구간에 리셋 안내어가 또 붙었다")
         self.assertEqual(claude_pet.roam_summary_runs([("exact", []), ("status", "scanning")], tr),
                          ([("scanning…", "status")], []))
         self.assertEqual(claude_pet.roam_summary_runs([], tr), ([], []))

@@ -70,7 +70,11 @@ jobs:
       # 죽는다. CLAUDE.md 의 known issue 목록에 이 에러가 그대로 적혀 있는데 실제로
       # 한 번 밟았다. windows.win_core 는 테스트 파일이 저장소 루트를 sys.path 에
       # 넣으므로 그것 없이도 임포트된다.
-      - name: Run gating contract
+      # 게이팅 파일이 늘면 단계를 하나 더한다. discover 는 패턴을 하나만 받고,
+      # 한 줄에 몰아넣으면 앞 명령의 실패가 묻힐 수 있어 단계를 나눈다.
+      - name: Run gating contract — token recovery
         run: python -m unittest discover -s tests -v -p "test_token_recovery.py"
+      - name: Run gating contract — codex usage
+        run: python -m unittest discover -s tests -v -p "test_codex_usage.py"
       - name: Run the port's own suite
         run: python -m unittest discover -s windows/tests -t . -v
