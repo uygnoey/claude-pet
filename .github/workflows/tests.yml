@@ -23,6 +23,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      # 코어 자체는 stdlib 만으로 임포트되지만, GUI 를 건드리는 모듈(test_companion_motion
+      # 등)은 AppKit 을 실제로 임포트한다. setup.py 의 py2app includes 와 같은 목록이다.
+      - name: Install PyObjC
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyobjc-framework-Cocoa pyobjc-framework-Quartz pyobjc-framework-ServiceManagement
       - name: Show environment
         run: |
           python3 -VV
@@ -57,8 +63,14 @@ jobs:
           systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
         shell: cmd
       # 윈도우에서는 맥 전용 모듈(서명·launchctl·seeding 등)이 아니라 이 기능의
-      # 게이팅 계약만 돌린다. `-t .` 는 windows.win_core 를 패키지로 임포트하기 위한 것.
+      # 게이팅 계약만 돌린다.
+      #
+      # `-t .` 를 주면 안 된다 — tests/ 에 __init__.py 가 없는 것이 의도된 상태라
+      # unittest 가 그걸 패키지로 취급하려다 "Start directory is not importable" 로
+      # 죽는다. CLAUDE.md 의 known issue 목록에 이 에러가 그대로 적혀 있는데 실제로
+      # 한 번 밟았다. windows.win_core 는 테스트 파일이 저장소 루트를 sys.path 에
+      # 넣으므로 그것 없이도 임포트된다.
       - name: Run gating contract
-        run: python -m unittest discover -s tests -t . -v -p "test_token_recovery.py"
+        run: python -m unittest discover -s tests -v -p "test_token_recovery.py"
       - name: Run the port's own suite
         run: python -m unittest discover -s windows/tests -t . -v
