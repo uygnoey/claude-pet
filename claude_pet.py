@@ -1051,6 +1051,7 @@ WEEKDAYS_FULL = {
 TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
+    "codex_session": "Codex session", "codex_weekly": "Codex weekly",
     "reset_done": "reset", "cd_days": "in {d}d {h}h", "cd_hm": "in {h}h {m}m",
     "cd_m": "in {m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
     "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
@@ -1139,6 +1140,7 @@ TR = {
   },
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
+    "codex_session": "Codex 세션", "codex_weekly": "Codex 주간",
     "reset_done": "리셋됨", "cd_days": "{d}일 {h}시간 후", "cd_hm": "{h}시간 {m}분 후",
     "cd_m": "{m}분 후", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
     "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
@@ -1223,6 +1225,7 @@ TR = {
   },
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
+    "codex_session": "Codex セッション", "codex_weekly": "Codex 週間",
     "reset_done": "リセット済み", "cd_days": "{d}日{h}時間後", "cd_hm": "{h}時間{m}分後",
     "cd_m": "{m}分後", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
     "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
@@ -1312,6 +1315,7 @@ TR = {
   },
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
+    "codex_session": "Codex sesión", "codex_weekly": "Codex semanal",
     "reset_done": "reiniciado", "cd_days": "en {d}d {h}h", "cd_hm": "en {h}h {m}m",
     "cd_m": "en {m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
     "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
@@ -3461,6 +3465,164 @@ def fetch_exact_usage():
     if rows:
         rows = sorted(rows, key=lambda r: _label_order(r[0]))[:PILL_ROWS]
     _oauth_cache["gauges"] = rows
+    return rows
+
+
+# ─────────────── Codex(OpenAI) 사용량 — 읽기만 하는 관찰자 ───────────────
+#
+# 엔드포인트와 필드 대응은 우리가 발명한 것이 아니다. 같은 일을 하는 구현 둘을
+# 2026-09-19 에 교차확인했고 둘이 일치한다: Orca(로컬 앱)와 CodexBar(문서 docs/codex.md)
+# 모두 chatgpt.com 의 wham/usage 를 부르고 rate_limit.primary_window 를 세션,
+# secondary_window 를 주간 레인으로 읽는다. 자격증명은 $CODEX_HOME 또는 홈의 .codex 아래
+# auth.json 이다.
+#
+# 원칙 셋, 전부 Claude 쪽과 같다:
+#   1. 읽기만 한다. 그 파일의 주인은 Codex CLI 이고, 회전된 자격증명을 되쓸 수 없는 쪽이
+#      갱신을 시도하면 사용자가 재로그인하게 된다. 우리는 관찰자지 ADE 가 아니다.
+#   2. 0% 를 지어내지 않는다. 자격증명이 없거나 응답에 쓸 수치가 없으면 행을 **아예 그리지
+#      않는다** — 0% 행은 "안 썼다"로 읽히기 때문이다.
+#   3. 토큰 값은 로그에도 예외 메시지에도 반환값에도 남기지 않는다(CLAUDE.md Privacy).
+#      경로도 남기지 않는다 — 경로는 신원 정보다.
+
+def codex_auth_path(env=None, home=None):
+    """Codex 자격증명 파일의 경로. CODEX_HOME 이 있으면 그 아래, 없으면 홈의 .codex 아래.
+
+    env/home 을 주입받는 이유는 둘이다. 테스트가 실제 환경을 읽지 않아도 되고, 맥과
+    윈도우에서 이 함수가 같은 뜻이 되는지를 양쪽 CI 에서 같은 픽스처로 확인할 수 있다.
+    공백뿐인 CODEX_HOME 은 설정된 것이 아니다 — 그걸 루트로 삼으면 상대경로가 되어
+    프로세스의 작업 디렉터리 아래를 보게 된다.
+    """
+    env = os.environ if env is None else env
+    root = (env.get("CODEX_HOME") or "").strip()
+    if not root:
+        root = os.path.join(os.path.expanduser("~") if home is None else home, ".codex")
+    return os.path.join(root, "auth.json")
+
+
+def read_codex_token(path):
+    """auth.json 에서 OAuth 액세스 토큰만 읽어 돌려준다. 없으면 None — 예외는 내보내지 않는다.
+
+    없는 파일, 깨진 JSON, tokens 가 없는 파일(API 키만 있는 설치), 공백뿐인 토큰은 모두
+    '토큰 없음'이다. 셋을 구분해 봐야 할 일이 다르지 않고, 구분해서 보고하려면 경로나
+    본문을 로그에 흘려야 한다. 남기는 것은 개수와 모양뿐이다.
+    """
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        _dbg("codex auth: unreadable", type(e).__name__)
+        return None
+    tokens = data.get("tokens") if isinstance(data, dict) else None
+    if not isinstance(tokens, dict):
+        _dbg("codex auth: no oauth tokens")
+        return None
+    tok = tokens.get("access_token")
+    if not isinstance(tok, str) or not tok.strip():
+        _dbg("codex auth: blank token")
+        return None
+    return tok.strip()
+
+
+def _codex_pct(value):
+    """used_percent → 0..100 실수, 못 쓰면 None.
+
+    문자열은 숫자로 바꾸지 않는다(bool 도 마찬가지 — 파이썬에서 True 는 int 다). 범위를
+    벗어난 값은 버리지 않고 자른다: 서버가 102% 를 주는 것은 '한도를 넘었다'는 뜻이지
+    '모른다'는 뜻이 아니다.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    v = float(value)
+    if not math.isfinite(v):
+        return None
+    return max(0.0, min(100.0, v))
+
+
+def _codex_reset_dt(value):
+    """reset_at(에폭 초) → UTC datetime, 못 쓰면 None. 리셋 시각이 없어도 수치 행은 살린다."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        return datetime.fromtimestamp(float(value), timezone.utc)
+    except Exception:
+        return None
+
+
+CODEX_LANES = (("primary_window", "codex_session"), ("secondary_window", "codex_weekly"))
+
+
+def parse_codex_usage(payload, now=None):
+    """wham/usage 응답 → [(label, pct, reset_dt, reset_text)] 또는 None.
+
+    label 은 TR 키다 — 옮기는 것은 렌더 쪽(roam_summary_codex)의 일이라, 언어를 바꿔도
+    캐시된 행이 옛 언어로 남지 않는다.
+    primary → 세션, secondary → 주간. 이 대응이 뒤집히면 숫자가 조용히 거짓말을 한다.
+    수치가 없거나 수치가 아닌 창은 **그 창만** 버린다. 쓸 행이 하나도 없으면 빈 목록이
+    아니라 None 을 준다 — 호출자가 '행 없음'과 '0% 행'을 헷갈릴 자리를 만들지 않는다.
+    """
+    limits = payload.get("rate_limit") if isinstance(payload, dict) else None
+    if not isinstance(limits, dict):
+        return None
+    now = datetime.now(timezone.utc) if now is None else now
+    rows = []
+    for key, label in CODEX_LANES:
+        window = limits.get(key)
+        if not isinstance(window, dict):
+            continue
+        pct = _codex_pct(window.get("used_percent"))
+        if pct is None:
+            continue
+        reset = _codex_reset_dt(window.get("reset_at"))
+        rows.append((label, pct, reset, fmt_countdown(reset, now) if reset else None))
+    return rows or None
+
+
+_codex_cache = {"t": 0.0, "rows": None}
+
+
+def fetch_codex_usage():
+    """Codex 사용량 행 [(label, pct, reset_dt, reset_text)], 읽을 게 없으면 None.
+
+    엔드포인트는 Orca 와 CodexBar 가 함께 쓰는 https://chatgpt.com/backend-api/wham/usage 하나다.
+    캐시 규율은 Claude 쪽과 같다: 성공과 429 는 OAUTH_CACHE_SEC(180초) 그대로, 그 밖의 실패는
+    OAUTH_FAIL_RETRY_SEC(60초)만 — 캐시가 존재하는 이유가 과호출이라 429 만 줄이면 안 된다.
+    조회하는 동안 다른 호출자는 직전 값을 받는다.
+    토큰은 읽기만 한다. 만료됐다면 되살리는 것은 Codex CLI 의 일이고, 우리는 그 자리에서
+    행을 지울 뿐이다 — 자격증명을 되쓸 수 없는 쪽이 갱신을 시도하면 사용자가 재로그인한다.
+    """
+    now = time.time()
+    if now - _codex_cache["t"] < OAUTH_CACHE_SEC:
+        return _codex_cache["rows"]
+    _codex_cache["t"] = now
+    tok = read_codex_token(codex_auth_path())
+    if not tok:
+        _codex_cache["rows"] = None
+        return None
+    req = urllib.request.Request(
+        "https://chatgpt.com/backend-api/wham/usage",
+        headers={"Authorization": "Bearer " + tok,
+                 "Accept": "application/json",
+                 "User-Agent": "claude-pet"})
+    rows, err = None, None
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            raw = r.read()
+    except urllib.error.HTTPError as e:
+        err = "http:%s" % e.code
+        _dbg("codex fetch: http", e.code)
+    except Exception as e:
+        err = "net"
+        _dbg("codex fetch: net", type(e).__name__)
+    else:
+        try:
+            rows = parse_codex_usage(json.loads(raw.decode("utf-8")))
+        except Exception as e:
+            err = "parse"
+            _dbg("codex fetch: parse", type(e).__name__)
+    if rows is None and err and err != "http:429":
+        _codex_cache["t"] = now - (OAUTH_CACHE_SEC - OAUTH_FAIL_RETRY_SEC)
+    _codex_cache["rows"] = rows
+    _dbg("codex fetch: rows", len(rows or ()))
     return rows
 
 
@@ -6930,6 +7092,30 @@ def roam_summary_runs(segments, tr):
     return main, sub
 
 
+def roam_summary_codex(payload):
+    """Codex 사용량 → 요약 필 구간 하나 (kind, payload), 읽을 게 없으면 None.
+
+    payload 는 wham/usage 응답 원문(dict)이거나 parse_codex_usage 가 이미 낸 행 목록이다.
+    그리기 코드는 손대지 않는다 — 기존 ("exact", rows) 구간 모양 그대로 뒤에 붙고,
+    roam_summary_runs 가 구분자를 넣어 Claude 구간 옆에 이어 준다. 값이 서버가 계산한
+    퍼센트라 kind 도 exact(에메랄드)다: 우리 추정치가 아니라는 사실이 색으로 드러난다.
+    급증 표식은 붙이지 않는다 — 급증 판정은 Claude 로그 추정기의 것이고, 남의 제공자
+    행에 그 신호를 옮겨 달 근거가 없다.
+    읽을 게 없으면 None 이다. 0% 행을 만들어 "거의 안 썼다"로 읽히게 하지 않는다.
+    """
+    rows = payload if isinstance(payload, list) else parse_codex_usage(payload)
+    if not rows:
+        return None
+    now_utc = datetime.now(timezone.utc)
+    out = []
+    for row in rows:
+        label, pct, reset_dt, reset_text = (list(row) + [None, None])[:4]
+        # 남은 시간은 여기서 다시 센다 — 캐시된 행의 문구는 최대 180초까지 묵은 값이다.
+        shown = fmt_countdown(reset_dt, now_utc) if reset_dt is not None else (reset_text or None)
+        out.append((t(label), float(pct), False, shown))
+    return ("exact", out)
+
+
 def roam_fit_runs(runs, max_w, measure, ellipsis="…"):
     """폭 max_w 안에 들어가는 run 목록. measure(s) 는 s 의 폭 (그 줄의 폰트 하나로 잰다 — 축소 없음).
 
@@ -7232,6 +7418,9 @@ def run_gui():
     PW, PH, W, H = geom()
 
     state = {"stats": None, "cost": None, "cost_month": None, "oauth": None,
+             # codex: Codex(OpenAI) 사용량 행 또는 None. None 이면 구간 자체를 안 붙인다 —
+             # Codex 를 안 쓰는 사용자에게 0% 행을 보여 주지 않기 위해서다.
+             "codex": None,
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
@@ -7272,6 +7461,10 @@ def run_gui():
              "repaint": False,
              # 새로고침 세대 번호(begin_refresh_generation/commit_refresh_result).
              "refresh_generation": 0}
+    # 다른 제공자(Codex) 요약 구간 훅 — roam_summary_text 가 부른다. summary_click 과 같은
+    # 이유로 훅이고, state 를 손으로 만드는 시험에는 이 키가 없다. Codex 행이 없으면 None 을
+    # 돌려주고, 그러면 구간이 붙지 않는다.
+    state["codex_summary"] = lambda: roam_summary_codex(state.get("codex"))
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
     def _run_update_check():
@@ -7801,7 +7994,7 @@ def run_gui():
         oauth = state["oauth"]
         key = (RUNTIME["mode"], L["lang"], state.get("onboard"), id(stats), id(oauth), state["cost"],
                state["cost_month"], RUNTIME.get("api_budget"), bool(OAUTH_STATUS.get("auth_error")),
-               int(_time.time() / 5))
+               id(state.get("codex")), int(_time.time() / 5))
         if _summary_memo["key"] == key:
             return _summary_memo["value"]
         if oauth:
@@ -7825,7 +8018,13 @@ def run_gui():
         # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
         # 상태 문구가 아니면 None 이라, 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
         state["summary_status"] = segment[1] if segment[0] == "status" else None
-        main, sub = roam_summary_runs([segment], t)
+        # 다른 제공자는 구간을 뒤에 덧붙이기만 한다 — 그리기·폭 계산은 run 단위라 손댈 곳이 없다.
+        # 모듈 함수를 이름으로 부르지 않고 state 훅으로 받는다(roam_release 와 같은 이유):
+        # 창 없는 시험은 손으로 만든 state 로 이 함수를 돌리고, 훅이 그냥 없으면 그 시험의
+        # 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 구간 자체가 없다 — 0% 를 지어내지 않는다.
+        codex_hook = state.get("codex_summary")
+        segments = [segment] + [s for s in ((codex_hook() if codex_hook else None),) if s]
+        main, sub = roam_summary_runs(segments, t)
         if segment[0] == "estimate" and OAUTH_STATUS.get("auth_error"):
             main.append((" ⚠", "status"))
         w_main = sum(astr(text, F_SUMMARY).size().width for text, _kind in main)
@@ -8789,6 +8988,9 @@ def run_gui():
                     s = compute_usage()
                     oauth = fetch_exact_usage()            # 정확 모드 (180s 캐시)
                     values = {"stats": s, "oauth": oauth,
+                              # Codex 자격증명이 없으면 파일 한 번 못 열고 끝난다 — 망을
+                              # 타지 않으므로 Codex 를 안 쓰는 사용자에게 드는 비용은 없다.
+                              "codex": fetch_codex_usage(),
                               "cost": fetch_api_cost_today()}
                     if RUNTIME["mode"] == "api":
                         values["cost_month"] = fetch_api_cost_month()
