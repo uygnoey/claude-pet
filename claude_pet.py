@@ -7040,8 +7040,15 @@ def roam_summary_reset_line(kind, payload, tr):
     return "".join(text for text, _kind in roam_summary_runs([(kind, payload)], tr)[1])
 
 
-def _summary_segment_runs(kind, payload, tr):
-    """구간 하나 → (첫 줄 run 들, 둘째 줄 run 들)."""
+def _summary_segment_runs(kind, payload, tr, reset_prefix=True):
+    """구간 하나 → (첫 줄 run 들, 둘째 줄 run 들).
+
+    reset_prefix 는 '이 구간이 둘째 줄을 여는 구간인가'다. 리셋 안내어는 줄 전체에 한 번이고
+    (CLAUDE.md: 리셋 단어를 한 번 쓰고, 그 다음 "<라벨> <카운트다운>"), 구간마다 붙이면 제공자가
+    둘일 때 "리셋 … · 리셋 …" 이 된다. 조립하는 쪽(roam_summary_runs)만이 자기가 몇 번째인지 알므로
+    거기서 정해 넘긴다 — 만들어 놓고 글자를 잘라 내지 않는다. 안내어는 로케일마다 다르고(en "reset ",
+    ko "리셋 "), 사용자 데이터에 같은 글자가 들어 있을 수도 있어서 문자열 비교로 지우는 것은 틀린다.
+    """
     if kind in ("exact", "estimate"):
         main, sub, last_reset = [], [], None
         approx = SUMMARY_APPROX if kind == "estimate" else ""
@@ -7053,7 +7060,12 @@ def _summary_segment_runs(kind, payload, tr):
             main.append(((SUMMARY_SPIKE if spiking else "") + shown, summary_value_kind(pct, spiking)))
             main.append((f" {approx}{pct:.0f}%", kind))
             if reset_text and reset_text != last_reset:
-                sub.append((SUMMARY_SEP, "sub") if sub else (tr("reset_prefix"), "sub"))
+                if sub:
+                    sub.append((SUMMARY_SEP, "sub"))
+                elif reset_prefix:
+                    sub.append((tr("reset_prefix"), "sub"))
+                # reset_prefix 가 False 이고 sub 가 비어 있으면 아무것도 앞에 붙이지 않는다 —
+                # 구간 사이 구분자는 조립하는 쪽이 이미 넣는다.
                 sub.append((f"{shown} {reset_text}", "sub"))
             last_reset = reset_text or last_reset
         return main, sub
@@ -7074,12 +7086,16 @@ def roam_summary_runs(segments, tr):
     """구간 목록 → (첫 줄 run 들, 둘째 줄 run 들); run 은 (text, kind), kind 는 SUMMARY_COLORS 의 키.
 
     첫 줄은 라벨(흰색 → 경고 → 위험, 잔여량)과 수치(출처 색) 조각, 둘째 줄은 리셋 시각(보조색). 구간 사이는 기본색
-    구분자. 지금은 Claude 구간 하나다 — GPT·Gemini 등 다른 제공자의 사용량은 (kind, payload) 구간을 뒤에
+    구분자. Claude 옆에 GPT·Gemini·Codex 등 다른 제공자의 사용량은 (kind, payload) 구간을 뒤에
     붙이면 같은 줄에 이어진다. 그리기(draw_summary_pill)와 폭 계산은 run 단위라 손댈 곳이 없다.
+
+    둘째 줄은 구간별 조각의 **문자 그대로의 연결이 아니다**: 리셋 안내어는 줄 전체에 한 번이므로
+    둘째 줄을 여는 구간에만 붙인다(reset_prefix). 그 구간이 첫 번째 구간이라는 보장은 없다 —
+    앞 구간이 비용 구간처럼 둘째 줄을 내지 않을 수 있어서, 'sub 가 아직 비었는가'로 정한다.
     """
     main, sub = [], []
     for kind, payload in segments:
-        m, s_ = _summary_segment_runs(kind, payload, tr)
+        m, s_ = _summary_segment_runs(kind, payload, tr, reset_prefix=not sub)
         if not m:
             continue
         if main:
