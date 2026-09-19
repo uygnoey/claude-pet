@@ -333,6 +333,53 @@ class SpawnShapeTests(unittest.TestCase):
         self.assertLessEqual(claude_pet.RECOVERY_TIMEOUT_SEC, 300)
 
 
+class WindowsDetachmentTests(unittest.TestCase):
+    """argv 검사만으로는 분리가 증명되지 않는다 — 그 구멍을 막는다.
+
+    **이 클래스는 구현 이후에 추가됐고 처음부터 초록이었다.** 게이트가 아니라
+    회귀 가드다. 그렇게 된 경위를 적어 둔다: 원래 계약은 `argv[0]` 이 claude 가
+    아니면 됐는데, 윈도우 구현이 `cmd.exe /c claude …` 를 돌려주므로 그 조건은
+    **직계 자식으로 띄워도 만족된다**(그러면 claude 는 손자일 뿐 여전히 우리
+    트리다). 실제 분리는 argv 가 아니라 실행 경로가 WMI 를 타는 데서 온다.
+    검증하다 그 틈을 발견해 여기서 닫는다.
+    """
+
+    def _run_win32(self, wmi_pid=None):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            io_paths = (os.path.join(td, "o.txt"), os.path.join(td, "e.txt"))
+            with mock.patch.object(claude_pet.sys, "platform", "win32"), \
+                 mock.patch.object(claude_pet, "_recovery_io_paths",
+                                   return_value=io_paths), \
+                 mock.patch.object(claude_pet, "_win_wmi_create",
+                                   return_value=wmi_pid) as wmi, \
+                 mock.patch.object(claude_pet.subprocess, "Popen") as popen, \
+                 mock.patch.object(claude_pet.subprocess, "run") as run:
+                claude_pet._run_refresh_job([CLI, "-p", "/usage"], "lbl", "stem", 1)
+            return wmi, popen, run
+
+    def test_the_windows_spawn_goes_through_wmi(self):
+        wmi, _, _ = self._run_win32()
+        self.assertTrue(wmi.called, "WMI 를 거치지 않았다 — 분리가 일어나지 않는다")
+
+    def test_the_windows_spawn_is_never_a_direct_child(self):
+        """여기서 Popen 이 불리면 claude 가 우리 트리 안에서 돌고 있다는 뜻이다."""
+        _, popen, run = self._run_win32()
+        self.assertFalse(popen.called, "subprocess.Popen 으로 직계 자식을 띄웠다")
+        for call in run.call_args_list:
+            argv = call.args[0] if call.args else []
+            joined = " ".join(str(a) for a in argv)
+            self.assertNotIn("-p /usage", joined,
+                             "subprocess.run 으로 CLI 를 직접 돌렸다")
+
+    def test_the_command_line_carries_the_cli_and_its_redirection(self):
+        wmi, _, _ = self._run_win32()
+        cmdline = wmi.call_args.args[0]
+        self.assertIn(CLI, cmdline)
+        self.assertIn("/usage", cmdline)
+        self.assertIn("2>&1", cmdline, "출력을 받지 못하면 결과를 읽을 수 없다")
+
+
 class LoginExpiredShortCircuitTests(unittest.TestCase):
     """refresh 토큰까지 죽었으면 남은 시도는 의미가 없다."""
 
