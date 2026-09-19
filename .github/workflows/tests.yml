@@ -1,0 +1,64 @@
+name: tests
+
+# 게이팅 테스트는 머지 전에 **CI 에서** 초록이어야 한다. 로컬 실행은 기계 상태에
+# 휘둘린다 — 실제로 그랬다: 돌고 있던 ClaudePet.app 이 ~/claudepet_debug.log 에 쓰는
+# 바람에 격리 검사 51건이 빨갰고, 로컬 빌드를 설치했더니 공증이 깨져 서명 계약 2건이
+# 빨갰다. 둘 다 코드와 무관한 실패였다. CI 는 그런 잔여 상태가 없는 기계에서 돈다.
+#
+# macOS 와 Windows 를 **둘 다** 돌린다. 이 저장소의 원칙은 맥에서 되는 것은 윈도우에서도
+# 똑같이 돼야 한다는 것이고, 그 원칙은 테스트 커버리지에도 적용된다.
+
+on:
+  push:
+    branches: ["claude/**", "dev"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macOS — full suite
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Show environment
+        run: |
+          python3 -VV
+          sw_vers
+      # 전체 스위트를 저장소 루트에서 돌린다. tests/ 에는 __init__.py 가 없고
+      # 그게 의도된 상태라, `-s tests` 가 cwd 를 sys.path 에 넣어 주는 것에 기댄다.
+      # (CLAUDE.md 의 "Run it from the repository root" 참조. __init__.py 를 만들지 말 것.)
+      - name: Run full suite
+        run: python3 -m unittest discover -s tests -v
+
+  windows:
+    name: Windows — gating contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # 코어(claude_pet.py)는 fcntl 과 ctypes.CDLL(None) 때문에 윈도우에서 그대로는
+      # 임포트되지 않는다. 그 우회로의 유일한 소유자가 포트의 windows/win_core.py 인데,
+      # 포트는 `windows` 브랜치에만 있다. 복제하는 대신 그 디렉터리만 가져온다 —
+      # 로직이 두 벌 생기지 않게. (main 계열에 포트를 들일지는 별도 결정 사항이다.)
+      - name: Bring in the port's core-import shim
+        shell: bash
+        run: |
+          git fetch origin windows --depth=1
+          git checkout origin/windows -- windows/
+          ls windows/
+      - name: Show environment
+        run: |
+          python -VV
+          systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+        shell: cmd
+      # 윈도우에서는 맥 전용 모듈(서명·launchctl·seeding 등)이 아니라 이 기능의
+      # 게이팅 계약만 돌린다. `-t .` 는 windows.win_core 를 패키지로 임포트하기 위한 것.
+      - name: Run gating contract
+        run: python -m unittest discover -s tests -t . -v -p "test_token_recovery.py"
+      - name: Run the port's own suite
+        run: python -m unittest discover -s windows/tests -t . -v
