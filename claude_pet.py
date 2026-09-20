@@ -1077,7 +1077,7 @@ WEEKDAYS_FULL = {
 TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
-    "codex_session": "Codex session", "codex_weekly": "Codex weekly",
+    "codex_session": "session", "codex_weekly": "weekly",
     "reset_done": "reset", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
     "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
@@ -1169,7 +1169,7 @@ TR = {
   },
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
-    "codex_session": "Codex 세션", "codex_weekly": "Codex 주간",
+    "codex_session": "세션", "codex_weekly": "주간",
     "reset_done": "리셋됨", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
     "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
@@ -1257,7 +1257,7 @@ TR = {
   },
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
-    "codex_session": "Codex セッション", "codex_weekly": "Codex 週間",
+    "codex_session": "セッション", "codex_weekly": "週間",
     "reset_done": "リセット済み", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
     "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
@@ -1350,7 +1350,7 @@ TR = {
   },
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
-    "codex_session": "Codex sesión", "codex_weekly": "Codex semanal",
+    "codex_session": "sesión", "codex_weekly": "semanal",
     "reset_done": "reiniciado", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
     "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
@@ -7599,6 +7599,34 @@ def next_pill_width(current, needed, step, cap):
     return current
 
 
+def _summary_gauge_count(segments):
+    """이 구간 묶음이 내는 게이지 행 수. 상태 구간은 게이지가 아니라 0."""
+    total = 0
+    for kind, payload in segments:
+        if kind in ("exact", "estimate"):
+            try:
+                total += len(payload)
+            except TypeError:
+                pass
+    return total
+
+
+def _summary_only_gauge_label(segments):
+    """게이지 행이 하나뿐일 때 그 행이 화면에 쓰는 라벨. 아니면 None.
+
+    _summary_segment_runs 가 라벨을 옮기는 방식(estimate 는 tr, 나머지는 원문)을 그대로
+    따라간다 — 여기서 다르게 만들면 리셋에서 떼어 낼 접두사가 안 맞는다.
+    """
+    for kind, payload in segments:
+        if kind in ("exact", "estimate"):
+            try:
+                if len(payload) == 1:
+                    return _summary_label(kind, payload[0][0], t)
+            except (TypeError, IndexError):
+                return None
+    return None
+
+
 def summary_lines(groups, measure, budget):
     """제공자별 구간 묶음 → 제공자별 줄 묶음.
 
@@ -7636,6 +7664,29 @@ def summary_lines(groups, measure, budget):
         # 수치도 아니다 — 거기에 Claude 마크가 붙어 있던 것이 사용자가 지적한 결함이다.
         text_budget = budget - (SUMMARY_LOGO_W if provider_id is not None else 0)
         main, sub = roam_summary_runs(usable, t)
+        # 리셋 줄이 따로 있는 이유는 **어느 리셋이 어느 게이지의 것인지 짝지어야** 해서다.
+        # 게이지가 하나뿐이면 짝지을 것이 없으므로 같은 줄에 붙인다 — 줄 하나가 통째로
+        # 사라지고, 필은 펫 위에 있어 세로가 가로보다 비싸다. 조건부 레이아웃이 아니라
+        # "모호할 때만 줄을 나눈다"는 한 규칙이고, 그래서 **제공자를 가리지 않는다**
+        # (Claude 게이지가 하나뿐일 때도 똑같이 인라인된다 — Codex 특례가 아니다).
+        # 인라인일 때는 '리셋' 안내어를 빼고 dim 색과 작은 글꼴로만 구분한다: 그 단어는
+        # "이 줄은 리셋들이다"라고 말하는 것인데, 게이지 옆에 붙은 값에는 할 일이 없다.
+        if sub and _summary_gauge_count(usable) == 1:
+            # 리셋 run 은 "<라벨> <남은시간>" 이다 — 라벨은 여러 게이지를 짝짓기 위한
+            # 것이라 게이지가 하나면 같은 줄에 두 번 나오게 된다("주간 73% · 주간 5d 18h").
+            # 짝지을 것이 없으니 라벨을 떼고 남은시간만 붙인다.
+            label = _summary_only_gauge_label(usable)
+            prefix = t("reset_prefix")
+            inline = []
+            for text, kind in sub:
+                if text == prefix:
+                    continue
+                if label and text.startswith(label + " "):
+                    text = text[len(label) + 1:]
+                inline.append((text, kind))
+            if inline:
+                main = list(main) + [(SUMMARY_SEP, "sub")] + inline
+            sub = []
         lines = _summary_fold_runs(main, text_budget, measure)
         lines += _summary_fold_runs(sub, text_budget, measure)
         if lines:
@@ -7876,6 +7927,11 @@ def run_gui():
     F_SUMMARY_BY_KIND = {kind: {NSFontAttributeName: summary_font(11),
                                 NSForegroundColorAttributeName: hexcolor(color)}
                          for kind, color in SUMMARY_COLORS.items()}
+    # 인라인된 리셋은 **색만** dim 이고 글꼴은 그 줄과 같은 11pt 다. 한 줄 안에서 크기를
+    # 섞으면 줄이 들쭉날쭉해 보이고, 인라인의 목적은 줄을 줄여 정돈하는 것이라 그게 목적을
+    # 거스른다. 크기로 위계를 주는 것은 리셋이 **자기 줄**을 가질 때다(F_SUMMARY_SUB_BY_KIND).
+    # (_draw_runs 는 run 마다 kind 로 글꼴을 고르므로 섞는 것도 가능했다 — 계약 문제가
+    #  아니라 보기의 문제라서 안 섞는다.)
     F_SUMMARY_SUB = {NSFontAttributeName: summary_font(9.5),   # 둘째 줄(리셋 시각)
                      NSForegroundColorAttributeName: hexcolor(SUMMARY_COLORS["sub"])}
     F_SUMMARY_SUB_BY_KIND = {kind: {NSFontAttributeName: summary_font(9.5),

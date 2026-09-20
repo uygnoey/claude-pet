@@ -284,6 +284,22 @@ class NothingIsEverTruncatedTests(LangMixin, unittest.TestCase):
     """
 
     def assert_nothing_lost(self, lang, claude, codex, credit=False):
+        """**접힘은 내용을 바꾸지 않는다** — 그 불변식만.
+
+        `summary_lines` 에는 변환이 둘 있다. 접힘(줄을 나눈다, 내용 불변)과 인라인
+        (게이지가 하나뿐인 블록에서 리셋을 같은 줄에 붙이며 `리셋` 안내어와 중복 라벨을
+        **의도적으로 버린다**). 한때 이 단언 하나가 둘을 같이 봤고, 인라인이 들어오자
+        구성상 성립할 수 없게 됐다.
+
+        **"내용이 바뀔 수 있다"로 넓히지 않는다** — 그러면 실제 잘림을 잡던 보호를 버리는
+        것이다. 대신 정확히 참인 곳에서만 정확하게 단언한다: 인라인이 **일어나지 않는**
+        블록에서는 내용 run 이 글자 그대로 보존된다.
+
+        어느 블록이 인라인되는지는 **생산에 묻는다**(`_summary_gauge_count`). 여기서
+        규칙을 다시 적으면 생산이 규칙을 바꿔도 이 파일은 못 본다 — 이 스레드에서 네 번
+        겪은 그 실패다. 인라인이 보존해야 하는 것은
+        `InlineResetKeepsTheNumbersTests` 가 따로 본다.
+        """
         self.use(lang)
         groups = groups_for(lang, claude=claude, codex=codex, credit=credit)
         result = layout(groups)
@@ -291,6 +307,8 @@ class NothingIsEverTruncatedTests(LangMixin, unittest.TestCase):
         for pid, segments in groups:
             with self.subTest(provider=pid):
                 self.assertIn(pid, by_provider, f"{pid} 제공자의 줄이 통째로 사라졌다")
+                if claude_pet._summary_gauge_count(segments) == 1:
+                    continue        # inlined: see InlineResetKeepsTheNumbersTests
                 produced = [r for line in by_provider[pid] for r in line]
                 self.assertEqual(
                     content_runs(produced), content_runs(unfolded_runs(segments)),
@@ -371,6 +389,96 @@ class NothingIsEverTruncatedTests(LangMixin, unittest.TestCase):
         produced = [r for line in lines for r in line]
         self.assertEqual(content_runs(produced), content_runs(runs),
                          "접히면서 내용이 사라졌다")
+
+
+class InlineResetKeepsTheNumbersTests(LangMixin, unittest.TestCase):
+    """게이지가 하나뿐인 블록의 인라인이 **버려도 되는 것만** 버리는가.
+
+    `NothingIsEverTruncatedTests` 가 이 블록들을 면제하므로, 면제한 만큼을 여기서 본다.
+    면제가 곧 사각지대가 되면 그건 게이트를 지운 것과 같다.
+
+    인라인이 버려도 되는 것은 둘뿐이다:
+      · `reset_prefix` — "이 줄은 리셋들이다"라고 말하는 단어인데, 값 하나가 게이지 옆에
+        붙은 줄에서는 가리킬 대상이 없다.
+      · 중복된 게이지 라벨 — 라벨은 여러 리셋을 게이지에 짝지으려고 있는 것이라, 게이지가
+        하나면 같은 줄에 두 번 나온다("주간 73% · 주간 5d 18h").
+
+    그 밖에는 **한 글자도** 버리면 안 된다. 특히 카운트다운 값 자체는 이 변환의 존재
+    이유이므로 반드시 남아야 한다.
+
+    Rivals: 리셋을 통째로 버리는 인라인(줄은 줄지만 사용자가 리셋 시각을 잃는다);
+    라벨을 떼면서 카운트다운 앞 글자까지 자르는 구현; 게이지가 둘 이상인데도 인라인해서
+    어느 리셋이 어느 게이지의 것인지 모르게 만드는 구현.
+    """
+
+    def blocks_that_inline(self, lang, **kw):
+        self.use(lang)
+        groups = groups_for(lang, **kw)
+        result = dict(layout(groups))
+        return [(pid, segs, result.get(pid)) for pid, segs in groups
+                if claude_pet._summary_gauge_count(segs) == 1]
+
+    def test_the_countdown_value_survives_inlining(self):
+        """카운트다운 값이 남는가. 인라인의 목적이 줄을 줄이는 것이지 값을 버리는 게 아니다."""
+        seen = 0
+        for lang in ("ko", "en"):
+            for kw in ({"claude": False, "codex": 1}, {"claude": True, "codex": 1}):
+                for pid, segs, lines in self.blocks_that_inline(lang, **kw):
+                    seen += 1
+                    with self.subTest(lang=lang, provider=pid, groups=kw):
+                        _main, sub = claude_pet.roam_summary_runs(segs, claude_pet.t)
+                        prefix = claude_pet.t("reset_prefix")
+                        label = claude_pet._summary_only_gauge_label(segs)
+                        wanted = []
+                        for text, _kind in sub:
+                            if text == prefix or text == claude_pet.SUMMARY_SEP:
+                                continue
+                            wanted.append(text[len(label) + 1:]
+                                          if label and text.startswith(label + " ") else text)
+                        produced = "".join(txt for line in lines for txt, _k in line)
+                        for value in wanted:
+                            self.assertIn(
+                                value, produced,
+                                f"인라인이 카운트다운 값 {value!r} 을 버렸다: {produced!r}")
+        self.assertGreater(seen, 0, "인라인되는 블록이 하나도 없다 — 이 테스트가 공허하다")
+
+    def test_the_reset_word_and_the_duplicate_label_are_the_only_things_dropped(self):
+        """버려지는 것이 그 둘뿐인가. 게이지 값과 퍼센트는 그대로 남아야 한다."""
+        for lang in ("ko", "en"):
+            for pid, segs, lines in self.blocks_that_inline(lang, claude=False, codex=1):
+                with self.subTest(lang=lang, provider=pid):
+                    main, _sub = claude_pet.roam_summary_runs(segs, claude_pet.t)
+                    produced = [r for line in lines for r in line]
+                    produced_text = "".join(txt for txt, _k in produced)
+                    for text, _kind in main:
+                        if text == claude_pet.SUMMARY_SEP:
+                            continue
+                        self.assertIn(text, produced_text,
+                                      f"인라인이 게이지 run {text!r} 을 잃었다")
+                    self.assertNotIn(
+                        claude_pet.t("reset_prefix").strip(), produced_text,
+                        "인라인된 줄에 '리셋' 안내어가 남아 있다 — 가리킬 대상이 없다")
+
+    def test_a_block_with_two_gauges_is_not_inlined(self):
+        """모호할 때는 줄을 나눈다. 게이지가 둘이면 어느 리셋이 어느 것인지 짝지어야 한다.
+
+        Rival: 항상 인라인하는 구현 — "세션 42% · 주간 17% · 3h · 2d" 가 되어 어느
+        값이 어느 게이지의 리셋인지 알 수 없다.
+        """
+        self.use("ko")
+        groups = groups_for("ko", claude=False, codex=2)
+        two = [(pid, segs) for pid, segs in groups
+               if claude_pet._summary_gauge_count(segs) >= 2]
+        self.assertTrue(two, "게이지 둘짜리 픽스처를 만들지 못했다")
+        result = dict(layout(groups))
+        for pid, segs in two:
+            with self.subTest(provider=pid):
+                lines = result[pid]
+                reset_lines = [ln for ln in lines if ln and ln[0][1] == "sub"]
+                self.assertTrue(
+                    reset_lines,
+                    f"{pid} 의 게이지가 둘인데 리셋이 별도 줄로 남지 않았다 — "
+                    "어느 리셋이 어느 게이지의 것인지 알 수 없다")
 
 
 class EveryLineFitsTests(LangMixin, unittest.TestCase):

@@ -377,11 +377,31 @@ class CodexSegmentTests(unittest.TestCase):
                                 ("주간", 17.0, False, "2일 4시간"),
                                 ("Fable", 12.0, False, "2일 4시간")])
         codex_seg = claude_pet.roam_summary_codex(usage_payload())
+
+        # 한 구간 목록 안에서는 여전히 구분자가 들어간다 — 그 질문은 그대로다.
         main, _ = claude_pet.roam_summary_runs([claude_seg, codex_seg], claude_pet.t)
         joined = "".join(t for t, _ in main)
         self.assertIn(claude_pet.SUMMARY_SEP.strip() or "·", joined,
                       "두 제공자 사이에 구분자가 없다")
-        self.assertIn("Codex", joined, "Codex 구간이 조립 결과에 없다")
+
+        # **구분의 근거가 옮겨 갔다.** 예전에는 `"Codex" in joined` 로 확인했는데, 그
+        # 접두사는 제거됐다(`codex_session` → "세션"). 이제 제공자를 가르는 것은 글자가
+        # 아니라 **블록과 로고**다: `summary_lines` 가 제공자별로 줄 묶음을 내고 각
+        # 묶음 앞에 그 제공자의 마크가 그려진다. 그러니 라벨 문자열이 아니라 그 구조를
+        # 단언한다 — 라벨이 또 바뀌어도 이 테스트는 여전히 옳은 것을 묻는다.
+        blocks = claude_pet.summary_lines(
+            [("claude", [claude_seg]), ("codex", [codex_seg])],
+            lambda s: len(s) * 7.0, 10_000.0)
+        self.assertEqual([pid for pid, _lines in blocks], ["claude", "codex"],
+                         "두 제공자가 각자의 블록으로 나뉘지 않는다")
+        for pid, lines in blocks:
+            with self.subTest(provider=pid):
+                self.assertTrue(lines, f"{pid} 블록에 줄이 없다")
+        # 마크가 제공자 구분을 진짜로 지고 있는지는 그리기 층의 일이다 —
+        # tests/test_companion_motion.py 의
+        # test_a_lone_provider_still_gets_its_mark_and_the_same_text_indent 가 본다.
+        self.assertIn("codex", claude_pet.SUMMARY_LOGO_FILES,
+                      "Codex 마크가 선언되지 않았다 — 접두사를 떼면 구분이 사라진다")
 
 
 class CodexReadOnlyTests(unittest.TestCase):
