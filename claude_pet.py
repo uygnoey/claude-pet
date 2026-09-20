@@ -1077,7 +1077,6 @@ WEEKDAYS_FULL = {
 TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
-    "codex_session": "session", "codex_weekly": "weekly",
     "reset_done": "reset", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
     "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
@@ -1169,7 +1168,6 @@ TR = {
   },
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
-    "codex_session": "세션", "codex_weekly": "주간",
     "reset_done": "리셋됨", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
     "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
@@ -1257,7 +1255,6 @@ TR = {
   },
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
-    "codex_session": "セッション", "codex_weekly": "週間",
     "reset_done": "リセット済み", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
     "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
@@ -1350,7 +1347,6 @@ TR = {
   },
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
-    "codex_session": "sesión", "codex_weekly": "semanal",
     "reset_done": "reiniciado", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
     "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
@@ -1443,6 +1439,24 @@ TR = {
     "r_last_activity": "Última actividad", "r_today_cost": "Coste de API hoy",
   },
 }
+
+# Codex 레인의 **표시 이름은 Claude 게이지와 같은 창 이름**이다 — `session` 은 5시간 창,
+# `weekly` 는 7일 창이고, 그것은 제공자가 아니라 창의 성질이다. 어느 제공자의 줄인지는
+# **로고가 말한다**(그래서 `Codex ` 접두사를 뺐다). 그런데 접두사를 떼면서 en/es 의
+# 대소문자가 어긋나 한 필 안에 `Weekly 17%` 와 `weekly 73%` 가 같이 떴다 — 접두사를 뺀
+# 이유였던 비대칭이 대소문자로 되살아난 것이다.
+#
+# 그래서 값을 **복사하지 않고 파생시킨다.** 늘 같아야 하는 값을 두 번 적을 이유가 없다.
+# 한 번 적고 물려주면 어긋날 수가 없고, "두 값이 같은지" 보는 게이트도 필요 없어진다 —
+# 게이트는 어긋난 **뒤에** 알려 주지만, 이건 어긋나지를 못한다.
+#
+# 키는 남긴다. `codex_*` 는 파서가 내는 **레인 식별자**이고(CODEX_LANES), 창 길이로 레인을
+# 정하는 계약이 그 이름 위에 서 있다. Codex 가 Claude 에 없는 창(예: 월간)을 갖게 되면
+# 그 레인만 자기 이름을 가지면 된다 — 그때 이 표에서 그 키를 빼면 그만이다.
+for _lang in TR:
+    for _window in ("session", "weekly"):
+        TR[_lang]["codex_" + _window] = TR[_lang][_window]
+
 
 # 모션별 (프레임 간격 ms, 반복, 루프 후 휴식 ms) — 평소엔 얌전히!
 # 휴식 중엔 첫 프레임으로 정지. idle은 8초에 한 번만 숨쉬기/깜빡임.
@@ -8951,10 +8965,25 @@ def run_gui():
             _dbg("logo: draw failed", provider, type(exc).__name__)
 
     def _draw_runs(runs, fonts_by_kind, fallback, x, w, cy):
-        """run 들을 가로 가운데 정렬로, 세로는 cy 를 중심으로 그린다."""
+        """run 들을 **왼쪽 정렬**로, 세로는 cy 를 중심으로 그린다. x 는 글자 자리의 왼쪽 끝.
+
+        예전에는 `cx = x + (w - total) / 2` 로 가운데 정렬했고, 그게 마크와 글자의 관계를
+        깨뜨렸다: 마크는 줄 왼쪽에 고정인데 글자는 줄마다 폭이 달라 시작점이 제각각
+        움직였고, **가장 긴 줄에서만 우연히 맞아 보였다.** 짧은 줄일수록 안쪽으로 떠서
+        마크에서 멀어진다.
+
+        정렬에는 기준점이 있어야 한다. 제공자 줄의 기준점은 마크고, 마크 없는 전역 상태
+        줄의 기준점은 필의 왼쪽 안쪽 끝이다 — **둘 다 왼쪽이다.** 그래서 규칙을 둘로
+        나누지 않았다("제공자 줄은 왼쪽, 전역 줄은 가운데"는 근거를 매번 다시 대야 한다).
+        전역 줄이 혼자 있을 때는 필이 그 줄에 맞춰 잡히므로 가운데와 왼쪽이 픽셀까지 같고,
+        전역 줄이 제공자 블록과 함께 있을 때는(예: Claude 는 토큰 만료 안내, Codex 는 수치)
+        가운데 정렬이 그 줄만 블록에서 어긋나게 만든다. 왼쪽이 어느 경우에도 나쁘지 않다.
+
+        w 는 글자 자리의 폭이다. 지금은 위치 계산에 쓰지 않지만 호출자가 주는 '이만큼
+        쓸 수 있다'는 사실이라 남긴다 — 넘치는 줄을 다루게 되면 여기가 그 자리다.
+        """
         parts = [astr(text, fonts_by_kind.get(kind, fallback)) for text, kind in runs]
-        total = sum(p.size().width for p in parts)
-        cx = x + (w - total) / 2
+        cx = x
         for p in parts:
             sz = p.size()
             p.drawAtPoint_(NSMakePoint(cx, cy - sz.height / 2))

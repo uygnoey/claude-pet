@@ -193,13 +193,32 @@ def text_budget():
 SESSION_WINDOW_SEC = 5 * 3600
 WEEKLY_WINDOW_SEC = 7 * 24 * 3600
 
-CLAUDE_GAUGES = {
-    "ko": [("세션", 42.0, "3시간 43분"), ("주간", 17.0, "2일 4시간"),
-           ("Fable", 12.0, "2일 4시간")],
-    "en": [("Session", 42.0, "3h 43m"), ("Weekly", 17.0, "2d 4h"),
-           ("Fable", 12.0, "2d 4h")],
-}
-CLAUDE_CREDIT = {"ko": ("크레딧", 66.0, "9월 30일"), "en": ("Credit", 66.0, "Sep 30")}
+# Labels come from the server verbatim in exact mode, so the fixture uses whatever this
+# locale's own TR says the gauge is called. Writing them out by hand would reproduce the
+# casing defect this file now gates: the fixture would say "Weekly" while the app said
+# "weekly", and the test would be comparing the fixture against itself.
+def _gauge_rows(lang):
+    prev = claude_pet.L.get("lang")
+    try:
+        claude_pet.set_lang(lang)
+        return [(claude_pet.t("session"), 42.0, "3h 43m"),
+                (claude_pet.t("weekly"), 17.0, "2d 4h"),
+                ("Fable", 12.0, "2d 4h")]
+    finally:
+        claude_pet.set_lang(prev)
+
+
+def _credit_row(lang):
+    prev = claude_pet.L.get("lang")
+    try:
+        claude_pet.set_lang(lang)
+        return (claude_pet.t("credit"), 66.0, "Sep 30")
+    finally:
+        claude_pet.set_lang(prev)
+
+
+CLAUDE_GAUGES = {lang: _gauge_rows(lang) for lang in ("ko", "en", "ja", "es")}
+CLAUDE_CREDIT = {lang: _credit_row(lang) for lang in ("ko", "en", "ja", "es")}
 
 # Codex 행 수는 계정마다 다르고 시간에 따라 변한다. 1행은 2026-09-20 에 관측된 모양,
 # 2행은 Codex 가 5시간 세션 창을 되살렸을 때의 모양이다. **둘 다 지킨다.**
@@ -389,6 +408,109 @@ class NothingIsEverTruncatedTests(LangMixin, unittest.TestCase):
         produced = [r for line in lines for r in line]
         self.assertEqual(content_runs(produced), content_runs(runs),
                          "접히면서 내용이 사라졌다")
+
+
+class LabelsInOnePillAreWrittenTheSameWayTests(LangMixin, unittest.TestCase):
+    """한 필 안에 같이 나타나는 라벨들의 **표기**가 일관되는가.
+
+    ── 왜 이 게이트가 나중에 생겼는지 ────────────────────────────────────────────
+
+    `Codex` 접두사를 빼면서 대소문자가 어긋났다. 영어 화면이 이랬다:
+
+        [Claude마크] Session 42% · Weekly 17% · Fable 12%
+        [OpenAI마크] weekly 73% · 5d 18h              ← 소문자
+
+    같은 필 안에서 같은 개념이 다른 표기로 나온다. **맥 스위트 830개가 못 봤고 윈도우
+    Verifier 의 게이트가 봤다.** 조립된 문자열은 그 자체로 멀쩡하다 — `weekly 73%` 는
+    어디도 틀린 데가 없다. **옆 줄과 나란히 놓아야** 틀린 것이 보인다.
+
+    내 카운트다운 게이트가 이것의 바로 이웃인데 못 봤고, 이유는 **축이 다르기** 때문이다:
+    그쪽은 "한 키가 네 로케일에서 같은가"(로케일 축)를 묻고, 여기서 필요한 것은 "한
+    로케일 안에서 함께 보이는 두 라벨의 표기가 같은가"(필 축)다. 한 축을 덮었다고 다른
+    축이 덮이지 않는다.
+
+    ── 왜 키 쌍 목록을 박지 않았는지 ─────────────────────────────────────────────
+
+    가장 쉬운 형태는 `[("codex_session", "session"), ("codex_weekly", "weekly")]` 를 적어
+    두는 것이다. 그건 이 스레드에서 네 번 물린 모양이다 — **테스트가 생산의 지식을 베껴
+    적으면, 생산이 그 지식을 바꿔도 테스트는 못 본다.** 세 번째 제공자가 오면 목록에
+    없어서 조용히 안 보고, 키 이름이 바뀌면 목록이 죽는다.
+
+    그래서 **생산 경로에서 실제로 한 필에 나오는 라벨을 뽑아** 그들 사이의 성질을 묻는다:
+    대소문자만 다른 두 라벨은 없어야 한다. 제공자가 몇이든, 키 이름이 무엇이든 따라간다.
+    라벨이 무엇인지도 `summary_lines` 가 붙인 kind 로 판별한다 — 라벨 run 의 kind 는
+    잔여량 색(`value`/`warn`/`bad`)이고 수치 run 은 출처 색이라, 그 구분 역시 생산의 것이다.
+    """
+
+    LABEL_KINDS = {"value", "warn", "bad"}
+
+    def labels_in_one_pill(self, lang, **kw):
+        self.use(lang)
+        blocks = layout(groups_for(lang, **kw))
+        out = []
+        for _pid, lines in blocks:
+            for line in lines:
+                for text, kind in line:
+                    if kind in self.LABEL_KINDS:
+                        out.append(text.lstrip(claude_pet.SUMMARY_SPIKE).strip())
+        return [x for x in out if x]
+
+    def test_no_two_labels_in_one_pill_differ_only_by_case(self):
+        """필 한 장 안에서 대소문자만 다른 라벨 쌍이 없어야 한다.
+
+        Rivals: `Codex` 접두사를 떼면서 소문자 키를 그대로 쓰는 구현(실제로 나간 것);
+        한 제공자만 제목 표기로 고치고 다른 쪽을 두는 구현; 세 번째 제공자가 또 다른
+        표기로 들어오는 경우.
+        """
+        checked = 0
+        for lang in ("ko", "en", "ja", "es"):
+            for kw in ({"claude": True, "codex": 1}, {"claude": True, "codex": 2},
+                       {"claude": True, "codex": 1, "credit": True}):
+                with self.subTest(lang=lang, groups=kw):
+                    labels = self.labels_in_one_pill(lang, **kw)
+                    self.assertTrue(labels, "라벨 run 을 하나도 못 찾았다")
+                    checked += 1
+                    seen = {}
+                    for label in labels:
+                        key = label.casefold()
+                        if key in seen and seen[key] != label:
+                            self.fail(
+                                f"같은 필에 {seen[key]!r} 와 {label!r} 이 함께 있다 — "
+                                "같은 개념이 대소문자만 다르게 표기된다 "
+                                f"(lang={lang}, {kw})")
+                        seen[key] = label
+        self.assertGreater(checked, 0, "검사한 조합이 없다 — 이 테스트가 공허하다")
+
+    def test_the_two_providers_name_the_same_window_identically(self):
+        """위 성질의 **구체 사례**를 따로 둔다.
+
+        일반형은 "필에 함께 나온 라벨들" 사이의 관계만 보므로, 만약 어느 쪽 제공자의
+        행이 통째로 사라지면 비교할 상대가 없어져 조용히 통과한다. 그래서 두 제공자가
+        같은 창을 실제로 같은 이름으로 부르는지는 직접 묻는다 — 일반형이 공허해지는
+        경우를 막는 것이지, 키 쌍 목록으로 되돌아가는 것이 아니다.
+
+        **이 테스트가 지금 무엇을 지키는지 정확히 적어 둔다.** Developer 가 이 결함을
+        게이트가 아니라 **구조**로 막았다 — `TR[lang]["codex_" + w] = TR[lang][w]` 로
+        값을 복사하지 않고 파생시킨다. 그러니 두 값이 어긋나는 일은 이제 **일어날 수가
+        없고**, 이 단언은 "어긋남을 잡는" 것이 아니다. 잡는 것은 **그 파생을 literal
+        복사로 되돌리는 변경**이다(실측으로 확인했다: 파생을 `.lower()` 복사로 바꾸면
+        이 테스트와 위 일반형이 함께 빨개진다).
+
+        그 구분이 중요하다. 구조로 불가능해진 것을 게이트가 "지킨다"고 적으면, 다음
+        사람이 구조를 걷어내면서 게이트가 있으니 괜찮다고 읽는다. 여기서 게이트는
+        **구조를 지키는 것**이지 값을 지키는 것이 아니다.
+        """
+        table = claude_pet.TR
+        for lang in ("ko", "en", "ja", "es"):
+            for codex_key, claude_key in (("codex_session", "session"),
+                                          ("codex_weekly", "weekly")):
+                with self.subTest(lang=lang, pair=(codex_key, claude_key)):
+                    a, b = table[lang].get(codex_key), table[lang].get(claude_key)
+                    self.assertTrue(a and b, f"{lang}: {codex_key}/{claude_key} 가 비었다")
+                    self.assertEqual(
+                        a, b,
+                        f"{lang}: Codex 는 {a!r}, Claude 는 {b!r} — 같은 창을 다르게 "
+                        "부른다. 한 필에 나란히 놓이면 사용자가 다른 것으로 읽는다.")
 
 
 class InlineResetKeepsTheNumbersTests(LangMixin, unittest.TestCase):

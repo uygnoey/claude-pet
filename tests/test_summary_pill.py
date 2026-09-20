@@ -991,6 +991,16 @@ _ADVANCES = {
     't': 3.9639, 'u': 6.4023, 'v': 6.0693, 'w': 8.8623, 'x': 5.9189, 'y': 6.0693, 'z': 5.8975,
     '{': 4.1143, '|': 3.7275, '}': 4.1143, '~': 7.0898, '·': 2.9971, '…': 8.9912, '≈': 7.0898,
     '▲': 10.9570, '⚠': 10.6885, '≒': 6.9556,
+    # Added 2026-09-20 when the Spanish fixtures started exercising accented letters.
+    # Measured the same way as everything above, from the same bundled font, on the same
+    # machine. They are here because the fail-closed measure **refused** to guess a width
+    # for 'ó' — which is the behaviour that test exists to guarantee, working.
+    '¿': 5.7041, 'Í': 2.8467, 'Ú': 7.7559, 'á': 6.0479, 'é': 6.2412, 'í': 2.6855,
+    'ñ': 6.4238, 'ó': 6.4023, 'ú': 6.4023, '—': 10.5918, '※': 7.9814, '→': 10.1084,
+    '▶': 9.9580, '▸': 5.8330, '⬆': 11.4189, '⬇': 9.5150, '〜': 10.3125,
+    '、': 10.3125, '。': 10.3125, '（': 10.3125, '）': 10.3125, '？': 10.3125,
+    # Zero-width: a newline never reaches a drawn run, and U+FE0E is a variation selector.
+    '\n': 0.0000, '\ufe0e': 0.0000,
 }
 # Every Hangul syllable in this font has the same advance — checked over a 400-character
 # sample drawn from the whole U+AC00..U+D7A3 block, which returned exactly one value.  It is

@@ -1206,21 +1206,8 @@ class CompanionCompactRegressionTests(unittest.TestCase):
             "어댑터가 훅의 글자-자리 예산에 로고 폭을 되돌려 주지 않는다 — 가장 긴 줄이 "
             f"로고 폭만큼 넘쳐 갈라진다: {[''.join(x for x, _k in ln) for ln in gauge]}")
 
-    def test_a_lone_provider_still_gets_its_mark_and_the_same_text_indent(self):
-        """제공자가 하나뿐일 때도 **그 제공자의 마크가 그려지고**, 글자 시작 위치가
-        둘일 때와 **같다.**
-
-        사용자 요구: "클로드면 클로드 코덱스면 코덱스 로고가 있어야지". 마크를 '제공자가
-        둘 이상일 때 구분용으로' 그리는 구현은 Codex 에 로그인하는 순간 Claude 줄이
-        옆으로 밀린다 — 사용자에게는 로그인했더니 화면이 움찔한 것으로 보인다.
-
-        **폭 단언으로는 안 잡힌다.** 마크를 안 그려도, 들여쓰기를 안 해도 줄은 예산 안에
-        들어간다(오히려 더 넉넉해진다). "없는 제공자는 흔적을 안 남긴다"를 폭과 따로
-        단언해야 했던 것과 같은 이유다 — 여기서는 그 반대 방향이다.
-
-        Rivals: 제공자가 둘 이상일 때만 마크를 그리는 구현; 마크는 그리되 제공자 수에
-        따라 들여쓰기를 바꾸는 구현(줄이 옆으로 밀린다); 첫 제공자만 그리는 구현.
-        """
+    def _drive_draw(self):
+        """실제 `draw_summary_pill` 을 구동할 scope. (설정, draws, logos) 를 돌려준다."""
         draws, logos = [], []
 
         def astr(value, font):
@@ -1238,39 +1225,103 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      astr=astr, F_SUMMARY="main-font", F_SUMMARY_SUB="sub-font",
                      F_SUMMARY_BY_KIND={"exact": "exact-font"},
                      F_SUMMARY_SUB_BY_KIND={"sub": "sub-kind-font"}, PILL_PAD=13,
-                     C_PILL=SimpleNamespace(set=lambda: None), NSMakeRect=fake_rect,
                      SUMMARY_RADIUS=claude_pet_const("SUMMARY_RADIUS"),
+                     C_PILL=SimpleNamespace(set=lambda: None), NSMakeRect=fake_rect,
                      NSMakePoint=lambda x, y: SimpleNamespace(x=x, y=y),
                      NSBezierPath=SimpleNamespace(bezierPathWithRoundedRect_xRadius_yRadius_=
                                                  lambda *args: SimpleNamespace(fill=lambda: None)))
         gui_functions(self, ("draw_summary_pill",), scope)
 
-        claude_only = [("claude", [[("Session", "exact"), (" 42%", "value")]])]
-        both = claude_only + [("codex", [[("Weekly", "exact"), (" 68%", "value")]])]
-
-        results = {}
-        for name, value in (("claude only", claude_only), ("claude+codex", both)):
+        def render(value):
             draws.clear(); logos.clear()
             blocks["value"] = value
             scope["draw_summary_pill"]()
-            # The Claude line's first run is what must not move between the two cases.
-            results[name] = (list(logos), draws[0][1])
+            return list(draws), list(logos)
 
-        lone_logos, lone_x = results["claude only"]
-        both_logos, both_x = results["claude+codex"]
+        return render
 
-        self.assertEqual([pid for pid, _x in lone_logos], ["claude"],
-                         "a lone provider was not given its mark — the mark is identity, "
-                         "not a separator that only matters once there are two")
-        self.assertEqual([pid for pid, _x in both_logos], ["claude", "codex"],
-                         "each provider must get its own mark")
+    CLAUDE_BLOCK = ("claude", [[("Session", "exact"), (" 42%", "value")],
+                               [("reset Session 3h", "sub")]])
+    CODEX_BLOCK = ("codex", [[("Weekly", "exact"), (" 68%", "value")]])
+
+    def test_every_provider_combination_draws_its_marks_symmetrically(self):
+        """**네 경우 전부** — 사용자가 못 박은 요구다:
+
+            "코덱스만 표시되거나 클로드만 표시되거나 할때도 로고는 표시 되어야한다!"
+
+        `summary_lines` 는 제공자를 모르는 규칙이라 구조 대칭이 공짜로 나오지만, **그리기
+        층은 공짜가 아니다.** 이 릴리즈에서 로딩 행렬이 `if claude … else` 로 Claude 를
+        특권적으로 놓았다가 정정된 적이 있으므로, 대칭을 단언으로 박아 둔다.
+
+        Claude 쪽만 확인하고 넘어가면 Codex 쪽만 안 그리는 변이가 그대로 지나간다 —
+        이 테스트 이전에는 실제로 그랬다.
+
+        Rivals: 제공자가 둘일 때만 마크를 그리는 구현; Claude 만 특별 취급하는 구현;
+        블록 순서에 따라 첫 블록만 그리는 구현; 없는 제공자에게 마크를 그리는 구현.
+        """
+        render = self._drive_draw()
+        cases = {
+            "claude only": ([self.CLAUDE_BLOCK], ["claude"]),
+            "codex only": ([self.CODEX_BLOCK], ["codex"]),
+            "both": ([self.CLAUDE_BLOCK, self.CODEX_BLOCK], ["claude", "codex"]),
+            "neither": ([], []),
+        }
+        starts = {}
+        for name, (value, want_marks) in cases.items():
+            with self.subTest(case=name):
+                draws, logos = render(value)
+                self.assertEqual(
+                    [pid for pid, _x in logos], want_marks,
+                    f"{name}: 그려진 마크가 {[p for p, _ in logos]} — 기대는 {want_marks}")
+                if want_marks:
+                    self.assertTrue(draws, f"{name}: 글자가 하나도 안 그려졌다")
+                    starts[name] = draws[0][1]
+                    self.assertEqual(
+                        len({x for _pid, x in logos}), 1,
+                        f"{name}: 마크들이 같은 왼쪽 끝에서 시작하지 않는다")
+                else:
+                    self.assertEqual((draws, logos), ([], []),
+                                     "제공자가 없으면 아무것도 그리지 않는다")
+
         self.assertEqual(
-            lone_x, both_x,
-            f"the Claude line starts at {lone_x} alone and {both_x} beside Codex — "
-            "signing in to Codex shifts the Claude line sideways")
+            len(set(starts.values())), 1,
+            f"제공자 조합에 따라 글자 시작점이 달라진다: {starts} — 로그인 하나로 줄이 "
+            "옆으로 밀린다")
+
+    def test_every_line_of_a_provider_block_starts_at_the_same_x(self):
+        """왼쪽 정렬. 사용자: "로고가 왼쪽에 있는데 글시가 가운데 정렬하니까 뭔가 이상해".
+
+        가운데 정렬(`cx = x + (w - total) / 2`)에서는 줄마다 폭이 달라 시작점이 제각각
+        움직이고, **가장 긴 줄에서만 우연히 마크와 맞아 보인다.** 짧은 줄일수록 안쪽으로
+        떠서 마크에서 멀어진다.
+
+        "보기 좋은가"는 단언할 수 없지만 **위치는 단언할 수 있다** — 한 블록의 모든 줄이
+        같은 x 에서 시작한다. 길이가 다른 줄을 일부러 섞어 두므로, 가운데 정렬로 되돌아가면
+        시작점이 갈라져 실패한다.
+
+        마크 없는 전역 상태 줄의 정렬은 아직 결정이 안 났으므로 여기서 단언하지 않는다.
+        """
+        render = self._drive_draw()
+        block = ("claude", [
+            [("Session", "exact"), (" 42%", "value"), (" · ", "status"),
+             ("Weekly", "exact"), (" 17%", "value")],      # long
+            [("reset Session 3h", "sub")],                  # much shorter
+            [("W", "exact")],                               # shortest possible
+        ])
+        draws, _logos = render([block])
+        self.assertTrue(draws, "아무것도 안 그려졌다")
+
+        # 줄별 첫 run 의 x. `_draw_runs` 는 한 줄의 run 들을 이어 그리므로 줄의 시작점은
+        # 그 줄에서 가장 작은 x 다.
+        by_line = {}
+        for _text, x, y, _font in draws:
+            by_line[round(y, 3)] = min(by_line.get(round(y, 3), x), x)
+        self.assertEqual(len(by_line), 3, f"3줄이 그려져야 한다: {by_line}")
+        starts = set(round(v, 3) for v in by_line.values())
         self.assertEqual(
-            {x for _pid, x in both_logos}, {x for _pid, x in lone_logos},
-            "the marks are not drawn at the same left edge in both cases")
+            len(starts), 1,
+            f"한 블록의 줄들이 서로 다른 x 에서 시작한다: {sorted(starts)} — 가운데 "
+            "정렬이면 짧은 줄이 안쪽으로 떠서 마크와 어긋난다")
 
     def test_actual_summary_draw_draws_every_provider_line_and_cuts_nothing(self):
         """The real ``draw_summary_pill``, executed. Rewritten 2026-09-20.
@@ -1347,29 +1398,24 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                          "a folded line or a whole provider was dropped")
         self.assertEqual([pid for pid, _lx, _ly in logos], ["claude", "codex"],
                          "the mark must be drawn once per provider, not once per line")
-        # Runs are centred inside the indented box (``_draw_runs``), so lines of
-        # different widths start at different x — "same left edge" is the wrong test.
-        # What alignment means here is that every line is centred in the *same* box, and
-        # that the box begins after the pill padding plus the mark's width so no line
-        # ever runs under the logo.
+        # Lines are **left-aligned** inside the indented box as of 2026-09-20. This block
+        # previously asserted the opposite — that every line shares a *centre* — which was
+        # right while `_draw_runs` centred, and is now exactly backwards. The user's
+        # objection was that centring breaks the relationship with the mark: the mark is
+        # pinned left and the text floats, so only the longest line happens to line up.
+        #
+        # So: one shared left edge, and it begins after the pill padding plus the mark's
+        # width, so no line can run under the logo.
         by_line = {}
-        for text, x0, x1, y, _font in draws:
-            span = by_line.setdefault(round(y, 3), [x0, x1])
-            span[0] = min(span[0], x0)
-            span[1] = max(span[1], x1)
+        for text, x0, _x1, y, _font in draws:
+            by_line[round(y, 3)] = min(by_line.get(round(y, 3), x0), x0)
         self.assertEqual(len(by_line), 3, f"expected 3 drawn lines, got {by_line}")
-        centres = {round((lo + hi) / 2.0, 3) for lo, hi in by_line.values()}
-        self.assertEqual(len(centres), 1,
-                         f"provider lines are not aligned in one box: {sorted(centres)}")
+        lefts = {round(v, 3) for v in by_line.values()}
+        self.assertEqual(len(lefts), 1,
+                         f"provider lines do not share a left edge: {sorted(lefts)}")
         box_left = 4 + 13 + api["SUMMARY_LOGO_W"]
-        box_right = 4 + 260 - 13
-        self.assertAlmostEqual(centres.pop(), (box_left + box_right) / 2.0, places=3,
-                               msg="lines are not centred in the box left of the mark")
-        self.assertGreaterEqual(min(lo for lo, _hi in by_line.values()), box_left,
-                                "a line starts under the provider mark")
-        ordering = [d[3] for d in draws]
-        self.assertEqual(ordering, sorted(ordering),
-                         "lines must be drawn top to bottom in flipped coordinates")
+        self.assertAlmostEqual(lefts.pop(), box_left, places=3,
+                               msg="text does not start after the padding and the mark")
 
         draws.clear(); logos.clear()
         blocks["value"] = []
