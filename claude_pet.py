@@ -1000,13 +1000,16 @@ RUNTIME = {
     # launchd 아래에서 한 번 돌려(우리 자식이 아니다) CLI 가 스스로 갱신하게 둔다.
     # 우리는 절대 갱신하지 않는다 — 회전된 토큰을 되쓸 수 있는 쪽이 CLI 뿐이라서다.
     "auto_recover": os.environ.get("CLAUDE_PET_AUTO_RECOVER", "1") != "0",
+    # 크레딧 행을 금액으로 보일지 %로 보일지. 기본은 금액(사용자 결정 2026-09-20).
+    # 금액을 읽을 수 없는 응답에서는 money 여도 %로 떨어진다(credit_row_text 참조).
+    "credit_display": "money",      # "money" | "pct"
 }
 
 def apply_config(cfg):
     for k in ("mode", "session_limit", "weekly_limit", "opus_limit",
               "spike_mult", "greet", "roam", "admin_key", "api_budget",
               "model_keyword", "weekly_reset_day", "weekly_reset_hour",
-              "auto_recover", "lang"):
+              "auto_recover", "credit_display", "lang"):
         if k in cfg:
             RUNTIME[k] = cfg[k]
     set_lang(RUNTIME.get("lang"))
@@ -1496,7 +1499,7 @@ SETTINGS_OWNED_KEYS = ("pet", "lang", "mode", "model_keyword",
                        "weekly_reset_day", "weekly_reset_hour",
                        "session_limit", "weekly_limit", "opus_limit",
                        "spike_mult", "greet", "admin_key", "api_budget",
-                       "auto_recover")
+                       "auto_recover", "credit_display")
 
 
 def _config_lock_path():
@@ -2689,20 +2692,32 @@ def _parse_oauth_usage(data):
     limits가 없는 구버전 응답이면 레거시 utilization 필드로 폴백.
     """
     found = _rows_from_limits(data)
+    # 레거시 폴백의 조건은 '**게이지**가 없다' 이지 'found 가 비었다' 가 아니다. 크레딧을
+    # 먼저 넣고 나중에 `if not found` 로 물으면, 크레딧이 들어간 순간 폴백이 영영 안 돌아
+    # 구버전 응답에서 게이지 3행이 통째로 사라진다. 그 판단을 크레딧을 넣기 **전에** 굳힌다.
+    had_gauges = bool(found)
 
-    # 크레딧: extra_usage가 활성이고 값이 있을 때만 (null/비활성이면 행 없음)
+    # 크레딧 행을 만들지 말지의 게이트. **is_enabled 를 쓰면 안 된다** — 한도를 넘기면
+    # 조직 정책이 크레딧을 끄고(disabled_reason: org_level_disabled_until,
+    # spend_limit_reached: true) 그 플래그가 false 가 되므로, 데이터가 전부 있는데도
+    # 행이 사라진다. "한도를 다 썼다"는 가장 알아야 할 사실이 바로 그 사실 때문에
+    # 화면에서 지워지는 것이고, 그것이 2026-09-20 에 보고된 버그다(실제 응답으로 확인).
+    #
+    # 그래서 묻는 것은 둘이다: **사용자가 직접 끈 것이 아닌가**(user_disabled — 조직이
+    # 끈 것과 사용자가 끈 것은 다른 사실이다), 그리고 **보여 줄 숫자가 있는가**. 한 번도
+    # 켠 적 없는 계정은 두 번째에서 걸린다(수치가 전부 null 이다).
     extra = data.get("extra_usage")
-    if (isinstance(extra, dict) and extra.get("is_enabled")
-            and extra.get("utilization") is not None):
+    if isinstance(extra, dict) and not extra.get("user_disabled"):
         try:
             cpct = float(extra["utilization"])
+        except (TypeError, ValueError, KeyError):
+            cpct = None
+        if cpct is not None and math.isfinite(cpct):
             found.append((9, t("credit"), min(100.0, max(0.0, cpct)),
                           _parse_reset_ts(extra.get("resets_at"))))
-        except (TypeError, ValueError):
-            pass
 
-    if not found:                       # 구버전 응답 폴백
-        found = _rows_from_utilization(data)
+    if not had_gauges:                  # 구버전 응답 폴백 (크레딧은 그대로 둔다)
+        found.extend(_rows_from_utilization(data))
 
     found.sort(key=lambda x: x[0])
     # 같은 라벨 중복 제거. (label, pct, reset_dt, reset_text)
@@ -2713,6 +2728,65 @@ def _parse_oauth_usage(data):
         seen.add(label)
         rows.append((label, pct, rdt, None))
     return rows[:PILL_ROWS] or None
+
+
+# 통화 기호. 없는 통화는 코드를 그대로 뒤에 붙인다 — 모르는 통화에 $ 를 붙이는 것보다
+# "1500 XYZ" 가 낫다. 이 표는 표기 편의일 뿐이고 금액 계산에는 쓰이지 않는다.
+CURRENCY_SIGNS = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5", "KRW": "\u20a9"}
+
+
+def credit_facts(extra):
+    """extra_usage → {"used", "limit", "pct", "currency"}. 읽을 수 없는 값은 None.
+
+    **금액은 마이너 단위로 온다.** 2026-09-20 실측으로 확정했다: 같은 응답에서
+    spend.used.amount_minor 가 10066 이고 exponent 가 2 인데 extra_usage.used_credits
+    도 10066.0 이다. 즉 같은 값을 같은 단위로 말하고 있고 decimal_places 가 그 지수다.
+    그대로 달러로 읽으면 $100.66 이 $10,066 이 된다 — 100배다.
+
+    **decimal_places 가 없으면 금액을 지어내지 않는다.** 지수를 모르는 채로 고르는
+    기본값은 어떤 통화에서든 반드시 틀리고(JPY 는 0이다), 틀린 금액은 없는 금액보다
+    나쁘다. 그때는 used/limit 이 None 이고 호출자는 %로 떨어진다.
+    currency 도 서버 값을 그대로 쓴다 — $ 를 하드코딩하지 않는다.
+    """
+    blank = {"used": None, "limit": None, "pct": None, "currency": None}
+    if not isinstance(extra, dict):
+        return blank
+    places = extra.get("decimal_places")
+    scale = (10 ** places if isinstance(places, int) and not isinstance(places, bool)
+             and 0 <= places <= 8 else None)
+
+    def money(value):
+        if scale is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        v = float(value) / scale
+        return v if math.isfinite(v) else None
+
+    pct = extra.get("utilization")
+    if isinstance(pct, bool) or not isinstance(pct, (int, float)) or not math.isfinite(float(pct)):
+        pct = None
+    return {"used": money(extra.get("used_credits")),
+            "limit": money(extra.get("monthly_limit")),
+            "pct": None if pct is None else float(pct),
+            "currency": extra.get("currency")}
+
+
+def credit_row_text(extra, mode="money"):
+    """크레딧 행에 쓸 문자열. mode 는 RUNTIME["credit_display"] — "money"(기본) | "pct".
+
+    **금액을 알 수 없으면 money 모드라도 %로 떨어진다.** 빈칸을 보여 주느니 아는 사실을
+    보여 준다 — 이 저장소가 반복해서 지키는 원칙("모르는 것과 0은 다르다")의 다른 쪽
+    얼굴이다. 둘 다 없으면 빈 문자열이고, 그때는 행 자체가 만들어지지 않는다.
+    """
+    facts = credit_facts(extra)
+    if mode == "money" and facts["used"] is not None:
+        places = extra.get("decimal_places") if isinstance(extra, dict) else None
+        digits = places if isinstance(places, int) and 0 <= places <= 8 else 2
+        amount = "%.*f" % (digits, facts["used"])
+        cur = facts["currency"] or ""
+        sign = CURRENCY_SIGNS.get(cur)
+        return "%s%s" % (sign, amount) if sign else ("%s %s" % (amount, cur)).strip()
+    pct = facts["pct"]
+    return "%.0f%%" % pct if pct is not None else ""
 
 
 def _label_order(label):
