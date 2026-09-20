@@ -18,7 +18,9 @@ setup(
             # frames: 내장 고양이 스프라이트 / .claude_pet: 동봉 펫 자산 트리
             # (앱이 시작할 때 ~/.claude_pet 에 없는 것만 채워 넣는다)
             # fonts: 요약 필 글꼴 Pretendard(OFL) — ATSApplicationFontsPath 가 앱 시작 때 등록한다
-            "resources": ["frames", ".claude_pet", "fonts"],
+            # logos: 제공자 마크(Claude/OpenAI SVG) — 요약 필이 제공자 블록 앞에 그린다.
+            #   빠지면 소스 실행은 멀쩡하고 번들에서만 마크가 사라진다(fonts 가 겪은 실패).
+            "resources": ["frames", ".claude_pet", "fonts", "logos"],
             "plist": {
                 "CFBundleName": "ClaudePet",
                 "CFBundleDisplayName": "Claude Pet",

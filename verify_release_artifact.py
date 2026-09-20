@@ -25,7 +25,7 @@ verify_pet_payload.py 와의 분업:
 
 사용법:
   verify_release_artifact.py scan <artifact.zip|artifact.dmg>
-  verify_release_artifact.py app <app_path> --expect-version 0.25 --arches arm64,x86_64
+  verify_release_artifact.py app <app_path> --expect-version 0.26 --arches arm64,x86_64
   verify_release_artifact.py assets <올릴 파일…>
 """
 import argparse
@@ -34,6 +34,10 @@ import os
 import stat
 import sys
 
+
+# 요약 필의 제공자 마크가 들어가는 번들 안 디렉터리. claude_pet.SUMMARY_LOGO_DIR 와
+# 같아야 하고, check_app() 이 그 일치를 실제로 대조한다.
+LOGO_DIR = "logos"
 
 # 이 체크아웃의 소스. 산출물 안에 든 claude_pet.py 가 '이것'이어야 한다.
 CHECKOUT_CODE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -136,7 +140,41 @@ def check_app(app_path, expect_version, arches):
     if magic != b"\x00\x01\x00\x00":
         print("[gate] rejected: the bundled font is not a TrueType file")
         return False
+    # 제공자 마크(요약 필의 Claude/OpenAI 로고). 글꼴과 같은 이유로 여기서 잡는다 —
+    # 없으면 앱은 마크 없이 조용히 그리고, 서명·공증은 로고가 들었는지 말해 주지 않는다.
+    # 이름을 여기 박지 않고 claude_pet 의 표에서 가져온다: 코드가 실제로 읽는 파일과
+    # 게이트가 검사하는 파일이 갈라지면 게이트가 통과시킨 번들에서 마크가 사라진다.
     cp = _load_app()
+    # 이름은 앱의 상수에서 가져오되, 이 게이트가 **알고 있는** 이름과 같은지 먼저
+    # 대조한다. 상수만 따라가면 앱이 디렉터리를 옮겨도 게이트는 말없이 따라가 버려서
+    # "게이트가 로고를 본다"는 보증이 조용히 빈 문장이 된다. 둘이 어긋나면 거부하고,
+    # 그때 사람이 양쪽을 같이 고친다.
+    declared = getattr(cp, "SUMMARY_LOGO_DIR", None)
+    if declared is None:
+        print("[gate] rejected: the app declares no logo directory "
+              "(SUMMARY_LOGO_DIR) — this gate cannot confirm the marks shipped")
+        return False
+    if declared != LOGO_DIR:
+        print(f"[gate] rejected: the app now keeps its logos in "
+              f"{declared!r}, but this gate checks {LOGO_DIR!r} — "
+              "update both together")
+        return False
+    logo_dir = os.path.join(app_path, "Contents", "Resources", declared)
+    for provider, name in sorted(getattr(cp, "SUMMARY_LOGO_FILES", {}).items()):
+        mark = os.path.join(logo_dir, name)
+        if os.path.islink(mark) or not os.path.isfile(mark):
+            print(f"[gate] rejected: the {provider} logo ({name}) is missing from "
+                  f"Contents/Resources/{declared}")
+            return False
+        try:
+            with open(mark, "rb") as fh:
+                head = fh.read(512).lstrip()
+        except OSError as exc:
+            print(f"[gate] rejected: could not read the {provider} logo ({exc})")
+            return False
+        if not (head.startswith(b"<?xml") or head.startswith(b"<svg")):
+            print(f"[gate] rejected: the {provider} logo is not an SVG")
+            return False
     ok = cp.validate_update_app(app_path, expect_version,
                                 expect_arches=tuple(arches))
     if not ok:

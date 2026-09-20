@@ -3206,12 +3206,31 @@ class PackagingContractTests(unittest.TestCase):
             startup_pet_payload_contract(moved, setup_source, build_source),
         )
 
-        setup_mutant = setup_source.replace(
-            '"resources": ["frames", ".claude_pet", "fonts"],',
-            '"resources": ["frames", "fonts"],',
-            1,
-        )
+        # 바늘을 리터럴로 적지 않는다. 예전에는
+        #     '"resources": ["frames", ".claude_pet", "fonts"],'
+        # 를 그대로 적었는데, 이번 릴리즈에서 setup.py 의 resources 에 "logos" 가 붙자
+        # 바늘이 어긋나 `str.replace` 가 아무것도 바꾸지 않았고 **변이체가 원본과 같아졌다**.
+        # `str.replace` 는 실패하지 않으므로 그 테스트는 소리 없이 아무것도 안 하는
+        # 상태였다 — 아래 assertNotEqual 가드가 아니었으면 아무도 몰랐을 것이다
+        # (tests/test_mutation_instruments.py 가 업데이터 쪽에서 막는 것과 같은 부류).
+        # 그래서 resources 목록을 **소스에서 읽어** 거기서 .claude_pet 만 빼낸다. 목록에
+        # 무엇이 더 붙든 살아남는다.
+        resources = re.search(r'"resources"\s*:\s*\[([^\]]*)\]', setup_source)
+        self.assertIsNotNone(resources, "setup.py 에서 resources 목록을 찾지 못했다")
+        entries = [e.strip() for e in resources.group(1).split(",") if e.strip()]
+        self.assertIn('".claude_pet"', entries,
+                      f"resources 에 .claude_pet 이 없다: {entries}")
+        kept = ", ".join(e for e in entries if e != '".claude_pet"')
+        setup_mutant = (setup_source[:resources.start()]
+                        + '"resources": [%s]' % kept
+                        + setup_source[resources.end():])
         self.assertNotEqual(setup_mutant, setup_source)
+        # 주입이 실제로 먹었는지 목록 자체에서 확인한다. 주석에도 ".claude_pet" 이라는
+        # 글자가 있으므로 파일 전체를 훑으면 안 된다 — 그 판정이면 이 가드가 영원히 실패한다.
+        mutated_list = re.search(r'"resources"\s*:\s*\[([^\]]*)\]', setup_mutant)
+        self.assertIsNotNone(mutated_list)
+        self.assertNotIn(".claude_pet", mutated_list.group(1),
+                         "변이체의 resources 목록에서 .claude_pet 이 빠지지 않았다")
         self.assertIn(
             "py2app-payload-missing",
             startup_pet_payload_contract(app_source, setup_mutant, build_source),

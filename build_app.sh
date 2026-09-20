@@ -67,6 +67,26 @@ copy_fonts() {
   mv "$stage" "$final"
 }
 
+# 제공자 마크(logos/*.svg) — 요약 필이 Claude/Codex 블록 앞에 그린다. fonts 와 같은
+# 이유로 build 와 update 양쪽에서 복사한다: 코드만 새로 고친 번들에서 마크가 조용히
+# 사라지는 실패가 정확히 fonts 에서 일어난 적이 있다. 옆에 완성본을 만들고 검사까지
+# 통과한 뒤에야 제자리로 바꾼다(copy_fonts 와 같은 모양).
+copy_logos() {
+  local res="$1/Contents/Resources"
+  local final="$res/logos"
+  local stage="$res/logos.new.$$"
+  mkdir -p "$res"
+  rm -rf "$stage"
+  if ! cp -R logos "$stage"; then
+    rm -rf "$stage"; return 1
+  fi
+  if [ ! -f "$stage/claude.svg" ] || [ ! -f "$stage/openai.svg" ]; then
+    rm -rf "$stage"; return 1
+  fi
+  rm -rf "$final"
+  mv "$stage" "$final"
+}
+
 # 동봉 펫 자산(.claude_pet)을 번들 안에 통째로 새로 넣는다. 앱은 시작할 때
 # 여기서 ~/.claude_pet 로 '없는 것만' 채우므로, 번들 것이 낡으면 새 펫이
 # 영영 안 깔린다. 코드만 바꾸는 update 에서도 반드시 같이 갱신해야 한다.
@@ -330,6 +350,9 @@ build_body() {
   fi
   if ! copy_fonts "$APP"; then
     echo "❌ 글꼴(fonts)을 번들에 넣지 못했습니다"; return 1
+  fi
+  if ! copy_logos "$APP"; then
+    echo "❌ 로고 복사 실패"; return 1
   fi
   # 동봉 펫 자산(.claude_pet: README 4개 + pets/<4종>) — 앱이 시작할 때
   # ~/.claude_pet 에 없는 것만 채워 넣는다. 빠지면 새 사용자에게 펫이 안 생긴다.
@@ -633,6 +656,7 @@ update_installed() {
   if ! cp claude_pet.py "$stage/Contents/Resources/claude_pet.py" \
      || ! copy_pet_assets "$stage" \
      || ! copy_fonts "$stage" \
+     || ! copy_logos "$stage" \
      || ! write_plist "$stage" \
      || ! APP="$stage" sign_app; then
     rm -rf "$stage"

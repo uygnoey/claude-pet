@@ -40,10 +40,10 @@ REPO = Path(__file__).resolve().parents[1]
 BUILD_SCRIPT = REPO / "build_app.sh"
 APP_SOURCE = REPO / "claude_pet.py"
 REVIEWED_BUILD_APP_SHA256 = (
-    "db8e1ff994a05614daa72c21c5e4436ff7e218ce5286cb4c95590a3f306dd96b"
+    "aa8fce8de4f64635244a343fc943fe7e237db77297ead9204a2d88ff77b68fb4"
 )
 REVIEWED_APP_SOURCE_SHA256 = (
-    "0af6d7697380bb928c20559931479791e8a3bea4c2d3140284bd36184fcaa950"
+    "78c4a8cff0c62d96a79a7c995003e218e32370f65fb7f8e987411f7ab7dfca83"
 )
 
 
@@ -329,6 +329,24 @@ if action == "fonts":
     (fonts / "LICENSE-Pretendard.txt").write_text("OFL stub\n")
     raise SystemExit(0)
 
+if action == "logos":
+    # Stand-in for build_app.sh's copy_logos(), added in v0.26 alongside the
+    # provider marks.  Without it the extracted transaction calls an undefined
+    # `copy_logos`, the arm aborts before `stop_pet`, and two rollback tests fail
+    # for a reason that has nothing to do with rollback.  Same discipline as
+    # `fonts`: stub bytes only, nothing copied out of the repository.
+    app = checked(arguments[0])
+    logos = checked(app / "Contents/Resources/logos")
+    if logos.is_symlink() or logos.is_file():
+        logos.unlink()
+    elif logos.exists():
+        shutil.rmtree(logos)
+    logos.mkdir(parents=True)
+    for name in ("claude.svg", "openai.svg"):
+        (logos / name).write_bytes(
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>\n')
+    raise SystemExit(0)
+
 if action == "write-plist":
     app = checked(arguments[0])
     mode = os.environ.get("TEST_PLIST_MODE", "correct")
@@ -472,6 +490,7 @@ kill() { [ "$1" = "-0" ] || return 97; return 0; }
 
 copy_pet_assets() { "$TEST_PYTHON" "$TEST_HELPER" seed "$1"; }
 copy_fonts() { "$TEST_PYTHON" "$TEST_HELPER" fonts "$1"; }
+copy_logos() { "$TEST_PYTHON" "$TEST_HELPER" logos "$1"; }
 write_plist() { "$TEST_PYTHON" "$TEST_HELPER" write-plist "$1"; }
 sign_app() { "$TEST_PYTHON" "$TEST_HELPER" append sign; }
 stop_pet() { "$TEST_PYTHON" "$TEST_HELPER" append stop; }

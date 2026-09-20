@@ -113,6 +113,29 @@ def bundled_font_path():
         pass
     return None
 
+def bundled_logo_path(name):
+    """제공자 마크 파일 경로. 스크립트 옆 logos/ → 앱 번들 Resources/logos → None.
+
+    bundled_font_path 와 같은 모양이고, 같은 이유로 두 자리를 본다: 소스 실행과 번들이
+    같은 파일을 읽어야 한다. fonts/ 는 이 두 자리 중 번들 쪽이 빠져서 "소스에서는
+    멀쩡한데 번들에서만 사라지는" 실패를 한 적이 있다.
+    """
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        SUMMARY_LOGO_DIR, name)
+    if os.path.isfile(here):
+        return here
+    try:
+        from Foundation import NSBundle
+        rp = NSBundle.mainBundle().resourcePath()
+        if rp:
+            cand = os.path.join(str(rp), SUMMARY_LOGO_DIR, name)
+            if os.path.isfile(cand):
+                return cand
+    except Exception:
+        pass
+    return None
+
+
 # 유저가 직접 펫을 넣는 폴더. 여기 아래에 <이름>/ 폴더를 만들고 그 안에
 #   pet.json + spritesheet.webp
 # 두 파일을 넣으면 우클릭 → 펫 메뉴에 자동으로 나타난다. (앱 업데이트에도 안 지워짐)
@@ -935,7 +958,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.25"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.26"                 # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 3600             # 새 릴리즈 확인 주기(1시간). 시작 시엔 확인하지 않고 한 주기 뒤부터 — run_gui 참조
 _upd_cache = {"t": 0.0, "busy": False}
@@ -3792,7 +3815,51 @@ def _codex_reset_dt(value):
         return None
 
 
-CODEX_LANES = (("primary_window", "codex_session"), ("secondary_window", "codex_weekly"))
+# 레인(세션/주간)은 **창 길이**로 정한다. 창이 들어 있던 키 이름으로 정하지 않는다.
+#
+# 2026-09-20 에 실제로 물린 버그가 그것이다. 여기 한때
+# `(("primary_window", "codex_session"), ("secondary_window", "codex_weekly"))` 가 있었고,
+# 관측된 계정의 primary_window.limit_window_seconds 는 604800(7일)이었다. 화면에는
+# "Codex 세션 68%" 가 떴고 실제로는 주간 68% 였다. 빠진 것도 잘린 것도 아니라 **틀린**
+# 것이라, 사용자가 화면만 보고는 알아낼 방법이 없었다 — 잘린 행은 잘린 게 보이지만
+# 잘못 붙은 라벨은 맞아 보인다. 키 이름으로 되돌리지 말 것.
+#
+# 각 레인은 (TR 키, 최소 초, 최대 초). 구간을 쓰는 이유는 정확히 두 가지다:
+#   · 값이 조금 달라졌다고 행을 잃지 않는다(604800 이 606000 이 되어도 주간이다).
+#   · 그러면서도 두 레인이 서로를 삼킬 수 없다 — 12시간과 5일 사이는 어느 쪽도 아니다.
+# 어느 구간에도 안 들어가는 길이는 **버린다**. 이름 붙일 근거가 없는 창이고, 모르는
+# 창을 '세션'이라고 부르는 것은 0% 를 지어내는 것과 같은 종류의 거짓말이다. 새 창이
+# 생기면 그때 관측값을 보고 여기에 한 줄 더한다(행 수는 어디에도 고정돼 있지 않다 —
+# Codex 는 5시간 세션 한도를 가진 적이 있고 언제 다시 생겨도 이 표만 고치면 된다).
+CODEX_LANES = (
+    ("codex_session", 3600, 12 * 3600),              # 관측 기준값 5시간(18000초)
+    ("codex_weekly", 5 * 86400, 9 * 86400),          # 관측 기준값 7일(604800초)
+)
+
+
+def _codex_window_seconds(value):
+    """limit_window_seconds → 양의 float, 못 읽으면 None.
+
+    bool 은 int 라서 명시적으로 막는다(True 가 1초짜리 창이 되면 곤란하다). 문자열·NaN·
+    inf·0 이하도 전부 '못 읽음'이다 — 추측하지 않고 창을 버리는 쪽이 옳다.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(seconds) or seconds <= 0:
+        return None
+    return seconds
+
+
+def _codex_lane(seconds):
+    """창 길이(초) → TR 키, 어느 레인도 아니면 None."""
+    for label, lo, hi in CODEX_LANES:
+        if lo <= seconds <= hi:
+            return label
+    return None
 
 
 def parse_codex_usage(payload, now=None):
@@ -3800,24 +3867,50 @@ def parse_codex_usage(payload, now=None):
 
     label 은 TR 키다 — 옮기는 것은 렌더 쪽(roam_summary_codex)의 일이라, 언어를 바꿔도
     캐시된 행이 옛 언어로 남지 않는다.
-    primary → 세션, secondary → 주간. 이 대응이 뒤집히면 숫자가 조용히 거짓말을 한다.
-    수치가 없거나 수치가 아닌 창은 **그 창만** 버린다. 쓸 행이 하나도 없으면 빈 목록이
-    아니라 None 을 준다 — 호출자가 '행 없음'과 '0% 행'을 헷갈릴 자리를 만들지 않는다.
+
+    **라벨은 `limit_window_seconds` 에서 나온다.** 창이 어느 키에 들어 있었는지는 보지
+    않는다 — 관측된 계정은 7일 창을 `primary_window` 에 담아 보냈고, 키로 이름을 붙이던
+    옛 코드가 그것을 "Codex 세션" 이라고 표시했다(CODEX_LANES 주석 참조).
+
+    버리는 규칙은 하나다: **이름 붙일 근거가 없는 창은 그 창만 버린다.** 근거가 없는
+    경우는 둘 — 창 길이를 못 읽거나(없음·문자열·bool·NaN·0 이하), 읽었는데 아는 레인
+    어디에도 안 들어가거나. 수치를 못 읽는 창도 마찬가지로 그 창만 버린다. 중립 "Codex"
+    행으로 대신하지 않는다: 어느 창인지 모르는 퍼센트는 사용자가 해석할 수 없다.
+
+    창 개수는 고정돼 있지 않다. `secondary_window: None` 인 계정(관측된 모양)은 한 행만
+    내고, 세션 창이 다시 생기면 두 행이 된다.
+
+    순서는 **세션 → 주간** 으로 고정한다. 페이로드의 키 순서를 따라가면 같은 두 창이
+    계정마다 다른 순서로 보인다. Claude 필이 세션·주간 순인 것(_label_order)과 같은 규칙이다.
+
+    쓸 행이 하나도 없으면 빈 목록이 아니라 None 을 준다 — 호출자가 '행 없음'과 '0% 행'을
+    헷갈릴 자리를 만들지 않는다.
     """
     limits = payload.get("rate_limit") if isinstance(payload, dict) else None
     if not isinstance(limits, dict):
         return None
     now = datetime.now(timezone.utc) if now is None else now
+    order = {label: i for i, (label, _lo, _hi) in enumerate(CODEX_LANES)}
     rows = []
-    for key, label in CODEX_LANES:
-        window = limits.get(key)
+    for key, window in limits.items():
+        # 창을 담는 키는 *_window 다. 키 이름이 정하는 것은 '여기 창이 있다' 까지고,
+        # 그게 어느 레인인지는 정하지 않는다. 새 키(tertiary_window…)도 그대로 읽힌다.
+        if not (isinstance(key, str) and key.endswith("_window")):
+            continue
         if not isinstance(window, dict):
+            continue          # secondary_window: None — 창이 하나뿐인 정상 계정이다
+        seconds = _codex_window_seconds(window.get("limit_window_seconds"))
+        if seconds is None:
+            continue
+        label = _codex_lane(seconds)
+        if label is None:
             continue
         pct = _codex_pct(window.get("used_percent"))
         if pct is None:
             continue
         reset = _codex_reset_dt(window.get("reset_at"))
         rows.append((label, pct, reset, fmt_countdown(reset, now) if reset else None))
+    rows.sort(key=lambda r: order.get(r[0], len(order)))
     return rows or None
 
 
@@ -6447,17 +6540,37 @@ def mood_for(stats):
 
 # ─────────────────── 픽셀 지오메트리 (GUI/미리보기 공용) ───────────────────
 
-PILL_W = 300          # 요약 필 최대 너비 — 실제 폭은 글자 폭에 맞춰 SUMMARY_MIN_W..PILL_W (roam_pill_rect)
+# 논리 창의 기본 가로 내용 폭. **"요약 필의 최대 너비"가 아니다** — 한때 그 이름이었고,
+# 그래서 이 숫자가 필을 자르는 유일한 원인이었다. 필은 원래부터 가변폭인데
+# (roam_pill_rect 의 max(SUMMARY_MIN_W, text_w + 2*PILL_PAD)) 그 위에 얹힌 이 상한이
+# 물리 법칙처럼 취급됐고, 접힘·잘림 로직이 전부 그 위에 설계됐다. 사용자 지적이 옳았다:
+# "폭이 가변이면 안 짤릴 거 아니야".
+#
+# 지금 필의 상한은 **화면**이다(roam_pill_rect 가 넘겨받는 논리 창 W). 이 값이 남아 있는
+# 이유는 하나뿐이다: geom() 이 창을 만들 때 아직 아무 글자도 재지 않은 상태라, 첫 프레임의
+# 창 크기를 정할 출발점이 필요하다. 내용이 이보다 넓으면 창이 넓어지면 되고, 좁으면 필은
+# SUMMARY_MIN_W 까지 좁아진다 — 짧은 내용에 넓은 필이 붙어 있는 것이 제일 안 유려하다.
+PILL_W = 300
 PILL_PAD = 13         # 필 내부 패딩
 PILL_ROWS = 4         # 서버 응답에서 받아 두는 최대 행 수: 세션 / 주간 / 모델(Fable 등) / 크레딧 (fetch_exact_usage)
 # 요약 필에 쓰는 **게이지** 행 수(세션·주간·모델). 크레딧은 게이지가 아니라 이 한도 밖이고,
 # 그래서 크레딧이 켜져 있어도 모델 행을 밀어내지 않는다 — roam_summary 참조.
 SUMMARY_GAUGE_ROWS = 3
-def pill_h():
-    """논리 창의 필 띠 높이 = 요약 필의 최대 높이(둘째 줄 포함). 표시는 요약 필 하나뿐이다 — 게이지 막대와
-    하단 상태줄이 있던 큰 필은 없앴다(사용자 결정 2026-09-12: "그거로 통일하자"). 실제 필은 내용에 따라
-    한 줄(SUMMARY_H) 또는 두 줄(SUMMARY_H2, 리셋 시각 줄)이며 띠 안에서 펫 쪽으로 붙는다(roam_pill_rect)."""
-    return SUMMARY_H2
+def pill_h(lines=2):
+    """줄 수 → 요약 필 높이. 표시는 요약 필 하나뿐이다(사용자 결정 2026-09-12: "그거로 통일하자").
+
+    **높이는 줄 수의 함수여야 한다.** 예전에는 인자 없이 언제나 SUMMARY_H2(두 줄)를
+    돌려줬고, 그래서 세 줄짜리 내용이 두 줄 높이 안에 그려져 사용자에게는 잘린 것으로
+    보였다. 제공자가 둘이 되고 넘치는 줄이 접히면서 3~5줄이 일상이 됐다.
+
+    기본값 2 는 옛 호출부(논리 창 띠를 잡는 자리)가 그대로 동작하게 둔 것이다 — 그쪽은
+    아직 내용을 모르는 시점에 불린다.
+    """
+    try:
+        n = int(lines)
+    except (TypeError, ValueError):
+        n = 2
+    return SUMMARY_PAD_V * 2 + SUMMARY_LINE_H * max(1, n)
 GAP = 6               # 펫-필 간격
 BTN_R = 13            # 접기 버튼 반지름
 
@@ -7416,6 +7529,83 @@ def roam_summary_codex(payload):
     return ("exact", out)
 
 
+def _summary_fold_runs(runs, budget, measure):
+    """run 목록 → 예산 안에 들어가는 줄들. **run 경계에서만 접는다.**
+
+    자르지 않는 것이 이 함수의 전부다. 글자를 말줄임하거나 run 을 쪼개면 내용이 바뀌고,
+    그러면 "접었다"가 아니라 "잘랐다"가 된다 — Codex 행이 화면에 닿지 않던 원인이 정확히
+    뒤에서부터 잘라 내는 roam_fit_runs 였다.
+
+    줄 경계에 놓인 구분자는 지운다(접힘은 줄을 나누는 일이고, 나뉜 자리의 ' · ' 는
+    의미가 없다). 라벨과 수치는 한 글자도 잃지 않는다.
+
+    run 하나가 혼자서 예산보다 넓으면 그 run 만으로 한 줄을 만들고 넘치게 둔다. 쪼개면
+    내용이 바뀌고, 버리면 잘라 내는 것이다 — 둘 다 이 함수가 하지 않기로 한 일이다.
+    """
+    lines, cur, cur_w = [], [], 0.0
+
+    def flush():
+        nonlocal cur, cur_w
+        while cur and cur[-1][0] == SUMMARY_SEP:
+            cur.pop()
+        if cur:
+            lines.append(cur)
+        cur, cur_w = [], 0.0
+
+    for text, kind in runs:
+        w = measure(text)
+        if cur and cur_w + w > budget + 0.5:
+            flush()
+            if text == SUMMARY_SEP:
+                continue                  # 줄이 구분자로 시작하지 않는다
+        if not cur and text == SUMMARY_SEP:
+            continue
+        cur.append((text, kind))
+        cur_w += w
+    flush()
+    return lines
+
+
+def summary_lines(groups, measure, budget):
+    """제공자별 구간 묶음 → 제공자별 줄 묶음.
+
+        [(provider_id, [segment, ...]), ...]
+            -> [(provider_id, [[(text, kind), ...], ...]), ...]
+
+    **순수 함수다.** 창도 RUNTIME 도 datetime.now() 도 보지 않는다. measure(s) 는 s 의
+    폭을 주는 콜러블이고 budget 은 필 안쪽의 전체 가로 예산이다.
+
+    **접힘은 여기서 일어나고 호출자는 절대 trim 하지 않는다.** 호출자가 roam_fit_runs 를
+    부르던 구조가 Codex 행이 화면에서 잘려 나가던 원인이었다. 잘라 내는 쪽은 언제나 맨
+    뒤 구간이었고, 맨 뒤는 언제나 새로 붙인 제공자였다.
+
+    **budget 은 필 안쪽의 전체 가로 폭이다. 호출자는 로고 폭을 빼지 않는다** — 그 뺄셈은
+    이 함수가 소유한다. 로고는 제공자별 개념이고, 제공자가 몇인지·어느 줄에 마크가 붙는지
+    아는 곳은 여기뿐이다. 한때 호출자도 같이 빼서 예산이 두 번 깎인 적이 있다: 두 쪽이
+    budget 의 의미를 서로 다르게 믿고 있었고, 접힘이 실제로 도는 날에만 드러났을 결함이다.
+
+    로고는 run 이 아니라 **들여쓰기**다. 그래서 각 제공자의 모든 줄이 쓰는 텍스트 예산은
+    budget - SUMMARY_LOGO_W 다. 첫 줄에는 마크가 그려지고 접혀서 생긴 줄은 같은 들여쓰기로
+    비워 두므로 세로로 정렬된다.
+
+    구간이 없거나 전부 비어 있는 제공자는 결과에 **나타나지 않는다** — 빈 줄도, 로고만
+    있는 줄도, 떠 있는 구분자도 남기지 않는다. 사용자 지시: "코덱스가 없으면 클로드만,
+    클로드가 없고 코덱스만 있으면 코덱스만".
+    """
+    text_budget = budget - SUMMARY_LOGO_W
+    out = []
+    for provider_id, segments in groups or ():
+        usable = [s for s in (segments or ()) if s]
+        if not usable:
+            continue
+        main, sub = roam_summary_runs(usable, t)
+        lines = _summary_fold_runs(main, text_budget, measure)
+        lines += _summary_fold_runs(sub, text_budget, measure)
+        if lines:
+            out.append((provider_id, lines))
+    return out
+
+
 def roam_fit_runs(runs, max_w, measure, ellipsis="…"):
     """폭 max_w 안에 들어가는 run 목록. measure(s) 는 s 의 폭 (그 줄의 폰트 하나로 잰다 — 축소 없음).
 
@@ -7458,22 +7648,63 @@ def roam_fit_text(text, max_w, measure, ellipsis="…"):
 # bounds·집 전부 그대로다. 실제 NSWindow 는 그 창의 부분 사각형이고, 부분 사각형은 표시 모드
 # 에서만 유도되므로 펫의 전역 좌표(논리 원점 + (px, py))는 모드와 무관하게 같다. 접기·요약·
 # 펼침 전환에서 바뀌는 것은 창의 origin/size 뿐이다.
-SUMMARY_H = 30            # 요약 필 높이(한 줄: 상태·비용, 또는 리셋 시각이 없을 때)
-SUMMARY_H2 = 46           # 요약 필 높이(두 줄: 게이지 + 리셋 시각)
-SUMMARY_MIN_W = 120       # 요약 필 최소 폭. 최대는 PILL_W
+# 필 높이는 **줄 수의 함수**다. 예전에는 SUMMARY_H(한 줄)/SUMMARY_H2(두 줄) 두 경우가
+# 전부였고, 그 구조에서는 세 줄이 두 줄 높이 안에 그려져 사용자에게 잘린 것으로 보인다.
+# 제공자가 둘이 되고 넘치는 줄이 접히면서 3~5줄이 일상이 됐으므로 두 상수로는 못 버틴다.
+SUMMARY_LINE_H = 16       # 줄 하나가 차지하는 높이
+SUMMARY_PAD_V = 7         # 필 위아래 여백(각각)
+SUMMARY_H = SUMMARY_PAD_V * 2 + SUMMARY_LINE_H          # 30 — 한 줄(예전 값과 같다)
+SUMMARY_H2 = SUMMARY_PAD_V * 2 + SUMMARY_LINE_H * 2     # 46 — 두 줄(예전 값과 같다)
+
+# 로고가 차지하는 가로 자리(마크 폭 + 글자와의 간격). **run 이 아니다** — run 목록은
+# (text, kind) 뿐이고 거기에 이미지를 끼우면 렌더러와 모든 measure 가 그것을 알아야 한다.
+# 대신 제공자 블록 전체를 이만큼 들여쓰고, 그 제공자의 **모든 줄**이 budget - 이 값을
+# 텍스트 예산으로 쓴다. 접혀서 생긴 이어지는 줄도 같은 들여쓰기라 세로로 정렬된다.
+#
+# 14 는 본문 11pt 의 대문자 높이보다 조금 큰 값이라 마크가 글자와 같은 무게로 읽힌다
+# (24×24 뷰박스를 14pt 정사각으로 래스터화한다). 4 는 마크와 첫 글자 사이 간격이다.
+# 로고는 장식이 아니라 폭을 **벌어 주는** 장치이기도 하다: "Codex " 라는 글자 접두사를
+# 마크가 대신하므로 그 제공자의 행마다 접두사 글자 폭을 통째로 돌려받는다.
+SUMMARY_LOGO_MARK = 14
+SUMMARY_LOGO_GAP = 4
+SUMMARY_LOGO_W = SUMMARY_LOGO_MARK + SUMMARY_LOGO_GAP
+
+# 로고 에셋은 fonts/ 와 똑같은 세 자리를 지나야 한다 — setup.py 리소스, build_app.sh 의
+# build_body() **와** update_installed() 양쪽 복사, verify_release_artifact.py 의 거부.
+# 셋 중 하나라도 빠지면 소스 실행은 멀쩡한데 번들에서만 로고가 사라진다. fonts/ 가 정확히
+# 그 실패를 한 적이 있다.
+SUMMARY_LOGO_DIR = "logos"
+SUMMARY_LOGO_FILES = {"claude": "claude.svg", "codex": "openai.svg"}
+# openai.svg 는 fill="currentColor" 라 색을 우리가 정해야 한다 — 안 정하면 검게 칠해져
+# 어두운 필 배경에서 사라진다. Claude 마크는 자체 컬러를 갖고 있어 이 비대칭이 생긴다.
+# 필 본문 글자색과 같은 값을 준다: 두 마크의 시각적 무게가 맞고, 어느 배경에서도 보인다.
+SUMMARY_LOGO_TINT = {"codex": TXT_MAIN}
+SUMMARY_MIN_W = 120       # 요약 필 최소 폭. 상한은 상수가 아니라 화면이다(roam_pill_rect)
+SUMMARY_EDGE = 4          # 논리 창 가장자리와 필 사이 여백. 폭의 상한도 이 값으로 정해진다 —
+                          # 배치와 상한이 같은 숫자를 쓰는 것이 요점이다(한쪽만 바뀌면 필이 잘린다).
 
 
 def roam_pill_rect(mode, right, bottom, W, PW, PH, pill_h, text_w=0, text_h=SUMMARY_H):
     """표시 모드의 필 사각형 (논리 창 flipped 좌표: 좌상단 원점). "folded" 면 None.
 
-    full 과 summary 는 같은 필이다: 글자 폭에 맞춘(SUMMARY_MIN_W..PILL_W) 필을 펫 쪽에 정렬해 펫 위/아래에
-    붙인다. 높이는 text_h(한 줄 SUMMARY_H 또는 두 줄 SUMMARY_H2, 띠 높이 pill_h 를 넘지 않음). 펫이 아래쪽이면
-    띠 안에서 아래 맞춤(펫에 붙음), 위쪽이면 펫 바로 아래.
+    full 과 summary 는 같은 필이다: **글자 폭에 맞춰** 늘어나는 필을 펫 쪽에 정렬해 펫 위/아래에 붙인다.
+    높이는 text_h(줄 수의 함수 — pill_h 참조, 띠 높이를 넘지 않음). 펫이 아래쪽이면 띠 안에서 아래
+    맞춤(펫에 붙음), 위쪽이면 펫 바로 아래.
+
+    **폭의 상한은 화면이다** — 여기 들어오는 논리 창 W 에서 양쪽 가장자리 여백만 뺀 값이고,
+    아래 배치식이 쓰는 그 여백과 같은 값이다(SUMMARY_EDGE). 예전에는 상한이 PILL_W(300)라는
+    근거 없는 상수였고, 그게 내용이 잘리던 유일한 원인이었다. 가변폭 필에 임의의 상한을
+    씌워 두면 그 상한이 곧 잘림선이 된다. 최소 지원 화면(1366)에서 가장 긴 줄도 이 상한의
+    3분의 1을 못 채우므로, 현실에서 이 상한에 닿는 일은 없다.
+
+    하한은 그대로 SUMMARY_MIN_W 다. 짧은 내용에 넓은 필이 붙어 있는 것이 제일 안 유려하다.
     """
     if mode in (DISPLAY_FULL, DISPLAY_SUMMARY):
-        w = min(PILL_W, max(SUMMARY_MIN_W, text_w + 2 * PILL_PAD))
+        room = max(SUMMARY_MIN_W, W - 2 * SUMMARY_EDGE)
+        w = min(room, max(SUMMARY_MIN_W, text_w + 2 * PILL_PAD))
         h = min(pill_h, text_h)
-        return (W - w - 4 if right else 4, pill_h + 4 - h if bottom else PH + GAP, w, h)
+        return (W - w - SUMMARY_EDGE if right else SUMMARY_EDGE,
+                pill_h + SUMMARY_EDGE - h if bottom else PH + GAP, w, h)
     return None
 
 
@@ -7708,11 +7939,21 @@ def run_gui():
     apply_config(cfg)
     g = {"scale": max(0.3, min(2.0, float(cfg.get("scale", 0.5))))}  # 기본 0.5×
 
+    def pill_band():
+        """논리 창이 요약 필에 내어 주는 띠 높이 — **지금 그려질 줄 수** 기준.
+
+        예전에는 geom()·pillRect()·petOrigin()·roam_apply_display() 가 전부 인자 없는
+        높이 함수를 불렀고, 그건 언제나 두 줄 높이였다. 제공자가 둘이 되고 접힘이 생기면서
+        3줄 이상이 일상이 됐고, 그 상태로는 세 줄이 두 줄 높이 안에 그려져 **폭을 고쳐
+        놓고 높이로 똑같이 잘려 보이는** 상태가 된다. 줄 수는 어댑터가 state 에 남긴다.
+        """
+        return pill_h(state.get("summary_lines_n") or 2)
+
     def geom():
         pw = int(PW0 * g["scale"])
         ph = int(PH0 * g["scale"])
         w = max(pw + BTN_R * 2 + 16, PILL_W + 8)
-        h = ph + GAP + pill_h() + 4
+        h = ph + GAP + pill_band() + 4
         return pw, ph, w, h
 
     PW, PH, W, H = geom()
@@ -7870,15 +8111,15 @@ def run_gui():
             rects = state.get("roam_rects")
             if rects:
                 return rects.get("pill")
-            _main, _sub, text_w, text_h = roam_summary_text()
+            _blocks, text_w, text_h = roam_summary_text()
             return roam_pill_rect(roam_mode_now(), self.petOnRight(), self.petOnBottom(),
-                                  W, PW, PH, pill_h(), text_w, text_h)
+                                  W, PW, PH, pill_band(), text_w, text_h)
 
         def petOrigin(self):
             rects = state.get("roam_rects")
             if rects:
                 return (rects["sprite"][0], rects["sprite"][1])
-            py = pill_h() + GAP if self.petOnBottom() else 2
+            py = pill_band() + GAP if self.petOnBottom() else 2
             # 버튼이 안쪽에 붙으므로 펫은 창 가장자리에 밀착
             if self.petOnRight():
                 return (W - PW - 6, py)   # 펫 오른쪽 끝, 버튼은 왼쪽 안쪽
@@ -8197,6 +8438,24 @@ def run_gui():
         f = win.frame()
         return (f.size.width, f.size.height)
 
+    def _pill_text_budget():
+        """한 줄이 쓸 수 있는 텍스트 폭의 **상한**. 기준은 화면이지 상수가 아니다.
+
+        필은 내용에 맞춰 늘어나므로(roam_pill_rect) 이 값은 '보통 폭'이 아니라 '여기까지는
+        늘어나도 화면 밖으로 안 나간다'는 한계다. 가장 긴 실측 줄도 최소 지원 화면 폭의
+        4분의 1을 못 채우므로 현실에서 닿지 않는다 — 그래서 접힘이 안전장치인 것이다.
+        """
+        try:
+            scr = (win.screen() if win else None) or NSScreen.mainScreen()
+            avail = float(scr.visibleFrame().size.width)
+        except Exception:
+            avail = float(W)
+        # 로고 폭은 **빼지 않는다.** 그 뺄셈은 summary_lines 의 것이다 — 로고는 제공자별
+        # 개념이고 제공자를 아는 곳은 거기뿐이다. 양쪽에서 빼면 예산이 두 번 깎이고,
+        # 오늘은 무해하지만(화면이 예산이라 아무것도 근처에 안 간다) 접힘이 처음으로
+        # 실제로 도는 날 — 뭔가가 진짜로 예산에 닿는 바로 그 순간 — 틀린다.
+        return max(SUMMARY_MIN_W, avail - 2 * SUMMARY_EDGE - 2 * PILL_PAD)
+
     def roam_crop_now():
         """현재 crop (cx, cy, cw, ch), 논리 창 flipped 좌표. 없으면 논리 창 전체."""
         crop = state.get("roam_crop")
@@ -8342,14 +8601,121 @@ def run_gui():
         # 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 구간 자체가 없다 — 0% 를 지어내지 않는다.
         codex_hook = state.get("codex_summary")
         segments = [segment] + [s for s in ((codex_hook() if codex_hook else None),) if s]
-        main, sub = roam_summary_runs(segments, t)
+        # 제공자별 줄 묶음. **여기서 접히고, 그린 뒤에 다시 자르는 곳은 없다.**
+        # 예산은 화면이다 — 예전에는 PILL_W(300)이라는 근거 없는 상수였고 그게 Codex 행이
+        # 화면에 닿지 못한 원인이었다. 이제 상한이 화면이라 접힘은 현실에서 거의 발화하지
+        # 않는 안전장치지만, 제공자가 더 늘거나 값이 비정상적으로 길어지는 날을 위해 남는다.
+        measure = lambda v: astr(v, F_SUMMARY).size().width
+        budget = _pill_text_budget()
+        blocks = summary_lines([(pid, [seg]) for pid, seg in
+                                zip(("claude", "codex"), segments)],
+                               measure, budget)
+        # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
+        # run 하나로 붙인다. 두 가지를 동시에 틀리기 쉬운 자리다:
+        #
+        #   · 게이지 **행**으로 만들면 라벨+수치 쌍이 되어 있지도 않은 0% 를 지어낸다.
+        #     "⚠ ≈0%" 를 본 사용자는 거의 안 썼다고 읽는다 — 이 저장소가 어디서나 거부하는
+        #     그 거짓말이 하필 경고에 붙는다.
+        #   · 그냥 **마지막 줄**(lines[-1])에 붙이면 리셋 줄이 있을 때 — 흔한 경우다 —
+        #     흐린 sub 색으로 리셋 시각 옆에 그려져 "리셋 시각에 대한 주석"처럼 읽힌다.
+        #     마커가 말하는 것은 **수치가 추정치라는 것**이지 리셋에 대한 것이 아니다.
+        #     CLAUDE.md 도 "첫 줄 끝"이라고 쓴다.
+        #
+        # 그래서 게이지 줄이 몇 줄인지 같은 예산으로 다시 접어 세고, 그 마지막 줄에 붙인다.
         if segment[0] == "estimate" and OAUTH_STATUS.get("auth_error"):
-            main.append((" ⚠", "status"))
-        w_main = sum(astr(text, F_SUMMARY).size().width for text, _kind in main)
-        w_sub = sum(astr(text, F_SUMMARY_SUB).size().width for text, _kind in sub)
-        value = (main, sub, max(w_main, w_sub), (SUMMARY_H2 if sub else SUMMARY_H))
+            gauge_runs = roam_summary_runs([segment], t)[0]
+            n_gauge = len(_summary_fold_runs(gauge_runs, budget - SUMMARY_LOGO_W, measure))
+            for pid, lines in blocks:
+                if pid == "claude" and lines:
+                    lines[min(max(n_gauge, 1), len(lines)) - 1].append((" ⚠", "status"))
+                    break
+        text_w = 0.0
+        for _pid, lines in blocks:
+            for line in lines:
+                text_w = max(text_w, sum(measure(txt) for txt, _k in line))
+        n_lines = sum(len(lines) for _pid, lines in blocks)
+        state["summary_lines_n"] = n_lines      # 창 높이가 따라간다(pill_band)
+        value = (blocks, text_w + SUMMARY_LOGO_W, pill_h(n_lines))
         _summary_memo["key"], _summary_memo["value"] = key, value
         return value
+
+    _logo_cache = {}
+
+    def _tinted_logo(src, tint, size):
+        """마크를 `tint` 색으로 미리 칠한 사본. 모양(알파)은 그대로, 색만 바뀐다.
+
+        요점은 **sourceAtop(연산자 5)** 이다: 이미 그려진 픽셀의 알파 안쪽에만 색을
+        얹으므로 마크의 실루엣이 유지된다. sourceOver 로 칠하면 사각형 전체가 덮인다.
+
+        NSBezierPath 에는 fillWithOperation_ 이 없다 — NSRectFillUsingOperation 을 쓴다.
+        """
+        out = NSImage.alloc().initWithSize_(NSMakeSize(size, size))
+        rect = NSMakeRect(0, 0, size, size)
+        out.lockFocus()
+        try:
+            src.drawInRect_fromRect_operation_fraction_respectFlipped_hints_(
+                rect, NSZeroRect, 2, 1.0, True, None)       # 2 = sourceOver
+            hexcolor(tint).set()
+            NSRectFillUsingOperation(rect, 5)               # 5 = sourceAtop
+        finally:
+            out.unlockFocus()
+        return out
+
+    def summary_logo_image(provider):
+        """제공자 마크(NSImage) 또는 None. 번들/소스 양쪽에서 같은 파일을 읽는다.
+
+        openai.svg 는 fill="currentColor" 라 색을 우리가 정해야 한다 — 안 정하면 기본값인
+        검정으로 래스터화되고, 어두운 필 배경에서 그대로 사라진다. Claude 마크는 자체
+        컬러를 갖고 있어 이 비대칭이 생긴다. **어떤 테스트도 이걸 못 잡는다** — 한쪽 마크만
+        조용히 안 보이는 번들이 나갈 수 있고, 실제로 그 상태였다.
+
+        **그리는 자리에서 칠하려고 하면 안 된다.** 한때 여기서 setTemplate_(True) 를 켜고
+        draw 직전에 hexcolor(tint).set() 을 했는데 **둘이 합쳐서 아무 일도 하지 않았다**:
+        template 플래그는 NSButton/NSImageView 같은 셀이 그릴 때 해석하는 것이라 직접
+        그리기 경로에서는 무시되고, 컨텍스트의 fill color 는 도형에만 적용되지 비트맵
+        합성에는 적용되지 않는다. 픽셀을 세어 확인했다 — 틴트를 건 경우와 아예 안 건
+        경우의 색 분포가 바이트 단위로 같았고, 둘 다 (0,0,0) 검정이었다.
+        그래서 **미리 칠한 사본**을 만들어 둔다(_tinted_logo).
+
+        칠한 사본을 캐시하는 것도 요점이다 — 필은 20 Hz 로 다시 그려지고, 매 프레임
+        lockFocus 를 반복할 이유가 없다. 틴트가 선언된 제공자만 사본을 만든다.
+        """
+        if provider in _logo_cache:
+            return _logo_cache[provider]
+        img = None
+        name = SUMMARY_LOGO_FILES.get(provider)
+        if name:
+            try:
+                path = bundled_logo_path(name)
+                if path:
+                    img = NSImage.alloc().initWithContentsOfFile_(path)
+                if img is not None:
+                    img.setSize_(NSMakeSize(SUMMARY_LOGO_MARK, SUMMARY_LOGO_MARK))
+                    tint = SUMMARY_LOGO_TINT.get(provider)
+                    if tint:
+                        img = _tinted_logo(img, tint, SUMMARY_LOGO_MARK)
+            except Exception as exc:
+                _dbg("logo: load failed", provider, type(exc).__name__)
+                img = None
+        _logo_cache[provider] = img
+        return img
+
+    def draw_summary_logo(provider, left, cy):
+        """필 왼쪽에 마크 한 개. 색은 이미 사본에 들어 있으므로 여기서는 칠하지 않는다.
+
+        파일이 없으면 조용히 건너뛴다 — 마크가 없다고 수치를 못 보여 줄 이유는 없고,
+        들여쓰기는 그대로라 정렬도 깨지지 않는다.
+        """
+        img = summary_logo_image(provider)
+        if img is None:
+            return
+        rect = NSMakeRect(left, cy - SUMMARY_LOGO_MARK / 2.0,
+                          SUMMARY_LOGO_MARK, SUMMARY_LOGO_MARK)
+        try:
+            img.drawInRect_fromRect_operation_fraction_respectFlipped_hints_(
+                rect, NSZeroRect, 2, 1.0, True, None)       # 2 = sourceOver
+        except Exception as exc:
+            _dbg("logo: draw failed", provider, type(exc).__name__)
 
     def _draw_runs(runs, fonts_by_kind, fallback, x, w, cy):
         """run 들을 가로 가운데 정렬로, 세로는 cy 를 중심으로 그린다."""
@@ -8364,8 +8730,13 @@ def run_gui():
     def draw_summary_pill():
         """요약 필: 펫에 붙은 둥근 필. 첫 줄 = 라벨(잔여량 색)+수치(출처 색), 둘째 줄 = 리셋 시각(보조색).
 
-        run 들이 필의 안쪽 폭(패딩 제외)을 넘으면 같은 폰트로 재면서 뒤에서부터 덜어내고 말줄임한다 — 폰트를
-        줄이지 않으므로 측정과 그리기가 같은 글꼴로 일치한다.
+        **여기서는 아무것도 자르지 않는다.** 줄을 나누는 일은 전부 summary_lines 가 이미
+        끝냈고(roam_summary_text 경유), 그린 뒤에 다시 재는 곳이 있으면 그게 곧 잘림선이
+        된다 — Codex 행이 화면에 닿지 못하던 원인이 정확히 이 자리의 roam_fit_runs 였다.
+
+        제공자 블록마다 왼쪽에 마크를 그리고 그 제공자의 **모든 줄**을 마크 폭만큼
+        들여쓴다. 접혀서 생긴 이어지는 줄도 같은 들여쓰기라 세로로 맞는다. 마크는 run 이
+        아니라 들여쓰기이므로 폭 계산(summary_lines)과 그리기가 같은 약속을 쓴다.
         """
         pill = view.pillRect()
         if not pill:
@@ -8374,15 +8745,20 @@ def run_gui():
         C_PILL.set()
         NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
             NSMakeRect(x, y, w, h), h / 2, h / 2).fill()
-        main, sub, _tw, _th = roam_summary_text()
-        inner = w - 2 * PILL_PAD
-        main = roam_fit_runs(main, inner, lambda v: astr(v, F_SUMMARY).size().width)
-        if sub and h >= SUMMARY_H2:
-            sub = roam_fit_runs(sub, inner, lambda v: astr(v, F_SUMMARY_SUB).size().width)
-            _draw_runs(main, F_SUMMARY_BY_KIND, F_SUMMARY, x, w, y + 15)
-            _draw_runs(sub, F_SUMMARY_SUB_BY_KIND, F_SUMMARY_SUB, x, w, y + h - 12)
-        else:
-            _draw_runs(main, F_SUMMARY_BY_KIND, F_SUMMARY, x, w, y + h / 2)
+        blocks, _tw, _th = roam_summary_text()
+        rows = [(pid, line) for pid, lines in blocks for line in lines]
+        if not rows:
+            return
+        text_x = x + PILL_PAD + SUMMARY_LOGO_W
+        text_w = w - 2 * PILL_PAD - SUMMARY_LOGO_W
+        top = y + (h - len(rows) * SUMMARY_LINE_H) / 2.0
+        seen = set()
+        for i, (pid, line) in enumerate(rows):
+            cy = top + i * SUMMARY_LINE_H + SUMMARY_LINE_H / 2.0
+            if pid not in seen:          # 마크는 제공자의 첫 줄에만
+                seen.add(pid)
+                draw_summary_logo(pid, x + PILL_PAD, cy)
+            _draw_runs(line, F_SUMMARY_BY_KIND, F_SUMMARY, text_x, text_w, cy)
 
     def roam_apply_display(phase):
         """표시 모드 → crop/rect → 실제 창 크기·원점. 경로·집은 건드리지 않는다 → 다시 그릴지."""
@@ -8390,10 +8766,10 @@ def run_gui():
         if disp is None:
             return False
         mode = disp.mode(phase, state["show_panel"])
-        text_w, text_h = (roam_summary_text()[2:] if mode != DISPLAY_FOLDED else (0.0, SUMMARY_H))
+        text_w, text_h = (roam_summary_text()[1:] if mode != DISPLAY_FOLDED else (0.0, SUMMARY_H))
         w_, h_ = roam_env()
         lay = roam_frame(roamer.pos, mode, view.petOnRight(), view.petOnBottom(),
-                         w_, h_, PW, PH, pill_h(), g["scale"], text_w, text_h)
+                         w_, h_, PW, PH, pill_band(), g["scale"], text_w, text_h)
         crop = tuple(lay["crop"])
         changed = crop != state.get("roam_crop") or mode != state.get("roam_mode")
         if changed:
@@ -9235,10 +9611,17 @@ def run_gui():
         login 은 터미널 없는 경로를 먼저 쓰고, launchd 가 받아 주지 않으면 예전의
         터미널 창 경로로 내려간다 — 눌렀는데 아무 일도 안 일어나는 것보다는 창이 낫다.
         install 은 그대로 터미널이다: curl | bash 는 사용자가 보고 있어야 하는 일이다.
+
+        recover 도 같은 원칙이다. 복구가 'claude 를 못 찾겠다'로 끝나면 그대로 조용히
+        끝내지 않고 설치 경로를 연다 — 누른 사람에게는 그게 유일하게 남은 길이다.
+        이 분기가 실제로 닿는 사용자는 claude 를 _find_claude_cli() 가 보는 다섯 자리
+        밖에 둔 사람들이다(nvm·fnm·volta·asdf, 커스텀 npm prefix). Finder 로 띄운
+        LSUIElement 앱은 PATH 가 빈약해 shutil.which 가 그들을 못 본다.
         """
         try:
             if act == "recover":
-                _recovery_step(force=True)
+                if _recovery_step(force=True) == "onboard_install":
+                    start_claude_install()
             elif act == "install":
                 start_claude_install()
             elif act == "login" and not start_claude_login_background():
@@ -9365,12 +9748,18 @@ def run_gui():
                     values["onboard"] = compute_onboard_state(
                         oauth, bool(s.get("entries")))
                     # 토큰을 살려 두는 자리. 판단은 순수 함수가 하고 여기서는 실행만 한다.
-                    # 복구가 'claude 가 없다'로 끝났고 **이미 온보딩이 필요한 상태였다면**
-                    # 둘 중 더 구체적인 쪽으로 좁힌다(로그인 안내 → 설치 안내). 이미
-                    # None 이면 건드리지 않는다 — 보여 줄 수치가 있는 사용자의 필을
-                    # '미설치' 문구로 덮어 버리는 것이 그 반대 구현의 대가다.
-                    if _recovery_step() == "onboard_install" and values["onboard"]:
-                        values["onboard"] = "install"
+                    # 여기서 action 을 보고 values["onboard"] 를 덮어쓰지 **않는다**.
+                    # 한때 "'onboard_install' 이면 안내를 설치 쪽으로 좁힌다" 는 두 줄이
+                    # 있었는데 도달 불가능한 코드였다: action 이 'onboard_install' 이려면
+                    # _find_claude_cli() 가 거짓이어야 하고, 바로 윗줄의
+                    # compute_onboard_state 는 같은 함수를 같은 패스에서 불러 그때 이미
+                    # 'install'(또는 None)을 내놓는다. 좁힐 'login' 이 존재할 수가 없다.
+                    # 되살리지 말 것 — 그 조건을 느슨하게 풀면 이번엔 반대로, 보여 줄
+                    # 수치가 있는 사용자의 필을 '미설치' 문구로 덮게 된다(roam_summary 는
+                    # 온보딩을 추정 게이지보다 먼저 본다).
+                    # claude 를 못 찾는 사용자에게 실제로 길을 열어 주는 자리는 자동
+                    # 경로가 아니라 사용자가 직접 누른 경로다 — _summary_click_work 참조.
+                    _recovery_step()
                     prev = state["stats"]
                     if not commit_refresh_result(state, gen, values):
                         return                             # 더 새 요청이 있다 → 버림

@@ -822,8 +822,10 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      NSScreen=SimpleNamespace(screens=lambda: [screen], mainScreen=lambda: screen),
                      NSEvent=SimpleNamespace(mouseLocation=lambda: SimpleNamespace(x=1200, y=350)),
                      NSMakeRect=fake_rect, NSMakePoint=lambda x, y: SimpleNamespace(x=x, y=y),
-                     PW=80, PH=60, W=300, H=220, g={"scale": 0.5}, pill_h=lambda: 152,
-                     roam_summary_text=lambda: ([], [], 130, 30), spike_info=lambda stats: None,
+                     PW=80, PH=60, W=300, H=220, g={"scale": 0.5}, pill_h=lambda lines=2: 152,
+                     # v0.26 shape: (provider blocks, text width incl. the mark indent, height)
+                     roam_summary_text=lambda: ([], 130, 30),
+                     spike_info=lambda stats: None,
                      set_override=lambda name, **kw: state.update(override=name),
                      clear_sticky=lambda: state.update(override=None), cfg={},
                      merge_config_updates=lambda values: world["writes"].append(values))
@@ -884,7 +886,13 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         after onboarding ends — ``t()`` reads the module-level ``L["lang"]``, so the
         scope below supplies ``L`` the way the application's globals do)."""
         from datetime import datetime, timezone
-        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H", "SUMMARY_H2"})
+        # v0.26: roam_summary_text now folds through summary_lines and returns
+        # (blocks, text_w, height) instead of (main, sub, w, h). The pure helpers it
+        # reaches have to come along, and the screen-derived budget is stubbed below so
+        # this stays a formatter test rather than a geometry one.
+        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
+                              "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
+                              "SUMMARY_LINE_H", "pill_h"})
         now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
         state = {"oauth": None, "stats": {"session": {"pct": 42}, "weekly": {"pct": 17}},
                  "cost": None, "cost_month": None}
@@ -904,18 +912,51 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      OAUTH_STATUS=oauth_status, datetime=datetime, timezone=timezone,
                      spike_info=lambda stats: spikes["value"],
                      fmt_countdown=lambda reset, at: "in 3h" if reset else "-",
+                     # INERT, and left only because removing it is a separate change:
+                     # `_label_order` is consulted from inside `roam_summary`, which is a
+                     # module-level function whose globals are pure_api's namespace — not
+                     # this scope, which is only the globals of the nested functions
+                     # `gui_functions` extracts. The **real** `_label_order` is what runs.
+                     # Do not reason about this test's row selection from this stub; a
+                     # reader who did got a wrong answer once already.
                      _label_order=lambda label: {"session": 0, "주간": 1, "Fable": 2,
                                                  "Credits": 9}.get(label, 5),
                      _summary_memo={"key": None, "value": None},
                      _time=SimpleNamespace(time=lambda: clock["now"]),
                      t=lambda key: {"session": "세션", "weekly": "주간", "reset_prefix": "reset ",
                                     "today": "Today", "this_month": "This month"}.get(key, key),
+                     # A budget far wider than any fixture here: this test is about which
+                     # runs come out and what the memo is keyed on, not about folding.
+                     # Production derives this from the screen (_pill_text_budget).
+                     _pill_text_budget=lambda: 10_000.0,
                      astr=astr)
+        # ``summary_lines`` is a module-level function, so it translates through the
+        # module-level ``t`` in ``pure_api``'s namespace — not through the stub in the
+        # scope below, which only reaches the nested functions extracted by
+        # ``gui_functions``. Before v0.26 all the translating happened inside
+        # ``roam_summary_text`` and the scope stub was enough; folding moved it out.
+        # Inject the same stub into that namespace so this stays a test of *which keys*
+        # reach the line rather than of the Korean strings they resolve to.
+        api["t"] = scope["t"]
         gui_functions(self, ("roam_summary_text",), scope)
         text = scope["roam_summary_text"]
 
         def lines():
-            main, sub, width, height = text()
+            """(first-line text, reset-line text, width, height) from the new shape.
+
+            ``roam_summary_text`` returns provider blocks now. Everything below still
+            asks the old two questions — what is on the gauge line and what is on the
+            reset line — so they are recovered here: within a provider the reset line is
+            the trailing line whose runs are all ``sub``.
+            """
+            blocks, width, height = text()
+            rows = [line for _pid, block in blocks for line in block]
+            # A reset line is one that *opens* with a ``sub`` run. Classifying by "every
+            # run is sub" breaks the moment a marker is appended to it, which is exactly
+            # the bug below — and a helper that silently reclassifies a line is how that
+            # bug would have stayed invisible.
+            main = [r for line in rows if not (line and line[0][1] == "sub") for r in line]
+            sub = [r for line in rows if line and line[0][1] == "sub" for r in line]
             return ("".join(t for t, _k in main), "".join(t for t, _k in sub), width, height)
 
         def fresh():
@@ -923,7 +964,7 @@ class CompanionCompactRegressionTests(unittest.TestCase):
             state["stats"] = dict(state["stats"])
             clock["now"] += 5
 
-        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17%", "", 17, api["SUMMARY_H"]))
+        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17%", "", 17 + api["SUMMARY_LOGO_W"], api["SUMMARY_H"]))
         # memo: the same inputs inside the 5-second window measure nothing again and
         # return the very same object; a flipped auth error, a new stats object, or the
         # next 5-second window each recompute.
@@ -933,7 +974,36 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         self.assertIs(text(), first)
         self.assertEqual(measured, [], "a second call in the same window re-measured the text")
         oauth_status["auth_error"] = True
-        self.assertEqual(text()[0][-1], (" ⚠", "status"))
+        # ``text()[0]`` is the provider blocks now, not a flat run list. The ⚠ still
+        # belongs at the end of the Claude segment.
+        #
+        # **It must stay a bare marker run.** The v0.24 contract (CLAUDE.md) is "the old
+        # status line's ⚠ survives as a trailing run appended by the adapter" — a run,
+        # not a gauge row. Appending it as a row instead makes the estimate renderer give
+        # it a value, and the pill reads `… Fable ≈12% · ⚠ ≈0%`. That fabricated 0% is
+        # the exact lie this repository refuses everywhere else ("0% 를 지어내지 않는다"),
+        # and here it is stapled to a warning, where a user reading "0%" would conclude
+        # they had used almost nothing.
+        claude_block = dict(text()[0])["claude"]
+        gauge_lines = [ln for ln in claude_block if not (ln and ln[0][1] == "sub")]
+        reset_lines = [ln for ln in claude_block if ln and ln[0][1] == "sub"]
+        rendered = "".join(t for ln in gauge_lines for t, _k in ln)
+        self.assertNotIn(
+            "0%", rendered,
+            f"the ⚠ is being rendered as a gauge row with an invented percentage: "
+            f"{rendered!r} — it must be a trailing marker run, not a row")
+        # CLAUDE.md: "토큰 만료(401 지속)로 추정치로 내려간 상태는 **첫 줄 끝** ⚠".
+        # It marks the *numbers* as estimates, so it belongs beside them — not on the
+        # dim reset line, where it reads as a comment about the reset time and is drawn
+        # in the sub colour. Appending to the block's last line puts it there whenever a
+        # reset line exists, which is the common case.
+        self.assertEqual(
+            gauge_lines[-1][-1], (" ⚠", "status"),
+            f"the auth-error marker is not at the end of the gauge line: {rendered!r}")
+        for line in reset_lines:
+            self.assertNotIn(
+                "⚠", "".join(t for t, _k in line),
+                "the ⚠ landed on the reset line — it marks the numbers, not the reset time")
         self.assertTrue(measured, "an auth-error flip must invalidate the memo")
         measured.clear()
         clock["now"] += 5
@@ -963,23 +1033,29 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         state["stats"]["now"] = now
         state["stats"]["session"] = {"pct": 42, "reset": now}
         state["stats"]["weekly"] = {"pct": 17, "reset": now}
-        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17% ⚠", "reset 세션 in 3h", 19, api["SUMMARY_H2"]))
+        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17% ⚠", "reset 세션 in 3h", 19 + api["SUMMARY_LOGO_W"], api["SUMMARY_H2"]))
         state["oauth"] = [("session", 42, None, None), ("주간", 17, None, None),
                           ("Claude Fable 5", 12, None, None), ("Credits", 5, None, None)]
-        self.assertEqual(lines(), ("session 42% · 주간 17% · Claude Fable 5 12%", "", 41, api["SUMMARY_H"]),
+        self.assertEqual(lines(), ("session 42% · 주간 17% · Claude Fable 5 12%", "", 41 + api["SUMMARY_LOGO_W"], api["SUMMARY_H"]),
                          "only credits are dropped; a non-family model label is kept")
         state["oauth"] = [("session", 42, now, None), ("주간", 17, None, "next Monday")]
         self.assertEqual(lines()[1], "reset session in 3h · 주간 next Monday")
         self.assertEqual(lines()[3], api["SUMMARY_H2"])
         spikes["value"] = {"session": True}
         fresh()
-        self.assertEqual(text()[0][0], ("▲session", "bad"))
+        self.assertEqual(dict(text()[0])["claude"][0][0], ("▲session", "bad"))
         self.assertNotIn("⚠", lines()[0])
         # API mode: the budget from RUNTIME reaches the cost segment and colours the month.
         runtime.update(mode="api", admin_key="k", api_budget=50)
         state.update(cost=12.375, cost_month=27.5)
         fresh()
-        main, sub, width, height = text()
+        # Same shape change as above: provider blocks, not a flat (main, sub) pair.
+        # API mode produces one cost line and no reset line, so the Claude block is a
+        # single line and `sub` is empty — asserted below rather than assumed.
+        blocks, width, height = text()
+        claude_lines = dict(blocks)["claude"]
+        main = [r for ln in claude_lines if not (ln and ln[0][1] == "sub") for r in ln]
+        sub = [r for ln in claude_lines if ln and ln[0][1] == "sub" for r in ln]
         self.assertEqual("".join(t for t, _k in main), "Today $12.38 · This month $27.50 / $50")
         # Round 3 swapped the roles: the word "this month" carries the budget share
         # colour and the amount is plain cost-coloured.
@@ -990,21 +1066,42 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         fresh()
         self.assertEqual(lines()[0], "Today $12.38 · This month $27.50")
 
-    def test_actual_summary_draw_keeps_long_text_inside_pill_padding(self):
-        """Rivals: runs drawn without fitting (overflow); the reset line drawn into a
-        one-line pill; the reset line above the gauges; fonts looked up by the wrong
-        kind; drawing with no pill rect."""
+    def test_actual_summary_draw_draws_every_provider_line_and_cuts_nothing(self):
+        """The real ``draw_summary_pill``, executed. Rewritten 2026-09-20.
+
+        It used to assert the opposite of what it now asserts, and that is the point
+        worth recording. Its old name ended ``keeps_long_text_inside_pill_padding`` and
+        its final check was ``self.assertTrue(draws[0][0].endswith("…"))`` — it *required*
+        the overflowing label to be ellipsised, because at the time the drawing function
+        called ``roam_fit_runs`` itself. So the one test that actually ran the drawing
+        path was pinning the truncation, and it stayed green through every round in which
+        the Codex row was being cut off the screen.
+
+        The contract is now the reverse: ``summary_lines`` has already split the lines,
+        and **the drawing function trims nothing**. Anything it is handed, it draws.
+
+        Rivals: drawing through a fitter again (nothing would be ellipsised only because
+        the fixture is short — so the fixture here is deliberately wider than the pill);
+        drawing only the first provider; repeating a provider's mark on its folded
+        continuation lines; drawing a mark for a provider with no lines; drawing with no
+        pill rect.
+        """
         draws = []
+        logos = []
         long_label = "A server-provided usage label that exceeds the small summary pill"
+
         def astr(value, font):
             width = sum(10 if char.isupper() else 7 for char in value)
             return SimpleNamespace(size=lambda: SimpleNamespace(width=width, height=13),
                     drawAtPoint_=lambda p: draws.append((value, p.x, p.x + width, p.y, font)))
-        content = {"main": [(long_label, "exact"), (" 42%", "value")], "sub": [], "h": 30}
-        pill = {"rect": (4, 66, 260, 30)}
-        api = pure_api(self, {"roam_summary", "roam_fit_runs", "SUMMARY_H2"})
+
+        blocks = {"value": [("claude", [[(long_label, "exact"), (" 42%", "value")]])]}
+        pill = {"rect": (4, 66, 260, 46)}
+        api = pure_api(self, {"roam_summary", "SUMMARY_H2", "SUMMARY_LINE_H",
+                              "SUMMARY_LOGO_W"})
         scope = dict(api, view=SimpleNamespace(pillRect=lambda: pill["rect"]),
-                     roam_summary_text=lambda: (content["main"], content["sub"], 999, content["h"]),
+                     roam_summary_text=lambda: (blocks["value"], 999, pill["rect"][3]),
+                     draw_summary_logo=lambda pid, lx, ly: logos.append((pid, lx, ly)),
                      astr=astr, F_SUMMARY="main-font", F_SUMMARY_SUB="sub-font",
                      F_SUMMARY_BY_KIND={"exact": "exact-font"},
                      F_SUMMARY_SUB_BY_KIND={"sub": "sub-kind-font"}, PILL_PAD=13,
@@ -1013,31 +1110,71 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      NSBezierPath=SimpleNamespace(bezierPathWithRoundedRect_xRadius_yRadius_=
                                                  lambda *args: SimpleNamespace(fill=lambda: None)))
         gui_functions(self, ("draw_summary_pill",), scope)
+
         scope["draw_summary_pill"]()
         self.assertTrue(draws, "nothing was drawn")
-        self.assertGreaterEqual(min(d[1] for d in draws), 17, "summary text overflows the pill's left padding")
-        self.assertLessEqual(max(d[2] for d in draws), 251, "summary text overflows the pill's right padding")
-        self.assertTrue(draws[0][0].endswith("…"), "the overflowing label was not ellipsised")
+        self.assertEqual([d[0] for d in draws], [long_label, " 42%"],
+                         "the drawing path altered the text it was handed — it must not "
+                         "trim, ellipsise or re-fit anything")
+        for text, _x0, _x1, _y, _font in draws:
+            self.assertFalse(text.endswith("\u2026"),
+                             f"{text!r} was ellipsised while drawing; folding is "
+                             "summary_lines' job and the renderer must not re-cut")
         self.assertEqual(draws[0][4], "exact-font")
-        draws.clear()
-        content.update(main=[("Session", "exact"), (" 42%", "value")],
-                       sub=[("reset ", "sub"), ("Session in 3h", "sub")], h=46)
-        pill["rect"] = (4, 66, 260, 46)
+        self.assertEqual([pid for pid, _lx, _ly in logos], ["claude"],
+                         "the provider mark must be drawn exactly once")
+
+        # Two providers, one of them folded onto two lines: every line is drawn, the
+        # mark appears once per provider (not once per line), and the folded
+        # continuation is indented like its first line.
+        draws.clear(); logos.clear()
+        blocks["value"] = [
+            ("claude", [[("Session", "exact"), (" 42%", "value")],
+                        [("Weekly", "exact"), (" 17%", "value")]]),
+            ("codex", [[("Weekly", "exact"), (" 68%", "value")]]),
+        ]
+        pill["rect"] = (4, 66, 260, 3 * api["SUMMARY_LINE_H"] + 14)
         scope["draw_summary_pill"]()
-        self.assertEqual([d[0] for d in draws], ["Session", " 42%", "reset ", "Session in 3h"])
-        self.assertEqual(draws[1][4], "main-font")
-        self.assertEqual({d[4] for d in draws[2:]}, {"sub-kind-font"})
-        self.assertGreater(draws[2][3], draws[0][3],
-                           "the reset line must sit below the gauges (flipped coordinates)")
-        draws.clear()
-        pill["rect"] = (4, 66, 260, 30)
+        self.assertEqual([d[0] for d in draws],
+                         ["Session", " 42%", "Weekly", " 17%", "Weekly", " 68%"],
+                         "a folded line or a whole provider was dropped")
+        self.assertEqual([pid for pid, _lx, _ly in logos], ["claude", "codex"],
+                         "the mark must be drawn once per provider, not once per line")
+        # Runs are centred inside the indented box (``_draw_runs``), so lines of
+        # different widths start at different x — "same left edge" is the wrong test.
+        # What alignment means here is that every line is centred in the *same* box, and
+        # that the box begins after the pill padding plus the mark's width so no line
+        # ever runs under the logo.
+        by_line = {}
+        for text, x0, x1, y, _font in draws:
+            span = by_line.setdefault(round(y, 3), [x0, x1])
+            span[0] = min(span[0], x0)
+            span[1] = max(span[1], x1)
+        self.assertEqual(len(by_line), 3, f"expected 3 drawn lines, got {by_line}")
+        centres = {round((lo + hi) / 2.0, 3) for lo, hi in by_line.values()}
+        self.assertEqual(len(centres), 1,
+                         f"provider lines are not aligned in one box: {sorted(centres)}")
+        box_left = 4 + 13 + api["SUMMARY_LOGO_W"]
+        box_right = 4 + 260 - 13
+        self.assertAlmostEqual(centres.pop(), (box_left + box_right) / 2.0, places=3,
+                               msg="lines are not centred in the box left of the mark")
+        self.assertGreaterEqual(min(lo for lo, _hi in by_line.values()), box_left,
+                                "a line starts under the provider mark")
+        ordering = [d[3] for d in draws]
+        self.assertEqual(ordering, sorted(ordering),
+                         "lines must be drawn top to bottom in flipped coordinates")
+
+        draws.clear(); logos.clear()
+        blocks["value"] = []
         scope["draw_summary_pill"]()
-        self.assertEqual([d[0] for d in draws], ["Session", " 42%"],
-                         "a one-line pill must not draw the reset line")
-        draws.clear()
+        self.assertEqual((draws, logos), ([], []),
+                         "no lines means no marks either — a mark alone is a provider "
+                         "row with nothing in it")
+
+        draws.clear(); logos.clear()
         pill["rect"] = None
         scope["draw_summary_pill"]()
-        self.assertEqual(draws, [])
+        self.assertEqual((draws, logos), ([], []))
 
     def test_fit_contract_uses_measured_longest_prefix_and_tiny_width(self):
         api = pure_api(self, {"roam_fit_text", "roam_summary_line", "SUMMARY_APPROX"})

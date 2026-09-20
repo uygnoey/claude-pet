@@ -39,6 +39,7 @@ import ast
 import math
 import os
 import re
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -439,8 +440,12 @@ class PillGeometryTests(unittest.TestCase):
                                  (4, 4, 156, 46), "height must not exceed the pill strip")
                 self.assertEqual(rect(mode, False, False, 300, 80, 60, 46, text_w=0)[2],
                                  claude_pet.SUMMARY_MIN_W)
-                self.assertEqual(rect(mode, False, False, 300, 80, 60, 46, text_w=900)[2],
-                                 claude_pet.PILL_W)
+                # The old line here asserted this equals PILL_W. It now asks only that a
+                # very long line is capped by *something* no wider than the screen it was
+                # given — the cap's value is gated against the screen in
+                # PillWidthFollowsContentTests, not pinned to a constant here.
+                self.assertLessEqual(rect(mode, False, False, 300, 80, 60, 46, text_w=900)[2],
+                                     300)
         self.assertIsNone(rect("folded", False, False, 300, 80, 60, 46, text_w=130))
         self.assertEqual(rect("full", True, False, 300, 80, 60, 46, text_w=130, text_h=46),
                          rect("summary", True, False, 300, 80, 60, 46, text_w=130, text_h=46))
@@ -476,12 +481,149 @@ class PillGeometryTests(unittest.TestCase):
 
     def test_pill_strip_height_is_the_two_line_height(self):
         """Rivals: the old PILL_PAD*2 + ROW_H*n formula; SUMMARY_H; a constant that
-        cannot hold the two-line pill."""
+        cannot hold the two-line pill.
+
+        ``assertEqual(claude_pet.PILL_W, 300)`` was removed from this test on 2026-09-20.
+        It pinned the pill's width cap to a magic number, and that number turned out to
+        be the whole problem: the pill is already variable-width
+        (``min(PILL_W, max(SUMMARY_MIN_W, text_w + 2 * PILL_PAD))``), so the only thing
+        making content get cut was this ceiling — which nobody had ever justified. A test
+        asserting it equals 300 makes the arbitrary number load-bearing and blocks the
+        fix, while proving nothing about behaviour. What the cap must actually do is
+        gated by ``PillWidthFollowsContentTests`` below, in terms of the screen.
+        """
         self.assertEqual(claude_pet.pill_h(), claude_pet.SUMMARY_H2)
         self.assertEqual((claude_pet.SUMMARY_H, claude_pet.SUMMARY_H2), (30, 46))
-        self.assertEqual(claude_pet.PILL_W, 300)
         for removed in ("bar_color", "ROW_H", "STATUS_H", "CUR_PILL", "PILL_R", "TRACK"):
             self.assertFalse(hasattr(claude_pet, removed), f"{removed} should be gone with the gauge pill")
+
+
+class PillWidthFollowsContentTests(unittest.TestCase):
+    """The pill is variable-width. What must be true of how it varies.
+
+    **Why this class exists, stated plainly because the omission is the lesson.** For two
+    rounds the whole team — Reviewer, Coordinator, and me — measured content against a
+    274pt budget (``PILL_W 300 - 2*PILL_PAD``) and designed folding underneath it. Nobody
+    asked where 300 came from. The user did:
+
+        "아니 뭐가 자꾸 잘린다는거야! 안짤리게 잘하면 되는거 아니냐고!! 폭이 가변이면
+         안짤릴거 아니야!"
+
+    And they were right. ``roam_pill_rect`` already reads
+    ``min(PILL_W, max(SUMMARY_MIN_W, text_w + 2 * PILL_PAD))`` — the pill *already* grows
+    with its text. The only thing cutting content was the ceiling, an inherited constant
+    with a comment calling it "요약 필 최대 너비" and no derivation behind it. We treated it
+    as a law of physics and gated everything against it.
+
+    So these tests deliberately assert **no number**. They assert relationships: the cap
+    tracks the screen it is given, the pill grows when content grows, and it hugs short
+    content instead of floating a wide bar around a few characters ("유려하게", the user's
+    word). A test that pins a width is how the last one of these got missed.
+    """
+
+    RECT_ARGS = dict(PW=80, PH=60, pill_h=46)
+
+    def width(self, screen_w, text_w, mode="full"):
+        return claude_pet.roam_pill_rect(
+            mode, False, False, screen_w, self.RECT_ARGS["PW"], self.RECT_ARGS["PH"],
+            self.RECT_ARGS["pill_h"], text_w=text_w, text_h=46)[2]
+
+    def test_the_cap_follows_the_screen_not_a_constant(self):
+        """A line longer than any pill must be capped by the **screen**, not by a fixed
+        number — otherwise the same content is cut identically on a 1366pt laptop and a
+        5120pt display, which is the behaviour that produced this whole thread.
+
+        Rivals: ``min(PILL_W, …)`` with PILL_W a module constant (today — the width comes
+        out identical on both screens); a bigger constant, which is the same mistake with
+        a later failure date.
+        """
+        narrow = self.width(1366, text_w=100_000)
+        wide = self.width(5120, text_w=100_000)
+        self.assertGreater(
+            wide, narrow,
+            "a very long line is capped to the same width on a 1366pt screen and a 5120pt "
+            f"one ({narrow} vs {wide}) — the cap is a constant, not the screen. The pill "
+            "is already variable-width; this ceiling is the only thing cutting content.")
+
+    def test_the_cap_never_exceeds_the_screen_it_was_given(self):
+        """The other direction: 'follow the screen' must not mean 'ignore it'. A pill
+        wider than the logical window cannot be drawn, and the window is what the user
+        actually has.
+
+        Rival: removing the cap entirely, which trades truncation for a pill that runs
+        off the display — the user asked for nothing to be cut, not for it to be unbounded.
+        """
+        for screen_w in (1366, 1920, 2560, 5120):
+            with self.subTest(screen_w=screen_w):
+                self.assertLessEqual(self.width(screen_w, text_w=100_000), screen_w)
+
+    def test_the_pill_widens_as_its_content_grows(self):
+        """Monotonic in the content width, and strictly so across the ordinary range.
+
+        Rivals: a fixed-width pill; a pill that snaps between two or three sizes, which
+        reads as jumpy rather than 유려한; growth that stops early and starts cutting.
+        """
+        screen_w = 1920
+        widths = [self.width(screen_w, text_w=t) for t in range(0, 900, 25)]
+        for earlier, later in zip(widths, widths[1:]):
+            self.assertLessEqual(earlier, later, "the pill narrowed as its content grew")
+        self.assertGreater(widths[-1], widths[0], "the pill never grew at all")
+
+    def test_a_short_line_gets_a_narrow_pill_not_a_wide_one(self):
+        """Short content must hug, not float in a wide bar — the user's "유려하게" cuts
+        both ways, and a half-empty pill around three characters is the least fluent
+        outcome of all.
+
+        Rivals: always drawing the maximum width; padding short content up to some
+        'tidy' width; a minimum so large that every short status line looks identical.
+        """
+        screen_w = 1920
+        snug = self.width(screen_w, text_w=40)
+        self.assertLess(
+            snug, self.width(screen_w, text_w=400),
+            "a short line gets the same pill as a long one")
+        self.assertLessEqual(
+            snug, max(claude_pet.SUMMARY_MIN_W, 40 + 2 * claude_pet.PILL_PAD),
+            "a short line is being given more width than its content plus padding needs")
+
+    def test_the_pill_never_shrinks_below_the_minimum(self):
+        """Rival: a pill that collapses to nothing on an empty line, which flickers on
+        every refresh that briefly has no text."""
+        for text_w in (0, 1, 5, 20):
+            with self.subTest(text_w=text_w):
+                self.assertGreaterEqual(self.width(1920, text_w=text_w),
+                                        claude_pet.SUMMARY_MIN_W)
+
+    def test_the_widest_realistic_line_is_not_capped_on_a_supported_screen(self):
+        """The end-to-end statement of the user's requirement: on the **minimum supported
+        screen**, the longest line this app actually produces must be drawn whole.
+
+        The content is measured, not assumed — the English Codex two-window line is the
+        longest realistic case found while measuring this release, and it is built here
+        through the production functions rather than typed in, so a relabel moves it.
+
+        Rival: a cap that happens to fit Korean (which is why this went unnoticed — the
+        maintainer's locale fit inside 274 for the common case) while cutting English.
+        """
+        claude_pet.set_lang("en")
+        self.addCleanup(claude_pet.set_lang, claude_pet.L.get("lang"))
+        segment = claude_pet.roam_summary_codex(
+            [("codex_session", 12.0, None, "3h"), ("codex_weekly", 68.0, None, "5d 21h")])
+        self.assertIsNotNone(segment)
+        main, sub = claude_pet.roam_summary_runs([segment], claude_pet.t)
+        text_w = sum(pretendard_width(t) for t, _k in main + sub)
+        needed = text_w + 2 * claude_pet.PILL_PAD
+        min_supported_screen = 1366
+        self.assertLessEqual(
+            needed, min_supported_screen,
+            "the fixture is wider than the minimum supported screen; the requirement "
+            "itself needs rethinking, not the cap")
+        self.assertGreaterEqual(
+            self.width(min_supported_screen, text_w=text_w), needed,
+            f"the widest realistic line needs {needed:.0f}pt and the pill gives it "
+            f"{self.width(min_supported_screen, text_w=text_w):.0f}pt on a "
+            f"{min_supported_screen}pt screen — it will be cut, on a screen with "
+            f"{min_supported_screen - needed:.0f}pt to spare.")
 
 
 class RoamDisplayToggleTests(unittest.TestCase):
@@ -695,6 +837,234 @@ class BundledFontTests(TreeConsistencyMixin, unittest.TestCase):
                         "fonts must be staged before the pet is stopped")
         plist = zsh_function(source, "write_plist")
         self.assertIn("<key>ATSApplicationFontsPath</key><string>fonts</string>", plist)
+
+
+# ───────────────────────── v0.26: the Codex row must actually fit ─────────────────────────
+#
+# Added by the Verifier after the Reviewer found that the v0.26 headline feature does not
+# reach the screen.  The tests above gate what the pill *contains*; none of them gates how
+# *wide* it comes out, and the pill is a hard-capped strip.  A segment that is assembled
+# correctly, coloured correctly and then sliced off by `roam_fit_runs` is, to the user,
+# a feature that was not shipped.
+#
+# Why the existing coverage missed it, stated plainly because it is the lesson rather than
+# the bug: tests/test_codex_usage.py paired the Codex segment with `("status", "scanning")`,
+# which is the shortest Claude segment there is and — in Korean — the only realistic pairing
+# that fits.  That is AGENTS.md §3's non-discriminating fixture exactly: green, evidence-
+# shaped, and blind to every case that ships.  test_v026_release_contract.py reading "같은
+# 줄" as "the same `exact` segment kind" has the same shape: structurally true, and false to
+# the user looking at the pill.  So these tests assert on *rendered width*, not structure.
+#
+# The budget was originally derived here as `PILL_W - 2*PILL_PAD`, on the reasoning that
+# deriving from a constant beats writing 274 down.  That was half right: it did track the
+# constant, but the constant was the bug.  Deriving from the wrong thing fails exactly as
+# quietly as hardcoding — the derivation kept pointing at PILL_W after PILL_W stopped being
+# the pill's cap and became settings-panel geometry.  Nothing in this file needs a width
+# budget any more; tests/test_summary_layout.py derives one from the screen.
+
+# Advance widths of Pretendard-SemiBold at 11 pt — the pill's only font (SUMMARY_FONT_FILE /
+# SUMMARY_FONT_NAME, the size draw_summary_pill passes to summary_font).  MEASURED, not
+# modelled: produced 2026-09-20 on macOS 26.5 / Darwin 25.5 from this checkout's
+# fonts/Pretendard-SemiBold.ttf, registered with CTFontManagerRegisterFontsForURL at process
+# scope, by taking NSAttributedString(string:attributes:).size().width of each single
+# character — the same call draw_summary_pill measures with.
+#
+# The table exists so this gate runs on Windows CI and anywhere else without AppKit; the
+# real-font companion below re-derives it on macOS and fails if it has drifted, so it cannot
+# quietly go stale.  Summing per-character advances ignores kerning, which costs at most
+# 1.05 % against the real measurement across the fixture strings here (worst case
+# "Credit $100.66": 77.01 summed vs 76.21 real) — three orders of magnitude smaller than the
+# 11 %–81 % overflows it is used to detect, and it errs *high*, so it can only make the pill
+# look tighter than it is, never roomier.
+_ADVANCES = {
+    ' ': 2.6104, '!': 3.1904, '"': 4.1465, '#': 6.7783, '$': 6.8428, '%': 10.2051, '&': 6.9824,
+    "'": 2.1914, '(': 4.1143, ')': 4.1143, '*': 5.6826, '+': 7.0898, ',': 3.0508, '-': 4.8770,
+    '.': 2.9971, '/': 3.9424, '0': 7.0254, '1': 5.0488, '2': 6.6279, '3': 6.9502, '4': 7.1006,
+    '5': 6.7891, '6': 6.9609, '7': 6.2412, '8': 6.9395, '9': 6.9609, ':': 2.9971, ';': 2.9971,
+    '<': 7.0898, '=': 7.0898, '>': 7.0898, '?': 5.7041, '@': 9.6357, 'A': 7.6270, 'B': 6.9395,
+    'C': 7.8525, 'D': 7.6484, 'E': 6.4023, 'F': 6.1660, 'G': 7.9707, 'H': 7.8633, 'I': 2.8467,
+    'J': 5.8975, 'K': 7.1436, 'L': 5.9512, 'M': 9.5928, 'N': 7.8311, 'O': 8.1855, 'P': 6.7891,
+    'Q': 8.1963, 'R': 6.8643, 'S': 6.8428, 'T': 6.9502, 'U': 7.7559, 'V': 7.6270, 'W': 10.6777,
+    'X': 7.2725, 'Y': 7.4229, 'Z': 6.8750, '[': 4.1143, '\\': 3.9424, ']': 4.1143, '^': 5.0488,
+    '_': 4.8984, '`': 5.2207, 'a': 6.0479, 'b': 6.6494, 'c': 6.0801, 'd': 6.6494, 'e': 6.2412,
+    'f': 3.9316, 'g': 6.5850, 'h': 6.4561, 'i': 2.6855, 'j': 2.6855, 'k': 5.9834, 'l': 2.6855,
+    'm': 9.5068, 'n': 6.4238, 'o': 6.4023, 'p': 6.5850, 'q': 6.5850, 'r': 4.1465, 's': 5.7686,
+    't': 3.9639, 'u': 6.4023, 'v': 6.0693, 'w': 8.8623, 'x': 5.9189, 'y': 6.0693, 'z': 5.8975,
+    '{': 4.1143, '|': 3.7275, '}': 4.1143, '~': 7.0898, '·': 2.9971, '…': 8.9912, '≈': 7.0898,
+    '▲': 10.9570, '⚠': 10.6885, '≒': 6.9556,
+}
+# Every Hangul syllable in this font has the same advance — checked over a 400-character
+# sample drawn from the whole U+AC00..U+D7A3 block, which returned exactly one value.  It is
+# a rule rather than 11,172 table rows so that a Korean relabel cannot fall off the table.
+_HANGUL_ADVANCE = 9.5068
+_CJK_ADVANCE = 9.5150           # 使用量, for the ja locale, measured the same way
+
+
+def pretendard_width(text):
+    """Width of ``text`` in the pill's font, from the measured advances above.
+
+    Fail-closed on anything unmeasured: a character with no advance raises rather than
+    contributing zero.  A silent zero is how a width gate turns into a test of nothing —
+    a relabel into an unmeasured script would make every line look narrower and the gate
+    would go green on a pill that overflows worse than before.
+    """
+    total = 0.0
+    for char in text:
+        advance = _ADVANCES.get(char)
+        if advance is None:
+            if "가" <= char <= "힣":
+                advance = _HANGUL_ADVANCE
+            elif "一" <= char <= "鿿" or "぀" <= char <= "ヿ":
+                advance = _CJK_ADVANCE
+            else:
+                raise AssertionError(
+                    f"no measured advance for {char!r} (U+{ord(char):04X}); re-derive the "
+                    "table from fonts/Pretendard-SemiBold.ttf rather than guessing a width")
+        total += advance
+    return total
+
+
+# The realistic-pairing fixtures (CODEX_ROWS / CLAUDE_ROWS / ESTIMATE_STATS) and the
+# CodexFitMixin that drove them were removed together with the two retired tests below —
+# they had no other caller, and a fixture nothing asserts on is the same "looks like
+# coverage" hazard the retired tests were written to expose.  Their successors live in
+# tests/test_summary_layout.py, parameterised over provider count and row count rather
+# than pinned to one shape.
+
+# ─────────────────────── RETIRED 2026-09-20: the tail-protection gate ───────────────────────
+#
+# Two tests lived here and no longer do:
+#
+#     CodexRowFitsThePillTests.test_codex_row_survives_beside_every_realistic_claude_segment
+#     CodexRowFitsThePillRealFontTests....._real_font
+#
+# **Why they were retired.** They called ``roam_fit_runs(main, budget, measure)`` directly
+# and asserted the Codex runs survived as the *tail* of the result.  Under the provider-line
+# layout that shipped the same day, ``roam_fit_runs`` is no longer on the pill's path at all:
+# ``summary_lines`` folds, and nothing trims.  Making these two pass would have meant
+# teaching ``roam_fit_runs`` to protect its tail — and on a single line that protection has
+# to take the space from somewhere, so **Claude's runs would be cut instead**.  Same data
+# loss, different victim.  On one line it is unavoidable: the English Claude line with the
+# credit row already overflows by 7.2pt with no Codex segment present at all.
+#
+# **What took over.** tests/test_summary_layout.py — ``NothingIsEverTruncatedTests`` and
+# ``EveryLineFitsTests``, which assert on folding instead of on trimming.
+#
+# **This was not taken on trust.** Retiring a gate because "something else covers it" is the
+# standard way protection is quietly lost, so the transfer was measured before the delete.
+# Three mutations of ``summary_lines`` in a scratch copy, layout gate run against each:
+#
+#     M1  folding disabled, everything on one line   RED  every_produced_line_fits,
+#                                                          line_that_only_fits_without_the_logo
+#     M2  trims instead of folding (the OLD bug)     RED  no_content_is_lost_in_any_provider_
+#                                                          combination, ..._with_the_credit_row,
+#                                                          folding_never_ellipsises,
+#                                                          english_claude_line_with_credit,
+#                                                          line_that_only_fits_without_the_logo
+#     M3  SUMMARY_LOGO_W declared, never subtracted  RED  every_produced_line_fits
+#
+# M2 is the one that matters: it reinstates precisely the behaviour these retired tests were
+# written to catch, and the new gate refuses it on five separate assertions.  The protection
+# moved; it was not dropped.  If a future reader finds no Codex width test here, that is why,
+# and tests/test_summary_layout.py is where to look.
+#
+# **Deliberately kept below**, because the layout gate depends on them and nothing supersedes
+# them: ``pretendard_width`` and ``_ADVANCES`` (imported by test_summary_layout),
+# ``test_the_measured_advance_table_still_matches_the_bundled_font`` (the only thing stopping
+# that table from silently going stale against a bumped font), the fail-closed measure test,
+# and the PILL_W cap test that makes any width budget binding at all.
+
+
+class CodexRowFitsThePillTests(unittest.TestCase):
+    """What survives of the width gate after the tail-protection tests were retired above."""
+
+    def setUp(self):
+        self.addCleanup(claude_pet.set_lang, claude_pet.L.get("lang"))
+
+    # RETIRED 2026-09-20: test_the_pill_cannot_be_widened_to_make_room.
+    #
+    # It asserted `roam_pill_rect(...)[2] <= PILL_W` — "the pill cannot grow past its cap,
+    # so the budget is binding".  Every word was true when written and the whole premise
+    # was wrong: PILL_W was an inherited constant with no derivation, and it was the only
+    # thing cutting content.  I wrote this test to establish that the 274pt budget was
+    # binding, which is the opposite of the question worth asking — *why* 274?  The user
+    # asked it, and the cap is now the screen.
+    #
+    # This is worth leaving as a marker rather than a clean delete: a test that pins an
+    # arbitrary constant does not look wrong, it looks rigorous, and it actively defends
+    # the bug.  It went green for two rounds while the feature it was "protecting" never
+    # reached the screen.
+    #
+    # Replaced by PillWidthFollowsContentTests above, which asserts relationships (the cap
+    # tracks the screen, the pill grows with content, short content gets a narrow pill) and
+    # deliberately pins no width at all.
+
+    def test_the_measure_refuses_a_character_it_has_not_measured(self):
+        """The fake measure is only evidence while it is fail-closed. Rival: `.get(c, 0)`,
+        under which an unmeasured script renders as zero width and the gate passes on a
+        pill that is overflowing."""
+        self.assertAlmostEqual(pretendard_width("세션"), 2 * _HANGUL_ADVANCE, places=4)
+        with self.assertRaises(AssertionError):
+            pretendard_width("الع")          # Arabic: never measured
+
+
+class CodexRowFitsThePillRealFontTests(unittest.TestCase):
+    """The same gate, against the real font through AppKit. macOS-only, skips loudly.
+
+    Two jobs. It re-runs the width assertion with the measurement draw_summary_pill itself
+    performs, so the verdict does not rest on the table; and it re-derives the table and
+    fails if the bundled font has moved under it, which is what stops the CI-safe gate above
+    from silently becoming fiction after a font bump.
+    """
+
+    def setUp(self):
+        if sys.platform != "darwin":
+            self._skip("the real-font measurement needs macOS AppKit/CoreText")
+        try:
+            from AppKit import NSFont, NSFontAttributeName, NSAttributedString
+            import CoreText
+            import Foundation
+        except ImportError as exc:
+            self._skip(f"pyobjc is not importable here ({exc.__class__.__name__})")
+        font_path = ROOT / "fonts" / claude_pet.SUMMARY_FONT_FILE
+        if not font_path.is_file():
+            self._skip(f"fonts/{claude_pet.SUMMARY_FONT_FILE} is missing from this tree")
+        CoreText.CTFontManagerRegisterFontsForURL(
+            Foundation.NSURL.fileURLWithPath_(str(font_path)),
+            CoreText.kCTFontManagerScopeProcess, None)
+        font = NSFont.fontWithName_size_(claude_pet.SUMMARY_FONT_NAME, 11)
+        if font is None:
+            self._skip(f"{claude_pet.SUMMARY_FONT_NAME} did not register in this process")
+        attrs = {NSFontAttributeName: font}
+        self.measure = lambda s: (NSAttributedString.alloc()
+                                  .initWithString_attributes_(s, attrs).size().width)
+        self.addCleanup(claude_pet.set_lang, claude_pet.L.get("lang"))
+
+    def _skip(self, why):
+        print(f"\n[summary-pill] SKIPPED: {why}", file=sys.stderr, flush=True)
+        self.skipTest(why)
+
+    def test_the_measured_advance_table_still_matches_the_bundled_font(self):
+        """Rival: the font is bumped, the table keeps yesterday's numbers, and the CI-safe
+        gate goes on reporting on a font nobody ships any more."""
+        drift = []
+        for char, expected in sorted(_ADVANCES.items()):
+            actual = self.measure(char)
+            if abs(actual - expected) > 0.01:
+                drift.append(f"{char!r} table {expected:.4f} vs font {actual:.4f}")
+        for char, expected in (("가", _HANGUL_ADVANCE), ("힣", _HANGUL_ADVANCE),
+                               ("用", _CJK_ADVANCE)):
+            actual = self.measure(char)
+            if abs(actual - expected) > 0.01:
+                drift.append(f"{char!r} table {expected:.4f} vs font {actual:.4f}")
+        self.assertEqual(drift, [], "re-derive _ADVANCES from the bundled font:\n  "
+                                    + "\n  ".join(drift))
+
+    # test_codex_row_survives_beside_every_realistic_claude_segment_real_font retired
+    # 2026-09-20 with its portable twin — see the retirement note above.  The table-drift
+    # test above is the reason this class still exists: tests/test_summary_layout.py measures
+    # with _ADVANCES, and without this check a font bump would leave that gate reporting on
+    # metrics nobody ships.
 
 
 if __name__ == "__main__":

@@ -50,6 +50,7 @@ them, or executes them.
 import ast
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -386,6 +387,98 @@ class ScopeIsVisibleTests(unittest.TestCase):
                   "and are NOT checked here:" % len(unverifiable))
             for name, ln, src in unverifiable:
                 print(f"  {name}:{ln}  replace({src}, ...)")
+
+
+# ── 2026-09-20: 같은 계열의 사고가 업데이터 **밖에서** 났다 ─────────────────────
+#
+# 이 모듈은 업데이터가 **생성하는 셸 스크립트**에 대한 바늘만 지켜 왔다(SOURCES 참조).
+# 그 범위 밖에서 정확히 같은 일이 일어났다: tests/test_settings_and_install.py 가
+# setup.py 의 `"resources": ["frames", ".claude_pet", "fonts"],` 를 리터럴 바늘로 적어
+# 두었는데, 이번 릴리즈에서 목록에 "logos" 가 붙자 바늘이 어긋났다. `str.replace` 는
+# 실패하지 않으므로 변이체가 원본과 같아졌고, 그 테스트는 소리 없이 아무것도 검사하지
+# 않게 됐다. 그 자리에 우연히 있던 `assertNotEqual` 가드 하나가 아니었으면 초록인 채로
+# 지나갔을 것이다.
+#
+# 그래서 같은 tripwire 를 **저장소의 추적 파일에 주입하는 바늘**에도 건다. 위와 같은
+# 방식이다: 바늘을 여기 베껴 적지 않고 테스트 소스에서 AST 로 읽는다.
+PACKAGING_SOURCES = ("test_settings_and_install.py", "test_release_gate.py",
+                     "test_summary_pill.py", "test_summary_layout.py")
+PACKAGING_RECEIVER_HINTS = ("setup_source", "build_source", "app_source",
+                            "release_source", "verifier_source", "setup_text",
+                            "build_text", "source")
+TRACKED_INJECTION_TARGETS = ("setup.py", "build_app.sh", "verify_release_artifact.py",
+                             "claude_pet.py", "release.sh")
+
+
+def packaging_replace_sites(path):
+    """(lineno, needle) — 추적 소스 텍스트를 받는 변수에 대한 `.replace("literal", …)`."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    out = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "replace" and node.args):
+            continue
+        receiver = (ast.unparse(node.func.value) or "").lower()
+        if not any(h in receiver for h in PACKAGING_RECEIVER_HINTS):
+            continue
+        arg = node.args[0]
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            out.append((node.lineno, arg.value))
+    return out
+
+
+class PackagingInjectionNeedlesTests(unittest.TestCase):
+    """추적 파일에 주입하는 바늘도 여전히 표적을 찾는가.
+
+    업데이터 쪽 tripwire 와 같은 이유로 존재한다 — 다만 표적이 생성된 스크립트가 아니라
+    저장소의 추적 파일이다. 이번 릴리즈에서 setup.py·build_app.sh·
+    verify_release_artifact.py 가 전부 바뀌었고, 그중 하나가 실제로 바늘을 죽였다.
+
+    Rival: 바늘 목록을 여기 하드코딩하는 것 — 그건 자기 자신을 지킬 또 하나의 계기가
+    되고, 검사기의 노후는 건강과 똑같이 생겼다.
+    """
+
+    def sources(self):
+        available = [(name, REPO / "tests" / name) for name in PACKAGING_SOURCES]
+        return [(n, p) for n, p in available if p.is_file()]
+
+    def test_every_packaging_needle_still_occurs_in_a_tracked_source(self):
+        texts = {}
+        for name in TRACKED_INJECTION_TARGETS:
+            path = REPO / name
+            if path.is_file():
+                texts[name] = path.read_text(encoding="utf-8")
+        self.assertTrue(texts, "주입 표적이 될 추적 파일을 하나도 찾지 못했다")
+
+        scanned = self.sources()
+        self.assertTrue(scanned,
+                        "패키징 테스트 파일을 하나도 찾지 못했다 — 이 tripwire 가 표적을 "
+                        f"잃었다 (찾던 이름: {PACKAGING_SOURCES})")
+
+        checked = 0
+        for name, path in scanned:
+            for lineno, needle in packaging_replace_sites(path):
+                if len(needle) < 8:
+                    continue          # 경로 정규화 같은 평범한 문자열 처리
+                checked += 1
+                with self.subTest(source=name, line=lineno):
+                    where = [f for f, text in texts.items() if needle in text]
+                    self.assertTrue(
+                        where,
+                        f"{name}:{lineno} 이 주입하려는 바늘이 어떤 추적 파일에도 없다: "
+                        f"{needle!r} — `str.replace` 는 실패하지 않으므로 이 주입은 "
+                        "아무것도 바꾸지 않고, 그 테스트는 소리 없이 공허해진다")
+
+        # **리터럴 바늘이 0개인 것은 정상이고, 오히려 낫다.** 소스에서 계산한 바늘은
+        # 애초에 어긋날 수가 없어서 이 tripwire 가 필요 없다 — setup.py 의 바늘이 죽은
+        # 뒤 그렇게 고쳤다. 그래서 '리터럴이 최소 하나는 있어야 한다'고 단언하지 않는다:
+        # 그건 더 안전한 형태를 금지하는 단언이 된다. 대신 표적 파일을 실제로 읽었는지를
+        # 단언하고(위), 몇 개를 봤는지는 아래에 남긴다 — 0 이 '검사기가 고장났다'로
+        # 읽히지 않도록.
+        if not checked:
+            print("\n[mutation-instruments] 패키징 리터럴 바늘 0개 — "
+                  f"{len(scanned)}개 파일을 파싱했고 전부 소스에서 계산한 바늘이다.",
+                  file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

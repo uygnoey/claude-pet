@@ -40,9 +40,27 @@ def sha256(path):
 
 
 class FakeClaudePet:
-    def __init__(self, verdict=True):
+    """The app module as ``check_app`` sees it.
+
+    The logo constants are part of that surface since v0.26: ``check_app`` reads
+    ``SUMMARY_LOGO_DIR`` and refuses outright when it is absent, and it cross-checks the
+    value against its own ``LOGO_DIR`` so a moved directory cannot make the gate silently
+    follow along. A fake without them therefore fails every test in this module for a
+    reason that has nothing to do with what the test is asking — which is what happened
+    when the marks landed.
+
+    The values mirror the real module deliberately; a mismatch here would exercise the
+    gate's *disagreement* branch in every test rather than the one that targets it.
+    """
+
+    def __init__(self, verdict=True, logo_dir="logos",
+                 logo_files=None):
         self.verdict = verdict
         self.calls = []
+        self.SUMMARY_LOGO_DIR = logo_dir
+        self.SUMMARY_LOGO_FILES = (
+            {"claude": "claude.svg", "codex": "openai.svg"}
+            if logo_files is None else logo_files)
 
     def validate_update_app(self, app_path, expect_version, **kwargs):
         self.calls.append((app_path, expect_version, kwargs))
@@ -59,7 +77,9 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
     TRUETYPE = b"\x00\x01\x00\x00" + b"\0" * 60     # sfnt 1.0 magic, then padding
     CFF = b"OTTO" + b"\0" * 60                       # the round-2 build, refused since round 3
 
-    def make_app(self, name="ClaudePet.app", code="checkout", fonts="ok"):
+    SVG_STUB = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>\n'
+
+    def make_app(self, name="ClaudePet.app", code="checkout", fonts="ok", logos="ok"):
         app = self.td / name
         resources = app / "Contents" / "Resources"
         resources.mkdir(parents=True)
@@ -79,7 +99,37 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
         else:
             raise ValueError(code)
         self.make_fonts(resources, fonts)
+        self.make_logos(resources, logos)
         return app, leaf
+
+    def make_logos(self, resources, logos):
+        """``logos`` names one shape of Contents/Resources/logos; never the repo's files.
+
+        Same rule as ``make_fonts``: the bytes are stubs, so this module never depends on
+        what is actually sitting in the checkout's ``logos/``.
+        """
+        if logos == "absent-dir":
+            return
+        folder = resources / "logos"
+        folder.mkdir()
+        if logos == "empty":
+            return
+        names = FakeClaudePet().SUMMARY_LOGO_FILES
+        if logos == "ok":
+            for filename in names.values():
+                (folder / filename).write_bytes(self.SVG_STUB)
+        elif logos == "one-missing":
+            (folder / names["claude"]).write_bytes(self.SVG_STUB)
+        elif logos == "not-svg":
+            for filename in names.values():
+                (folder / filename).write_bytes(b"\x89PNG\r\n\x1a\n")
+        elif logos == "symlink":
+            target = resources.parent / "real-logo.svg"
+            target.write_bytes(self.SVG_STUB)
+            for filename in names.values():
+                os.symlink(target, folder / filename)
+        else:
+            raise ValueError(logos)
 
     def make_fonts(self, resources, fonts):
         """``fonts`` names one shape of Contents/Resources/fonts; never the repo's file."""
@@ -255,6 +305,49 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
         self.assertFalse(font.exists(), "the font must live under Resources/fonts, not Resources")
         result, fake = self.check_with_fake(app)
         self.assertEqual((result, len(fake.calls)), (True, 1))
+
+    def test_the_logo_check_refuses_every_broken_shape_before_the_validator(self):
+        """The provider marks get the same treatment as the font, and for the same
+        reason: a bundle can lose them while a from-source run stays perfect, so the
+        gate is the only place the loss is visible.
+
+        Each shape is refused **before** ``validate_update_app`` is reached — a local
+        check that runs after the delegated one would let a bad bundle be judged by a
+        validator that knows nothing about logos.
+
+        Rivals this separates: the directory missing entirely; it existing but empty;
+        one of the two marks present and the other not (the asymmetric case a
+        ``len(files) > 0`` check would pass); a file that is not an SVG at all, which is
+        how a stray placeholder ships; and a symlink, which ``ditto`` may not carry into
+        the artifact even when it resolves on the build machine.
+        """
+        for shape in ("absent-dir", "empty", "one-missing", "not-svg", "symlink"):
+            with self.subTest(logos=shape):
+                app, _leaf = self.make_app(f"logos-{shape}-ClaudePet.app", logos=shape)
+                result, fake = self.check_with_fake(app)
+                self.assertEqual(
+                    result, False,
+                    f"the gate accepted an artifact whose logos are {shape!r}")
+                self.assertEqual(
+                    fake.calls, [],
+                    "the logo check must refuse before validate_update_app is called")
+
+    def test_a_moved_logo_directory_is_refused_rather_than_followed(self):
+        """``check_app`` cross-checks the app's ``SUMMARY_LOGO_DIR`` against its own
+        ``LOGO_DIR``. Without that, moving the directory would make the gate follow the
+        app silently and "the gate checks the logos" would quietly become an empty
+        sentence — it would be looking wherever the app pointed it, including nowhere.
+
+        Rivals: a gate that trusts the constant (follows the move, checks a directory
+        that is always present and therefore always passes); a gate that ignores the
+        constant and hardcodes the path (misses a deliberate rename and blocks forever).
+        """
+        app, _leaf = self.make_app("moved-logos-ClaudePet.app", logos="ok")
+        fake = FakeClaudePet(logo_dir="marks")
+        with mock.patch.object(verify_release_artifact, "_load_app", return_value=fake):
+            moved = verify_release_artifact.check_app(str(app), "9.9", ["arm64"])
+        self.assertEqual(moved, False, "a moved logo directory must be refused")
+        self.assertEqual(fake.calls, [], "the disagreement must stop the gate early")
 
 
 if __name__ == "__main__":
