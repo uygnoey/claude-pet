@@ -91,7 +91,14 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-import claude_pet as cp  # noqa: E402  — the core (TR keys, config surface)
+import windows.win_core as win_core  # noqa: E402  — the ONE owner of the core import
+
+# The core, through `import_core()` and never bare. `claude_pet.py` dies on Windows at
+# `import fcntl` and then at `ctypes.CDLL(None)`; `windows/README.md` names this helper as
+# the single place both detours live. A bare `import claude_pet` here collected fine on
+# macOS and killed this whole module at collection time on the real target — which is the
+# one host whose answers count for a Windows port.
+cp = win_core.import_core()  # noqa: E402  — the core (TR keys, config surface)
 import windows.win_update as wu  # noqa: E402  — the updater's registry names the toggle must share
 
 MODULE = "windows.win_autostart"
@@ -112,7 +119,22 @@ DISABLED = bytes([0x03, 0, 0, 0]) + bytes.fromhex("1032547698badcfe")  # 03 00 0
 AUTOSTART_KEYS = ("menu_autostart", "autostart_title", "autostart_approval",
                   "autostart_open_settings", "autostart_fail", "autostart_unavailable")
 LOCALES = ("en", "ko", "ja", "es")
-MENU_QUINTET = ["menu_settings", "menu_toggle", "menu_roam", "menu_autostart", "menu_reset_size"]
+# The neighbourhood this test's name claims: autostart sits between "roam the screen"
+# and "reset size", with nothing between them.
+#
+# This used to be a *quintet* — the two items that happened to precede roam were pinned
+# alongside it, and the assertion took a fixed five-wide window around roam. v0.26
+# inserted two new items ("credits in money", "auto-refresh token") before roam on both
+# platforms, which slid that window two places left and turned the test red against a
+# menu that was in fact correct. The five-wide window was never the claim; it was an
+# accident of how many items happened to sit to the left at the time.
+#
+# What is durable is stated in two pieces below (see the test): the triple is contiguous
+# on each platform, and the two platforms order every menu key they share identically.
+# The second piece is what actually protects a port — it needs no literal here, so it
+# cannot go stale, and it still fails the moment Windows puts an item somewhere macOS
+# does not.
+MENU_TRIPLE = ["menu_roam", "menu_autostart", "menu_reset_size"]
 
 
 def _mod():
@@ -804,8 +826,22 @@ class RegistryAdapterTests(unittest.TestCase):
             self.assertEqual(wa.real_registry(), (None, None))
 
     def test_winreg_is_imported_inside_the_adapter_only(self):
+        """No module-level `import winreg`; some function imports it at call time.
+
+        The ``sys.modules`` probe below is **host-dependent and is only evidence on a
+        host that has no winreg**. On Windows ``winreg`` is a built-in that the
+        interpreter already has in ``sys.modules`` before any test runs, so asserting
+        its absence there fails against perfectly correct code — it measures the host,
+        not the module. It used to be asserted unconditionally and did exactly that.
+
+        The two AST assertions are the real gate and they discriminate on **both**
+        hosts: a top-level ``import winreg`` fails the first, and deleting the
+        call-time import fails the second.
+        """
         _mod()
-        self.assertNotIn("winreg", sys.modules, "the module must import with no winreg on the host")
+        if sys.platform != "win32":
+            self.assertNotIn("winreg", sys.modules,
+                             "the module must import with no winreg on the host")
         tree = ast.parse(_module_text())
         top = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
         names = {a.name for n in top for a in n.names} | {n.module for n in top if isinstance(n, ast.ImportFrom)}
@@ -1129,13 +1165,38 @@ class PortWiringTests(unittest.TestCase):
         seq = _menu_sequence(self.fn, self.menu)
         self.assertIn("menu_roam", seq, f"extractor found no roam item in {seq}")
         self.assertIn("menu_reset_size", seq, f"extractor found no reset-size item in {seq}")
-        i = seq.index("menu_roam")
-        self.assertEqual(seq[i - 2:i + 3], MENU_QUINTET, f"Windows menu order: {seq}")
         mac = _mac_menu_keys()
         self.assertIsNotNone(mac, "could not read the macOS rightMouseDown_ tuple list")
+        i = seq.index("menu_roam")
         j = mac.index("menu_roam")
-        self.assertEqual(mac[j - 2:j + 3], MENU_QUINTET, f"macOS menu order: {mac}")
-        self.assertEqual(seq[i - 2:i + 3], mac[j - 2:j + 3], "the two halves must read identically")
+        self.assertEqual(seq[i:i + 3], MENU_TRIPLE, f"Windows menu order: {seq}")
+        self.assertEqual(mac[j:j + 3], MENU_TRIPLE, f"macOS menu order: {mac}")
+        # The piece with no literal in it, so it cannot go stale: **macOS is the
+        # reference**. Every menu key macOS has must be on Windows, in the same
+        # relative order. Windows may add entries of its own (the update check, the
+        # version line) — the port has more to say — but it may not drop one or move
+        # one, and dropping is the failure this port actually has: v0.26 landed on
+        # macOS and reached none of the Windows menu.
+        #
+        # An *intersection* of the two lists does not say this. Under an intersection a
+        # key Windows simply does not have falls out of both sides and the comparison
+        # passes, which is the one case that matters most. Mutation-checked: deleting
+        # the auto-refresh item from the Windows menu left an intersection-based
+        # version green.
+        want = [k for k in mac if k.startswith("menu_")]
+        self.assertGreaterEqual(
+            len(want), len(MENU_TRIPLE),
+            "the macOS extractor produced only %r — with fewer keys than the triple "
+            "this comparison would pass without comparing anything" % (want,))
+        missing = [k for k in want if k not in seq]
+        self.assertEqual(
+            missing, [],
+            "the Windows menu is missing %r, which macOS has. windows=%r macos=%r"
+            % (missing, seq, mac))
+        self.assertEqual(
+            [k for k in seq if k in set(want)], want,
+            "the Windows menu orders macOS's items differently. windows=%r macos=%r"
+            % (seq, mac))
 
     def test_the_autostart_action_is_checkable(self):
         ref, call = self._autostart_ref()

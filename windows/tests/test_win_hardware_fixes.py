@@ -422,19 +422,48 @@ class OneOwnerForTheCoreImportTests(unittest.TestCase):
         sites = _core_import_sites(os.path.join(WINDIR, "win_core.py"))
         self.assertTrue(sites, "win_core.py never imports claude_pet — it cannot be the owner")
 
-    def test_the_helper_is_a_no_op_on_this_host(self):
+    def test_the_helper_leaves_this_host_as_it_found_it(self):
+        """What import_core() may add is host-dependent; what it must restore is not.
+
+        The previous version of this test asserted the no-op half unconditionally and
+        was named ``..._is_a_no_op_on_this_host``. That is wrong on the one host the
+        Windows port ships to: ``win_core``'s own docstring says the two detours are
+        added **on win32 and nowhere else**, so putting ``windows/compat`` on
+        ``sys.path`` there is the documented contract, not a leak. Run on Windows the
+        old assertion failed against correct code, which is the worst kind of red —
+        it accuses the thing that is right.
+
+        Split by host, because the two hosts make genuinely different promises:
+
+        * everywhere — the core comes back, the call is idempotent, and the ``CDLL``
+          wrapper is gone by the time it returns (``finally``). This is the half that
+          actually protects anything: a leaked wrapper would follow every later
+          ``ctypes`` user in the process.
+        * non-win32 — nothing at all is added to ``sys.path``.
+        * win32 — ``windows/compat`` is added (so the core's own ``import fcntl``
+          binds to the shim) and nothing *else* is.
+        """
         import ctypes
         wc = _mod(CORE_HELPER)
         before_cdll = ctypes.CDLL
         before_path = list(sys.path)
+        compat = os.path.join(WINDIR, "compat")
         core = wc.import_core()
-        self.assertIs(core, importlib.import_module("claude_pet"))
+        self.assertIs(core, sys.modules["claude_pet"])
         self.assertIs(wc.import_core(), core, "import_core() is not idempotent")
         self.assertIs(ctypes.CDLL, before_cdll, "the CDLL wrapper leaked out of import_core()")
-        compat = os.path.join(WINDIR, "compat")
-        self.assertNotIn(compat, sys.path, "windows/compat was put on sys.path on a non-Windows host")
-        self.assertEqual([p for p in sys.path if p not in before_path], [],
-                         "import_core() changed sys.path on a non-Windows host")
+        added = [q for q in sys.path if q not in before_path]
+        if sys.platform == "win32":
+            self.assertIn(compat, sys.path,
+                          "windows/compat is not on sys.path — the core's `import fcntl` "
+                          "cannot reach the shim")
+            self.assertEqual([q for q in added if q != compat], [],
+                             "import_core() added something other than windows/compat")
+        else:
+            self.assertNotIn(compat, sys.path,
+                             "windows/compat was put on sys.path on a non-Windows host")
+            self.assertEqual(added, [],
+                             "import_core() changed sys.path on a non-Windows host")
 
     def test_every_windows_entry_point_still_imports_here(self):
         for name in (CORE_HELPER, WU, WA, BW, VWA):

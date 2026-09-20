@@ -150,6 +150,11 @@ def build():
     import PyInstaller.__main__ as pyi
     sep = ";" if sys.platform == "win32" else ":"
     data = [("frames", "frames"), (".claude_pet", ".claude_pet"), ("fonts", "fonts"),
+            # 제공자 마크. 빠지면 소스 실행은 멀쩡한데 번들에서만 로고가 사라진다 —
+            # fonts/ 가 정확히 그 실패를 한 적이 있다. 짝이 되는 자리는
+            # win_update.PORTABLE_REQUIRED(= REQUIRED) 이고, 거기 있어야 빌드 게이트와
+            # 업데이터의 레이아웃 검사가 같이 덮인다.
+            ("logos", "logos"),
             (os.path.join("windows", "claudepet.ico"), ".")]
     # 버전 리소스는 빌드할 때마다 새로 쓴다. WORK 안에 두지 않는 이유는 --clean 이 workpath 를 비우기 때문이다.
     meta = tempfile.mkdtemp(prefix="claudepet-verinfo-")

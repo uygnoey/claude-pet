@@ -81,6 +81,11 @@ from PySide6.QtGui import (QAction, QColor, QCursor, QFont, QFontDatabase, QFont
                            QIcon, QImage, QPainter, QPainterPath, QPen, QPixmap)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QLabel, QLineEdit,  # noqa: E402
                                QMenu, QMessageBox, QPushButton, QSystemTrayIcon, QWidget)
+# 제공자 마크(SVG)를 **명시적으로** 렌더한다. QPixmap(path) 로 qsvg 이미지 플러그인에 맡기지
+# 않는 이유는 둘이다: PyInstaller 의 import 분석은 명시적 import 는 보지만 플러그인 경유는
+# 못 보고, openai.svg 는 fill="currentColor" 라 우리가 색을 정해 주지 않으면 검정으로
+# 래스터화되어 어두운 필에서 그대로 사라진다(틴트는 summary_logo_image 참조).
+from PySide6.QtSvg import QSvgRenderer  # noqa: E402
 
 TICK_MS = 50                 # macOS 판 TICK = 0.05 와 같은 20 Hz
 NEAR_PX = 100                # 인사 판정 거리 — macOS 판과 동일
@@ -428,7 +433,20 @@ class PetWindow(QWidget):
                       # 자율 이동 어댑터 (macOS 판 roam_tick 과 같은 키)
                       "roam_layout": None, "roam_anim": None, "roam_hold": False, "menu_open": False,
                       "reduce_motion": False,
-                      "roam_env": None, "roam_crop": None, "roam_rects": None, "roam_mode": None}
+                      "roam_env": None, "roam_crop": None, "roam_rects": None, "roam_mode": None,
+                      # codex: Codex(OpenAI) 사용량 행 또는 None. None 이면 구간 자체를 안 붙인다 —
+                      # Codex 를 안 쓰는 사용자에게 0% 행을 보여 주지 않기 위해서다.
+                      "codex": None,
+                      # 요약 필 레이아웃. summary_lines_n 은 어댑터가 남기고 pill_band() 가 읽는다
+                      # (높이가 줄 수를 따라가게 하는 유일한 경로). pill_w 는 _apply_pill_width 가
+                      # 기록하고 geom() 이 읽는다 — 폭이 내용을 따라가게 하는 유일한 경로.
+                      "summary_lines_n": 2, "pill_w": None, "pill_w_dirty": False,
+                      # 토큰 자동 복구 상태 — 판단은 cp.recovery_tick 이 하고 여기서는 들고만 있는다.
+                      "recovery": cp.new_recovery_state()}
+        # Codex 구간은 훅으로 받는다(macOS 판 state["codex_summary"] 와 같은 모양) — 어댑터가
+        # 모듈 함수를 이름으로 부르지 않게 해서, 창 없는 시험이 손으로 만든 state 로 어댑터를
+        # 돌릴 때 훅이 없으면 그 시험의 범위가 그대로 유지되게 한다.
+        self.state["codex_summary"] = lambda: cp.roam_summary_codex(self.state.get("codex"))
         self.sticky = {"on": False}
         self._down = None
         self._moved = False
@@ -437,6 +455,7 @@ class PetWindow(QWidget):
         self._pending = None
         self._installer = None       # inno: 띄운 setup.exe 의 Popen — 앱을 닫지 않고 끝나면 _reap_installer 가 installing 을 지운다
         self.ui = {}                 # 설정 창 위젯 — macOS 판 ui 딕셔너리와 같은 키
+        self._logo_cache = {}        # 제공자 → 틴트까지 끝낸 QImage(또는 None). 필은 20 Hz 로 다시 그려진다
         self.tray = None             # make_tray 가 채운다 — 비모달 알림(notify) 의 출구
         self._closing = False        # closeEvent 재진입 방지 (Restart Manager 의 WM_CLOSE → 종료)
         self.update_msg.connect(self._show_update_message)
@@ -461,11 +480,34 @@ class PetWindow(QWidget):
         self.set_override("waving")
 
     # ── 형상 (macOS 판 geom 과 동일) ──
+    def pill_band(self):
+        """논리 창이 요약 필에 내어 주는 띠 높이 — **지금 그려질 줄 수** 기준.
+
+        예전에는 geom()·pill_rect()·pet_origin()·roam_apply_display() 가 전부 인자 없는
+        cp.pill_h() 를 불렀고, 그건 언제나 두 줄 높이였다. 제공자가 둘이 되고 접힘이
+        생기면서 3줄 이상이 일상이 됐고, 그 상태로는 세 줄이 두 줄 높이 안에 그려져
+        **폭을 고쳐 놓고 높이로 똑같이 잘려 보이는** 상태가 된다. 줄 수는 어댑터가
+        state["summary_lines_n"] 에 남긴다. (macOS 판 pill_band 와 같은 규칙)
+        """
+        return cp.pill_h(self.state.get("summary_lines_n") or 2)
+
     def geom(self):
+        """(펫 폭, 펫 높이, 논리 창 W, 논리 창 H).
+
+        **W 는 필이 지금 필요로 하는 폭을 따라간다.** 예전에는 `cp.PILL_W + 8` 로 고정이었고,
+        그래서 코어에서 상한을 "화면"으로 바꿔도 Qt 는 아무것도 안 넓어진다 —
+        cp.roam_pill_rect 가 받는 W 가 언제나 308 이기 때문이다. 상한이 사라진 게 아니라
+        한 층 위로 올라가 있었다(macOS 판 geom 의 같은 주석).
+
+        state["pill_w"] 는 어댑터가 재서 넣는다(roam_summary_text). 아직 아무 글자도 안 잰
+        첫 프레임에는 없으므로 cp.PILL_W 가 그 자리를 메운다 — 이 상수가 남아 있는 유일한
+        이유다. '최대 너비'가 아니라 '측정 전 출발점'이다.
+        """
         pw = int(self.PW0 * self.scale)
         ph = int(self.PH0 * self.scale)
-        w = max(pw + cp.BTN_R * 2 + 16, cp.PILL_W + 8)
-        h = ph + cp.GAP + cp.pill_h() + 4
+        want = int(self.state.get("pill_w") or cp.PILL_W)
+        w = max(pw + cp.BTN_R * 2 + 16, want + 2 * cp.SUMMARY_EDGE)
+        h = ph + cp.GAP + self.pill_band() + 4
         return pw, ph, w, h
 
     def _fonts(self):
@@ -601,13 +643,30 @@ class PetWindow(QWidget):
         return mode
 
     def roam_summary_text(self):
-        """요약 필 내용 → (첫 줄 run, 둘째 줄 run, 폭, 높이) — macOS 판 roam_summary_text 와 같은 규칙(크레딧만 제외,
-        fmt_countdown, ⚠ 꼬리, 예산, 같은 입력·같은 5초 창 메모)."""
+        """요약 필 내용 → (제공자별 블록, 폭, 높이) — macOS 판 roam_summary_text 와 같은 규칙.
+
+            blocks = [(provider_id, [[(text, kind), ...], ...]), ...]
+
+        **여기서 접히고, 그린 뒤에 다시 자르는 곳은 없다.** 접힘은 cp.summary_lines 가 전부
+        끝낸다. 예전 Qt 경로는 이 함수가 (main, sub) 두 줄만 돌려주고 _draw_summary_pill 이
+        cp.roam_fit_runs 로 잘랐는데, 그 자리가 정확히 Codex 행이 화면에 닿지 못하던 원인이다
+        (코어 summary_lines docstring). 잘라 내는 쪽은 언제나 맨 뒤 구간이었고, 맨 뒤는 언제나
+        새로 붙인 제공자였다.
+
+        정확 모드 행은 **거르지 않고 그대로** 넘긴다 — 어느 행을 쓸지는 cp.roam_summary 가
+        정한다. 예전에는 여기서 크레딧(_label_order 9)을 버렸고, 그래서 크레딧을 켜고 쓰는
+        사용자는 파싱까지 끝난 자기 사용량을 필에서 전혀 볼 수 없었다.
+
+        매 tick(20 Hz) 불리므로 같은 입력·같은 5초 창 안에서는 메모한 값을 돌려준다.
+        """
         st = self.state
         stats = st["stats"]
         oauth = st["oauth"]
-        key = (cp.RUNTIME["mode"], id(stats), id(oauth), st["cost"], st["cost_month"],
-               cp.RUNTIME.get("api_budget"), bool(cp.OAUTH_STATUS.get("auth_error")), int(time.time() / 5))
+        key = (cp.RUNTIME["mode"], cp.L["lang"], st.get("onboard"), id(stats), id(oauth),
+               st["cost"], st["cost_month"], cp.RUNTIME.get("api_budget"),
+               bool(cp.OAUTH_STATUS.get("auth_error")), bool(st.get("api_error")),
+               bool(st.get("api_stale")), st.get("credit_text"), id(st.get("codex")),
+               int(time.time() / 5))
         memo = getattr(self, "_summary_memo", None)
         if memo and memo[0] == key:
             return memo[1]
@@ -615,8 +674,6 @@ class PetWindow(QWidget):
             now_utc = datetime.now(timezone.utc)
             rows = []
             for label, pct, rdt, rtxt in oauth:
-                if cp._label_order(label) >= 9:
-                    continue
                 reset_s = cp.fmt_countdown(rdt, now_utc) if rdt is not None else (rtxt or None)
                 rows.append((label, pct, reset_s))
             oauth = rows
@@ -627,23 +684,130 @@ class PetWindow(QWidget):
         segment = cp.roam_summary(cp.RUNTIME["mode"], oauth, stats, st.get("onboard"), st["cost"],
                                   bool(cp.RUNTIME.get("admin_key")), st["cost_month"],
                                   reset_texts=resets, spike_first=bool(spike_info(stats)),
-                                  cost_budget=float(cp.RUNTIME.get("api_budget") or 0))
-        main, sub = cp.roam_summary_runs([segment], cp.t)
+                                  cost_budget=float(cp.RUNTIME.get("api_budget") or 0),
+                                  auth_error=bool(cp.OAUTH_STATUS.get("auth_error")),
+                                  api_error=bool(st.get("api_error")),
+                                  api_stale=bool(st.get("api_stale")),
+                                  credit_text=st.get("credit_text"))
+        # 지금 떠 있는 상태 키 — 필 클릭의 뜻을 고를 때 쓴다. 상태 문구가 아니면 None 이라
+        # 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
+        st["summary_status"] = segment[1] if segment[0] == "status" else None
+        # 다른 제공자는 구간을 뒤에 덧붙이기만 한다. 읽을 게 없으면 구간 자체가 없다 —
+        # 0% 를 지어내지 않는다.
+        # 다른 제공자는 구간을 뒤에 덧붙이기만 한다 — 그리기·폭 계산은 run 단위라 손댈 곳이 없다.
+        # 모듈 함수를 이름으로 부르지 않고 state 훅으로 받는다(roam_release·autostart_read 와
+        # 같은 이유): 창 없는 시험은 손으로 만든 state 로 이 함수를 돌리고, 훅이 그냥 없으면
+        # 그 시험의 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 **구간 자체가 없고**,
+        # 그러면 아래 zip 에서 codex 가 kinds 에 들어가지도 않는다 — 0% 도, 빈 '조회 중'
+        # 줄도 지어내지 않는다.
+        codex_hook = st.get("codex_summary")
+        segments = [segment] + [s for s in ((codex_hook() if codex_hook else None),) if s]
+        measure = lambda v: self._text_w(v, self.F_SUMMARY)
+        # 리셋 전용 measure. cp.summary_lines 는 **줄 전체가 sub 인 줄**에만 이것을 쓴다 —
+        # 그리기(_draw_summary_pill)가 `all(kind == "sub")` 로 글꼴을 고르는 것과 같은
+        # 줄 단위 판정이다. run 단위로 고르면 인라인된 리셋 조각만 9.5pt 로 재어 그려지는
+        # 것보다 작게 잡고, 너무 늦게 접어 줄이 필 밖으로 넘친다(반대 방향의 같은 버그).
+        measure_sub = lambda v: self._text_w(v, self.F_SUMMARY_SUB)
+        # ── 제공자별 상태와 로딩 행렬 ────────────────────────────────────────────
+        # 제공자마다 상태가 셋이다: **없음**(읽을 것이 없다) / **받는중**(첫 응답 전) /
+        # **옴**(수치가 있다). 규칙 하나: **모든 제공자가 '받는중'이면 전역 한 줄에 마크
+        # 없음**, 그 외에는 제공자마다 자기 블록과 자기 마크 — 아직 받는 중인 쪽도 자기
+        # 마크와 함께 '조회 중'을 보인다. 그래야 "느린 거지 없는 게 아니다"가 전달된다.
+        # 두 제공자는 **대칭**이고 어느 쪽도 먼저 보지 않는다(한쪽을 먼저 보는 구조면
+        # 세 번째 제공자가 오는 날 또 고쳐야 한다).
+        # '받는중'과 '없음'을 가르는 신호. 새 state 키를 만들지 않고 이미 있는 것을 읽는다:
+        # stats 는 새로고침 워커가 한 번이라도 끝나야 dict 가 되고, 그 한 번의 패스가
+        # oauth 와 codex 를 **같이** 가져온다. 그래서 오늘은 두 제공자의 '첫 응답 도착'이
+        # 같은 순간이다. (두 조회가 나중에 서로 독립이 되면 제공자별 신호가 필요해진다.)
+        fetched = isinstance(st.get("stats"), dict)
+        kinds = {}
+        for pid, seg in zip(("claude", "codex"), segments):
+            if seg and seg[0] != "status":
+                kinds[pid] = ("ready", seg)
+            elif not fetched and (seg is None or seg[1] == "loading"):
+                # '받는중'은 **일반 loading 상태일 때만**이다. api_key_rejected·온보딩·
+                # 토큰 만료 같은 구체적인 상태는 이미 '진짜 답'이므로 '조회 중'으로 덮으면
+                # 사용자가 자기가 할 수 있는 일이 있다는 것을 영원히 모른다 — 키가 거부된
+                # 뒤에도 필이 "조회 중…"을 띄우던 것이 정확히 그 증상이다.
+                kinds[pid] = ("loading", ("status", "loading"))
+            else:
+                kinds[pid] = ("absent", seg)
+        if kinds and all(k == "loading" for k, _s in kinds.values()):
+            # 공통 로딩 — 어느 제공자의 줄도 아니므로 마크가 붙으면 안 된다.
+            groups = [(None, [("status", "loading")])]
+        else:
+            groups = []
+            for pid in ("claude", "codex"):
+                kind, seg = kinds.get(pid, ("absent", None))
+                if kind in ("ready", "loading"):
+                    groups.append((pid, [seg]))
+                elif seg is not None and pid == "claude":
+                    # Claude 의 status(온보딩·토큰 만료·스캔 중)는 버리지 않는다. 다만
+                    # 제공자 블록이 아니라 전역 줄이다 — 마크 없이 필 전체 폭을 쓴다.
+                    groups.insert(0, (None, [seg]))
+        # 폭을 **접기 전** 내용에서 정한다. 접은 뒤의 폭으로 정하면 영원히 안 커진다:
+        # 접힘은 지금 예산에 맞춰 줄을 나누므로 결과는 언제나 예산 안이고, 그러면 "더
+        # 필요하다"는 신호가 나올 자리가 없다. 펼친 폭으로 창을 먼저 키우고(화면이 끝이다),
+        # 그 다음에 새 예산으로 접는다.
+        # 폭을 **접기 전 줄** 에서 정한다. 줄 모양은 cp.summary_lines 에게 **물어서** 얻는다 —
+        # 예산을 무한으로 주면 아무것도 접히지 않으므로 돌아오는 것이 접히기 전의 진짜 줄이고,
+        # 인라인(게이지 하나면 리셋을 같은 줄에)도 이미 반영돼 있다. 규칙을 여기서 다시
+        # 구현하지 않는 이유는 그렇게 하면 두 플랫폼이 갈리기 때문이다.
+        #
+        # 그리고 각 줄을 **렌더러가 그 줄에 고를 글꼴**로 잰다. 이것이 줄 단위 결정이라는
+        # 점이 요점이다: 인라인된 리셋 run 은 kind 가 "sub" 이지만 11pt 로 그려지는 줄 안에
+        # 산다. run 종류별로 글꼴을 고르면 그 조각만 9.5pt 로 재어 반대 방향으로 같은 버그를
+        # 만든다. 실측: '주간 73% · 5d 18h' 는 11pt 로 124.0pt 인데, 인라인 전 두 줄을
+        # 따로 재면 max(63.0, 95.0) = 95.0 이라 29.0pt 가 모자랐다.
+        probe = cp.summary_lines(groups, measure, float("inf"), measure_sub)
+        need = 0.0
+        for _pid, lines in probe:
+            for line in lines:
+                font = self.F_SUMMARY_SUB if all(k == "sub" for _t, k in line) else self.F_SUMMARY
+                need = max(need, sum(self._stable_w(txt, font) for txt, _k in line))
+        # 훅이 주는 것은 **글자 자리** 폭이고 cp.summary_lines 가 받는 것은 **필 안쪽 전체**
+        # 폭이다 — 로고 뺄셈은 summary_lines 의 것이라(그 docstring 참조) 여기서 로고 폭을
+        # 되돌려 준다. 이 한 줄이 없으면 예산이 두 번 깎여, 가장 긴 줄이 딱 로고 폭만큼
+        # 넘쳐 접힌다. 화면에서는 마지막 게이지의 라벨과 값이 갈라지는 것으로 보인다 —
+        # 그리고 그 변이는 폭 단언으로는 영원히 안 잡힌다(과하게 접힌 줄은 어떤 예산에도
+        # 들어가므로). 실제 어댑터를 구동하는 시험만 잡는다.
+        budget = self._pill_budget_for(need) + cp.SUMMARY_LOGO_W
+        blocks = cp.summary_lines(groups, measure, budget, measure_sub)
+        # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
+        # run 하나로 붙인다. 게이지 '행'으로 만들면 있지도 않은 0% 를 지어내고, 그냥
+        # 마지막 줄에 붙이면 리셋 줄 옆에 흐리게 그려져 "리셋에 대한 주석"처럼 읽힌다.
         if segment[0] == "estimate" and cp.OAUTH_STATUS.get("auth_error"):
-            main.append((" ⚠", "status"))
-        w_main = sum(self._text_w(text, self.F_SUMMARY) for text, _k in main)
-        w_sub = sum(self._text_w(text, self.F_SUMMARY_SUB) for text, _k in sub)
-        value = (main, sub, float(max(w_main, w_sub)), (cp.SUMMARY_H2 if sub else cp.SUMMARY_H))
+            gauge_runs = cp.roam_summary_runs([segment], cp.t)[0]
+            n_gauge = len(cp._summary_fold_runs(gauge_runs, budget - cp.SUMMARY_LOGO_W, measure))
+            for pid, lines in blocks:
+                if pid in ("claude", None) and lines:
+                    lines[min(max(n_gauge, 1), len(lines)) - 1].append((" ⚠", "status"))
+                    break
+        # 각 줄을 **그 줄을 그리는 글꼴**로 잰다. 모든 줄을 11pt 로 재면 9.5pt 로 그려질
+        # 리셋 줄이 실제보다 넓게 잡혀 필이 부푼다 — 접힘과 같은 뿌리의 두 번째 사례다.
+        text_w = 0.0
+        for _pid, lines in blocks:
+            for line in lines:
+                me = measure_sub if all(k == "sub" for _t, k in line) else measure
+                text_w = max(text_w, sum(me(txt) for txt, _k in line))
+        n_lines = sum(len(lines) for _pid, lines in blocks)
+        if n_lines != st.get("summary_lines_n"):
+            # 높이도 폭과 같은 경로로 반영한다 — 기록만 하고 틱의 _relayout() 이 창을 맞춘다.
+            # 이 갱신을 빼면 세 줄이 두 줄 높이 안에 그려져, 폭을 고쳐 놓고 높이로 똑같이
+            # 잘려 보이는 상태가 된다(pill_band 주석).
+            st["relayout"] = True
+        st["summary_lines_n"] = n_lines           # 창 높이가 따라간다(pill_band)
+        value = (blocks, float(text_w) + cp.SUMMARY_LOGO_W, cp.pill_h(n_lines))
         self._summary_memo = (key, value)
         return value
 
     def roam_apply_display(self, phase):
         """표시 모드 → crop/rect → 실제 창 크기·원점. 경로·집은 건드리지 않는다 → 다시 그릴지."""
         mode = self.roam_display.mode(phase, self.state["show_panel"])
-        text_w, text_h = (self.roam_summary_text()[2:] if mode != cp.DISPLAY_FOLDED else (0.0, cp.SUMMARY_H))
+        text_w, text_h = (self.roam_summary_text()[1:] if mode != cp.DISPLAY_FOLDED else (0.0, cp.SUMMARY_H))
         w_, h_ = self.roam_env()
         lay = cp.roam_frame(self.roamer.pos, mode, self.pet_on_right(), self.pet_on_bottom(),
-                            w_, h_, self.PW, self.PH, cp.pill_h(), self.scale, text_w, text_h)
+                            w_, h_, self.PW, self.PH, self.pill_band(), self.scale, text_w, text_h)
         crop = tuple(lay["crop"])
         changed = crop != self.state.get("roam_crop") or mode != self.state.get("roam_mode")
         if changed:
@@ -730,15 +894,15 @@ class PetWindow(QWidget):
         rects = self.state.get("roam_rects")
         if rects:
             return rects.get("pill")
-        _m, _s, text_w, text_h = self.roam_summary_text()
+        _blocks, text_w, text_h = self.roam_summary_text()
         return cp.roam_pill_rect(self.roam_mode_now(), self.pet_on_right(), self.pet_on_bottom(),
-                                 self.W, self.PW, self.PH, cp.pill_h(), text_w, text_h)
+                                 self.W, self.PW, self.PH, self.pill_band(), text_w, text_h)
 
     def pet_origin(self):
         rects = self.state.get("roam_rects")
         if rects:
             return (rects["sprite"][0], rects["sprite"][1])
-        py = cp.pill_h() + cp.GAP if self.pet_on_bottom() else 2
+        py = self.pill_band() + cp.GAP if self.pet_on_bottom() else 2
         return (self.W - self.PW - 6, py) if self.pet_on_right() else (6, py)
 
     def btn_origin(self):
@@ -874,11 +1038,39 @@ class PetWindow(QWidget):
             values = {}
             try:
                 values["stats"] = cp.compute_usage()
-                values["oauth"] = cp.fetch_exact_usage()
-                values["onboard"] = cp.compute_onboard_state(values["oauth"], cp._has_claude_logs())
+                values["oauth"] = cp.fetch_exact_usage()      # 정확 모드 (180s 캐시)
+                # Codex 자격증명이 없으면 파일 한 번 못 열고 끝난다 — 망을 타지 않으므로
+                # Codex 를 안 쓰는 사용자에게 드는 비용은 없다. 읽을 게 없으면 None 이고,
+                # 그러면 어댑터가 구간 자체를 안 붙인다(0% 를 지어내지 않는다).
+                values["codex"] = cp.fetch_codex_usage()
+                values["cost"] = cp.fetch_api_cost_today()
                 if cp.RUNTIME["mode"] == "api":
-                    values["cost"] = cp.fetch_api_cost_today()
                     values["cost_month"] = cp.fetch_api_cost_month()
+                # 크레딧 금액 문자열. 모드는 **지금** 읽는다(파싱 시점이 아니라) — 파싱은
+                # 180초 캐시 뒤에 있어서, 거기서 굳히면 토글을 바꿔도 최대 3분 동안 옛 모드가
+                # 남는다. 크레딧 행이 없으면 None 이고, 그러면 roam_summary 가 그 원소를
+                # 붙이지 않는다. 문자열을 만드는 것은 워커의 일이다 — roam_summary 는 순수해야 한다.
+                values["credit_text"] = (
+                    cp.credit_row_text(cp.OAUTH_EXTRA["credit"],
+                                       cp.credit_display_mode(cp.RUNTIME.get("credit_display")))
+                    if cp.OAUTH_EXTRA["credit"] else None)
+                # 키가 거부된 뒤에도 필이 "조회 중…" 에 머물던 자리. 마지막 조회의 **실패
+                # 종류**를 보고, 사용자가 실제로 할 수 있는 일이 있는 경우만 경고로 올린다 —
+                # 401/403 은 키를 고치면 되고, 망 장애나 5xx 는 고칠 키가 없으니 "키를
+                # 확인하세요" 라고 말하면 거짓 안내가 된다.
+                _api_kind = cp.api_error_kind(cp.API_STATUS.get("last_error"))
+                values["api_error"] = _api_kind == "key"
+                values["api_stale"] = _api_kind == "transient"
+                # 두 번째 인자는 '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'다.
+                # 몇 달 전 로그 파일 하나가 남아 있다고 지금 보여 줄 데이터가 있는 것은 아니고,
+                # 그 파일이 온보딩 안내를 영원히 막고 있었다(코어 refresh 워커의 같은 주석).
+                values["onboard"] = cp.compute_onboard_state(
+                    values["oauth"], bool(values["stats"].get("entries")))
+                # 토큰을 살려 두는 자리. 판단은 순수 함수(cp.recovery_tick)가 하고 여기서는
+                # 실행만 한다. 여기서 action 을 보고 values["onboard"] 를 덮어쓰지 **않는다** —
+                # 맥에서 그 두 줄은 도달 불가능한 코드였고, 조건을 느슨하게 풀면 이번엔 반대로
+                # 보여 줄 수치가 있는 사용자의 필을 '미설치' 문구로 덮는다.
+                self._recovery_step()
             except Exception as e:  # 추정 실패는 화면에 '스캔 중' 으로 남고 다음 새로고침에 다시 시도
                 print(f"[refresh] failed: {type(e).__name__}", file=sys.stderr)
             finally:
@@ -911,10 +1103,158 @@ class PetWindow(QWidget):
     def _text_w(self, s, font):
         return QFontMetrics(font).horizontalAdvance(s)
 
+    # ── 요약 필 폭 (macOS 판 _pill_text_budget / _stable_w / _pill_width_step / _apply_pill_width) ──
+    def _pill_text_budget(self):
+        """접힘이 쓸 수 있는 **텍스트** 가로 예산.
+
+        접힘에 쓰는 예산과 필이 실제로 주는 폭이 **같은 뿌리**에서 나와야 한다 — geom() 의 W 다.
+        cp.roam_pill_rect 도 같은 W 를 받으므로 "접힘이 믿는 폭 == 필이 주는 폭"이 구성상
+        성립한다. 맥에서 이 둘이 갈라졌을 때(화면 폭 대 300) 넘치는 줄이 필 왼쪽에서 시작해
+        로고를 덮고 말줄임표 없이 잘렸다.
+
+        반환값은 **글자 자리** 폭이다 — 로고 폭까지 뺀 값. cp.summary_lines 가 받는 것은
+        '필 안쪽 전체' 폭이라 의미가 다르므로, 어댑터가 넘기기 직전에 SUMMARY_LOGO_W 를
+        되돌려 준다. 뺄셈의 주인은 summary_lines 이고(그 docstring), 여기서 뺀 것을 거기서
+        또 빼면 예산이 두 번 깎여 가장 긴 줄이 딱 로고 폭만큼 넘쳐 접힌다.
+        """
+        room = max(cp.SUMMARY_MIN_W, self.geom()[2] - 2 * cp.SUMMARY_EDGE)
+        return max(cp.SUMMARY_MIN_W, room - 2 * cp.PILL_PAD - cp.SUMMARY_LOGO_W)
+
+    def _widest_digit(self):
+        """필 글꼴에서 가장 넓은 숫자 글리프. 한 번만 재고 들고 있는다."""
+        d = getattr(self, "_widest_digit_cache", None)
+        if d is None:
+            d = max("0123456789", key=lambda c: self._text_w(c, self.F_SUMMARY))
+            self._widest_digit_cache = d
+        return d
+
+    def _stable_w(self, text, font=None):
+        """숫자의 **값**에 흔들리지 않는 폭. 자릿수는 그대로 반영한다.
+
+        필 폭이 실룩거리는 원인은 글꼴이 proportional 이라 숫자마다 폭이 다른 것이다
+        (`1` 이 `0` 보다 좁아 `10%` 가 `9%` 보다 넓고 `11%` 는 `10%` 보다 좁다). 그래서 폭을
+        잴 때만 모든 숫자를 가장 넓은 숫자로 바꿔 잰다 — `42% → 43%` 가 폭을 한 톨도 못
+        움직인다. (macOS 판 _stable_w 와 같은 규칙)
+        """
+        widest = self._widest_digit()
+        wide = "".join(widest if c.isdigit() else c for c in text)
+        return self._text_w(wide, font if font is not None else self.F_SUMMARY)
+
+    def _pill_width_step(self):
+        """폭이 움직이는 최소 단위 = 가장 넓은 숫자 글리프 하나의 폭.
+
+        임의의 상수가 아니다. 폭이 변하는 원인이 숫자 한 자리이므로, 그 한 자리가 한 단계
+        안에 흡수되는 가장 작은 단위가 이것이다.
+        """
+        return max(1.0, float(self._text_w(self._widest_digit(), self.F_SUMMARY)))
+
+    def _apply_pill_width(self, needed):
+        """필요한 폭을 기록한다. 바뀌었으면 True.
+
+        판단은 cp.next_pill_width 가 한다(순수). **여기서는 창을 건드리지 않는다** — 기록만
+        하고, 실제 창 크기 반영은 틱의 _regeom() 이 한다. 이 함수는 요약 텍스트 경로에서
+        불리고 그 경로는 그리기 도중에도 돌기 때문이다.
+        """
+        cur = float(self.state.get("pill_w") or cp.PILL_W)
+        avail = self._screen().availableGeometry().width()
+        want = cp.next_pill_width(cur, needed, self._pill_width_step(),
+                                  max(cp.SUMMARY_MIN_W, avail - 2 * cp.SUMMARY_EDGE))
+        if want == cur:
+            return False
+        self.state["pill_w"] = want
+        self.state["pill_w_dirty"] = True
+        # 창은 여기서 건드리지 않는다 — 이 경로는 paint 도중에도 돈다. 크기 반영은 틱의
+        # _relayout() 이 한다(맥 _regeom 과 같은 춤). 기록만 남긴다.
+        self.state["relayout"] = True
+        return True
+
+    def _pill_budget_for(self, text_w):
+        """요약 경로의 폭 훅: 필요한 폭을 기록하고, 그 폭이 내주는 텍스트 예산을 준다.
+
+        기록과 예산이 **같은 W 에서** 나오는 것이 요점이다(_pill_text_budget 참조).
+        """
+        self._apply_pill_width(text_w + cp.SUMMARY_LOGO_W + 2 * cp.PILL_PAD)
+        return self._pill_text_budget()
+
+    # ── 제공자 마크 (macOS 판 summary_logo_image / _tinted_logo / draw_summary_logo) ──
+    def summary_logo_image(self, provider):
+        """제공자 마크(QImage) 또는 None. 틴트가 선언된 제공자는 **미리 칠한 사본**을 준다.
+
+        openai.svg 는 fill="currentColor" 라 색을 우리가 정해야 한다 — 안 정하면 기본값인
+        검정으로 래스터화되고, 어두운 필 배경에서 그대로 사라진다. claude.svg 는 자체 컬러
+        (#D97757)를 갖고 있어 이 비대칭이 생긴다. **어떤 테스트도 이걸 못 잡는다** — 한쪽
+        마크만 조용히 안 보이는 번들이 나갈 수 있고, 맥에서 실제로 그 상태였다.
+
+        **그리는 자리에서 칠하려고 하면 안 된다.** 맥에서 setTemplate_(True) + 컨텍스트
+        fill 색 조합이 **합쳐서 아무 일도 하지 않은** 기록이 있다(픽셀 분포가 틴트를 건
+        경우와 안 건 경우가 바이트 단위로 같았고 둘 다 검정이었다). Qt 도 같은 함정이 있다 —
+        setPen/setBrush 는 비트맵 합성을 건드리지 않는다. 그래서 여기서 **CompositionMode_SourceIn**
+        으로 알파 안쪽만 색을 갈아 끼운 사본을 만든다. SourceIn 은 대상의 알파를 유지하고
+        색만 바꾸므로 맥의 sourceAtop(연산자 5)과 대응한다.
+
+        칠한 사본을 캐시하는 것도 요점이다 — 필은 20 Hz 로 다시 그려진다.
+        """
+        cache = self._logo_cache
+        if provider in cache:
+            return cache[provider]
+        img = None
+        name = cp.SUMMARY_LOGO_FILES.get(provider)
+        if name:
+            try:
+                path = cp.bundled_logo_path(name)
+                if path:
+                    mark = int(cp.SUMMARY_LOGO_MARK)
+                    dpr = float(self.devicePixelRatioF() or 1.0)
+                    px = max(1, int(round(mark * dpr)))
+                    img = QImage(px, px, QImage.Format_ARGB32_Premultiplied)
+                    img.fill(Qt.transparent)
+                    painter = QPainter(img)
+                    painter.setRenderHint(QPainter.Antialiasing, True)
+                    QSvgRenderer(path).render(painter)
+                    tint = cp.SUMMARY_LOGO_TINT.get(provider)
+                    if tint:
+                        # 알파는 그대로, 색만. 여기서 setBrush/setPen 으로 '칠하려' 하면 무동작이다.
+                        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                        painter.fillRect(img.rect(), QColor(tint))
+                    painter.end()
+                    img.setDevicePixelRatio(dpr)
+            except Exception as exc:
+                cp._dbg("logo: load failed", provider, type(exc).__name__)
+                img = None
+        cache[provider] = img
+        return img
+
+    def _draw_summary_logo(self, p, provider, left, cy):
+        """필 왼쪽에 마크 한 개. 색은 이미 사본에 들어 있으므로 여기서는 칠하지 않는다.
+
+        파일이 없으면 조용히 건너뛴다 — 마크가 없다고 수치를 못 보여 줄 이유는 없고,
+        들여쓰기는 그대로라 정렬도 깨지지 않는다.
+        """
+        img = self.summary_logo_image(provider)
+        if img is None:
+            return
+        mark = float(cp.SUMMARY_LOGO_MARK)
+        p.drawImage(QRectF(left, cy - mark / 2.0, mark, mark), img)
+
     def _draw_runs(self, p, runs, font, x, w, cy):
-        """run 들을 가로 가운데, 세로 cy 중심으로 — run 마다 제 색(SUMMARY_COLORS)."""
+        """run 들을 **왼쪽 맞춤**으로, 세로는 cy 중심으로 — run 마다 제 색(SUMMARY_COLORS).
+
+        가로 가운데 정렬(`x + (w - total) / 2`)이었는데, 그러면 짧은 줄이 긴 줄과 **다른 x
+        에서 시작한다.** 실기 캡처에서 리셋 줄이 첫 줄보다 84pt(4배 기준) 안쪽으로 떠서
+        마크와 세로로 맞지 않았다. 줄들은 같은 축에서 시작해야 마크가 그 블록 전체를
+        가리키는 것으로 읽힌다.
+
+        마크 없는 전역 상태 줄도 같은 규칙이다. 정렬은 기준점이 필요한데 제공자 줄은
+        마크가, 마크 없는 줄은 필 왼쪽 안쪽 가장자리가 기준이라 **둘 다 왼쪽**이고 규칙은
+        하나다. 전역 줄이 혼자일 때는 필이 그 줄에 맞춰지므로 가운데와 왼쪽이 픽셀 단위로
+        같고, 혼자가 아닐 때는 가운데가 해롭다 — 로딩 행렬에서 Claude 의 token_expired
+        상태 줄이 Codex 수치 줄 위에 올 수 있고, 그때 그 줄만 공통 축에서 벗어난다.
+
+        w 는 이제 줄을 놓는 데 쓰이지 않지만(넘침은 cp.summary_lines 가 이미 접어서 없다)
+        호출 계약을 유지한다.
+        """
         widths = [self._text_w(text, font) for text, _kind in runs]
-        cx = x + (w - sum(widths)) / 2
+        cx = x
         lh = QFontMetrics(font).height()
         p.setFont(font)
         for (text, kind), tw in zip(runs, widths):
@@ -923,23 +1263,49 @@ class PetWindow(QWidget):
             cx += tw
 
     def _draw_summary_pill(self, p):
-        """요약 필: 첫 줄 = 라벨(출처 색)+수치(잔여량 색), 둘째 줄 = 리셋 시각(보조색). 폰트 축소 없이 말줄임 (macOS 판 규칙)."""
+        """요약 필: 펫에 붙은 둥근 필. 제공자 블록마다 왼쪽에 마크, 그 제공자의 모든 줄은 마크 폭만큼 들여쓴다.
+
+        **여기서는 아무것도 자르지 않는다.** 줄을 나누는 일은 cp.summary_lines 가
+        (roam_summary_text 경유로) 이미 끝냈고, 그린 뒤에 다시 재는 곳이 있으면 그게 곧
+        잘림선이 된다 — Codex 행이 화면에 닿지 못하던 원인이 정확히 이 자리에 있던
+        cp.roam_fit_runs 두 줄이었다.
+
+        접혀서 생긴 이어지는 줄도 같은 들여쓰기라 세로로 맞는다. 마크는 run 이 아니라
+        **들여쓰기**이므로 폭 계산(cp.summary_lines)과 그리기가 같은 약속을 쓴다.
+        """
         pill = self.pill_rect()
         if not pill:
             return
         x, y, w, h = pill
         p.setPen(Qt.NoPen)
         p.setBrush(self._color(cp.PILL_BG, 0.96))
-        p.drawRoundedRect(QRectF(x, y, w, h), h / 2, h / 2)
-        main, sub, _tw, _th = self.roam_summary_text()
-        inner = w - 2 * cp.PILL_PAD
-        main = cp.roam_fit_runs(main, inner, lambda v: self._text_w(v, self.F_SUMMARY))
-        if sub and h >= cp.SUMMARY_H2:
-            sub = cp.roam_fit_runs(sub, inner, lambda v: self._text_w(v, self.F_SUMMARY_SUB))
-            self._draw_runs(p, main, self.F_SUMMARY, x, w, y + 15)
-            self._draw_runs(p, sub, self.F_SUMMARY_SUB, x, w, y + h - 12)
-        else:
-            self._draw_runs(p, main, self.F_SUMMARY, x, w, y + h / 2)
+        # 반지름은 **고정**이다. h/2 로 하면 한 줄일 때만 알약이고 네 줄이면 반지름이
+        # 39pt 가 되어 타원이 된다. SUMMARY_RADIUS 는 한 줄의 모서리가 정확히 반원이 되는
+        # 값이고, 더 크면 곡선이 다음 줄을 먹는다.
+        p.drawRoundedRect(QRectF(x, y, w, h), cp.SUMMARY_RADIUS, cp.SUMMARY_RADIUS)
+        blocks, _tw, _th = self.roam_summary_text()
+        rows = [(pid, line) for pid, lines in blocks for line in lines]
+        if not rows:
+            return
+        indented = x + cp.PILL_PAD + cp.SUMMARY_LOGO_W
+        indented_w = w - 2 * cp.PILL_PAD - cp.SUMMARY_LOGO_W
+        top = y + (h - len(rows) * cp.SUMMARY_LINE_H) / 2.0
+        seen = set()
+        for i, (pid, line) in enumerate(rows):
+            cy = top + i * cp.SUMMARY_LINE_H + cp.SUMMARY_LINE_H / 2.0
+            # pid 가 None 이면 전역 줄이다 — 마크도 들여쓰기도 없고 필 전체 폭을 쓴다.
+            # 로고는 "이 줄은 이 제공자의 수치다"라는 표시인데 전역 상태는 아무 제공자의
+            # 수치도 아니다.
+            text_x = indented if pid is not None else x + cp.PILL_PAD
+            text_w = indented_w if pid is not None else w - 2 * cp.PILL_PAD
+            if pid is not None and pid not in seen:   # 마크는 제공자의 첫 줄에만
+                seen.add(pid)
+                self._draw_summary_logo(p, pid, x + cp.PILL_PAD, cy)
+            # 리셋 줄은 **작은 글꼴 + dim 색** 둘 다다. 색만으로는 위계가 약해서 리셋 줄이
+            # 게이지 줄만큼 눈을 끈다(맥 실기 화면에서 그랬다). 줄 높이는 그대로 두어
+            # pill_h(줄 수) 계약을 지킨다 — 16pt 줄상자 안의 9.5pt 글자는 보통 행간이다.
+            font = self.F_SUMMARY_SUB if all(k == "sub" for _t, k in line) else self.F_SUMMARY
+            self._draw_runs(p, line, font, text_x, text_w, cy)
 
     def paintEvent(self, event):
         st = self.state
@@ -1090,6 +1456,21 @@ class PetWindow(QWidget):
             m.addSeparator()
         m.addAction(cp.t("menu_settings"), self._open_settings)
         m.addAction(cp.t("menu_toggle"), self._toggle_panel)
+        # 체크 항목 셋은 붙여 둔다. menu_autostart 가 menu_roam 과 menu_reset_size 사이라는
+        # 것은 AST 로 고정돼 있으니(windows/tests/test_win_autostart.py) 새 항목은 그 쌍
+        # 사이가 아니라 앞에 놓는다 — macOS 판 rightMouseDown_ 과 같은 순서.
+        credit = QAction(cp.t("menu_credit_money"), m, checkable=True)
+        # 체크 = 금액 모드. 진실의 출처는 우리 설정 키다(RUNTIME). 기본값이 money 라
+        # "pct 가 아니면 금액" 은 credit_display_mode() 와 같은 뜻이다.
+        credit.setChecked(cp.RUNTIME.get("credit_display") != "pct")
+        credit.triggered.connect(self._toggle_credit_money)
+        m.addAction(credit)
+        # 체크 표시는 RUNTIME 에서 온다 — autostart 와 달리 OS 등록 상태가 아니라 우리
+        # 설정 키가 진실의 출처다(SETTINGS_OWNED_KEYS 에 있다).
+        recover = QAction(cp.t("menu_auto_recover"), m, checkable=True)
+        recover.setChecked(bool(cp.RUNTIME.get("auto_recover")))
+        recover.triggered.connect(self._toggle_auto_recover)
+        m.addAction(recover)
         roam = QAction(cp.t("menu_roam"), m, checkable=True)
         roam.setChecked(bool(cp.RUNTIME.get("roam")))
         roam.setEnabled(not self.state["reduce_motion"])     # 동작 줄이기(애니메이션 끔)면 비활성
@@ -1147,6 +1528,74 @@ class PetWindow(QWidget):
             self.cfg.update(merged)
         else:
             self.cfg["roam"] = value
+
+    # ── 토큰 자동 복구 (판단: cp.recovery_tick / 실행: 여기 — macOS 판 _recovery_step 과 같은 계약) ──
+    def _recovery_step(self, force=False):
+        """새로고침 워커가 매 주기 부르는 자리. 판단은 cp.recovery_tick 이, 실행만 여기서.
+
+        force 는 사용자가 만료 문구를 직접 눌렀을 때다 — 포기한 사이클을 다시 열고 한 번 더
+        띄운다. 자동 경로가 포기하는 것과 사용자가 다시 시도하는 것은 다른 일이다.
+
+        스폰의 윈도우 분기는 코어가 이미 갖고 있다: `cmd.exe /c claude -p /usage` 를
+        WMI(Win32_Process.Create)가 띄워 부모가 WmiPrvSE.exe 가 되므로 CLI 가 우리 자손으로
+        뜨지 않고, 터미널 창도 없다(cp.recovery_spawn_argv / cp._run_refresh_job).
+        """
+        try:
+            have_oauth, expires_at, token_sig = cp.oauth_token_facts()
+            if force:
+                self.state["recovery"] = dict(self.state["recovery"],
+                                              attempts=0, gave_up=False, first_at=None,
+                                              last_spawn=None, login_expired=False)
+            rec, action = cp.recovery_tick(
+                self.state["recovery"], datetime.now(timezone.utc),
+                auth_error=bool(cp.OAUTH_STATUS.get("auth_error")),
+                token_sig=token_sig,
+                cli_present=bool(cp._find_claude_cli()),
+                enabled=bool(cp.RUNTIME.get("auto_recover")) or force,
+                creds_have_oauth=have_oauth,
+                expires_at=expires_at)
+            self.state["recovery"] = rec
+            cp._dbg("recovery: action", action, "attempts", rec["attempts"])
+            if action == "spawn":
+                cp.run_token_refresh(self.state)
+            return action
+        except Exception as e:
+            cp._dbg("recovery: step failed", type(e).__name__)
+            return None
+
+    def _toggle_credit_money(self):
+        """크레딧 행을 금액($100.66)으로 볼지 %로 볼지. macOS 판 toggleCreditMoney_ 과 같은 계약.
+
+        선택은 ~/.claude_pet.json 에 남는다 — 바꿨는데 다음 실행에 돌아가 있으면 바꾼 게 아니다.
+
+        필 문자열을 여기서 바로 다시 만든다. 평소에는 새로고침 워커가 만들지만 그 주기는
+        30초라 누르고 나서 한참 그대로처럼 보인다. credit_text 는 요약 memo 키에 들어 있으므로
+        다음 tick 에 바로 다시 그려진다.
+        """
+        value = cp.credit_display_next(cp.RUNTIME.get("credit_display"))
+        cp.RUNTIME["credit_display"] = value
+        if cp.OAUTH_EXTRA["credit"]:
+            self.state["credit_text"] = cp.credit_row_text(cp.OAUTH_EXTRA["credit"], value)
+        ok, merged = cp.merge_config_updates({"credit_display": value})
+        if ok:
+            self.cfg.clear()
+            self.cfg.update(merged)
+        else:
+            self.cfg["credit_display"] = value
+
+    def _toggle_auto_recover(self):
+        """토큰 자동 갱신·복구 켜기/끄기. macOS 판 toggleAutoRecover_ 과 같은 계약.
+
+        선택은 ~/.claude_pet.json 에 남는다 — 껐는데 다음 실행에 다시 켜져 있으면 끈 게 아니다.
+        """
+        value = not cp.RUNTIME.get("auto_recover")
+        cp.RUNTIME["auto_recover"] = value
+        ok, merged = cp.merge_config_updates({"auto_recover": value})
+        if ok:
+            self.cfg.clear()
+            self.cfg.update(merged)
+        else:
+            self.cfg["auto_recover"] = value
 
     # ── 로그인 시 자동 실행 (판단: win_autostart / 실행: 여기 — macOS 판 toggleAutostart_ 와 같은 계약, 설정 키 없음) ──
     def _autostart_args(self):

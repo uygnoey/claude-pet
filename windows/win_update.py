@@ -84,6 +84,11 @@ PORTABLE_REQUIRED = (
     os.path.join("_internal", "fonts", "LICENSE-Pretendard.txt"),
     os.path.join("_internal", ".claude_pet", "pets"),
     os.path.join("_internal", "claudepet.ico"),
+    # 제공자 마크. 빌더의 data 목록과 이 튜플은 **서로 독립된 두 개의 문**이다. 한쪽만
+    # 맞는 것이 조용한 실패다 — 오늘은 제대로 빌드되고, 항목을 떨어뜨린 첫 빌드가 모든
+    # 클라이언트에 불평 없이 설치된다. 그러면 필은 빈 여백만 그리고 아무도 이유를 못 댄다.
+    os.path.join("_internal", "logos", "claude.svg"),
+    os.path.join("_internal", "logos", "openai.svg"),
     RELEASE_MARKER,
 )
 

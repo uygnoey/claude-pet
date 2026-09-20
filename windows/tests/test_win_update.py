@@ -91,7 +91,12 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-import claude_pet as cp  # noqa: E402  — the core the module under test must reach too
+import windows.win_core as win_core  # noqa: E402  — the ONE owner of the core import
+
+# Same reason as test_win_autostart.py: a bare `import claude_pet` dies at collection on
+# Windows (`ModuleNotFoundError: No module named 'fcntl'`), so the module under test was
+# never reached at all on the only host that can answer for it. `windows/README.md`.
+cp = win_core.import_core()  # noqa: E402  — the core the module under test must reach too
 
 MODULE = "windows.win_update"
 
@@ -678,22 +683,62 @@ class ScanUpdateZipTests(unittest.TestCase):
 MARKER = os.path.join("_internal", "claudepet-release.json")
 
 
+def _required_entries():
+    """PORTABLE_REQUIRED minus the two entries this fixture places itself.
+
+    The exe and the release marker are built by name because their *shape* matters
+    to the validator and to individual tests: the exe has to be a file
+    (``exe=False`` removes it), and the marker's contents are the subject of
+    several tests (``marker_text=``). Everything else the validator wants is taken
+    from the tuple, not transcribed.
+    """
+    wu = _mod()
+    skip = {os.path.normpath(wu.EXE_NAME), os.path.normpath(MARKER)}
+    return [r for r in wu.PORTABLE_REQUIRED if os.path.normpath(r) not in skip]
+
+
 def _make_tree(root, name="ClaudePet", version="0.25", exe=True, internal=True,
-               marker=True, marker_text=None):
-    """A PyInstaller onedir tree the way build_win.py lays it out, under root/<name>/."""
+               marker=True, marker_text=None, omit=None):
+    """A PyInstaller onedir tree the way build_win.py lays it out, under root/<name>/.
+
+    **"Complete" is read from ``win_update.PORTABLE_REQUIRED``, never transcribed.**
+    It used to be a hand-written list of four files and three directories, and it
+    went stale the moment v0.26 added the two provider marks to that tuple: three
+    tests asserting a complete tree is *accepted* went red against a validator that
+    was doing exactly its job. A fixture that enumerates what production requires
+    must be edited every time production requires more, and the only prompt to edit
+    it is a red test whose message points at the validator rather than at the
+    fixture. Deriving it removes the class of failure entirely.
+
+    Entries with a file extension are created as files and the rest as directories,
+    which is how build_win.py lays them out. The validator only asks
+    ``os.path.exists`` for these, so the distinction is about the fixture resembling
+    a real build, not about passing the check.
+
+    ``omit`` drops one required entry, for the test that each of them is
+    load-bearing.
+    """
     app = os.path.join(root, name)
     os.makedirs(app, exist_ok=True)
     if exe:
         with open(os.path.join(app, "ClaudePet.exe"), "wb") as f:
             f.write(b"MZ")
     if internal:
-        internal_dir = os.path.join(app, "_internal")
-        os.makedirs(os.path.join(internal_dir, "frames"))
-        os.makedirs(os.path.join(internal_dir, "fonts"))
-        os.makedirs(os.path.join(internal_dir, ".claude_pet", "pets"))
-        for rel in (("fonts", "Pretendard-SemiBold.ttf"), ("fonts", "LICENSE-Pretendard.txt"),
-                    ("claudepet.ico",), ("frames", "idle_0.png")):
-            with open(os.path.join(internal_dir, *rel), "wb") as f:
+        os.makedirs(os.path.join(app, "_internal"), exist_ok=True)
+        dropped = None if omit is None else os.path.normpath(omit)
+        for rel in _required_entries():
+            if dropped is not None and os.path.normpath(rel) == dropped:
+                continue
+            target = os.path.join(app, rel)
+            if os.path.splitext(rel)[1]:
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(target, "wb") as f:
+                    f.write(b"\0")
+            else:
+                os.makedirs(target, exist_ok=True)
+        frames = os.path.join(app, "_internal", "frames")
+        if os.path.isdir(frames):
+            with open(os.path.join(frames, "idle_0.png"), "wb") as f:
                 f.write(b"\0")
         if marker or marker_text is not None:
             with open(os.path.join(app, MARKER), "w", encoding="utf-8") as f:
@@ -765,6 +810,46 @@ class PortableLayoutTests(unittest.TestCase):
                 root = self._root()
                 _make_tree(root, version="0.25")
                 self._ok(wu.validate_portable_layout(root, tag))
+
+    def test_every_required_entry_is_load_bearing(self):
+        """Drop one entry from the tree and the validator must refuse — for each of them.
+
+        This is the test that makes a *future* addition to PORTABLE_REQUIRED gated
+        automatically, and it is the piece that was missing when v0.26 added the two
+        provider marks. What existed was "a complete tree is accepted" and a handful
+        of hand-picked removals (the exe, the marker); a newly required entry joined
+        the tuple with nothing asserting the validator actually consults it.
+
+        The rival it rules out is a validator that names entries it never checks —
+        a list that looks like a contract and enforces nothing. Under that rival every
+        subtest here passes; under a validator that checks them all, every subtest
+        refuses. There is no fixture-dependent tie: the entry removed is the only
+        difference between this tree and the one the test above proves is accepted.
+
+        It iterates production's own tuple, and asserts the tuple is non-empty first —
+        an empty PORTABLE_REQUIRED would make this loop run zero times and report
+        success, which is the vacuous-gate shape this repository has been bitten by.
+        """
+        wu = _mod()
+        required = list(wu.PORTABLE_REQUIRED)
+        self.assertTrue(required,
+                        "PORTABLE_REQUIRED is empty - this test would pass without "
+                        "checking anything")
+        for rel in required:
+            with self.subTest(entry=rel):
+                root = self._root()
+                if os.path.normpath(rel) == os.path.normpath(wu.EXE_NAME):
+                    _make_tree(root, version="0.25", exe=False)
+                elif os.path.normpath(rel) == os.path.normpath(MARKER):
+                    _make_tree(root, version="0.25", marker=False)
+                else:
+                    _make_tree(root, version="0.25", omit=rel)
+                got = wu.validate_portable_layout(root, "v0.25")
+                self.assertIs(
+                    got[0], False,
+                    "a tree missing %r was accepted. PORTABLE_REQUIRED names it, so "
+                    "either the validator does not consult that entry or the fixture "
+                    "did not actually omit it. got=%r" % (rel, got))
 
     def test_two_complete_roots_are_refused(self):
         wu = _mod()
