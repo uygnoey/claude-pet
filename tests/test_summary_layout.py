@@ -48,6 +48,7 @@ tests/test_summary_pill.py 가 실제 번들 폰트에서 뽑아 둔 문자 adva
 """
 
 import ast
+import math
 import os
 import re
 import sys
@@ -727,6 +728,303 @@ class LogoAssetsArePackagedTests(unittest.TestCase):
                       "verify_release_artifact.py 가 로고 없는 아티팩트를 통과시킨다")
 
 
+class FoldBudgetMatchesTheActualPillTests(LangMixin, unittest.TestCase):
+    """접힘이 믿는 예산과 필이 실제로 주는 폭이 **같은 값인가.**
+
+    ── 이 클래스가 왜 생겼는지, 내 실수를 그대로 적어 둔다 ────────────────────────
+
+    나는 이 파일과 `PillWidthFollowsContentTests` 에서 "상한이 화면을 따라간다"를
+    단언했다. 관계는 참이었다. **입력이 허구였다.** 내 헬퍼는 이렇게 불렀다:
+
+        roam_pill_rect(mode, False, False, screen_w, …)      # 매개변수 이름이 screen_w
+
+    생산은 거기에 화면을 **절대** 넘기지 않는다. `geom()` 의
+    `W = max(pw + BTN_R*2 + 16, PILL_W + 8)` 를 넘기고, 그 값은 펫 크기와 무관하게
+    **308** 이다. 그래서 필의 상한은 여전히 `300 - 2*SUMMARY_EDGE` = 300 이고, 글자가
+    쓸 수 있는 자리는 `300 - 2*PILL_PAD - SUMMARY_LOGO_W` = **256** 이다. 그런데
+    `_pill_text_budget()` 은 **화면**(≈1920)을 접힘에 넘긴다. 접힘은 1920 이 있다고 믿어
+    접지 않고, `draw_summary_pill` 은 (의도대로) 자르지 않고, `_draw_runs` 는 가운데
+    정렬이라 넘치는 줄의 시작점이 필 왼쪽 **밖으로** 나간다 — 말줄임표도 없이.
+
+    내가 매개변수에 `screen_w` 라고 이름을 붙인 순간 가정이 픽스처에 박혔고, 그 뒤로는
+    테스트가 그 가정을 검사할 방법이 없었다. **은퇴시킨 `test_the_pill_cannot_be_widened_
+    to_make_room` 과 같은 종류다** — 그때 나는 "매직 넘버를 고정하는 테스트는 틀려 보이지
+    않고 엄밀해 보인다"고 적었다. 이번엔 한 층 위에서, *관계만 검사하는* 테스트가 허구의
+    입력으로 같은 일을 했다. 관계를 검사하는 것으로는 부족하고, **입력이 생산에서 와야**
+    한다.
+
+    그래서 이 클래스는 양쪽 끝을 **생산 경로에서 유도**한다: `W` 는 `geom()` 을 꺼내서
+    부르고, 접힘 예산은 `_pill_text_budget()` 을 꺼내서 부른다. 식을 여기 다시 적지
+    않는다 — 다시 적는 순간 또 갈라진다.
+    """
+
+    SCREEN = 1920.0          # a realistic display; only _pill_text_budget sees it
+
+    def setUp(self):
+        super().setUp()
+        from test_companion_motion import gui_functions
+        api = _require("PILL_W")  # fail early with the contract message if absent
+        scope = {
+            "PW0": 120, "PH0": 90, "g": {"scale": 1.0},
+            "BTN_R": claude_pet.BTN_R, "GAP": claude_pet.GAP,
+            "PILL_W": claude_pet.PILL_W, "PILL_PAD": claude_pet.PILL_PAD,
+            "SUMMARY_MIN_W": claude_pet.SUMMARY_MIN_W,
+            "SUMMARY_EDGE": claude_pet.SUMMARY_EDGE,
+            "SUMMARY_LOGO_W": claude_pet.SUMMARY_LOGO_W,
+            "SUMMARY_LINE_H": claude_pet.SUMMARY_LINE_H,
+            "SUMMARY_PAD_V": claude_pet.SUMMARY_PAD_V,
+            "SUMMARY_H": claude_pet.SUMMARY_H,
+            "pill_h": claude_pet.pill_h,
+            "state": {"summary_lines_n": 2},
+            "win": None,
+            "NSScreen": SimpleNamespaceScreen(self.SCREEN),
+        }
+        gui_functions(self, ("geom", "_pill_text_budget"), scope)
+        self.PW, self.PH, self.W, self.H = scope["geom"]()
+        self.fold_budget = float(scope["_pill_text_budget"]())
+
+    def pill_text_area(self, text_w, lines):
+        """생산이 실제로 그리는 필의 **글자 자리** 폭. roam_pill_rect 를 그대로 쓴다."""
+        band = claude_pet.pill_h(lines)
+        rect = claude_pet.roam_pill_rect(
+            claude_pet.DISPLAY_FULL, False, False, self.W, self.PW, self.PH,
+            band, text_w=text_w, text_h=band)
+        self.assertIsNotNone(rect)
+        x, _y, w, _h = rect
+        return x, w - 2 * claude_pet.PILL_PAD - claude_pet.SUMMARY_LOGO_W
+
+    def measure_line(self, line):
+        return sum(pretendard_width(t) for t, _k in line)
+
+    def test_the_fold_budget_is_the_width_the_pill_actually_gives(self):
+        """불변식의 뿌리. 접힘에 넘기는 예산과 필이 내주는 글자 자리가 같아야 한다.
+
+        다르면 접힘은 자기가 가진 줄 알고 안 접고, 필은 그만큼을 안 준다. 오늘 그 비는
+        7.5배다.
+
+        Rival: 예산을 화면에서 재고 필을 `geom()` 의 W 로 재는 구현 — 지금 상태다. 양쪽
+        각각은 '맞는 값'이고 둘이 같은 것을 가리키지 않는다.
+        """
+        _x, available = self.pill_text_area(text_w=10_000, lines=2)
+        self.assertAlmostEqual(
+            self.fold_budget, available, delta=1.0,
+            msg=(f"접힘 예산 {self.fold_budget:.0f}pt 인데 필이 주는 글자 자리는 "
+                 f"{available:.0f}pt 다 ({self.fold_budget / max(available, 1):.1f}배). "
+                 f"논리 창 W={self.W} (geom(): max(pw+BTN_R*2+16, PILL_W+8)) 는 화면이 "
+                 "아니다 — 접힘이 믿는 폭과 필이 주는 폭이 같은 값이어야 한다."))
+
+    def test_no_produced_line_exceeds_the_pill_it_will_be_drawn_in(self):
+        """**같은 내용**에 대해 `summary_lines` 가 낸 줄과 `roam_pill_rect` 가 낸 필을
+        맞댄다. 양쪽 다 생산 값으로.
+
+        Reviewer 실측으로 오늘 이미 넘치는 조합이 있다 — 영어 Claude 게이지+크레딧 줄이
+        대표다. 넘치는데 접히지도 잘리지도 않으므로 사용자는 **말줄임표 없이 사라진 글자**를
+        본다.
+        """
+        problems = []
+        for lang in ("ko", "en"):
+            for credit in (False, True):
+                for codex in (0, 1, 2):
+                    self.use(lang)
+                    groups = groups_for(lang, claude=True, codex=codex, credit=credit)
+                    blocks = layout(groups, budget=self.fold_budget)
+                    lines = all_lines(blocks)
+                    if not lines:
+                        continue
+                    text_w = max(self.measure_line(l) for l in lines) + claude_pet.SUMMARY_LOGO_W
+                    _x, available = self.pill_text_area(text_w, len(lines))
+                    for line in lines:
+                        width = self.measure_line(line)
+                        if width > available + 0.5:
+                            problems.append(
+                                f"[{lang} credit={credit} codex={codex}] "
+                                f"{width:.1f}pt > {available:.1f}pt : "
+                                f"{''.join(t for t, _k in line)!r}")
+        self.assertEqual(
+            problems, [],
+            "필 밖으로 나가는 줄이 있다 — 접히지도 잘리지도 않으므로 사용자에게는 "
+            "말줄임표 없이 글자가 사라진 것으로 보인다:\n  " + "\n  ".join(problems))
+
+    def test_an_overflowing_line_starts_outside_the_pill_not_merely_wide(self):
+        """`_draw_runs` 는 가운데 정렬이다 — `cx = x + (w - total) / 2`. total 이 w 를
+        넘으면 **시작점이 필 왼쪽 밖**으로 나가고, 로고 자리를 침범한 뒤 창에서 잘린다.
+
+        "안 잘린다"만 단언하면 이걸 못 잡는다. 그래서 그리기 시작점을 직접 계산해서
+        글자 자리 왼쪽 경계 안에 있는지 본다.
+
+        Rival: 폭만 보고 통과시키는 단언 — 넘치는 줄도 '그려지기는 한다'.
+        """
+        problems = []
+        for lang in ("ko", "en"):
+            for credit in (False, True):
+                self.use(lang)
+                groups = groups_for(lang, claude=True, codex=1, credit=credit)
+                lines = all_lines(layout(groups, budget=self.fold_budget))
+                if not lines:
+                    continue
+                text_w = max(self.measure_line(l) for l in lines) + claude_pet.SUMMARY_LOGO_W
+                pill_x, available = self.pill_text_area(text_w, len(lines))
+                text_left = pill_x + claude_pet.PILL_PAD + claude_pet.SUMMARY_LOGO_W
+                for line in lines:
+                    start = text_left + (available - self.measure_line(line)) / 2.0
+                    if start < text_left - 0.5:
+                        problems.append(
+                            f"[{lang} credit={credit}] 시작 x={start:.1f} < 글자 자리 "
+                            f"왼쪽 {text_left:.1f} : {''.join(t for t, _k in line)!r}")
+        self.assertEqual(
+            problems, [],
+            "가운데 정렬 때문에 줄의 시작점이 글자 자리 밖으로 나간다 — 로고 자리를 "
+            "침범하고 창에서 잘린다:\n  " + "\n  ".join(problems))
+
+
+class PillWidthDoesNotJitterTests(LangMixin, unittest.TestCase):
+    """필 폭이 **숫자 값**에 흔들리지 않는가. 자릿수에는 흔들려도 된다.
+
+    두 경우를 섞으면 안 되고, 그 구분이 이 클래스의 전부다:
+
+    · `42% → 43%`, `99% → 98%` — **자릿수가 같다.** 폭이 한 톨이라도 움직이면 실패다.
+      사용자에게는 새로고침마다 펫이 실룩거리는 것으로 보인다.
+    · `9% → 10%`, `99% → 100%` — **자릿수가 늘었다.** 폭이 움직이는 것이 **정상**이고,
+      안 움직이면 글자가 필 밖으로 나간다. 이걸 실패로 걸면 넘침을 강제하게 된다.
+
+    첫째는 우연이 아니라 **구성상** 참이다 — `_stable_w()` 가 폭을 잴 때 모든 숫자를
+    가장 넓은 숫자 글리프로 바꿔서 재기 때문이다. 그래서 여기서는 고른 전이 몇 개를
+    확인하지 않고 **그 성질 자체**를 단언한다: "자릿수가 같으면 잰 폭이 같다". 성질로
+    걸면 다른 로케일·다른 게이지 조합·앞으로 생길 제공자에도 자동으로 적용된다. 표에서
+    고른 전이 네 개만 보는 게이트는 그 표에만 맞는다.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from test_companion_motion import gui_functions
+        widths = {}
+
+        def astr(text, _font):
+            import types
+            return types.SimpleNamespace(
+                size=lambda: types.SimpleNamespace(
+                    width=sum(widths.get(c, pretendard_width(c)) for c in text)))
+
+        scope = {"astr": astr, "F_SUMMARY": None,
+                 "SUMMARY_MIN_W": claude_pet.SUMMARY_MIN_W,
+                 "PILL_W": claude_pet.PILL_W}
+        gui_functions(self, ("_stable_w", "_pill_width_step", "_widest_digit"), scope)
+        self.stable_w = scope["_stable_w"]
+        self.step = scope["_pill_width_step"]()
+        self.widest_digit = scope["_widest_digit"]()
+
+    def test_the_step_is_derived_from_the_widest_digit_not_chosen_from_a_sample(self):
+        """`_pill_width_step()` 은 실측에서 고른 상수가 아니라 **유도된 값**이어야 한다 —
+        '가장 넓은 숫자 글리프 하나의 폭'. 그 유도가 유지되는지 본다.
+
+        Rival: 샘플에서 고른 양자화 단위(예: 4pt). 경계가 두 인접값 사이에 떨어지느냐가
+        우연이라 그 샘플에만 맞고, 다른 글꼴·다른 크기에서 조용히 틀린다.
+        """
+        self.assertEqual(len(self.widest_digit), 1)
+        self.assertTrue(self.widest_digit.isdigit())
+        widest = max("0123456789", key=pretendard_width)
+        self.assertAlmostEqual(
+            pretendard_width(self.widest_digit), pretendard_width(widest), places=4,
+            msg=f"_widest_digit() = {self.widest_digit!r} 인데 실제 가장 넓은 숫자는 "
+                f"{widest!r} 이다")
+        self.assertAlmostEqual(
+            self.step, pretendard_width(widest), places=4,
+            msg=f"step {self.step} 이 가장 넓은 숫자 글리프 폭 "
+                f"{pretendard_width(widest)} 에서 유도되지 않았다")
+
+    def test_same_digit_count_measures_the_same_width(self):
+        """성질 그 자체. 자릿수만 같으면 **어떤 숫자든** 잰 폭이 같아야 한다.
+
+        고른 전이가 아니라 실제 필 문구에 대해 확인한다 — 로케일 둘 × 크레딧 유무 ×
+        Codex 0/1/2 행, 각 조합의 모든 줄에 대해 퍼센트 값만 바꿔 가며.
+        """
+        problems = []
+        for lang in ("ko", "en"):
+            for credit in (False, True):
+                for codex in (0, 1, 2):
+                    self.use(lang)
+                    for pcts in ((42.0, 17.0, 12.0), (43.0, 18.0, 13.0), (99.0, 98.0, 97.0)):
+                        groups = groups_for(lang, claude=True, codex=codex, credit=credit)
+                        base = [l for l in all_lines(layout(groups))]
+                        texts = ["".join(t for t, _k in line) for line in base]
+                        for text in texts:
+                            swapped = text.translate(str.maketrans("0123456789", "5555555555"))
+                            if sum(c.isdigit() for c in text) != sum(c.isdigit() for c in swapped):
+                                continue
+                            a, b = self.stable_w(text), self.stable_w(swapped)
+                            if abs(a - b) > 1e-6:
+                                problems.append(
+                                    f"[{lang} credit={credit} codex={codex}] "
+                                    f"{a:.3f} != {b:.3f} : {text!r} vs {swapped!r}")
+        self.assertEqual(
+            problems, [],
+            "자릿수가 같은데 잰 폭이 달라진다 — 숫자 값이 바뀔 때마다 필이 실룩거린다:\n  "
+            + "\n  ".join(problems[:8]))
+
+    def test_a_value_change_at_equal_digit_count_never_moves_the_width(self):
+        """위 성질을 `next_pill_width` 까지 통과시켜 확인한다. `W` 가 움직이면 실패."""
+        cap = 2000.0
+        for before, after in (("세션 42%", "세션 43%"), ("세션 99%", "세션 98%"),
+                              ("Session 42%", "Session 43%"), ("Weekly 10%", "Weekly 99%")):
+            with self.subTest(transition=f"{before} -> {after}"):
+                self.assertEqual(sum(c.isdigit() for c in before),
+                                 sum(c.isdigit() for c in after), "픽스처의 자릿수가 다르다")
+                w0 = claude_pet.next_pill_width(claude_pet.PILL_W, self.stable_w(before),
+                                                self.step, cap)
+                w1 = claude_pet.next_pill_width(w0, self.stable_w(after), self.step, cap)
+                self.assertEqual(w1, w0,
+                                 f"{before!r} → {after!r} 에서 폭이 {w0} → {w1} 로 움직였다")
+
+    def test_a_digit_count_change_is_allowed_to_move_the_width(self):
+        """**이건 실패가 아니다.** 자릿수가 늘면 폭이 따라가야 한다 — 안 따라가면 넘친다.
+
+        그래서 '움직였다'를 단언하지 않고, 움직이더라도 **필요한 폭을 덮는다**는 것만
+        단언한다. 방향을 고정하면 구현을 과하게 묶는다.
+        """
+        cap = 2000.0
+        for before, after in (("세션 9%", "세션 10%"), ("세션 99%", "세션 100%"),
+                              ("Session 9%", "Session 10%")):
+            with self.subTest(transition=f"{before} -> {after}"):
+                w0 = claude_pet.next_pill_width(claude_pet.PILL_W, self.stable_w(before),
+                                                self.step, cap)
+                w1 = claude_pet.next_pill_width(w0, self.stable_w(after), self.step, cap)
+                self.assertGreaterEqual(
+                    w1, self.stable_w(after),
+                    f"{after!r} 에 필요한 폭 {self.stable_w(after):.1f} 을 새 폭 {w1} 이 "
+                    "덮지 못한다 — 글자가 필 밖으로 나간다")
+
+    def test_growth_is_immediate_and_shrinking_needs_a_full_step(self):
+        """커질 때는 그 프레임에 바로, 줄어들 때는 한 단계 아래로 확실히 내려간 뒤에만.
+
+        Rivals: 커지는 쪽을 미루는 구현(그 프레임에 글자가 밖으로 나간다 — 이번 사고);
+        줄어드는 쪽을 즉시 따라가는 구현(경계에서 폭이 오간다); 단조 증가만 하는 구현
+        (내용이 짧아져도 넓은 필이 남아 "유려하게"를 어긴다).
+        """
+        step, cap = self.step, 2000.0
+        self.assertEqual(claude_pet.next_pill_width(200.0, 260.0, step, cap),
+                         math.ceil(260.0 / step) * step, "커질 때 즉시 따라가지 않는다")
+        self.assertEqual(claude_pet.next_pill_width(300.0, 300.0 - step / 2, step, cap),
+                         300.0, "한 단계 미만으로 줄었는데 폭이 내려갔다")
+        shrunk = claude_pet.next_pill_width(300.0, 300.0 - step * 2, step, cap)
+        self.assertLess(shrunk, 300.0, "충분히 줄었는데 폭이 안 내려간다 — 단조 증가다")
+        self.assertLessEqual(claude_pet.next_pill_width(100.0, 999_999.0, step, cap), cap,
+                             "상한을 넘겼다")
+
+
+class SimpleNamespaceScreen:
+    """`_pill_text_budget` 이 보는 화면. 실제 기계 한 대를 흉내 낸다."""
+
+    def __init__(self, width):
+        self._w = width
+
+    def mainScreen(self):
+        return self
+
+    def visibleFrame(self):
+        import types
+        return types.SimpleNamespace(size=types.SimpleNamespace(width=self._w, height=1080.0))
+
+
 class LogoTintIsActuallyAppliedTests(unittest.TestCase):
     """틴트가 **픽셀에 실제로 닿는가**. macOS 전용, 크게 건너뛴다.
 
@@ -861,6 +1159,64 @@ class LogoTintIsActuallyAppliedTests(unittest.TestCase):
                     after, before,
                     f"{provider} 마크의 불투명 픽셀 수가 {before} → {after} 로 바뀌었다 — "
                     "알파 밖까지 칠했다(sourceOver)거나 실루엣을 잃었다")
+
+    def test_the_image_the_app_hands_the_renderer_is_already_tinted(self):
+        """**버그가 있던 층을 검사한다.** 위 세 테스트는 합성기(`_tinted_logo`)를 보고,
+        버그는 합성할지 **정하는 곳**(`summary_logo_image`)에 있었다.
+
+        Reviewer 의 T6: 틴트를 적용하는 두 줄을 지워도
+
+            tint = SUMMARY_LOGO_TINT.get(provider)
+            -if tint:
+            -    img = _tinted_logo(img, tint, SUMMARY_LOGO_MARK)
+
+        전체 스위트에서 **행동 테스트가 하나도 안 떨어진다.** 떨어지는 것은 전부 SHA256
+        바이트 핀인데, 그건 주석 오타에도 똑같이 떨어지므로 행동에 대한 증거가 아니다.
+        합성기가 다섯 가지 변이로 전부 잡히는 것과, 앱이 실제로 합성기를 **부르는지**는
+        다른 질문이고, 배포된 화면을 결정한 것은 후자다.
+
+        그래서 `summary_logo_image(provider)` 를 그대로 구동해 **돌려받은 이미지**의
+        지배색을 본다. 검정이면 실패다 — 그게 사용자가 본 것이다.
+
+        Rivals: 틴트 적용 줄 삭제(T6, 배포된 상태); 캐시가 안 칠한 사본을 먼저 채우는
+        구현; 틴트 표에서 제공자가 빠지는 것.
+        """
+        from test_companion_motion import gui_functions
+        for provider, tint in _require("SUMMARY_LOGO_TINT").items():
+            with self.subTest(provider=provider):
+                directory = ROOT / _require("SUMMARY_LOGO_DIR")
+                scope = dict(self.ns, hexcolor=self.hexcolor,
+                             SUMMARY_LOGO_FILES=_require("SUMMARY_LOGO_FILES"),
+                             SUMMARY_LOGO_TINT=_require("SUMMARY_LOGO_TINT"),
+                             SUMMARY_LOGO_MARK=_require("SUMMARY_LOGO_MARK"),
+                             bundled_logo_path=lambda name: str(directory / name),
+                             # `_logo_cache` is an assignment inside run_gui, and
+                             # `gui_functions` extracts function definitions only — so it
+                             # has to be supplied. A fresh dict per subtest is also what
+                             # makes this test honest: a shared cache would let an earlier
+                             # provider's result answer for a later one.
+                             _logo_cache={},
+                             _dbg=lambda *a, **k: None)
+                gui_functions(self, ("summary_logo_image",), scope)
+                image = scope["summary_logo_image"](provider)
+                self.assertIsNotNone(image, f"{provider} 마크를 앱이 불러오지 못했다")
+
+                counts, opaque = self.pixels(image)
+                self.assertTrue(opaque, f"{provider} 마크가 불투명 픽셀을 안 남겼다")
+                dominant = max(counts, key=counts.get)
+                wanted = self.hexcolor(tint)
+                target = tuple(round(getattr(wanted, c)(), 2) for c in
+                               ("redComponent", "greenComponent", "blueComponent"))
+                black = all(channel < 0.12 for channel in dominant)
+                self.assertFalse(
+                    black,
+                    f"{provider} 마크를 앱이 **검게** 돌려준다 (지배색 {dominant}) — "
+                    f"틴트 {tint} 가 선언돼 있는데 적용되지 않았다. 어두운 필 배경에서 "
+                    "사용자에게는 마크가 아예 없는 것으로 보인다.")
+                for got, want in zip(dominant, target):
+                    self.assertAlmostEqual(
+                        got, want, delta=0.08,
+                        msg=f"{provider} 마크의 지배색이 {dominant}, 선언은 {target}")
 
     def test_a_mark_that_renders_monochrome_black_must_declare_a_tint(self):
         """비대칭을 성질로 고정한다. Claude 마크는 자체 컬러라 틴트가 필요 없고,

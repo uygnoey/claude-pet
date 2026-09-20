@@ -645,7 +645,12 @@ class CompanionPresentationTests(unittest.TestCase):
 class CompanionCropGeometryTests(unittest.TestCase):
     """Asymmetric negative-screen fixtures derived from anchor preservation."""
     def api(self):
-        return pure_api(self, {"roam_frame", "roam_logical_center", "roam_pill_rect"})
+        # PILL_W and SUMMARY_EDGE are requested so the geometry assertions can be
+        # *derived* from the same constants production uses rather than written
+        # down as numbers — a pinned 300 here is what previously agreed with the
+        # truncation while another module disagreed, both green.
+        return pure_api(self, {"roam_frame", "roam_logical_center", "roam_pill_rect",
+                               "PILL_W", "SUMMARY_EDGE"})
 
     def test_all_orientations_preserve_sprite_anchor_and_logical_home(self):
         api = self.api()
@@ -706,11 +711,35 @@ class CompanionCropGeometryTests(unittest.TestCase):
                         self.assertEqual(tuple(api["roam_pill_rect"](
                             mode, right, bottom, 300, 80, 60, 152, text_w=130)),
                             (expected_x, expected_y, 156, 30))
-        # The app's logical window is PILL_W + 8 wide (geom()), so the widest pill
-        # still keeps its 4pt margin on the pet's side.
-        long_pill = api["roam_pill_rect"]("summary", True, False,
-                                           308, 80, 60, 152, text_w=900)
-        self.assertEqual(tuple(long_pill), (4, 66, 300, 30))
+        # The app's logical window is PILL_W + 8 wide (geom()), so the widest pill keeps
+        # its SUMMARY_EDGE margin on the pet's side. The width is derived from that
+        # window, **not written down as 300**: pinning the number here is what made this
+        # assertion quietly defend the truncation. It agreed with
+        # tests/test_summary_pill.py that the ceiling was fine while
+        # tests/test_summary_layout.py was folding against the screen — two green tests
+        # feeding the same function different worlds and contradicting each other.
+        #
+        # Whether this ceiling is WIDE ENOUGH is not asked here and must not be: that is
+        # FoldBudgetMatchesTheActualPillTests' question, and it answers it by calling
+        # geom() and _pill_text_budget() rather than by restating either.
+        # A window width supplied **as a test input**, not copied from production. The
+        # earlier `PILL_W + 8` here recited `geom()`'s formula, and under the adaptive
+        # width that formula no longer yields a fixed answer — so the assertion pinned a
+        # snapshot taken before the adapter measures anything, and called it the ceiling.
+        #
+        # What this test is for is *placement*: whatever the window, the widest pill keeps
+        # its SUMMARY_EDGE margin on the pet's side and is bounded by that window. Whether
+        # production's window is large enough is a property of `geom()` and belongs to
+        # tests/test_summary_layout.py :: FoldBudgetMatchesTheActualPillTests, which reads
+        # both ends from production instead of restating either.
+        edge = api["SUMMARY_EDGE"]
+        for window_w in (308, 420, 600):
+            with self.subTest(window_w=window_w):
+                long_pill = api["roam_pill_rect"]("summary", True, False,
+                                                   window_w, 80, 60, 152, text_w=9000)
+                self.assertEqual(tuple(long_pill),
+                                 (edge, 66, window_w - 2 * edge, 30),
+                                 "the widest pill must fill its window minus both margins")
         self.assertIsNone(api["roam_pill_rect"]("folded", False, True,
                                                300, 80, 60, 152))
 

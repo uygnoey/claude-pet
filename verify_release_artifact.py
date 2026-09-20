@@ -159,8 +159,16 @@ def check_app(app_path, expect_version, arches):
               f"{declared!r}, but this gate checks {LOGO_DIR!r} — "
               "update both together")
         return False
+    marks = getattr(cp, "SUMMARY_LOGO_FILES", None) or {}
+    if not marks:
+        # 검사할 것이 없다는 것은 통과가 아니다. 표가 비면 루프가 한 번도 돌지 않고
+        # 게이트가 조용히 초록이 되는데, 그건 "로고가 들어 있다"의 증거가 아니라
+        # "아무도 안 봤다"는 뜻이다 — 빈 표로 로고 없는 번들을 내보낼 수 있게 된다.
+        print("[gate] rejected: the app declares no logo files "
+              "(SUMMARY_LOGO_FILES is empty) — there is nothing to verify")
+        return False
     logo_dir = os.path.join(app_path, "Contents", "Resources", declared)
-    for provider, name in sorted(getattr(cp, "SUMMARY_LOGO_FILES", {}).items()):
+    for provider, name in sorted(marks.items()):
         mark = os.path.join(logo_dir, name)
         if os.path.islink(mark) or not os.path.isfile(mark):
             print(f"[gate] rejected: the {provider} logo ({name}) is missing from "

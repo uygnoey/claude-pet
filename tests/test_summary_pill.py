@@ -521,41 +521,61 @@ class PillWidthFollowsContentTests(unittest.TestCase):
     word). A test that pins a width is how the last one of these got missed.
     """
 
+    # The window width production actually passes. **Not a screen.** `geom()` computes
+    # `W = max(pw + BTN_R*2 + 16, PILL_W + 8)` and hands that to `roam_pill_rect`; it is
+    # 308 whatever the pet's size, so the pill's ceiling is 300 and its text area 256.
+    #
+    # This constant replaces a helper whose parameter was named `screen_w`. That name was
+    # the whole defect: it encoded my assumption into the fixture, and after that no test
+    # in this class could see the assumption. Two tests here asserted that the ceiling
+    # tracks "the screen it was given" — true of the function, and about an input
+    # production never supplies. They were removed rather than repaired, because there
+    # was nothing to repair: the relationship held and the premise was fiction.
+    #
+    # The invariant that actually matters — that the fold budget equals the width the
+    # pill gives — is in tests/test_summary_layout.py's FoldBudgetMatchesTheActualPillTests,
+    # which derives BOTH ends by calling production's own `geom()` and `_pill_text_budget()`
+    # rather than restating either formula here.
+    # A window width chosen **as a test input**, wide enough that these relationship
+    # tests are not accidentally measuring the ceiling. It is deliberately NOT production's
+    # value: an earlier revision of this class computed
+    #     PRODUCTION_W = max(80 + BTN_R*2 + 16, PILL_W + 8)
+    # which restated `geom()`'s formula here — the very defect this class's docstring
+    # diagnoses, reintroduced one line below the diagnosis. A fixture that recites a
+    # production formula cannot see that formula change, and under the adaptive width it
+    # froze the pre-measurement snapshot (308) as though it were the answer.
+    #
+    # Nothing in this class asks whether the window is big enough; that is a property of
+    # `geom()`, not of `roam_pill_rect`, and it is asserted by
+    # tests/test_summary_layout.py's FoldBudgetMatchesTheActualPillTests, which calls
+    # `geom()` and `_pill_text_budget()` instead of repeating either.
+    TEST_WINDOW_W = 2000
+
     RECT_ARGS = dict(PW=80, PH=60, pill_h=46)
 
-    def width(self, screen_w, text_w, mode="full"):
+    def width(self, text_w, window_w=None, mode="full"):
+        """Pill width for `text_w` at a given logical window width."""
         return claude_pet.roam_pill_rect(
-            mode, False, False, screen_w, self.RECT_ARGS["PW"], self.RECT_ARGS["PH"],
+            mode, False, False, self.TEST_WINDOW_W if window_w is None else window_w,
+            self.RECT_ARGS["PW"], self.RECT_ARGS["PH"],
             self.RECT_ARGS["pill_h"], text_w=text_w, text_h=46)[2]
 
-    def test_the_cap_follows_the_screen_not_a_constant(self):
-        """A line longer than any pill must be capped by the **screen**, not by a fixed
-        number — otherwise the same content is cut identically on a 1366pt laptop and a
-        5120pt display, which is the behaviour that produced this whole thread.
+    def test_the_ceiling_is_derived_from_the_window_it_is_given(self):
+        """What is actually true of `roam_pill_rect`: the ceiling comes from its `W`
+        argument, not from a constant inside it.
 
-        Rivals: ``min(PILL_W, …)`` with PILL_W a module constant (today — the width comes
-        out identical on both screens); a bigger constant, which is the same mistake with
-        a later failure date.
+        This is deliberately a weaker claim than the one it replaces. Whether that `W`
+        is big enough is **not a property of this function** — it is decided by `geom()`,
+        and asserting it here is what let the real defect hide. Rival: a `min(PILL_W, …)`
+        ceiling that ignores `W` entirely.
         """
-        narrow = self.width(1366, text_w=100_000)
-        wide = self.width(5120, text_w=100_000)
-        self.assertGreater(
-            wide, narrow,
-            "a very long line is capped to the same width on a 1366pt screen and a 5120pt "
-            f"one ({narrow} vs {wide}) — the cap is a constant, not the screen. The pill "
-            "is already variable-width; this ceiling is the only thing cutting content.")
-
-    def test_the_cap_never_exceeds_the_screen_it_was_given(self):
-        """The other direction: 'follow the screen' must not mean 'ignore it'. A pill
-        wider than the logical window cannot be drawn, and the window is what the user
-        actually has.
-
-        Rival: removing the cap entirely, which trades truncation for a pill that runs
-        off the display — the user asked for nothing to be cut, not for it to be unbounded.
-        """
-        for screen_w in (1366, 1920, 2560, 5120):
-            with self.subTest(screen_w=screen_w):
-                self.assertLessEqual(self.width(screen_w, text_w=100_000), screen_w)
+        narrow = self.width(text_w=100_000, window_w=400)
+        wide = self.width(text_w=100_000, window_w=1200)
+        self.assertGreater(wide, narrow,
+                           "the ceiling ignores W — it is an internal constant again")
+        for window_w in (400, 800, 1200):
+            with self.subTest(window_w=window_w):
+                self.assertLessEqual(self.width(text_w=100_000, window_w=window_w), window_w)
 
     def test_the_pill_widens_as_its_content_grows(self):
         """Monotonic in the content width, and strictly so across the ordinary range.
@@ -564,7 +584,7 @@ class PillWidthFollowsContentTests(unittest.TestCase):
         reads as jumpy rather than 유려한; growth that stops early and starts cutting.
         """
         screen_w = 1920
-        widths = [self.width(screen_w, text_w=t) for t in range(0, 900, 25)]
+        widths = [self.width(text_w=t) for t in range(0, 900, 25)]
         for earlier, later in zip(widths, widths[1:]):
             self.assertLessEqual(earlier, later, "the pill narrowed as its content grew")
         self.assertGreater(widths[-1], widths[0], "the pill never grew at all")
@@ -578,9 +598,9 @@ class PillWidthFollowsContentTests(unittest.TestCase):
         'tidy' width; a minimum so large that every short status line looks identical.
         """
         screen_w = 1920
-        snug = self.width(screen_w, text_w=40)
+        snug = self.width(text_w=40)
         self.assertLess(
-            snug, self.width(screen_w, text_w=400),
+            snug, self.width(text_w=400),
             "a short line gets the same pill as a long one")
         self.assertLessEqual(
             snug, max(claude_pet.SUMMARY_MIN_W, 40 + 2 * claude_pet.PILL_PAD),
@@ -591,39 +611,22 @@ class PillWidthFollowsContentTests(unittest.TestCase):
         every refresh that briefly has no text."""
         for text_w in (0, 1, 5, 20):
             with self.subTest(text_w=text_w):
-                self.assertGreaterEqual(self.width(1920, text_w=text_w),
+                self.assertGreaterEqual(self.width(text_w=text_w),
                                         claude_pet.SUMMARY_MIN_W)
 
-    def test_the_widest_realistic_line_is_not_capped_on_a_supported_screen(self):
-        """The end-to-end statement of the user's requirement: on the **minimum supported
-        screen**, the longest line this app actually produces must be drawn whole.
-
-        The content is measured, not assumed — the English Codex two-window line is the
-        longest realistic case found while measuring this release, and it is built here
-        through the production functions rather than typed in, so a relabel moves it.
-
-        Rival: a cap that happens to fit Korean (which is why this went unnoticed — the
-        maintainer's locale fit inside 274 for the common case) while cutting English.
-        """
-        claude_pet.set_lang("en")
-        self.addCleanup(claude_pet.set_lang, claude_pet.L.get("lang"))
-        segment = claude_pet.roam_summary_codex(
-            [("codex_session", 12.0, None, "3h"), ("codex_weekly", 68.0, None, "5d 21h")])
-        self.assertIsNotNone(segment)
-        main, sub = claude_pet.roam_summary_runs([segment], claude_pet.t)
-        text_w = sum(pretendard_width(t) for t, _k in main + sub)
-        needed = text_w + 2 * claude_pet.PILL_PAD
-        min_supported_screen = 1366
-        self.assertLessEqual(
-            needed, min_supported_screen,
-            "the fixture is wider than the minimum supported screen; the requirement "
-            "itself needs rethinking, not the cap")
-        self.assertGreaterEqual(
-            self.width(min_supported_screen, text_w=text_w), needed,
-            f"the widest realistic line needs {needed:.0f}pt and the pill gives it "
-            f"{self.width(min_supported_screen, text_w=text_w):.0f}pt on a "
-            f"{min_supported_screen}pt screen — it will be cut, on a screen with "
-            f"{min_supported_screen - needed:.0f}pt to spare.")
+    # RETIRED 2026-09-20: test_the_widest_realistic_line_is_not_capped_on_a_supported_screen
+    #
+    # It asked the right question — does the widest real line fit the pill it is drawn in —
+    # and asked it of the wrong object. `roam_pill_rect` cannot answer it: the answer
+    # depends on the `W` it is handed, so the test had to supply one, and supplying one
+    # meant restating `geom()`. That restatement is what this class's docstring identifies
+    # as the root of the W1 defect, and under the adaptive width it additionally pinned the
+    # pre-measurement snapshot.
+    #
+    # The question now lives where both ends can be taken from production:
+    # tests/test_summary_layout.py :: FoldBudgetMatchesTheActualPillTests, which calls
+    # `geom()` and `_pill_text_budget()` and compares every line `summary_lines` produces
+    # against the pill `roam_pill_rect` returns for that same content.
 
 
 class RoamDisplayToggleTests(unittest.TestCase):

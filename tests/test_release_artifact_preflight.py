@@ -332,6 +332,32 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
                     fake.calls, [],
                     "the logo check must refuse before validate_update_app is called")
 
+    def test_an_empty_logo_table_is_refused_rather_than_passing_vacuously(self):
+        """``SUMMARY_LOGO_FILES`` 가 비면 로고 루프가 **한 번도 돌지 않고** 통과한다.
+
+        `for provider, name in sorted(...items()):` 는 빈 매핑에서 아무것도 하지 않으므로,
+        마크가 하나도 없는 아티팩트가 로고 검사를 '통과'한다. 빈 `logos/` 디렉터리까지
+        같이 있으면 게이트 전체가 초록이다 — Reviewer 가 실제로 `check_app` 을 돌려
+        `True` 를 받았다.
+
+        오늘은 상수가 비어 있지 않아 도달 불가다. 그래도 거는 이유는 이 파일의 존재
+        이유가 **fail-closed** 이기 때문이다: 검사할 것이 없다는 사실이 통과의 근거가
+        되어서는 안 된다. 같은 모양의 공허한 통과가 이 릴리즈에서만 두 번 나왔다(죽은
+        `str.replace` 바늘, 그리고 이것).
+
+        Rival: 루프만 있고 비어 있음을 확인하지 않는 지금 구현.
+        """
+        app, _leaf = self.make_app("empty-logo-table-ClaudePet.app", logos="empty")
+        fake = FakeClaudePet(logo_files={})
+        with mock.patch.object(verify_release_artifact, "_load_app", return_value=fake):
+            result = verify_release_artifact.check_app(str(app), "9.9", ["arm64"])
+        self.assertEqual(
+            result, False,
+            "빈 로고 표 + 빈 logos/ 가 게이트를 통과했다 — 검사할 것이 없다는 것이 "
+            "통과의 근거가 되면 그 검사는 존재하지 않는 것과 같다")
+        self.assertEqual(fake.calls, [],
+                         "빈 표는 validate_update_app 에 닿기 전에 막혀야 한다")
+
     def test_a_moved_logo_directory_is_refused_rather_than_followed(self):
         """``check_app`` cross-checks the app's ``SUMMARY_LOGO_DIR`` against its own
         ``LOGO_DIR``. Without that, moving the directory would make the gate follow the

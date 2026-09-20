@@ -1078,8 +1078,8 @@ TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
     "codex_session": "Codex session", "codex_weekly": "Codex weekly",
-    "reset_done": "reset", "cd_days": "in {d}d {h}h", "cd_hm": "in {h}h {m}m",
-    "cd_m": "in {m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
+    "reset_done": "reset", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
+    "cd_m": "{m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
     "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
     "need_admin_key": "Right-click → Settings to enter an Admin API key",
     "api_key_rejected": "⚠ Admin API key rejected — check the key in Settings",
@@ -1170,8 +1170,8 @@ TR = {
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
     "codex_session": "Codex 세션", "codex_weekly": "Codex 주간",
-    "reset_done": "리셋됨", "cd_days": "{d}일 {h}시간 후", "cd_hm": "{h}시간 {m}분 후",
-    "cd_m": "{m}분 후", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
+    "reset_done": "리셋됨", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
+    "cd_m": "{m}m", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
     "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
     "need_admin_key": "우클릭 → 설정에서 Admin API 키를 입력하세요",
     "api_key_rejected": "⚠ Admin API 키가 거부됨 — 설정에서 키를 확인하세요",
@@ -1258,8 +1258,8 @@ TR = {
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
     "codex_session": "Codex セッション", "codex_weekly": "Codex 週間",
-    "reset_done": "リセット済み", "cd_days": "{d}日{h}時間後", "cd_hm": "{h}時間{m}分後",
-    "cd_m": "{m}分後", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
+    "reset_done": "リセット済み", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
+    "cd_m": "{m}m", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
     "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
     "need_admin_key": "右クリック → 設定で Admin API キーを入力してください",
     "api_key_rejected": "⚠ Admin API キーが拒否されました — 設定でキーを確認してください",
@@ -1351,8 +1351,8 @@ TR = {
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
     "codex_session": "Codex sesión", "codex_weekly": "Codex semanal",
-    "reset_done": "reiniciado", "cd_days": "en {d}d {h}h", "cd_hm": "en {h}h {m}m",
-    "cd_m": "en {m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
+    "reset_done": "reiniciado", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
+    "cd_m": "{m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
     "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
     "need_admin_key": "Clic derecho → Ajustes para introducir una clave de Admin API",
     "api_key_rejected": "⚠ Clave de Admin API rechazada — revísala en Ajustes",
@@ -7566,6 +7566,27 @@ def _summary_fold_runs(runs, budget, measure):
     return lines
 
 
+def next_pill_width(current, needed, step, cap):
+    """지금 폭 + 필요한 폭 → 새 폭. 순수 함수다(창도 상태도 안 본다).
+
+    **커질 때는 즉시, 줄어들 때는 한 단계 아래로 확실히 내려간 뒤에만.** 커지는 쪽을
+    미루면 그 프레임에 글자가 필 밖으로 나가고 — 이번 릴리즈가 정확히 그 사고였다 —
+    줄어드는 쪽을 즉시 따라가면 경계 근처에서 폭이 오간다(사용자에겐 펫이 실룩거리는
+    것으로 보인다). 단조롭게(한번 커지면 절대 안 줄어듦) 두지는 않는다: 내용이 짧아졌는데
+    넓은 필이 남아 있는 것이 "유려하게"를 정면으로 어긴다.
+
+    step 은 호출자가 준다. 실측으로 고른 양자화 단위는 쓰지 않는다 — 경계가 두 인접값
+    사이에 떨어지느냐가 우연이라 그 실측에만 맞는 값을 고르게 된다. 폭이 흔들리는 원인은
+    숫자 한 자리의 폭이므로, 호출자는 '가장 넓은 숫자 한 글자'를 단위로 준다.
+    """
+    step = max(1.0, float(step))
+    want = min(float(cap), math.ceil(float(needed) / step) * step)
+    current = float(current)
+    if want > current or want <= current - step:
+        return want
+    return current
+
+
 def summary_lines(groups, measure, budget):
     """제공자별 구간 묶음 → 제공자별 줄 묶음.
 
@@ -7950,9 +7971,20 @@ def run_gui():
         return pill_h(state.get("summary_lines_n") or 2)
 
     def geom():
+        """(펫 폭, 펫 높이, 논리 창 W, 논리 창 H).
+
+        **W 는 필이 지금 필요로 하는 폭을 따라간다.** 예전에는 `PILL_W + 8` 로 고정이었고,
+        그래서 상한을 "화면"으로 바꿔도 아무것도 안 넓어졌다 — roam_pill_rect 가 받는 W 가
+        언제나 308 이었기 때문이다. 상한이 사라진 게 아니라 한 층 위로 올라가 있었다.
+
+        g["pill_w"] 는 어댑터가 재서 넣는다(roam_summary_text). 아직 아무 글자도 안 잰
+        첫 프레임에는 없으므로 PILL_W 가 그 자리를 메운다 — 이 상수가 남아 있는 유일한
+        이유다. '최대 너비'가 아니라 '측정 전 출발점'이다.
+        """
         pw = int(PW0 * g["scale"])
         ph = int(PH0 * g["scale"])
-        w = max(pw + BTN_R * 2 + 16, PILL_W + 8)
+        want = int(g.get("pill_w") or PILL_W)
+        w = max(pw + BTN_R * 2 + 16, want + 2 * SUMMARY_EDGE)
         h = ph + GAP + pill_band() + 4
         return pw, ph, w, h
 
@@ -8000,6 +8032,9 @@ def run_gui():
              # 지금 필에 떠 있는 상태 키(roam_summary 의 ("status", key)) 또는 None.
              # summary_click 훅이 summary_click_action 에 넘긴다.
              "summary_status": None,
+             # 요약 필 폭 훅 — roam_summary_text 가 부른다(text_w) → 접힘 예산.
+             # 없으면 접지 않는다(창 없는 시험). run_gui 가 _pill_budget_for 를 꽂는다.
+             "pill_budget": None,
              # 요약 필 클릭 훅 — mouseUp_ 이 부른다(view, loc, click_count, moved).
              # roam_release 와 같은 이유로 훅이다: 창 없는 시험의 state 에는 없어야 한다.
              "summary_click": None,
@@ -8438,23 +8473,83 @@ def run_gui():
         f = win.frame()
         return (f.size.width, f.size.height)
 
-    def _pill_text_budget():
-        """한 줄이 쓸 수 있는 텍스트 폭의 **상한**. 기준은 화면이지 상수가 아니다.
-
-        필은 내용에 맞춰 늘어나므로(roam_pill_rect) 이 값은 '보통 폭'이 아니라 '여기까지는
-        늘어나도 화면 밖으로 안 나간다'는 한계다. 가장 긴 실측 줄도 최소 지원 화면 폭의
-        4분의 1을 못 채우므로 현실에서 닿지 않는다 — 그래서 접힘이 안전장치인 것이다.
-        """
+    def _screen_w():
+        """이 펫이 놓인 화면의 가용 가로 폭. 필이 커질 수 있는 진짜 끝이다."""
         try:
             scr = (win.screen() if win else None) or NSScreen.mainScreen()
-            avail = float(scr.visibleFrame().size.width)
+            return float(scr.visibleFrame().size.width)
         except Exception:
-            avail = float(W)
-        # 로고 폭은 **빼지 않는다.** 그 뺄셈은 summary_lines 의 것이다 — 로고는 제공자별
-        # 개념이고 제공자를 아는 곳은 거기뿐이다. 양쪽에서 빼면 예산이 두 번 깎이고,
-        # 오늘은 무해하지만(화면이 예산이라 아무것도 근처에 안 간다) 접힘이 처음으로
-        # 실제로 도는 날 — 뭔가가 진짜로 예산에 닿는 바로 그 순간 — 틀린다.
-        return max(SUMMARY_MIN_W, avail - 2 * SUMMARY_EDGE - 2 * PILL_PAD)
+            return float(geom()[2])
+
+    def _pill_text_budget():
+        """한 줄이 쓸 수 있는 텍스트 폭 — **필이 실제로 내주는 그 폭**.
+
+        예전에는 여기서 화면을 돌려줬다. 그게 이번 사고의 핵심이었다: 접힘은 1920 이
+        있다고 믿어 접지 않고, 필은 300 밖에 안 줬다(논리 창 W 가 PILL_W 에서 나왔으므로).
+        그 사이 7.4배의 간극으로 넘친 줄이 가운데 정렬 때문에 필 **왼쪽 밖**에서 시작해
+        로고를 덮고 말줄임표 없이 잘렸다.
+
+        이제 두 값이 같은 뿌리에서 나온다 — geom() 의 W 다. roam_pill_rect 도 같은 W 를
+        받으므로 "접힘이 믿는 폭 == 필이 주는 폭"이 **구성상** 성립한다. 경계심으로 맞추는
+        게 아니라 한 숫자를 두 곳이 읽는다.
+        """
+        room = max(SUMMARY_MIN_W, geom()[2] - 2 * SUMMARY_EDGE)
+        return max(SUMMARY_MIN_W, room - 2 * PILL_PAD - SUMMARY_LOGO_W)
+
+    def _widest_digit(_cache=[]):
+        """필 글꼴에서 가장 넓은 숫자 글리프. 한 번만 재고 함수가 들고 있는다.
+
+        바깥 이름으로 두면 창 없는 시험이 이 함수를 꺼내 구동할 때 NameError 가 난다 —
+        하네스는 **함수만** 꺼내 오기 때문이다(로고 캐시가 같은 이유로 물렸다).
+        """
+        if not _cache:
+            _cache.append(max("0123456789",
+                              key=lambda d: astr(d, F_SUMMARY).size().width))
+        return _cache[0]
+
+    def _stable_w(text):
+        """숫자의 **값**에 흔들리지 않는 폭. 자릿수는 그대로 반영한다.
+
+        필 폭이 실룩거리는 원인은 글꼴이 proportional 이라 숫자마다 폭이 다른 것이다
+        (`1` 이 `0` 보다 좁아 `10%` 가 `9%` 보다 넓고 `11%` 는 `10%` 보다 좁다). 실측에서
+        자릿수가 그대로일 때도 최대 3.6pt 가 움직였다. 그래서 폭을 잴 때만 모든 숫자를
+        가장 넓은 숫자로 바꿔 잰다 — 그러면 `42% → 43%` 같은 변화가 폭을 **한 톨도**
+        못 움직인다. 양자화 단위를 실측에서 고르는 방식은 쓰지 않았다: 경계가 두 인접값
+        사이에 떨어지느냐가 우연이라, 그 실측에만 맞는 값을 고르게 된다.
+        """
+        # 빌트인만 쓴다(re 없이). 이 함수는 창 없는 시험이 소스에서 꺼내 구동하는데,
+        # 그 scope 에는 모듈 임포트가 없어서 re 를 쓰면 꺼내는 순간 NameError 가 난다.
+        widest = _widest_digit()
+        wide = "".join(widest if c.isdigit() else c for c in text)
+        return astr(wide, F_SUMMARY).size().width
+
+    def _pill_width_step():
+        """폭이 움직이는 최소 단위 = 가장 넓은 숫자 글리프 하나의 폭.
+
+        임의의 상수가 아니다. 폭이 변하는 원인이 숫자 한 자리이므로, 그 한 자리가 한
+        단계 안에 흡수되는 가장 작은 단위가 이것이다. 자릿수가 바뀌는 순간(9%→10%,
+        99%→100%)에만 한 단계 움직이고, 줄어들 때는 아래 히스테리시스가 잡는다.
+        """
+        return max(1.0, astr(_widest_digit(), F_SUMMARY).size().width)
+
+    def _apply_pill_width(needed):
+        """필요한 폭을 기록한다. 바뀌었으면 True.
+
+        판단은 next_pill_width 가 한다(순수). **여기서는 창을 건드리지 않는다** — 기록만
+        하고, 실제 창 크기 반영은 틱의 _regeom() 이 한다. 이 함수는 요약 텍스트 경로에서
+        불리는데, 그 경로는 창 없는 시험이 소스에서 꺼내 구동한다. 창을 재배치하는 코드가
+        여기 있으면 `nonlocal` 때문에 꺼내는 순간 SyntaxError 가 나고, 그러면 실제 배포를
+        결정하는 이 층이 통째로 시험 밖으로 나간다(로고 캐시에서 같은 일이 있었다).
+        """
+        cur = float(g.get("pill_w") or PILL_W)
+        want = next_pill_width(
+            cur, needed, _pill_width_step(),
+            max(SUMMARY_MIN_W, _screen_w() - 2 * SUMMARY_EDGE))
+        if want == cur:
+            return False
+        g["pill_w"] = want
+        g["pill_w_dirty"] = True
+        return True
 
     def roam_crop_now():
         """현재 crop (cx, cy, cw, ch), 논리 창 flipped 좌표. 없으면 논리 창 전체."""
@@ -8606,10 +8701,23 @@ def run_gui():
         # 화면에 닿지 못한 원인이었다. 이제 상한이 화면이라 접힘은 현실에서 거의 발화하지
         # 않는 안전장치지만, 제공자가 더 늘거나 값이 비정상적으로 길어지는 날을 위해 남는다.
         measure = lambda v: astr(v, F_SUMMARY).size().width
-        budget = _pill_text_budget()
-        blocks = summary_lines([(pid, [seg]) for pid, seg in
-                                zip(("claude", "codex"), segments)],
-                               measure, budget)
+        groups = [(pid, [seg]) for pid, seg in zip(("claude", "codex"), segments)]
+        # 폭을 **접기 전** 내용에서 정한다. 접은 뒤의 폭으로 정하면 영원히 안 커진다:
+        # 접힘은 지금 예산에 맞춰 줄을 나누므로 결과는 언제나 예산 안이고, 그러면
+        # "더 필요하다"는 신호가 나올 자리가 없다. 그래서 펼친 상태의 폭으로 창을 먼저
+        # 키우고(화면이 끝이다), 그 다음에 새 예산으로 접는다 — 화면보다 넓을 때만 접힌다.
+        need = 0.0
+        for _pid, segs in groups:
+            m, sub = roam_summary_runs(segs, t)
+            for runs in (m, sub):
+                need = max(need, sum(_stable_w(txt) for txt, _k in runs))
+        # 폭 결정은 state 훅을 거친다 — roam_release·autostart_read 와 같은 이유다.
+        # 이 함수는 창 없는 시험이 손으로 만든 state 로 구동하고, 훅이 그냥 없으면 그
+        # 시험의 scope 가 그대로 유지된다. 훅이 없으면 **예산이 무한**이라 접지 않는다 —
+        # need 를 그대로 주면 summary_lines 가 거기서 로고 폭을 또 빼서 오히려 접힌다.
+        hook = state.get("pill_budget")
+        budget = hook(need) if hook is not None else float("inf")
+        blocks = summary_lines(groups, measure, budget)
         # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
         # run 하나로 붙인다. 두 가지를 동시에 틀리기 쉬운 자리다:
         #
@@ -8639,8 +8747,6 @@ def run_gui():
         _summary_memo["key"], _summary_memo["value"] = key, value
         return value
 
-    _logo_cache = {}
-
     def _tinted_logo(src, tint, size):
         """마크를 `tint` 색으로 미리 칠한 사본. 모양(알파)은 그대로, 색만 바뀐다.
 
@@ -8661,7 +8767,7 @@ def run_gui():
             out.unlockFocus()
         return out
 
-    def summary_logo_image(provider):
+    def summary_logo_image(provider, _cache={}):
         """제공자 마크(NSImage) 또는 None. 번들/소스 양쪽에서 같은 파일을 읽는다.
 
         openai.svg 는 fill="currentColor" 라 색을 우리가 정해야 한다 — 안 정하면 기본값인
@@ -8679,9 +8785,14 @@ def run_gui():
 
         칠한 사본을 캐시하는 것도 요점이다 — 필은 20 Hz 로 다시 그려지고, 매 프레임
         lockFocus 를 반복할 이유가 없다. 틴트가 선언된 제공자만 사본을 만든다.
+
+        캐시를 **기본 인자로** 들고 있는 이유: 이 함수는 run_gui 안의 중첩 함수라 창 없이
+        구동하려면 하네스가 소스에서 꺼내 와야 하고, 하네스는 함수만 꺼내 온다. 캐시를
+        바깥 이름으로 두면 꺼내 온 함수가 NameError 로 죽어서, 실제 배포된 화면을 결정한
+        이 층이 영영 시험 밖에 남는다. 캐시는 이 함수의 것이므로 이 함수가 들고 있는다.
         """
-        if provider in _logo_cache:
-            return _logo_cache[provider]
+        if provider in _cache:
+            return _cache[provider]
         img = None
         name = SUMMARY_LOGO_FILES.get(provider)
         if name:
@@ -8697,7 +8808,7 @@ def run_gui():
             except Exception as exc:
                 _dbg("logo: load failed", provider, type(exc).__name__)
                 img = None
-        _logo_cache[provider] = img
+        _cache[provider] = img
         return img
 
     def draw_summary_logo(provider, left, cy):
@@ -8875,6 +8986,19 @@ def run_gui():
             state["roam_anim"] = out.anim
             dirty = True
         return dirty
+
+    def _regeom():
+        """필 폭이 바뀌었을 때 논리 창을 새 크기로 맞춘다. set_scale 의 크기 반영과 같은 춤이다."""
+        nonlocal PW, PH, W, H
+        if not g.pop("pill_w_dirty", False):
+            return False
+        lx, ly = roam_logical_origin()
+        PW, PH, W, H = geom()
+        win.setFrame_display_(NSMakeRect(lx, ly, W, H), True)
+        view.setFrame_(NSMakeRect(0, 0, W, H))
+        roam_env_update()
+        roam_resync()
+        return True
 
     # ── 크기 조절 ──
     def set_scale(value):
@@ -9629,6 +9753,16 @@ def run_gui():
         except Exception as e:
             _dbg("summary click: failed", act, type(e).__name__)
 
+    def _pill_budget_for(text_w):
+        """요약 경로의 폭 훅: 필요한 폭을 기록하고, 그 폭이 내주는 텍스트 예산을 준다.
+
+        기록과 예산이 **같은 W 에서** 나오는 것이 요점이다(_pill_text_budget 참조).
+        창 크기 반영은 여기서 하지 않는다 — 틱의 _regeom() 이 한다.
+        """
+        _apply_pill_width(text_w + SUMMARY_LOGO_W + 2 * PILL_PAD)
+        return _pill_text_budget()
+
+    state["pill_budget"] = _pill_budget_for
     state["summary_click"] = _summary_click
 
     # ── 타이머 ──
@@ -9704,6 +9838,10 @@ def run_gui():
             # 보정(%) 입력이 "저장해도 반영 안 됨"으로 보이던 원인.
             if state["repaint"]:
                 state["repaint"] = False
+                dirty = True
+            # 필 폭이 바뀌었으면 논리 창을 먼저 맞춘다 — 요약 경로는 기록만 하고
+            # 창은 건드리지 않으므로(그쪽은 창 없이 시험된다) 반영은 여기가 한다.
+            if _regeom():
                 dirty = True
             if dirty:
                 view.setNeedsDisplay_(True)
