@@ -1,7 +1,7 @@
 # Claude Pet — Full product reference
 
 Canonical website: https://claude-pet.yeongyu.me/
-Reference release: v0.24, published 2026-09-12T15:55:00Z (2026-09-13 00:55 KST).
+Reference release: v0.26, published 2026-09-20T15:50:23Z (2026-09-21 00:50 KST).
 Reference updated: 2026-09-13.
 
 ## Purpose
@@ -82,7 +82,7 @@ This release monitors Claude, not other AI services. Claude Pet is an independen
 Website: https://claude-pet.yeongyu.me/
 Website privacy: https://claude-pet.yeongyu.me/privacy.html
 Repository: https://github.com/uygnoey/claude-pet
-Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.24
+Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.26
 Latest downloads: https://github.com/uygnoey/claude-pet/releases/latest
 Apple Silicon: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg
 Intel universal: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg

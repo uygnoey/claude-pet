@@ -2,7 +2,7 @@
 
 > Claude Pet is a free desktop companion and Claude usage monitor for macOS and Windows. It shows usage percentages and reset times in one compact pill, with distinct server-reported and estimated values. Public source is available on GitHub.
 
-Reference: v0.24. Published at 2026-09-12T15:55:00Z (2026-09-13 00:55 KST). Reference updated: 2026-09-13.
+Reference: v0.26. Published at 2026-09-20T15:50:23Z (2026-09-21 00:50 KST). Reference updated: 2026-09-21.
 
 ## Platforms and installation
 
@@ -41,7 +41,7 @@ Claude Pet is an independent project by Yeongyu Yang (uygnoey), not affiliated w
 - [Full reference](https://claude-pet.yeongyu.me/llms-full.txt)
 - [Website privacy](https://claude-pet.yeongyu.me/privacy.html)
 - [Repository](https://github.com/uygnoey/claude-pet)
-- [v0.24 release](https://github.com/uygnoey/claude-pet/releases/tag/v0.24)
+- [v0.26 release](https://github.com/uygnoey/claude-pet/releases/tag/v0.26)
 - [Latest release](https://github.com/uygnoey/claude-pet/releases/latest)
 - [Apple Silicon DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg)
 - [Intel universal DMG](https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg)

@@ -1578,7 +1578,7 @@
             "name": "Claude Pet",
             "url": "https://claude-pet.yeongyu.me/",
             "description": "A free desktop companion for macOS and Windows. Follow your Claude usage in one small pill, choose your pet, and make room for a little company.",
-            "softwareVersion": "0.24",
+            "softwareVersion": "0.26",
             "operatingSystem": "macOS 12+ (Apple Silicon and Intel); Windows 10/11 (x64)",
             "applicationCategory": "UtilitiesApplication",
             "softwareRequirements": "Claude Code login on this computer",
@@ -1594,7 +1594,7 @@
               "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe",
               "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip"
             ],
-            "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v0.24",
+            "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v0.26",
             "author": {
               "@type": "Person",
               "name": "Yeongyu Yang",
@@ -1732,7 +1732,7 @@
       <section class="wrap hero">
         <div class="hero-copy">
           <div class="version">
-            v0.24 · macOS + Windows
+            v0.26 · macOS + Windows
           </div>
           <p data-copy="eyebrow" class="eyebrow">
             A LITTLE COMPANY FOR YOUR CODING DAYS
@@ -1828,6 +1828,9 @@
             </div>
             <p data-copy="usage.explain" class="sub" style="font-size:13px">
               Exact mode asks Anthropic for account usage using your existing Claude Code credential. If it is unavailable, local logs provide an estimate—not missing web or desktop activity.
+            </p>
+            <p data-copy="usage.codex" class="sub" style="font-size:13px">
+              Codex (ChatGPT) usage can show up next to Claude's. If you are signed in to Codex on this computer, Claude Pet reads that usage from the OpenAI API—not from local logs—and shows whichever limits your account actually has. There is nothing to set up, and if you do not use Codex nothing is added.
             </p>
           </div>
           <div class="demo">
@@ -2116,7 +2119,7 @@
               </li>
             </ol>
           </section>
-          <a data-copy="install.more" class="release-link" href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">
+          <a data-copy="install.more" class="release-link" href="https://github.com/uygnoey/claude-pet/releases/tag/v0.26">
             All release files
             &
             notes
@@ -2130,7 +2133,7 @@
             <div class="table-wrap">
               <table id="platform-table">
                 <caption data-copy="compare.caption">
-                  Platform details for v0.24
+                  Platform details for v0.26
                 </caption>
                 <thead>
                   <tr>
@@ -2355,8 +2358,8 @@
             운영체제별 설치 안내
           </a>
           ·
-          <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.24">
-            v0.24 배포 파일
+          <a href="https://github.com/uygnoey/claude-pet/releases/tag/v0.26">
+            v0.26 배포 파일
           </a>
         </p>
       </section>
@@ -2439,6 +2442,7 @@
           "usage.exact": "Server-reported percentages",
           "usage.estimate": "A clearly marked local estimate",
           "usage.explain": "Exact mode asks Anthropic for account usage using your existing Claude Code credential. If it is unavailable, local logs provide an estimate—not missing web or desktop activity.",
+          "usage.codex": "Codex (ChatGPT) usage can show up next to Claude's. If you are signed in to Codex on this computer, Claude Pet reads that usage from the OpenAI API—not from local logs—and shows whichever limits your account actually has. There is nothing to set up, and if you do not use Codex nothing is added.",
           "demo.label": "TRY THE DISPLAY",
           "demo.source": "Usage source",
           "demo.exact": "Exact · server",
@@ -2485,7 +2489,7 @@
           "install.win.body3": "Sign in to Claude Code on Windows first. The app reads its credentials file at %USERPROFILE%/.claude/.credentials.json. Right-click the pet to configure it.",
           "install.more": "All release files & notes",
           "compare.title": "Same companion.<br>A few platform differences.",
-          "compare.caption": "Platform details for v0.24",
+          "compare.caption": "Platform details for v0.26",
           "faq.title": "A few things<br>worth knowing.",
           "footer.title": "Make your desktop<br>a little less ordinary.",
           "footer.source": "Explore the source",
@@ -2605,6 +2609,7 @@
           "usage.exact": "서버에서 제공하는 사용률",
           "usage.estimate": "구분해서 표시하는 로컬 추정치",
           "usage.explain": "정확 모드는 기존 Claude Code 인증 정보로 Anthropic에 계정 사용량을 요청해요. 사용할 수 없으면 로컬 로그로 추정하며, 로그에 없는 웹·데스크톱 활동은 포함하지 못해요.",
+          "usage.codex": "Codex(ChatGPT) 사용량도 Claude 옆에서 함께 볼 수 있어요. 이 컴퓨터에 Codex 로그인이 돼 있으면 로컬 로그가 아니라 OpenAI API 에서 사용량을 읽어, 계정에 실제로 있는 한도만 보여 줘요. 따로 설정할 것은 없고, Codex 를 쓰지 않으면 아무것도 추가되지 않아요.",
           "demo.label": "표시 방식 살펴보기",
           "demo.source": "사용량 출처",
           "demo.exact": "정확 · 서버",
@@ -2651,7 +2656,7 @@
           "install.win.body3": "먼저 Windows에서 Claude Code에 로그인하세요. 앱은 %USERPROFILE%/.claude/.credentials.json 자격 증명 파일을 읽어요. 펫 우클릭으로 설정하세요.",
           "install.more": "전체 배포 파일과 변경 내역",
           "compare.title": "같은 친구,<br>운영체제별 차이도 있어요.",
-          "compare.caption": "v0.24 운영체제별 안내",
+          "compare.caption": "v0.26 운영체제별 안내",
           "faq.title": "알아 두면<br>좋은 것들.",
           "footer.title": "데스크톱에<br>작은 즐거움을 더하세요.",
           "footer.source": "소스 살펴보기",
@@ -2771,6 +2776,7 @@
           "usage.exact": "サーバーが返す使用率",
           "usage.estimate": "区別して表示するローカル推定値",
           "usage.explain": "正確モードは既存の Claude Code 認証情報で Anthropic に問い合わせます。利用できない場合はローカルログから推定し、ログにない Web・デスクトップ利用は含められません。",
+          "usage.codex": "Codex（ChatGPT）の使用量も Claude と並べて確認できます。このパソコンで Codex にログインしていれば、ローカルログではなく OpenAI API から使用量を読み取り、アカウントに実際にある上限だけを表示します。設定は不要で、Codex を使っていなければ何も追加されません。",
           "demo.label": "表示を試す",
           "demo.source": "使用量の情報源",
           "demo.exact": "正確 · サーバー",
@@ -2817,7 +2823,7 @@
           "install.win.body3": "先に Windows で Claude Code にログイン。アプリは %USERPROFILE%/.claude/.credentials.json を読み取ります。右クリックで設定できます。",
           "install.more": "すべての配布ファイルと変更履歴",
           "compare.title": "同じ相棒。<br>OS ごとの違いも。",
-          "compare.caption": "v0.24 の OS 別詳細",
+          "compare.caption": "v0.26 の OS 別詳細",
           "faq.title": "知っておきたい<br>いくつかのこと。",
           "footer.title": "いつものデスクトップに、<br>小さな楽しみを。",
           "footer.source": "ソースを見る",
@@ -2937,6 +2943,7 @@
           "usage.exact": "Porcentajes del servidor",
           "usage.estimate": "Una estimación local identificada",
           "usage.explain": "El modo exacto consulta Anthropic con tu credencial de Claude Code. Si no está disponible, los registros locales dan una estimación que no incluye actividad web o de escritorio ausente de ellos.",
+          "usage.codex": "El uso de Codex (ChatGPT) puede verse junto al de Claude. Si has iniciado sesión en Codex en este ordenador, Claude Pet lee ese uso desde la API de OpenAI —no de registros locales— y muestra solo los límites que tu cuenta tiene realmente. No hay nada que configurar y, si no usas Codex, no se añade nada.",
           "demo.label": "PRUEBA LA VISTA",
           "demo.source": "Fuente de uso",
           "demo.exact": "Exacto · servidor",
@@ -2983,7 +2990,7 @@
           "install.win.body3": "Inicia sesión en Claude Code en Windows. La app lee %USERPROFILE%/.claude/.credentials.json. Haz clic derecho en la mascota para configurarla.",
           "install.more": "Todos los archivos y novedades",
           "compare.title": "La misma compañía.<br>Algunas diferencias.",
-          "compare.caption": "Detalles por sistema en v0.24",
+          "compare.caption": "Detalles por sistema en v0.26",
           "faq.title": "Algunas cosas<br>que conviene saber.",
           "footer.title": "Dale a tu escritorio<br>un poco de personalidad.",
           "footer.source": "Explorar el código",
