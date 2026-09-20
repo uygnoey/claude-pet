@@ -2,26 +2,29 @@
 
 사용자 보고(2026-09-20): 구독 모드에서 **크레딧을 활성화해 쓰고 있는데 표시가 안 된다**.
 
-재현했다. 서버 응답에 `extra_usage.is_enabled` 가 참이고 `utilization` 이 있으면
-`_parse_oauth_usage()` 는 크레딧 행을 제대로 만든다:
+재현했고, 결함이 **두 겹**이었다.
 
-    {'extra_usage': {'is_enabled': True, 'utilization': 63.5}}
-      → [('크레딧', 63.5, None, None)]      _label_order = 9
+바깥 겹: 어댑터(`roam_summary_text`)가 `_label_order(label) >= 9` 인 행을 `continue`
+로 **통째로 버렸다.** 파싱까지 다 해 놓고 마지막에 버리는 구조라, 크레딧을 켜고 쓰는
+사용자는 자기가 얼마나 썼는지 필에서 전혀 볼 수 없었다. 필은 "게이지 3행"(세션·주간·
+모델)을 위한 자리이고 크레딧은 게이지가 아니라는 판단에서 나온 것인데, **크레딧 행은
+켠 사람에게만 존재한다** — 이 행이 보이는 사용자는 정확히 그것을 보려고 켠 사람이다.
 
-그런데 어댑터(`roam_summary_text`)가 `_label_order(label) >= 9` 인 행을 `continue`
-로 **통째로 버린다.** 그래서 크레딧을 켜고 쓰는 사용자는 자기가 얼마나 썼는지 필에서
-전혀 볼 수 없다. 파싱까지 다 해 놓고 마지막에 버리는 구조다.
+안쪽 겹: 파서의 게이트가 `is_enabled` 였다. 사용자가 이 버그를 겪은 실제 상태는
+`user_disabled: false`(켜 둠) + `is_enabled: false`(한도 소진으로 조직이 내림)
++ `spend_limit_reached: true` 였다. 즉 **가장 알아야 할 순간에 그 사실 때문에
+사라지고 있었다.** 게이트는 `user_disabled` 여야 한다 — 자세한 것은
+`CreditRowIsParsedTests` 의 docstring 에 있다. 이 지점에서 두 번 틀렸으니 거기부터
+읽어라.
 
-왜 버리게 됐는지는 독스트링에 남아 있다 — 필은 "게이지 3행"(세션·주간·모델)을 위한
-자리이고 크레딧은 게이지가 아니라는 것이다. 그 판단 자체는 필이 좁다는 제약에서
-나왔지만, **크레딧 행은 켠 사람에게만 존재한다.** 즉 이 행이 보이는 사용자는 정확히
-그것을 보고 싶어 켠 사람이다.
-
-여기서 고정하는 것은 "크레딧이 있으면 보여준다" 하나다. 자리 배치·색은 기존 필
-계약(`test_summary_pill`)이 이미 지키고 있으므로 건드리지 않는다.
+자리 배치·색은 기존 필 계약(`test_summary_pill`)이 이미 지키고 있으므로 건드리지
+않는다. 금액 표시는 `MoneyReachesThePillTests`, 사용자가 %/$ 를 바꾸는 길은
+`CreditDisplayMenuTests` 가 고정한다.
 """
 
+import ast
 import os
+import pathlib
 import sys
 import unittest
 
@@ -32,6 +35,15 @@ try:
 except ImportError:
     from windows.win_core import import_core  # noqa: E402
     claude_pet = import_core()
+
+
+def _find_func(name):
+    tree = ast.parse(pathlib.Path(claude_pet.__file__).read_text(encoding="utf-8"),
+                     filename="claude_pet.py")
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    return None
 
 
 def credit_label():
@@ -81,15 +93,24 @@ ENABLED = dict(LIMIT_REACHED, is_enabled=True, used_credits=6350.0,
 
 
 class CreditRowIsParsedTests(unittest.TestCase):
-    """켜져 있을 때만 그린다 — 꺼져 있으면 행이 없다(사용자 결정, 2026-09-20).
+    """**게이트는 `user_disabled` 다. `is_enabled` 가 아니다.**
 
-    사용자가 보고한 버그는 **켜고 쓰는 동안 안 보이는 것**이었다. 그 원인은 파서가
-    아니라 어댑터였다 — 파서는 행을 만드는데 `roam_summary_text` 가
-    `_label_order(label) >= 9` 로 버렸다.
+    이 구분이 이 파일 전체에서 가장 틀리기 쉬운 지점이고, 실제로 두 번 틀렸다.
+    서버는 두 가지 다른 사실을 두 필드로 말한다:
 
-    꺼진 상태는 그리지 않는다. 이유는 묻지 않는다 — 사용자가 직접 껐든 한도를 다
-    써서 조직이 껐든(`spend_limit_reached`), `is_enabled` 가 거짓이면 행이 없다.
-    한도 소진 순간의 안내를 잃는다는 대가는 사용자가 알고 선택한 것이다.
+        user_disabled : 사용자가 손으로 껐는가          ← 우리 게이트
+        is_enabled    : 지금 실제로 쓸 수 있는가        ← 한도 소진이면 조직이 내린다
+
+    사용자 확인(2026-09-20): "이건 한도가 다 써도 켜져있어 켜고 끄는건 내가 수동으로
+    하는거야". 즉 사용자에게 "꺼짐" 은 **자기가 끈 것**이고, 한도를 다 써서 조직이
+    내린 것은 여전히 "켜 둔 상태" 다.
+
+    그리고 그 순간이 바로 사용자가 버그를 겪은 상태다 — 실측 응답이
+    `user_disabled: false` + `is_enabled: false` + `spend_limit_reached: true` 였다.
+    `is_enabled` 로 막으면 **사용자가 신고한 바로 그 상황이 다시 안 보인다.**
+
+    그러니 이 게이트를 `is_enabled` 로 "고치는" 변경은 버그 수정이 아니라 사용자
+    결정을 뒤집는 일이다. 다시 물어라.
     """
 
     def test_enabled_credits_become_a_row(self):
@@ -97,10 +118,16 @@ class CreditRowIsParsedTests(unittest.TestCase):
         self.assertTrue(got)
         self.assertIn(credit_label(), [r[0] for r in got])
 
-    def test_a_limit_reached_account_has_no_row(self):
-        """한도를 다 써서 꺼진 것도 '꺼짐' 이다."""
-        self.assertIsNone(claude_pet._parse_oauth_usage(
-            {"extra_usage": LIMIT_REACHED}))
+    def test_a_limit_reached_account_still_gets_a_row(self):
+        """**사용자가 신고한 바로 그 상태다.** 한도를 다 썼어도 켜 둔 것은 켜 둔 것이다.
+
+        한도를 넘기면 조직이 내려서 `is_enabled` 가 false 가 되지만
+        `user_disabled` 는 false 그대로다. 서버는 그 상태에서도 `used_credits` 와
+        `utilization` 을 모두 보내 준다 — 즉 보여 줄 수 있는데 안 보여 주고 있었다.
+        """
+        got = claude_pet._parse_oauth_usage({"extra_usage": LIMIT_REACHED})
+        self.assertTrue(got, "한도를 다 쓴 상태에서 크레딧 행이 사라진다")
+        self.assertIn(credit_label(), [r[0] for r in got])
 
     def test_a_user_who_never_enabled_credits_gets_no_row(self):
         self.assertIsNone(claude_pet._parse_oauth_usage(
@@ -268,6 +295,52 @@ class LegacyResponseKeepsItsGaugesTests(unittest.TestCase):
         labels = [r[0] for r in (claude_pet._parse_oauth_usage(self.LEGACY) or [])]
         self.assertIn(claude_pet.t("session"), labels)
         self.assertNotIn(credit_label(), labels)
+
+
+class CreditDisplayMenuTests(unittest.TestCase):
+    """%/$ 는 사용자가 바꿀 수 있어야 한다 — config 파일만으로는 못 바꾼다.
+
+    설정 패널은 고정 높이(본문 612 / 상한 656)라 자리가 없다. 그래서 자동 갱신
+    토글과 같은 자리, 우클릭 메뉴의 체크 항목으로 간다(사용자 결정, 2026-09-20).
+    """
+
+    KEY = "menu_credit_money"
+
+    def test_the_menu_title_exists_in_every_locale(self):
+        for lang in ("en", "ko", "ja", "es"):
+            with self.subTest(lang=lang):
+                title = claude_pet.TR[lang].get(self.KEY)
+                self.assertIsInstance(title, str, "%s 에 %s 없음" % (lang, self.KEY))
+                self.assertTrue(0 < len(title) <= claude_pet.MENU_TITLE_MAX)
+
+    def test_the_title_is_translated_not_pasted(self):
+        en = claude_pet.TR["en"][self.KEY]
+        self.assertEqual([l for l in ("ko", "ja", "es")
+                          if claude_pet.TR[l].get(self.KEY) == en], [])
+
+    def test_the_menu_wires_the_item_to_a_handler(self):
+        fn = _find_func("rightMouseDown_")
+        self.assertIsNotNone(fn)
+        src = ast.dump(fn)
+        self.assertIn(self.KEY, src, "메뉴가 %s 를 쓰지 않는다" % self.KEY)
+        self.assertIn("toggleCreditMoney:", src, "액션이 배선되지 않았다")
+
+    def test_the_handler_persists_the_choice(self):
+        fn = _find_func("toggleCreditMoney_")
+        self.assertIsNotNone(fn, "Handler.toggleCreditMoney_ 가 없다")
+        src = ast.dump(fn)
+        self.assertIn("credit_display", src)
+        self.assertIn("merge_config_updates", src,
+                      "선택이 ~/.claude_pet.json 에 저장되지 않는다")
+
+    def test_the_toggle_moves_between_exactly_the_two_modes(self):
+        """세 번째 값이 들어가면 렌더러가 무엇을 그릴지 알 수 없다."""
+        self.assertEqual(claude_pet.credit_display_next("money"), "pct")
+        self.assertEqual(claude_pet.credit_display_next("pct"), "money")
+
+    def test_an_unknown_stored_value_falls_back_to_the_default(self):
+        """손으로 고친 설정 파일이 필을 빈칸으로 만들면 안 된다."""
+        self.assertEqual(claude_pet.credit_display_next("nonsense"), "pct")
 
 
 class MoneyReachesThePillTests(unittest.TestCase):
