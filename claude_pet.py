@@ -1057,6 +1057,7 @@ TR = {
     "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
     "need_admin_key": "Right-click → Settings to enter an Admin API key",
     "api_key_rejected": "⚠ Admin API key rejected — check the key in Settings",
+    "api_unreachable": "⚠ Usage temporarily unavailable — retrying",
     "scanning": "Scanning usage…",
     "onb_install": "Claude Code not installed",
     "onb_login": "Claude Code — sign-in needed",
@@ -1147,6 +1148,7 @@ TR = {
     "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
     "need_admin_key": "우클릭 → 설정에서 Admin API 키를 입력하세요",
     "api_key_rejected": "⚠ Admin API 키가 거부됨 — 설정에서 키를 확인하세요",
+    "api_unreachable": "⚠ 사용량을 잠시 가져올 수 없음 — 다시 시도하는 중",
     "scanning": "사용량 스캔 중…",
     "onb_install": "Claude Code 미설치",
     "onb_login": "Claude Code 로그인 필요",
@@ -1233,6 +1235,7 @@ TR = {
     "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
     "need_admin_key": "右クリック → 設定で Admin API キーを入力してください",
     "api_key_rejected": "⚠ Admin API キーが拒否されました — 設定でキーを確認してください",
+    "api_unreachable": "⚠ 使用量を一時的に取得できません — 再試行中",
     "scanning": "使用量をスキャン中…",
     "onb_install": "Claude Code 未インストール",
     "onb_login": "Claude Code ログインが必要",
@@ -1324,6 +1327,7 @@ TR = {
     "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
     "need_admin_key": "Clic derecho → Ajustes para introducir una clave de Admin API",
     "api_key_rejected": "⚠ Clave de Admin API rechazada — revísala en Ajustes",
+    "api_unreachable": "⚠ Uso no disponible temporalmente — reintentando",
     "scanning": "Escaneando uso…",
     "onb_install": "Claude Code no instalado",
     "onb_login": "Claude Code: inicia sesión",
@@ -2132,6 +2136,23 @@ def compute_usage(runtime=None):
 #
 # **키 값은 여기 들어가지 않는다.** 남기는 것은 실패의 종류뿐이다(CLAUDE.md Privacy).
 API_STATUS = {"last_error": None}
+
+
+def api_error_kind(last_error):
+    """마지막 비용 조회 실패의 종류 → "key" | "transient" | None.
+
+    가르는 기준은 심각도가 아니라 **사용자가 할 일이 있느냐**다. 401/403 은 키를 고치면
+    되는 상태이고("key"), 나머지 실패는 고칠 키가 없다("transient") — 5xx 도, 망 장애도,
+    깨진 본문도 사용자 쪽에서 할 수 있는 일이 없다. 그 둘을 한 문구로 묶으면 둘 중 하나는
+    반드시 거짓 안내가 된다: 망이 끊겼을 뿐인 사람에게 "설정에서 키를 확인하세요" 는
+    멀쩡한 키를 의심하게 만들고, 키가 거부된 사람에게 "잠시 후 다시 시도합니다" 는
+    영영 오지 않을 성공을 기다리게 한다.
+
+    실패가 없으면 None — '아직 조회 중'은 실패가 아니다.
+    """
+    if not last_error:
+        return None
+    return "key" if last_error in ("http:401", "http:403") else "transient"
 
 
 def fetch_api_cost(start_dt):
@@ -3505,16 +3526,25 @@ def start_claude_login_background():
 
 
 def summary_click_action(*, status_key, in_pill, click_count, moved):
-    """요약 필 클릭이 무엇을 뜻하는가 → None | "login" | "install" | "recover".
+    """요약 필 클릭이 무엇을 뜻하는가 → None | "login" | "install" | "recover" | "settings".
 
     상태 문구가 떠 있을 때만 클릭이 뜻을 갖는다. 기존 상호작용을 건드리지 않는 것이
     이 함수의 절반이다 — 더블클릭은 즉시 갱신 몫이고, 드래그는 클릭이 아니며, 필 밖은
     접기 버튼과 펫의 몫이다.
+
+    "설정에서 확인하세요" 라고 써 놓고 눌러도 아무 일이 없으면 그것은 안내가 아니다.
+    그래서 키를 말하는 두 문구는 설정을 연다 — 키가 거부된 상태(api_key_rejected)와
+    아직 안 넣은 상태(need_admin_key). 같은 곳을 가리키는 문구인데 하나만 열리면 그게
+    더 헷갈린다.
+
+    **일시 오류(api_unreachable)는 여기 없다.** 설정을 열어 봐야 사용자가 고칠 것이
+    없고, 열리는 창은 '네가 뭔가 잘못 넣었다'는 뜻으로 읽힌다.
     """
     if moved or not in_pill or click_count != 1:
         return None
     return {"onb_login": "login", "onb_install": "install",
-            "token_expired": "recover"}.get(status_key)
+            "token_expired": "recover",
+            "api_key_rejected": "settings", "need_admin_key": "settings"}.get(status_key)
 
 
 def fetch_exact_usage():
@@ -6284,6 +6314,9 @@ def mood_for(stats):
 PILL_W = 300          # 요약 필 최대 너비 — 실제 폭은 글자 폭에 맞춰 SUMMARY_MIN_W..PILL_W (roam_pill_rect)
 PILL_PAD = 13         # 필 내부 패딩
 PILL_ROWS = 4         # 서버 응답에서 받아 두는 최대 행 수: 세션 / 주간 / 모델(Fable 등) / 크레딧 (fetch_exact_usage)
+# 요약 필에 쓰는 **게이지** 행 수(세션·주간·모델). 크레딧은 게이지가 아니라 이 한도 밖이고,
+# 그래서 크레딧이 켜져 있어도 모델 행을 밀어내지 않는다 — roam_summary 참조.
+SUMMARY_GAUGE_ROWS = 3
 def pill_h():
     """논리 창의 필 띠 높이 = 요약 필의 최대 높이(둘째 줄 포함). 표시는 요약 필 하나뿐이다 — 게이지 막대와
     하단 상태줄이 있던 큰 필은 없앴다(사용자 결정 2026-09-12: "그거로 통일하자"). 실제 필은 내용에 따라
@@ -7010,11 +7043,11 @@ def _roam_valid_pct(value):
 
 def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_month=None,
                  reset_texts=None, spike_first=False, cost_budget=None, auth_error=False,
-                 api_error=False):
+                 api_error=False, api_stale=False):
     """요약 필 내용(Claude 구간) → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
 
     ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login /
-                         scanning / token_expired / api_key_rejected
+                         scanning / token_expired / api_key_rejected / api_unreachable
     ("cost", (today, month, budget))   API 모드의 오늘·이달 비용과 월 예산. month/budget 은 없으면 None
     ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 호출자는 크레딧 등 게이지가 아닌 행을
                          빼고 넘긴다(어댑터 roam_summary_text 참조).
@@ -7035,20 +7068,37 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
     api_error 는 '마지막 비용 조회에서 키가 거부됐다'는 사실이고, auth_error 와 같은 자리에서
     어댑터가 넘긴다. 없는 숫자를 'loading' 으로 부르는 것은 아직 조회 중일 때만 참이다 — 키가
     거부된 뒤에도 같은 문구를 띄우면 사용자는 자기가 할 일이 있다는 것을 영영 모른다.
+    api_stale 은 '마지막 조회가 키 문제가 아닌 이유로 실패했다'는 사실이다(api_error_kind
+    가 둘을 가른다). 두 문구를 섞지 않는 이유는 그 함수의 독스트링에 있다.
+
     순서가 계약이다: 키가 없으면 api_error 와 무관하게 need_admin_key(넣을 키가 없는데 키를
     고치라고 할 수 없다), 숫자가 있으면 지난 실패로 가리지 않고 cost, 그 다음이 이 판정이다.
+    둘 다 켜져 있으면 키 쪽이 이긴다 — 더 구체적이고, 사용자가 할 일이 있는 쪽이다.
     """
     if mode == "api":
         if not has_admin_key:
             return ("status", "need_admin_key")
         if not _roam_valid_pct(cost_today):
-            return ("status", "api_key_rejected" if api_error else "loading")
+            if api_error:
+                return ("status", "api_key_rejected")
+            return ("status", "api_unreachable" if api_stale else "loading")
         month = float(cost_month) if _roam_valid_pct(cost_month) else None
         budget = float(cost_budget) if _roam_valid_pct(cost_budget) and cost_budget > 0 else None
         return ("cost", (float(cost_today), month, budget))
     if oauth:
         rows = []
-        for i, row in enumerate(list(oauth)[:3]):
+        for i, row in enumerate(list(oauth)):
+            # 게이지(세션·주간·모델)의 자리는 **위치**로 고정이다: 앞 SUMMARY_GAUGE_ROWS
+            # 행만 후보이고, 그중 하나가 못 쓸 값이라고 해서 네 번째 행이 그 자리를
+            # 대신 채우지 않는다. 'kept 개수'로 세면 바로 그 대체가 일어난다.
+            #
+            # 크레딧 행은 이 한도 밖이라 위치와 무관하게 통과한다. 게이지가 아니라서
+            # 예전에는 통째로 버렸지만, 크레딧 행은 **켠 사람에게만 존재한다** — 그 행이
+            # 보이는 사용자는 정확히 그것을 보려고 켠 사람이다. 켜지 않았으면 행 자체가
+            # 오지 않으므로 0% 크레딧을 지어낼 일도 없다. 한도 밖에 두어야 크레딧이
+            # 모델 행을 밀어내지도 않는다.
+            if i >= SUMMARY_GAUGE_ROWS and _label_order(row[0]) < 9:
+                continue
             if not _roam_valid_pct(row[1]):
                 continue
             reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
@@ -7522,9 +7572,10 @@ def run_gui():
              # codex: Codex(OpenAI) 사용량 행 또는 None. None 이면 구간 자체를 안 붙인다 —
              # Codex 를 안 쓰는 사용자에게 0% 행을 보여 주지 않기 위해서다.
              "codex": None,
-             # api_error: 마지막 비용 조회에서 Admin 키가 거부됐는가(새로고침 워커가 세운다).
-             # 비어 있는 숫자를 'loading' 이라 부를지 '키가 거부됨' 이라 부를지를 가른다.
-             "api_error": False,
+             # api_error / api_stale: 마지막 비용 조회가 어떻게 실패했는가(새로고침 워커가
+             # api_error_kind 로 갈라 세운다). 비어 있는 숫자를 'loading' 이라 부를지,
+             # '키가 거부됨' 이라 부를지, '일시적으로 못 가져옴' 이라 부를지를 가른다.
+             "api_error": False, "api_stale": False,
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
@@ -8089,8 +8140,9 @@ def run_gui():
 
         말줄임은 하지 않는다 — 실제 필 폭을 아는 draw_summary_pill 이 같은 폰트로 맞춘다. 여기서 잰 폭은
         roam_frame 의 text_w 가 되고(roam_pill_rect 가 PILL_W 로 캡), 높이는 둘째 줄이 있으면 SUMMARY_H2.
-        정확 모드 행은 크레딧(_label_order 9)만 빼고 앞 3행을 넘긴다 — 서버의 모델 라벨이 "Claude Fable 5" 처럼
-        패밀리 단어가 아니어도 모델 행이 사라지지 않게. 리셋 시각은 여기서 fmt_countdown 으로 문자열로 만든다
+        정확 모드 행은 **거르지 않고 그대로** 넘긴다 — 어느 행을 쓸지는 roam_summary 가 정한다(게이지는 앞
+        3행, 크레딧은 그 한도 밖). 예전에는 여기서 크레딧(_label_order 9)을 버렸고, 그래서 크레딧을 켜고 쓰는
+        사용자는 파싱까지 끝난 자기 사용량을 필에서 전혀 볼 수 없었다. 리셋 시각은 여기서 fmt_countdown 으로 문자열로 만든다
         (roam_summary 는 시각을 계산하지 않는다). 토큰 만료(401 지속)로 추정치로 내려간 상태는 첫 줄 끝 ⚠.
         매 tick(20 Hz) 불리므로 같은 입력·같은 5초 창 안에서는 메모한 값을 돌려준다(글자 폭 측정 비용).
         """
@@ -8098,15 +8150,14 @@ def run_gui():
         oauth = state["oauth"]
         key = (RUNTIME["mode"], L["lang"], state.get("onboard"), id(stats), id(oauth), state["cost"],
                state["cost_month"], RUNTIME.get("api_budget"), bool(OAUTH_STATUS.get("auth_error")),
-               bool(state.get("api_error")), id(state.get("codex")), int(_time.time() / 5))
+               bool(state.get("api_error")), bool(state.get("api_stale")),
+               id(state.get("codex")), int(_time.time() / 5))
         if _summary_memo["key"] == key:
             return _summary_memo["value"]
         if oauth:
             now_utc = datetime.now(timezone.utc)
             rows = []
             for label, pct, rdt, rtxt in oauth:
-                if _label_order(label) >= 9:
-                    continue
                 reset_s = fmt_countdown(rdt, now_utc) if rdt is not None else (rtxt or None)
                 rows.append((label, pct, reset_s))
             oauth = rows
@@ -8119,7 +8170,8 @@ def run_gui():
                                reset_texts=resets, spike_first=bool(spike_info(stats)),
                                cost_budget=float(RUNTIME.get("api_budget") or 0),
                                auth_error=bool(OAUTH_STATUS.get("auth_error")),
-                               api_error=bool(state.get("api_error")))
+                               api_error=bool(state.get("api_error")),
+                               api_stale=bool(state.get("api_stale")))
         # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
         # 상태 문구가 아니면 None 이라, 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
         state["summary_status"] = segment[1] if segment[0] == "status" else None
@@ -8984,7 +9036,13 @@ def run_gui():
         if act is None:
             return
         set_override("waving")      # 눌렸다는 것만은 즉시 보여 준다
-        # 세 갈래 모두 키체인 읽기나 프로세스 제출이라 메인 스레드에서 하면 펫이 멈춘다.
+        if act == "settings":
+            # 설정 창은 AppKit 창이라 메인 스레드를 떠나면 안 된다. 이 훅은 mouseUp_ 이
+            # 부르므로 이미 메인 스레드이고, 아래 스레드로 넘기면 창이 엉뚱한 스레드에서
+            # 만들어진다. 나머지 갈래와 달리 느린 일도 아니다.
+            open_settings()
+            return
+        # 나머지 갈래는 키체인 읽기나 프로세스 제출이라 메인 스레드에서 하면 펫이 멈춘다.
         threading.Thread(target=_summary_click_work, args=(act,), daemon=True).start()
 
     def _summary_click_work(act):
@@ -9105,8 +9163,9 @@ def run_gui():
                     # 고칠 키가 없으니 "키를 확인하세요" 라고 말하면 거짓 안내가 된다.
                     # 모듈 이름이 아니라 state 로 넘긴다: roam_summary_text 는 창 없는
                     # 시험이 손수 만든 스코프에서 exec 되므로 새 전역을 참조하면 깨진다.
-                    values["api_error"] = (API_STATUS.get("last_error")
-                                           in ("http:401", "http:403"))
+                    _api_kind = api_error_kind(API_STATUS.get("last_error"))
+                    values["api_error"] = _api_kind == "key"
+                    values["api_stale"] = _api_kind == "transient"
                     # Claude Code 데이터가 전혀 없으면 온보딩(설치/로그인) 안내.
                     # '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'로 본다 —
                     # 몇 달 전 로그 파일 하나가 남아 있다고 해서 지금 보여 줄 데이터가
