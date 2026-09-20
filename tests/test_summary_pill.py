@@ -629,6 +629,102 @@ class PillWidthFollowsContentTests(unittest.TestCase):
     # against the pill `roam_pill_rect` returns for that same content.
 
 
+class CountdownFormatTests(unittest.TestCase):
+    """리셋 카운트다운의 **형식**. 이 파일에 없던 구멍이다.
+
+    2026-09-20: 사용자가 "영어 스페인어 기준으로 통일해" 라고 해서 네 로케일의 카운트다운
+    단위를 전부 바꿨는데, **전체 스위트에서 빨간 것이 0개였다.** 앱의 모든 리셋 시각이
+    바뀌었는데 어떤 행동 테스트도 눈치채지 못했다.
+
+    이유는 이 스레드에서 반복해서 나온 모양과 같다 — 다만 이번엔 잘못된 단언이 아니라
+    **누락**이다. `"3시간 43분 후"` 같은 문구를 담은 픽스처들은 그 문자열을
+    `roam_summary` 에 **입력으로 넘긴다.** 주는 대로 재생산하므로 `fmt_countdown` 의
+    출력을 볼 수가 없다. 유일하게 `fmt_countdown` 을 언급하던 두 곳은 스텁
+    (`lambda reset, at: "in 3h"`)과 `callable()` 확인이었다. 형식은 한 번도 검사된 적이
+    없었다.
+
+    그래서 두 가지를 따로 건다. **하나만으로는 부족하다:**
+
+    · 로케일 간 동일성만 걸면 — 네 로케일이 **똑같이 틀려도** 통과한다.
+    · 형식만 핀하면 — 한 로케일이 갈라져 나가도 통과한다.
+    """
+
+    UNIT_KEYS = ("cd_days", "cd_hm", "cd_m")
+    LOCALES = ("en", "ko", "ja", "es")
+
+    def setUp(self):
+        self.addCleanup(claude_pet.set_lang, claude_pet.L.get("lang"))
+
+    def test_the_countdown_units_are_byte_identical_in_every_locale(self):
+        """사용자가 말한 "통일"의 정의 그 자체 — 단위 문구가 네 로케일에서 같다.
+
+        Rival: 한 로케일만 옛 형식으로 남는 것(그 로케일 사용자만 다른 화면을 본다).
+        """
+        table = claude_pet.TR
+        for key in self.UNIT_KEYS:
+            with self.subTest(key=key):
+                values = {lang: table[lang][key] for lang in self.LOCALES}
+                self.assertEqual(
+                    len(set(values.values())), 1,
+                    f"{key} 가 로케일마다 다르다: {values}")
+
+    def test_the_reset_word_stays_localised_and_is_not_swept_into_the_unification(self):
+        """`reset_prefix` 는 **단위가 아니라 산문**이다 — 통일 대상이 아니다.
+
+        이 단언이 없으면 다음 사람이 위 테스트를 읽고 "리셋 관련 문구를 통일하는 게
+        규칙"이라고 읽어 `리셋 `/`reset `/`リセット `/`reinicio ` 까지 영어로 맞출 수
+        있다. 그건 번역을 지우는 일이다. 방향을 명시해 둔다.
+
+        `reset_done` 은 카운트다운이 아니라 **상태**라 여기서 형식을 주장하지 않는다 —
+        아래 출력 핀에서 그 분기가 살아 있는지만 본다.
+        """
+        table = claude_pet.TR
+        prefixes = {lang: table[lang]["reset_prefix"] for lang in self.LOCALES}
+        self.assertGreater(
+            len(set(prefixes.values())), 1,
+            f"리셋 안내어가 전부 같아졌다 {prefixes} — 단위는 통일하되 산문은 번역된 "
+            "채로 남아야 한다")
+        for lang in ("ko", "ja"):
+            with self.subTest(lang=lang):
+                self.assertNotEqual(prefixes[lang], prefixes["en"],
+                                    f"{lang} 의 리셋 안내어가 영어로 대체됐다")
+
+    def test_fmt_countdown_output_is_pinned_across_every_branch_and_locale(self):
+        """형식 자체를 핀한다. 로케일 간 동일성만으로는 **똑같이 틀린** 경우를 못 잡는다.
+
+        `fmt_countdown` 의 세 분기를 경계까지 덮는다 — `h >= 24`(일), `h > 0`(시+분),
+        `h == 0`(분만) — 그리고 delta ≤ 0 의 `reset_done` 분기가 살아 있는지.
+
+        Rivals: 일 분기가 사라져 `73h 0m` 로 나오는 것; 시 분기가 `0h` 를 붙여
+        `0h 59m` 로 나오는 것; 24시간 정각이 `24h 0m` 로 떨어지는 것(경계 off-by-one);
+        음수 delta 가 `-1h` 같은 것을 내는 것.
+        """
+        from datetime import datetime, timedelta, timezone
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        expected = [
+            (timedelta(days=3, hours=4, minutes=30), "3d 4h"),   # h >= 24
+            (timedelta(hours=24), "1d 0h"),                      # boundary, exactly a day
+            (timedelta(hours=25, minutes=1), "1d 1h"),           # just past it
+            (timedelta(hours=23, minutes=59, seconds=59), "23h 59m"),  # boundary below
+            (timedelta(hours=1), "1h 0m"),                       # h > 0, zero minutes
+            (timedelta(minutes=59, seconds=59), "59m"),          # h == 0
+            (timedelta(seconds=30), "0m"),                       # h == 0, under a minute
+        ]
+        for lang in self.LOCALES:
+            claude_pet.set_lang(lang)
+            for delta, want in expected:
+                with self.subTest(lang=lang, delta=str(delta)):
+                    self.assertEqual(claude_pet.fmt_countdown(now + delta, now), want)
+            for delta in (timedelta(0), timedelta(seconds=-5), timedelta(days=-2)):
+                with self.subTest(lang=lang, delta=str(delta)):
+                    self.assertEqual(
+                        claude_pet.fmt_countdown(now + delta, now),
+                        claude_pet.TR[lang]["reset_done"],
+                        "a reset that has already happened is a state, not a countdown")
+            self.assertEqual(claude_pet.fmt_countdown(None, now), "-",
+                             "a rolling window has no reset instant")
+
+
 class RoamDisplayToggleTests(unittest.TestCase):
     """The arrival latch and the chevron. The app calls ``note()`` on every tick, so a
     visit is a *sequence* of ``note("look", "approach")`` calls, not one; every gate

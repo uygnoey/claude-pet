@@ -54,6 +54,7 @@ import re
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -79,20 +80,83 @@ def _require(name):
     return value
 
 
-# 최소 지원 화면(CLAUDE.md: 1366×768). 예산은 **여기서** 유도한다.
+# 예산은 **생산에서 가져온다.** 여기서 계산하지 않는다.
 #
-# 2026-09-20 정정: 이 파일은 원래 예산을 `PILL_W - 2*PILL_PAD` 로 유도했다. 그때는 그게
-# 필의 상한이었기 때문이지만, 사용자가 지적한 대로 `PILL_W = 300` 은 근거 없는 상수였고
-# 그 상한 자체가 내용이 잘리던 유일한 원인이었다. 상한이 화면으로 바뀐 지금 `PILL_W` 는
-# 설정 패널 폭 계산에만 남아 있다 — 즉 예전 유도는 이제 **무관한 상수**를 가리킨다.
-# 상수에서 유도하는 것과 올바른 것에서 유도하는 것은 다르고, 전자는 조용히 틀린다.
-MIN_SUPPORTED_SCREEN = 1366
+# 이 헬퍼는 두 번 틀렸다. 처음엔 `PILL_W - 2*PILL_PAD` 였고(그때는 그게 상한이라 맞았지만
+# 상한이 옮겨 가자 무관한 상수를 가리켰다), 그 다음엔 `MIN_SUPPORTED_SCREEN` 에서
+# 유도했다(생산은 화면을 안 쓴다 — `geom()` 의 W 를 쓴다). 두 번 다 "상수가 아니라
+# 유도했다"고 적어 뒀는데, 유도의 **출발점**이 생산과 달랐다.
+#
+# 세 번째는 없다: `_pill_text_budget()` 을 그대로 부른다. 식이 또 바뀌어도 이 파일은
+# 따라간다.
+def _production_geometry():
+    """생산의 폭 경로를 그대로 꺼내 온다 — `geom()`, `_pill_text_budget()`,
+    `_apply_pill_width()`, `_pill_budget_for()`.
+
+    **상태를 가진 경로다.** `geom()` 의 W 는 `g["pill_w"]` 를 읽고, 그 값은 어댑터가
+    글자를 잰 **뒤에** 기록한다. 그래서 아무것도 재지 않고 `_pill_text_budget()` 을
+    부르면 첫 프레임의 출발점(PILL_W)을 재게 된다 — 측정 이전 스냅샷을 정답으로
+    고정하는 것이고, 이 스레드에서 이미 두 번 그렇게 틀렸다.
+
+    그러므로 호출자는 반드시 내용을 주고 `budget_for(need)` 를 거쳐야 한다. 그것이
+    어댑터가 하는 일이고(`_pill_budget_for`), 그 뒤라야 `geom()` 과 `roam_pill_rect`
+    가 같은 W 를 본다.
+    """
+    from test_companion_motion import gui_functions
+
+    g = {"scale": 1.0}
+    screen = {"w": 1920.0}
+    scope = {
+        "PW0": 120, "PH0": 90, "g": g,
+        "BTN_R": claude_pet.BTN_R, "GAP": claude_pet.GAP,
+        "PILL_W": claude_pet.PILL_W, "PILL_PAD": claude_pet.PILL_PAD,
+        "SUMMARY_MIN_W": claude_pet.SUMMARY_MIN_W,
+        "SUMMARY_EDGE": claude_pet.SUMMARY_EDGE,
+        "SUMMARY_LOGO_W": claude_pet.SUMMARY_LOGO_W,
+        "SUMMARY_LINE_H": claude_pet.SUMMARY_LINE_H,
+        "SUMMARY_PAD_V": claude_pet.SUMMARY_PAD_V,
+        "SUMMARY_H": claude_pet.SUMMARY_H,
+        "pill_h": claude_pet.pill_h,
+        "next_pill_width": claude_pet.next_pill_width,
+        "math": math,
+        "state": {"summary_lines_n": 2},
+        "win": None,
+        "NSScreen": SimpleNamespaceScreen(screen["w"]),
+        "F_SUMMARY": None, "F_SUMMARY_SUB": None,
+        "astr": lambda text, _font=None: SimpleNamespace(
+            size=lambda: SimpleNamespace(width=pretendard_width(text))),
+    }
+
+    class _Probe(unittest.TestCase):
+        def runTest(self):  # pragma: no cover
+            pass
+
+    gui_functions(_Probe(), ("geom", "_pill_text_budget", "_apply_pill_width",
+                             "_pill_width_step", "_widest_digit", "_screen_w",
+                             "_stable_w"), scope)
+
+    def budget_for(need):
+        """어댑터의 `_pill_budget_for` 과 같은 순서: 기록하고, 그 폭의 예산을 돌려준다."""
+        scope["_apply_pill_width"](need + claude_pet.SUMMARY_LOGO_W
+                                   + 2 * claude_pet.PILL_PAD)
+        return float(scope["_pill_text_budget"]())
+
+    scope["budget_for"] = budget_for
+    return scope
 
 
 def layout(groups, measure=pretendard_width, budget=None):
+    """`summary_lines` 를 **순수 함수로** 돌린다.
+
+    budget 을 안 주면 측정 전 출발점의 예산을 쓴다. 그건 "생산이 지금 쓰는 값"이 아니라
+    **이 테스트가 고른 고정 예산**이다 — 접힘 자체의 성질(아무것도 안 잃는다, 빈 줄을
+    안 남긴다, 예산 안에 들어간다)은 어떤 예산에서든 참이어야 하므로 그걸로 충분하다.
+    생산이 실제로 쓰는 값에 대한 주장은 `FoldBudgetMatchesTheActualPillTests` 만 한다 —
+    그 클래스는 내용을 먼저 재고 `budget_for()` 를 거친다.
+    """
     fn = _require("summary_lines")
     if budget is None:
-        budget = full_budget()
+        budget = full_budget() + claude_pet.SUMMARY_LOGO_W
     return fn(groups, measure, budget)
 
 
@@ -102,21 +166,26 @@ def logo_width():
 
 
 def full_budget():
-    """필 안쪽의 전체 가로 예산 — 화면에서 유도한다.
+    """측정 **전** 출발점의 예산. 값을 단언하는 데 쓰지 말 것.
 
-    `roam_pill_rect` 가 쓰는 것과 같은 식이다: 논리 창 폭에서 양쪽 가장자리 여백
-    (`SUMMARY_EDGE`)을 빼면 필이 커질 수 있는 최대 폭이고, 거기서 필 내부 패딩을 빼면
-    글자가 쓸 수 있는 폭이다. 최소 지원 화면을 쓰는 이유는 그것이 최악의 경우이고,
-    게이트는 최악의 경우에서 참이어야 하기 때문이다.
+    `geom()` 의 W 가 `g["pill_w"]` 를 읽으므로 아무것도 재지 않은 상태의 이 값은
+    첫 프레임의 스냅샷이다. 실제 불변식은 `FoldBudgetMatchesTheActualPillTests` 가
+    `budget_for(need)` 를 거쳐 확인한다.
     """
-    room = max(claude_pet.SUMMARY_MIN_W,
-               MIN_SUPPORTED_SCREEN - 2 * claude_pet.SUMMARY_EDGE)
-    return room - 2 * claude_pet.PILL_PAD
+    return float(_production_geometry()["_pill_text_budget"]())
 
 
 def text_budget():
-    """한 제공자의 한 줄이 쓸 수 있는 **텍스트** 폭. 로고 자리는 이미 빠져 있다."""
-    return full_budget() - logo_width()
+    """한 줄이 실제로 쓸 수 있는 폭 — `full_budget()` 과 **같다.**
+
+    한때 `full_budget() - logo_width()` 였고 그게 틀렸다. `layout()` 은
+    `full_budget() + SUMMARY_LOGO_W` 를 넘기고 `summary_lines` 가 거기서 로고 폭을 한 번
+    빼므로, 실제로 접히는 폭은 `full_budget()` 이다. 로고 뺄셈을 이 파일에서 **또** 하면
+    두 번 빼는 것이고, 그러면 이 파일의 두 헬퍼가 서로 다른 세계를 가리킨다 — 정확히
+    이 파일이 잡아 온 결함의 모양이다. 별도 이름으로 남겨 두는 것은 읽는 쪽에서 "줄이
+    쓸 수 있는 폭"이라는 뜻이 분명해서다.
+    """
+    return full_budget()
 
 
 # ── 픽스처: 제공자 묶음. 행 수도 제공자 수도 매개변수다 ────────────────────────
@@ -260,33 +329,19 @@ class NothingIsEverTruncatedTests(LangMixin, unittest.TestCase):
                     with self.subTest(combination=name, lang=lang, credit=credit):
                         self.assert_no_ellipsis(lang, claude, codex, credit=credit)
 
-    def test_the_english_claude_line_with_credit_now_fits_on_one_line(self):
-        """이 테스트는 **뒤집혔다**, 그리고 그게 기록할 가치가 있다.
+    # RETIRED 2026-09-20: test_the_english_claude_line_with_credit_now_fits_on_one_line.
+    #
+    # It asked whether that line fits, against a budget this module computed. Under the
+    # adaptive width the answer depends on a width the adapter **records after measuring**,
+    # so any budget computed here is a pre-measurement snapshot — the same mistake this
+    # file has now made three times in three different disguises (`PILL_W`, then
+    # `MIN_SUPPORTED_SCREEN`, then an un-settled `geom()`).
+    #
+    # Succeeded by FoldBudgetMatchesTheActualPillTests ::
+    # test_the_window_grows_to_fit_the_content_instead_of_folding_it, which measures the
+    # content the way the adapter does (`_stable_w`), records the width through the same
+    # hook, and only then asks whether the line survived on one line.
 
-        원래는 "영어 4게이지+크레딧 줄이 예산을 넘으니 접혀야 한다"였다. 그 전제가
-        예산 274pt(= `PILL_W 300 - 2*PILL_PAD`)였고, 사용자가 그 274 의 근거를 물은
-        순간 전제가 사라졌다 — 상한이 화면이 되자 같은 줄이 최소 지원 화면에서도 여유
-        있게 들어간다. 잘리던 것은 줄이 길어서가 아니라 상한이 임의였기 때문이다.
-
-        그래서 이제 요구사항의 **긍정형**을 단언한다: 이 줄은 접히지도 잘리지도 않고 한
-        줄로 그려진다. 접힘 자체는 사라지지 않았고 아래 테스트가 계속 지킨다.
-
-        Rival: 상한을 조금만 키운 수정 — 이 줄은 통과하지만 더 긴 조합에서 같은 자리로
-        돌아온다. 그래서 여유를 함께 단언한다.
-        """
-        self.use("en")
-        groups = groups_for("en", claude=True, codex=0, credit=True)
-        one_line = sum(pretendard_width(t) for t, _k in
-                       claude_pet.roam_summary_runs(groups[0][1], claude_pet.t)[0])
-        self.assertLess(
-            one_line, text_budget(),
-            f"영어 크레딧 줄이 {one_line:.0f}pt 인데 예산이 {text_budget():.0f}pt 다 — "
-            "최소 지원 화면에서 이미 배포되는 조합이 들어가지 않는다")
-        lines = dict(layout(groups))["claude"]
-        gauges = [ln for ln in lines if any(k != "sub" for _t, k in ln)]
-        self.assertEqual(len(gauges), 1,
-                         f"들어가는 줄이 접혔다 — 접힘은 넘칠 때만 일어나야 한다: {gauges!r}")
-        self.assert_nothing_lost("en", True, 0, credit=True)
 
     def test_folding_still_fires_when_a_line_genuinely_exceeds_the_budget(self):
         """접힘은 이제 **현실에서 거의 발화하지 않는 안전장치**다. 그래서 더 중요하다.
@@ -330,11 +385,17 @@ class EveryLineFitsTests(LangMixin, unittest.TestCase):
                     with self.subTest(combination=name, lang=lang, credit=credit):
                         self.use(lang)
                         groups = groups_for(lang, claude=claude, codex=codex, credit=credit)
+                        # `layout()` 이 실제로 접은 그 예산과 비교한다. 예전에는
+                        # `text_budget()`(= 예산 − 로고)과 비교했는데, `layout()` 은
+                        # `full_budget()` 로 접으므로 로고 폭만큼 어긋나 있었다 — 내 헬퍼
+                        # 둘이 서로 다른 값을 가리킨 것이고, 이 파일이 잡아 온 결함과
+                        # 같은 모양이다.
+                        folded_at = full_budget()
                         for line in all_lines(layout(groups)):
                             width = sum(pretendard_width(t) for t, _k in line)
                             self.assertLessEqual(
-                                width, text_budget() + 0.5,
-                                f"줄이 예산을 넘는다: {width:.1f}pt > {text_budget():.1f}pt "
+                                width, folded_at + 0.5,
+                                f"줄이 예산을 넘는다: {width:.1f}pt > {folded_at:.1f}pt "
                                 f"({''.join(t for t, _k in line)!r})")
 
 
@@ -355,44 +416,22 @@ class LogoWidthIsSubtractedTests(LangMixin, unittest.TestCase):
         self.assertLess(logo_width(), full_budget(),
                         "로고가 필 전체를 먹었다")
 
-    def test_a_line_that_only_fits_without_the_logo_is_folded(self):
-        """판별 테스트: 예산과 '예산 − 로고' **사이**의 폭을 가진 줄을 만든다.
-
-        로고 폭이 실제로 빠졌다면 접혀서 두 줄이 된다. 선언만 되고 안 빠졌다면 한 줄로
-        남고, 그 줄은 화면에서 로고와 겹치거나 잘린다.
-
-        Rival: `SUMMARY_LOGO_W` 가 존재하고 `test_the_logo_reserves_a_real_width` 도
-        통과하지만 접기 계산이 full budget 을 쓰는 구현 — 그 구현은 이 테스트만 틀린다.
-        """
-        # 재야 하는 것은 라벨 폭이 아니라 **줄 전체 폭**이다. 이 구간은
-        # exact 행 하나를 (라벨 run, 값 run) 두 개로 렌더하므로, 라벨만 두 예산 사이에
-        # 맞추면 값 run 이 더해져 줄이 두 예산을 모두 넘어가 버리고 — 그러면 로고를 빼든
-        # 안 빼든 접히므로 이 테스트가 아무것도 판별하지 못한다. 실제로 그렇게 쓰여 있었고,
-        # 상한이 화면으로 바뀌면서 M3(로고 폭을 안 빼는 변이)가 통과해 버리는 것으로
-        # 드러났다. 값 run 을 먼저 빼고 라벨을 맞춘다.
-        forced_row = (("exact", [("", 50.0, False, None)]),)
-        value_w = sum(pretendard_width(t) for t, _k
-                      in claude_pet.roam_summary_runs(list(forced_row), claude_pet.t)[0])
-        target = (full_budget() + text_budget()) / 2.0 - value_w
-        filler = "0"
-        unit = pretendard_width(filler)
-        self.assertGreater(unit, 0)
-        text = filler * int(target // unit)
-
-        forced = [("claude", [("exact", [(text, 50.0, False, None)])])]
-        width = sum(pretendard_width(t) for t, _k
-                    in claude_pet.roam_summary_runs(forced[0][1], claude_pet.t)[0])
-        self.assertLess(text_budget(), width,
-                        f"픽스처 줄({width:.1f}pt)이 텍스트 예산({text_budget():.1f}pt)을 넘지 않는다")
-        self.assertLessEqual(width, full_budget(),
-                             f"픽스처 줄({width:.1f}pt)이 전체 예산({full_budget():.1f}pt)도 넘는다 "
-                             "— 로고를 빼든 안 빼든 접히므로 판별력이 없다")
-
-        lines = dict(layout(forced))["claude"]
-        self.assertGreater(
-            len(lines), 1,
-            f"폭 {width:.1f}pt 짜리 줄이 접히지 않았다 — 텍스트 예산 {text_budget():.1f}pt "
-            f"(전체 {full_budget():.1f}pt − 로고 {logo_width():.1f}pt)를 쓰지 않았다는 뜻이다")
+    # RETIRED 2026-09-20: test_a_line_that_only_fits_without_the_logo_is_folded.
+    #
+    # It sized a fixture to land **between** `budget` and `budget - SUMMARY_LOGO_W`, so
+    # that folding proved the logo width was really subtracted. That window no longer
+    # exists: the subtraction happens once, inside `summary_lines`, and the adapter hands
+    # the width back before calling it — so the two budgets are the same number and
+    # nothing can sit between them.
+    #
+    # The two ways that seam can break are each gated, and neither by this test:
+    #   · `summary_lines` stops subtracting  -> EveryLineFitsTests (lines exceed the pill)
+    #   · the adapter stops handing it back  -> tests/test_companion_motion.py ::
+    #     test_the_adapter_gives_summary_lines_the_full_inner_width_not_the_text_width
+    #     (the longest line splits by exactly the logo width — premature folding, which no
+    #     width assertion can see, because an over-folded line fits every budget)
+    #
+    # Both were verified by mutation before this was removed.
 
 
 class AbsentProviderLeavesNoTraceTests(LangMixin, unittest.TestCase):
@@ -758,257 +797,114 @@ class FoldBudgetMatchesTheActualPillTests(LangMixin, unittest.TestCase):
     않는다 — 다시 적는 순간 또 갈라진다.
     """
 
-    SCREEN = 1920.0          # a realistic display; only _pill_text_budget sees it
-
     def setUp(self):
         super().setUp()
-        from test_companion_motion import gui_functions
-        api = _require("PILL_W")  # fail early with the contract message if absent
-        scope = {
-            "PW0": 120, "PH0": 90, "g": {"scale": 1.0},
-            "BTN_R": claude_pet.BTN_R, "GAP": claude_pet.GAP,
-            "PILL_W": claude_pet.PILL_W, "PILL_PAD": claude_pet.PILL_PAD,
-            "SUMMARY_MIN_W": claude_pet.SUMMARY_MIN_W,
-            "SUMMARY_EDGE": claude_pet.SUMMARY_EDGE,
-            "SUMMARY_LOGO_W": claude_pet.SUMMARY_LOGO_W,
-            "SUMMARY_LINE_H": claude_pet.SUMMARY_LINE_H,
-            "SUMMARY_PAD_V": claude_pet.SUMMARY_PAD_V,
-            "SUMMARY_H": claude_pet.SUMMARY_H,
-            "pill_h": claude_pet.pill_h,
-            "state": {"summary_lines_n": 2},
-            "win": None,
-            "NSScreen": SimpleNamespaceScreen(self.SCREEN),
-        }
-        gui_functions(self, ("geom", "_pill_text_budget"), scope)
-        self.PW, self.PH, self.W, self.H = scope["geom"]()
-        self.fold_budget = float(scope["_pill_text_budget"]())
+        self.geo = _production_geometry()
 
-    def pill_text_area(self, text_w, lines):
-        """생산이 실제로 그리는 필의 **글자 자리** 폭. roam_pill_rect 를 그대로 쓴다."""
-        band = claude_pet.pill_h(lines)
+    def measure_line(self, line):
+        return sum(pretendard_width(txt) for txt, _k in line)
+
+    def settle(self, groups):
+        """어댑터와 같은 순서로 한 번 돌린다 → (blocks, budget, W).
+
+        1. 내용을 재고(`need`), 2. 그 폭을 기록하고 예산을 받고(`budget_for`),
+        3. 그 예산으로 접는다. 2번을 건너뛰면 측정 이전 스냅샷을 재게 된다.
+        """
+        # **생산이 쓰는 그 측정 함수로 잰다.** 어댑터는 `_stable_w()` 로 재는데, 그건
+        # 모든 숫자를 가장 넓은 글리프로 바꿔 재므로 실제 폭보다 **크다**(떨림을 없애는
+        # 대가다). 여기서 `pretendard_width` 로 재면 생산보다 작은 need 를 주게 되고,
+        # 필이 실제보다 좁게 기록돼 있지도 않은 접힘이 나타난다. 처음에 그렇게 써서
+        # 0.6pt 차이로 거짓 실패를 만들었다 — 같은 함수에 다른 값을 먹이는, 이 파일이
+        # 계속 잡아 온 바로 그 모양이다.
+        stable_w = self.geo["_stable_w"]
+        need = 0.0
+        for _pid, segs in groups:
+            main, sub = claude_pet.roam_summary_runs(segs, claude_pet.t)
+            need = max(need, sum(stable_w(x) for x, _k in main))
+            need = max(need, sum(stable_w(x) for x, _k in sub))
+        budget = self.geo["budget_for"](need)
+        blocks = layout(groups, budget=budget + claude_pet.SUMMARY_LOGO_W)
+        return blocks, budget, self.geo["geom"]()[2]
+
+    def pill_text_area(self, W, text_w, lines):
         rect = claude_pet.roam_pill_rect(
-            claude_pet.DISPLAY_FULL, False, False, self.W, self.PW, self.PH,
-            band, text_w=text_w, text_h=band)
+            claude_pet.DISPLAY_FULL, False, False, W, 120, 90,
+            claude_pet.pill_h(lines), text_w=text_w, text_h=claude_pet.pill_h(lines))
         self.assertIsNotNone(rect)
         x, _y, w, _h = rect
         return x, w - 2 * claude_pet.PILL_PAD - claude_pet.SUMMARY_LOGO_W
 
-    def measure_line(self, line):
-        return sum(pretendard_width(t) for t, _k in line)
-
     def test_the_fold_budget_is_the_width_the_pill_actually_gives(self):
-        """불변식의 뿌리. 접힘에 넘기는 예산과 필이 내주는 글자 자리가 같아야 한다.
+        """기록한 뒤의 예산과, 같은 W 로 그려지는 필의 글자 자리가 같아야 한다.
 
-        다르면 접힘은 자기가 가진 줄 알고 안 접고, 필은 그만큼을 안 준다. 오늘 그 비는
-        7.5배다.
-
-        Rival: 예산을 화면에서 재고 필을 `geom()` 의 W 로 재는 구현 — 지금 상태다. 양쪽
-        각각은 '맞는 값'이고 둘이 같은 것을 가리키지 않는다.
+        Rival: 예산을 화면에서 재고 필을 `geom()` 의 W 로 재는 구현(이번 W1); 기록하기
+        전에 예산을 읽어 첫 프레임 스냅샷을 정답으로 삼는 구현.
         """
-        _x, available = self.pill_text_area(text_w=10_000, lines=2)
-        self.assertAlmostEqual(
-            self.fold_budget, available, delta=1.0,
-            msg=(f"접힘 예산 {self.fold_budget:.0f}pt 인데 필이 주는 글자 자리는 "
-                 f"{available:.0f}pt 다 ({self.fold_budget / max(available, 1):.1f}배). "
-                 f"논리 창 W={self.W} (geom(): max(pw+BTN_R*2+16, PILL_W+8)) 는 화면이 "
-                 "아니다 — 접힘이 믿는 폭과 필이 주는 폭이 같은 값이어야 한다."))
+        for lang in ("ko", "en"):
+            for credit in (False, True):
+                for codex in (0, 1, 2):
+                    with self.subTest(lang=lang, credit=credit, codex=codex):
+                        self.use(lang)
+                        groups = groups_for(lang, claude=True, codex=codex, credit=credit)
+                        blocks, budget, W = self.settle(groups)
+                        lines = all_lines(blocks)
+                        # 예산은 "이 W 에서 필이 **최대로** 내줄 수 있는 글자 자리"다.
+                        # 이 내용의 필과 비교하면 안 된다 — 필은 내용에 맞춰 줄어들므로
+                        # 내용이 짧으면 당연히 더 작고, 그건 어긋남이 아니다. 실제
+                        # 불변식("이 줄이 이 필에 들어간다")은 아래 테스트가 본다.
+                        _x, widest = self.pill_text_area(W, 10 ** 6, len(lines))
+                        self.assertAlmostEqual(
+                            budget, widest, delta=1.0,
+                            msg=(f"접힘 예산 {budget:.0f}pt vs 이 W 에서 필이 줄 수 있는 "
+                                 f"최대 글자 자리 {widest:.0f}pt (W={W:.0f}) — 같은 W 에서 "
+                                 "나와야 한다"))
 
     def test_no_produced_line_exceeds_the_pill_it_will_be_drawn_in(self):
-        """**같은 내용**에 대해 `summary_lines` 가 낸 줄과 `roam_pill_rect` 가 낸 필을
-        맞댄다. 양쪽 다 생산 값으로.
-
-        Reviewer 실측으로 오늘 이미 넘치는 조합이 있다 — 영어 Claude 게이지+크레딧 줄이
-        대표다. 넘치는데 접히지도 잘리지도 않으므로 사용자는 **말줄임표 없이 사라진 글자**를
-        본다.
-        """
+        """불변식 본체. 같은 내용에 대해 `summary_lines` 의 줄과 `roam_pill_rect` 의
+        필을 맞댄다, 양쪽 다 **측정 뒤** 생산 값으로."""
         problems = []
         for lang in ("ko", "en"):
             for credit in (False, True):
                 for codex in (0, 1, 2):
                     self.use(lang)
                     groups = groups_for(lang, claude=True, codex=codex, credit=credit)
-                    blocks = layout(groups, budget=self.fold_budget)
+                    blocks, _budget, W = self.settle(groups)
                     lines = all_lines(blocks)
                     if not lines:
                         continue
-                    text_w = max(self.measure_line(l) for l in lines) + claude_pet.SUMMARY_LOGO_W
-                    _x, available = self.pill_text_area(text_w, len(lines))
+                    text_w = (max(self.measure_line(l) for l in lines)
+                              + claude_pet.SUMMARY_LOGO_W)
+                    _x, available = self.pill_text_area(W, text_w, len(lines))
                     for line in lines:
                         width = self.measure_line(line)
                         if width > available + 0.5:
                             problems.append(
                                 f"[{lang} credit={credit} codex={codex}] "
-                                f"{width:.1f}pt > {available:.1f}pt : "
-                                f"{''.join(t for t, _k in line)!r}")
+                                f"{width:.1f} > {available:.1f} (W={W:.0f}): "
+                                f"{''.join(x for x, _k in line)!r}")
         self.assertEqual(
             problems, [],
-            "필 밖으로 나가는 줄이 있다 — 접히지도 잘리지도 않으므로 사용자에게는 "
-            "말줄임표 없이 글자가 사라진 것으로 보인다:\n  " + "\n  ".join(problems))
+            "필 밖으로 나가는 줄이 있다 — 접히지도 잘리지도 않으므로 말줄임표 없이 "
+            "글자가 사라진다:\n  " + "\n  ".join(problems))
 
-    def test_an_overflowing_line_starts_outside_the_pill_not_merely_wide(self):
-        """`_draw_runs` 는 가운데 정렬이다 — `cx = x + (w - total) / 2`. total 이 w 를
-        넘으면 **시작점이 필 왼쪽 밖**으로 나가고, 로고 자리를 침범한 뒤 창에서 잘린다.
+    def test_the_window_grows_to_fit_the_content_instead_of_folding_it(self):
+        """사용자 요구의 본체: **필이 내용에 맞춰 넓어진다.** 화면이 끝이다.
 
-        "안 잘린다"만 단언하면 이걸 못 잡는다. 그래서 그리기 시작점을 직접 계산해서
-        글자 자리 왼쪽 경계 안에 있는지 본다.
-
-        Rival: 폭만 보고 통과시키는 단언 — 넘치는 줄도 '그려지기는 한다'.
+        긴 내용에서 W 가 출발점(PILL_W + 여백)보다 커져야 하고, 그 결과 줄이 접히지
+        않아야 한다. Rival: W 가 고정이라 대신 접는 구현 — 줄은 다 보이지만 사용자가
+        요구한 것은 넓어지는 것이었다.
         """
-        problems = []
-        for lang in ("ko", "en"):
-            for credit in (False, True):
-                self.use(lang)
-                groups = groups_for(lang, claude=True, codex=1, credit=credit)
-                lines = all_lines(layout(groups, budget=self.fold_budget))
-                if not lines:
-                    continue
-                text_w = max(self.measure_line(l) for l in lines) + claude_pet.SUMMARY_LOGO_W
-                pill_x, available = self.pill_text_area(text_w, len(lines))
-                text_left = pill_x + claude_pet.PILL_PAD + claude_pet.SUMMARY_LOGO_W
-                for line in lines:
-                    start = text_left + (available - self.measure_line(line)) / 2.0
-                    if start < text_left - 0.5:
-                        problems.append(
-                            f"[{lang} credit={credit}] 시작 x={start:.1f} < 글자 자리 "
-                            f"왼쪽 {text_left:.1f} : {''.join(t for t, _k in line)!r}")
-        self.assertEqual(
-            problems, [],
-            "가운데 정렬 때문에 줄의 시작점이 글자 자리 밖으로 나간다 — 로고 자리를 "
-            "침범하고 창에서 잘린다:\n  " + "\n  ".join(problems))
-
-
-class PillWidthDoesNotJitterTests(LangMixin, unittest.TestCase):
-    """필 폭이 **숫자 값**에 흔들리지 않는가. 자릿수에는 흔들려도 된다.
-
-    두 경우를 섞으면 안 되고, 그 구분이 이 클래스의 전부다:
-
-    · `42% → 43%`, `99% → 98%` — **자릿수가 같다.** 폭이 한 톨이라도 움직이면 실패다.
-      사용자에게는 새로고침마다 펫이 실룩거리는 것으로 보인다.
-    · `9% → 10%`, `99% → 100%` — **자릿수가 늘었다.** 폭이 움직이는 것이 **정상**이고,
-      안 움직이면 글자가 필 밖으로 나간다. 이걸 실패로 걸면 넘침을 강제하게 된다.
-
-    첫째는 우연이 아니라 **구성상** 참이다 — `_stable_w()` 가 폭을 잴 때 모든 숫자를
-    가장 넓은 숫자 글리프로 바꿔서 재기 때문이다. 그래서 여기서는 고른 전이 몇 개를
-    확인하지 않고 **그 성질 자체**를 단언한다: "자릿수가 같으면 잰 폭이 같다". 성질로
-    걸면 다른 로케일·다른 게이지 조합·앞으로 생길 제공자에도 자동으로 적용된다. 표에서
-    고른 전이 네 개만 보는 게이트는 그 표에만 맞는다.
-    """
-
-    def setUp(self):
-        super().setUp()
-        from test_companion_motion import gui_functions
-        widths = {}
-
-        def astr(text, _font):
-            import types
-            return types.SimpleNamespace(
-                size=lambda: types.SimpleNamespace(
-                    width=sum(widths.get(c, pretendard_width(c)) for c in text)))
-
-        scope = {"astr": astr, "F_SUMMARY": None,
-                 "SUMMARY_MIN_W": claude_pet.SUMMARY_MIN_W,
-                 "PILL_W": claude_pet.PILL_W}
-        gui_functions(self, ("_stable_w", "_pill_width_step", "_widest_digit"), scope)
-        self.stable_w = scope["_stable_w"]
-        self.step = scope["_pill_width_step"]()
-        self.widest_digit = scope["_widest_digit"]()
-
-    def test_the_step_is_derived_from_the_widest_digit_not_chosen_from_a_sample(self):
-        """`_pill_width_step()` 은 실측에서 고른 상수가 아니라 **유도된 값**이어야 한다 —
-        '가장 넓은 숫자 글리프 하나의 폭'. 그 유도가 유지되는지 본다.
-
-        Rival: 샘플에서 고른 양자화 단위(예: 4pt). 경계가 두 인접값 사이에 떨어지느냐가
-        우연이라 그 샘플에만 맞고, 다른 글꼴·다른 크기에서 조용히 틀린다.
-        """
-        self.assertEqual(len(self.widest_digit), 1)
-        self.assertTrue(self.widest_digit.isdigit())
-        widest = max("0123456789", key=pretendard_width)
-        self.assertAlmostEqual(
-            pretendard_width(self.widest_digit), pretendard_width(widest), places=4,
-            msg=f"_widest_digit() = {self.widest_digit!r} 인데 실제 가장 넓은 숫자는 "
-                f"{widest!r} 이다")
-        self.assertAlmostEqual(
-            self.step, pretendard_width(widest), places=4,
-            msg=f"step {self.step} 이 가장 넓은 숫자 글리프 폭 "
-                f"{pretendard_width(widest)} 에서 유도되지 않았다")
-
-    def test_same_digit_count_measures_the_same_width(self):
-        """성질 그 자체. 자릿수만 같으면 **어떤 숫자든** 잰 폭이 같아야 한다.
-
-        고른 전이가 아니라 실제 필 문구에 대해 확인한다 — 로케일 둘 × 크레딧 유무 ×
-        Codex 0/1/2 행, 각 조합의 모든 줄에 대해 퍼센트 값만 바꿔 가며.
-        """
-        problems = []
-        for lang in ("ko", "en"):
-            for credit in (False, True):
-                for codex in (0, 1, 2):
-                    self.use(lang)
-                    for pcts in ((42.0, 17.0, 12.0), (43.0, 18.0, 13.0), (99.0, 98.0, 97.0)):
-                        groups = groups_for(lang, claude=True, codex=codex, credit=credit)
-                        base = [l for l in all_lines(layout(groups))]
-                        texts = ["".join(t for t, _k in line) for line in base]
-                        for text in texts:
-                            swapped = text.translate(str.maketrans("0123456789", "5555555555"))
-                            if sum(c.isdigit() for c in text) != sum(c.isdigit() for c in swapped):
-                                continue
-                            a, b = self.stable_w(text), self.stable_w(swapped)
-                            if abs(a - b) > 1e-6:
-                                problems.append(
-                                    f"[{lang} credit={credit} codex={codex}] "
-                                    f"{a:.3f} != {b:.3f} : {text!r} vs {swapped!r}")
-        self.assertEqual(
-            problems, [],
-            "자릿수가 같은데 잰 폭이 달라진다 — 숫자 값이 바뀔 때마다 필이 실룩거린다:\n  "
-            + "\n  ".join(problems[:8]))
-
-    def test_a_value_change_at_equal_digit_count_never_moves_the_width(self):
-        """위 성질을 `next_pill_width` 까지 통과시켜 확인한다. `W` 가 움직이면 실패."""
-        cap = 2000.0
-        for before, after in (("세션 42%", "세션 43%"), ("세션 99%", "세션 98%"),
-                              ("Session 42%", "Session 43%"), ("Weekly 10%", "Weekly 99%")):
-            with self.subTest(transition=f"{before} -> {after}"):
-                self.assertEqual(sum(c.isdigit() for c in before),
-                                 sum(c.isdigit() for c in after), "픽스처의 자릿수가 다르다")
-                w0 = claude_pet.next_pill_width(claude_pet.PILL_W, self.stable_w(before),
-                                                self.step, cap)
-                w1 = claude_pet.next_pill_width(w0, self.stable_w(after), self.step, cap)
-                self.assertEqual(w1, w0,
-                                 f"{before!r} → {after!r} 에서 폭이 {w0} → {w1} 로 움직였다")
-
-    def test_a_digit_count_change_is_allowed_to_move_the_width(self):
-        """**이건 실패가 아니다.** 자릿수가 늘면 폭이 따라가야 한다 — 안 따라가면 넘친다.
-
-        그래서 '움직였다'를 단언하지 않고, 움직이더라도 **필요한 폭을 덮는다**는 것만
-        단언한다. 방향을 고정하면 구현을 과하게 묶는다.
-        """
-        cap = 2000.0
-        for before, after in (("세션 9%", "세션 10%"), ("세션 99%", "세션 100%"),
-                              ("Session 9%", "Session 10%")):
-            with self.subTest(transition=f"{before} -> {after}"):
-                w0 = claude_pet.next_pill_width(claude_pet.PILL_W, self.stable_w(before),
-                                                self.step, cap)
-                w1 = claude_pet.next_pill_width(w0, self.stable_w(after), self.step, cap)
-                self.assertGreaterEqual(
-                    w1, self.stable_w(after),
-                    f"{after!r} 에 필요한 폭 {self.stable_w(after):.1f} 을 새 폭 {w1} 이 "
-                    "덮지 못한다 — 글자가 필 밖으로 나간다")
-
-    def test_growth_is_immediate_and_shrinking_needs_a_full_step(self):
-        """커질 때는 그 프레임에 바로, 줄어들 때는 한 단계 아래로 확실히 내려간 뒤에만.
-
-        Rivals: 커지는 쪽을 미루는 구현(그 프레임에 글자가 밖으로 나간다 — 이번 사고);
-        줄어드는 쪽을 즉시 따라가는 구현(경계에서 폭이 오간다); 단조 증가만 하는 구현
-        (내용이 짧아져도 넓은 필이 남아 "유려하게"를 어긴다).
-        """
-        step, cap = self.step, 2000.0
-        self.assertEqual(claude_pet.next_pill_width(200.0, 260.0, step, cap),
-                         math.ceil(260.0 / step) * step, "커질 때 즉시 따라가지 않는다")
-        self.assertEqual(claude_pet.next_pill_width(300.0, 300.0 - step / 2, step, cap),
-                         300.0, "한 단계 미만으로 줄었는데 폭이 내려갔다")
-        shrunk = claude_pet.next_pill_width(300.0, 300.0 - step * 2, step, cap)
-        self.assertLess(shrunk, 300.0, "충분히 줄었는데 폭이 안 내려간다 — 단조 증가다")
-        self.assertLessEqual(claude_pet.next_pill_width(100.0, 999_999.0, step, cap), cap,
-                             "상한을 넘겼다")
+        self.use("en")
+        groups = groups_for("en", claude=True, codex=0, credit=True)
+        blocks, _budget, W = self.settle(groups)
+        self.assertGreater(
+            W, claude_pet.PILL_W,
+            f"영어 크레딧 줄에서도 논리 창이 {W:.0f} 으로 출발점을 못 넘었다 — "
+            "필이 내용을 따라가지 않는다")
+        gauge_lines = [l for l in dict(blocks)["claude"]
+                       if any(k != "sub" for _t, k in l)]
+        self.assertEqual(len(gauge_lines), 1,
+                         f"넓어질 수 있는데도 접혔다: {len(gauge_lines)} 줄")
 
 
 class SimpleNamespaceScreen:

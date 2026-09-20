@@ -435,6 +435,27 @@ def gui_functions(test, names, scope):
     return scope
 
 
+def claude_pet_const(name):
+    """One module-level constant, read from the source without importing the app.
+
+    This module deliberately never imports claude_pet — it drives AST-extracted code in
+    hand-built scopes. So a constant the extracted code reads has to be fetched the same
+    way, not hardcoded here: a literal copy is the restatement defect that has already
+    cost this release twice.
+    """
+    import ast as _ast
+    tree = _ast.parse(SOURCE.read_text(encoding="utf-8"), filename=str(SOURCE))
+    for node in tree.body:
+        if isinstance(node, _ast.Assign) and any(
+                isinstance(x, _ast.Name) and x.id == name for x in node.targets):
+            return _ast.literal_eval(
+                _ast.Expression(body=node.value)) if isinstance(
+                    node.value, _ast.Constant) else eval(  # noqa: S307
+                        compile(_ast.Expression(body=node.value), "<const>", "eval"),
+                        {"SUMMARY_LINE_H": claude_pet_const("SUMMARY_LINE_H")})
+    raise AssertionError(f"claude_pet.py has no module-level {name}")
+
+
 def fake_rect(x, y, width, height):
     return SimpleNamespace(origin=SimpleNamespace(x=float(x), y=float(y)),
                            size=SimpleNamespace(width=float(width), height=float(height)))
@@ -1095,6 +1116,162 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         fresh()
         self.assertEqual(lines()[0], "Today $12.38 · This month $27.50")
 
+    def test_the_adapter_gives_summary_lines_the_full_inner_width_not_the_text_width(self):
+        """어댑터가 `summary_lines` 에 넘기는 예산이 **필 안쪽 전체 폭**인가.
+
+        훅(`_pill_budget_for`)이 돌려주는 것은 **글자 자리** 폭이고, `summary_lines` 는
+        받은 예산에서 `SUMMARY_LOGO_W` 를 스스로 뺀다. 그래서 어댑터는 넘기기 전에 로고
+        폭을 되돌려 줘야 한다. 그 한 줄이 없으면 예산이 두 번 깎이고, 가장 긴 줄이 **딱
+        로고 폭만큼** 넘쳐서 접힌다 — 화면에서는 마지막 게이지의 라벨과 값이 서로 다른
+        줄로 갈라지는 것으로 보인다.
+
+        **폭 게이트로는 안 잡힌다.** 너무 이르게 접힌 줄은 어떤 예산에도 들어가고 아무것도
+        잘리지 않는다. "넘치지 않는가"가 아니라 "접힐 필요가 없는데 접혔는가"를 물어야
+        하고, 그건 실제 어댑터를 돌려야 보인다 — 예산 계산을 테스트가 다시 적으면 그
+        재현이 생산의 뺄셈을 대신해 버려 변이가 보이지 않는다(실제로 그렇게 놓쳤다).
+
+        Rivals: 어댑터가 로고 폭을 되돌려 주지 않는 구현(이 테스트가 잡는 것);
+        `summary_lines` 가 뺄셈을 그만두는 구현(예산이 넓어져 필 밖으로 나간다 —
+        tests/test_summary_layout.py 의 EveryLineFitsTests 가 잡는다).
+        """
+        from datetime import datetime, timezone
+        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
+                              "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
+                              "SUMMARY_LINE_H", "pill_h"})
+        widths = {}
+
+        def astr(text, _font=None):
+            return SimpleNamespace(size=lambda: SimpleNamespace(
+                width=sum(widths.get(c, 7.0) for c in text)))
+
+        # A budget that is *exactly* the widest line's text width. With the logo width
+        # handed back the line fits on one; without it the budget is 18pt short and the
+        # last gauge splits off.
+        rows = [("Session", 42.0, None, None), ("Weekly", 17.0, None, None),
+                ("Fable", 12.0, None, None), ("Credit", 66.0, None, None)]
+        claude_pet_t = lambda key: {"credit": "Credit", "reset_prefix": "reset "}.get(key, key)
+        # Install the stub **before** building the segment: `roam_summary` decides whether
+        # a row is the credit row via `_label_order`, which compares against `t("credit")`
+        # in pure_api's namespace. Setting it afterwards silently dropped the credit row
+        # from the fixture's own measurement, so the fixture and the adapter disagreed by
+        # the width of that row — the fixture's fault, not production's.
+        api["t"] = claude_pet_t
+        state = {"oauth": rows, "stats": None, "cost": None, "cost_month": None,
+                 "onboard": None, "credit_text": "$100.66", "codex": None,
+                 "api_error": False, "api_stale": False, "codex_summary": None}
+        segment = api["roam_summary"]("sub", [(r[0], r[1], None) for r in rows],
+                                      None, None, None, False, None,
+                                      credit_text="$100.66")
+        main, _sub = api["roam_summary_runs"]([segment], claude_pet_t)
+        widest = sum(astr(txt).size().width for txt, _k in main)
+
+        # Characterise the contract first: `summary_lines` subtracts the logo width, so a
+        # budget that is exactly the text width folds, and one with the logo width added
+        # back does not. This is the seam the adapter has to get right.
+        for give_back, expect_lines, why in (
+                (True, 1, "로고 폭을 되돌려 주면 한 줄에 들어간다"),
+                (False, 2, "되돌려 주지 않으면 딱 로고 폭만큼 넘쳐 갈라진다")):
+            with self.subTest(gives_logo_width_back=give_back):
+                budget = widest + (api["SUMMARY_LOGO_W"] if give_back else 0)
+                lines = api["summary_lines"]([("claude", [segment])],
+                                             lambda s: astr(s).size().width, budget)
+                gauge = [ln for pid, block in lines for ln in block
+                         if any(k != "sub" for _t, k in ln)]
+                self.assertEqual(len(gauge), expect_lines, why)
+
+        # Now the actual gate: drive the **real adapter** with a hook that returns exactly
+        # the text width, and require the line to survive on one. If the adapter stops
+        # handing the logo width back, the budget is 18pt short and this splits.
+        clock = {"now": 1000.0}
+        scope = dict(api, state=state, RUNTIME={"mode": "sub", "api_budget": None,
+                                                "admin_key": None},
+                     L={"lang": "en"}, F_SUMMARY=None, F_SUMMARY_SUB=None,
+                     OAUTH_STATUS={"auth_error": False},
+                     datetime=datetime, timezone=timezone,
+                     spike_info=lambda stats: None,
+                     fmt_countdown=lambda reset, at: "-",
+                     _label_order=lambda label: 9 if label == "Credit" else 0,
+                     _summary_memo={"key": None, "value": None},
+                     _time=SimpleNamespace(time=lambda: clock["now"]),
+                     t=claude_pet_t, astr=astr,
+                     _stable_w=lambda text, _font=None: astr(text).size().width,
+                     _pill_text_budget=lambda: widest)
+        state["pill_budget"] = lambda need: widest
+        gui_functions(self, ("roam_summary_text",), scope)
+        blocks, _tw, _th = scope["roam_summary_text"]()
+        gauge = [ln for _pid, block in blocks for ln in block
+                 if any(k != "sub" for _t, k in ln)]
+        self.assertEqual(
+            len(gauge), 1,
+            "어댑터가 훅의 글자-자리 예산에 로고 폭을 되돌려 주지 않는다 — 가장 긴 줄이 "
+            f"로고 폭만큼 넘쳐 갈라진다: {[''.join(x for x, _k in ln) for ln in gauge]}")
+
+    def test_a_lone_provider_still_gets_its_mark_and_the_same_text_indent(self):
+        """제공자가 하나뿐일 때도 **그 제공자의 마크가 그려지고**, 글자 시작 위치가
+        둘일 때와 **같다.**
+
+        사용자 요구: "클로드면 클로드 코덱스면 코덱스 로고가 있어야지". 마크를 '제공자가
+        둘 이상일 때 구분용으로' 그리는 구현은 Codex 에 로그인하는 순간 Claude 줄이
+        옆으로 밀린다 — 사용자에게는 로그인했더니 화면이 움찔한 것으로 보인다.
+
+        **폭 단언으로는 안 잡힌다.** 마크를 안 그려도, 들여쓰기를 안 해도 줄은 예산 안에
+        들어간다(오히려 더 넉넉해진다). "없는 제공자는 흔적을 안 남긴다"를 폭과 따로
+        단언해야 했던 것과 같은 이유다 — 여기서는 그 반대 방향이다.
+
+        Rivals: 제공자가 둘 이상일 때만 마크를 그리는 구현; 마크는 그리되 제공자 수에
+        따라 들여쓰기를 바꾸는 구현(줄이 옆으로 밀린다); 첫 제공자만 그리는 구현.
+        """
+        draws, logos = [], []
+
+        def astr(value, font):
+            width = sum(10 if char.isupper() else 7 for char in value)
+            return SimpleNamespace(size=lambda: SimpleNamespace(width=width, height=13),
+                    drawAtPoint_=lambda p: draws.append((value, p.x, p.y, font)))
+
+        blocks = {"value": []}
+        pill = {"rect": (4, 66, 260, 46)}
+        api = pure_api(self, {"roam_summary", "SUMMARY_H2", "SUMMARY_LINE_H",
+                              "SUMMARY_LOGO_W"})
+        scope = dict(api, view=SimpleNamespace(pillRect=lambda: pill["rect"]),
+                     roam_summary_text=lambda: (blocks["value"], 999, pill["rect"][3]),
+                     draw_summary_logo=lambda pid, lx, ly: logos.append((pid, lx)),
+                     astr=astr, F_SUMMARY="main-font", F_SUMMARY_SUB="sub-font",
+                     F_SUMMARY_BY_KIND={"exact": "exact-font"},
+                     F_SUMMARY_SUB_BY_KIND={"sub": "sub-kind-font"}, PILL_PAD=13,
+                     C_PILL=SimpleNamespace(set=lambda: None), NSMakeRect=fake_rect,
+                     SUMMARY_RADIUS=claude_pet_const("SUMMARY_RADIUS"),
+                     NSMakePoint=lambda x, y: SimpleNamespace(x=x, y=y),
+                     NSBezierPath=SimpleNamespace(bezierPathWithRoundedRect_xRadius_yRadius_=
+                                                 lambda *args: SimpleNamespace(fill=lambda: None)))
+        gui_functions(self, ("draw_summary_pill",), scope)
+
+        claude_only = [("claude", [[("Session", "exact"), (" 42%", "value")]])]
+        both = claude_only + [("codex", [[("Weekly", "exact"), (" 68%", "value")]])]
+
+        results = {}
+        for name, value in (("claude only", claude_only), ("claude+codex", both)):
+            draws.clear(); logos.clear()
+            blocks["value"] = value
+            scope["draw_summary_pill"]()
+            # The Claude line's first run is what must not move between the two cases.
+            results[name] = (list(logos), draws[0][1])
+
+        lone_logos, lone_x = results["claude only"]
+        both_logos, both_x = results["claude+codex"]
+
+        self.assertEqual([pid for pid, _x in lone_logos], ["claude"],
+                         "a lone provider was not given its mark — the mark is identity, "
+                         "not a separator that only matters once there are two")
+        self.assertEqual([pid for pid, _x in both_logos], ["claude", "codex"],
+                         "each provider must get its own mark")
+        self.assertEqual(
+            lone_x, both_x,
+            f"the Claude line starts at {lone_x} alone and {both_x} beside Codex — "
+            "signing in to Codex shifts the Claude line sideways")
+        self.assertEqual(
+            {x for _pid, x in both_logos}, {x for _pid, x in lone_logos},
+            "the marks are not drawn at the same left edge in both cases")
+
     def test_actual_summary_draw_draws_every_provider_line_and_cuts_nothing(self):
         """The real ``draw_summary_pill``, executed. Rewritten 2026-09-20.
 
@@ -1135,6 +1312,7 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      F_SUMMARY_BY_KIND={"exact": "exact-font"},
                      F_SUMMARY_SUB_BY_KIND={"sub": "sub-kind-font"}, PILL_PAD=13,
                      C_PILL=SimpleNamespace(set=lambda: None), NSMakeRect=fake_rect,
+                     SUMMARY_RADIUS=claude_pet_const("SUMMARY_RADIUS"),
                      NSMakePoint=lambda x, y: SimpleNamespace(x=x, y=y),
                      NSBezierPath=SimpleNamespace(bezierPathWithRoundedRect_xRadius_yRadius_=
                                                  lambda *args: SimpleNamespace(fill=lambda: None)))

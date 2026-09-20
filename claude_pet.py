@@ -7542,27 +7542,39 @@ def _summary_fold_runs(runs, budget, measure):
     run 하나가 혼자서 예산보다 넓으면 그 run 만으로 한 줄을 만들고 넘치게 둔다. 쪼개면
     내용이 바뀌고, 버리면 잘라 내는 것이다 — 둘 다 이 함수가 하지 않기로 한 일이다.
     """
-    lines, cur, cur_w = [], [], 0.0
+    # 구분자를 경계로 **덩어리**를 만든다. 한 게이지의 라벨 run 과 값 run 사이도 run
+    # 경계지만 **거기서 끊으면 안 된다** — 화면에서 `Fable` 과 `0%` 가 다른 줄에 있는 것은
+    # 사용자에게 그냥 깨진 것이다. 끊어도 되는 곳은 구분자 자리뿐이다.
+    chunks, cur = [], []
+    for run in runs:
+        if run[0] == SUMMARY_SEP:
+            if cur:
+                chunks.append(cur)
+            cur = []
+        else:
+            cur.append(run)
+    if cur:
+        chunks.append(cur)
 
-    def flush():
-        nonlocal cur, cur_w
-        while cur and cur[-1][0] == SUMMARY_SEP:
-            cur.pop()
-        if cur:
-            lines.append(cur)
-        cur, cur_w = [], 0.0
-
-    for text, kind in runs:
-        w = measure(text)
-        if cur and cur_w + w > budget + 0.5:
-            flush()
-            if text == SUMMARY_SEP:
-                continue                  # 줄이 구분자로 시작하지 않는다
-        if not cur and text == SUMMARY_SEP:
-            continue
-        cur.append((text, kind))
-        cur_w += w
-    flush()
+    # 구분자는 그 줄의 종류를 물려받는다. 리셋 줄은 run 이 전부 "sub" 여야 하고,
+    # 그 성질로 그리는 쪽이 작은 글꼴을 고른다(draw_summary_pill). 여기서 "status" 를
+    # 끼워 넣으면 리셋 줄이 더 이상 '전부 sub' 가 아니게 되어 큰 글꼴로 그려진다.
+    sep_kind = "sub" if runs and all(k == "sub" for _t, k in runs) else "status"
+    lines, line, line_w = [], [], 0.0
+    sep_w = measure(SUMMARY_SEP)
+    for chunk in chunks:
+        w = sum(measure(text) for text, _k in chunk)
+        add = w + (sep_w if line else 0.0)
+        if line and line_w + add > budget + 0.5:
+            lines.append(line)
+            line, line_w = [], 0.0
+            add = w
+        elif line:
+            line.append((SUMMARY_SEP, sep_kind))
+        line.extend(chunk)
+        line_w += add
+    if line:
+        lines.append(line)
     return lines
 
 
@@ -7613,12 +7625,16 @@ def summary_lines(groups, measure, budget):
     있는 줄도, 떠 있는 구분자도 남기지 않는다. 사용자 지시: "코덱스가 없으면 클로드만,
     클로드가 없고 코덱스만 있으면 코덱스만".
     """
-    text_budget = budget - SUMMARY_LOGO_W
     out = []
     for provider_id, segments in groups or ():
         usable = [s for s in (segments or ()) if s]
         if not usable:
             continue
+        # provider_id 가 None 이면 **어느 제공자의 줄도 아니다** — 전역 상태 줄이다.
+        # 마크를 안 그리므로 들여쓰기도 없고, 따라서 예산에서 로고 폭을 빼지 않는다.
+        # 로고는 "이 줄은 이 제공자의 수치다"라는 표시인데, 전역 상태는 아무 제공자의
+        # 수치도 아니다 — 거기에 Claude 마크가 붙어 있던 것이 사용자가 지적한 결함이다.
+        text_budget = budget - (SUMMARY_LOGO_W if provider_id is not None else 0)
         main, sub = roam_summary_runs(usable, t)
         lines = _summary_fold_runs(main, text_budget, measure)
         lines += _summary_fold_runs(sub, text_budget, measure)
@@ -7673,6 +7689,11 @@ def roam_fit_text(text, max_w, measure, ellipsis="…"):
 # 전부였고, 그 구조에서는 세 줄이 두 줄 높이 안에 그려져 사용자에게 잘린 것으로 보인다.
 # 제공자가 둘이 되고 넘치는 줄이 접히면서 3~5줄이 일상이 됐으므로 두 상수로는 못 버틴다.
 SUMMARY_LINE_H = 16       # 줄 하나가 차지하는 높이
+# 필 모서리 반지름. **높이에서 떼어냈다.** 예전에는 h/2 였고, 한 줄(h=30)에서는 알약
+# 모양이 맞았지만 줄이 늘면 반지름도 같이 커져 네 줄(h=78)에서는 거의 **타원**이 됐다.
+# 값은 한 줄 높이의 절반이다: 글자 한 줄의 모서리가 딱 반원이 되는 크기고, 이보다 크면
+# 곡선이 둘째 줄을 먹기 시작한다. 그래서 한 줄에서도 네 줄에서도 같은 라운드 사각이다.
+SUMMARY_RADIUS = SUMMARY_LINE_H / 2
 SUMMARY_PAD_V = 7         # 필 위아래 여백(각각)
 SUMMARY_H = SUMMARY_PAD_V * 2 + SUMMARY_LINE_H          # 30 — 한 줄(예전 값과 같다)
 SUMMARY_H2 = SUMMARY_PAD_V * 2 + SUMMARY_LINE_H * 2     # 46 — 두 줄(예전 값과 같다)
@@ -7968,7 +7989,11 @@ def run_gui():
         3줄 이상이 일상이 됐고, 그 상태로는 세 줄이 두 줄 높이 안에 그려져 **폭을 고쳐
         놓고 높이로 똑같이 잘려 보이는** 상태가 된다. 줄 수는 어댑터가 state 에 남긴다.
         """
-        return pill_h(state.get("summary_lines_n") or 2)
+        # **`g` 에서 읽는다, `state` 가 아니다.** geom() 이 이 함수를 부르고, geom() 은
+        # `state` 가 만들어지기 **전에** 첫 창 크기를 정하려고 불린다. 클로저가 이름은
+        # 잡지만 그 시점에 바인딩이 없어서 NameError 로 앱이 첫 줄에서 죽었다.
+        # `g` 는 geom() 보다 위에서 만들어지고 이미 scale·pill_w 를 담고 있는 기하 딕셔너리다.
+        return pill_h(g.get("lines") or 2)
 
     def geom():
         """(펫 폭, 펫 높이, 논리 창 W, 논리 창 H).
@@ -8507,7 +8532,7 @@ def run_gui():
                               key=lambda d: astr(d, F_SUMMARY).size().width))
         return _cache[0]
 
-    def _stable_w(text):
+    def _stable_w(text, font=None):
         """숫자의 **값**에 흔들리지 않는 폭. 자릿수는 그대로 반영한다.
 
         필 폭이 실룩거리는 원인은 글꼴이 proportional 이라 숫자마다 폭이 다른 것이다
@@ -8521,7 +8546,7 @@ def run_gui():
         # 그 scope 에는 모듈 임포트가 없어서 re 를 쓰면 꺼내는 순간 NameError 가 난다.
         widest = _widest_digit()
         wide = "".join(widest if c.isdigit() else c for c in text)
-        return astr(wide, F_SUMMARY).size().width
+        return astr(wide, font if font is not None else F_SUMMARY).size().width
 
     def _pill_width_step():
         """폭이 움직이는 최소 단위 = 가장 넓은 숫자 글리프 하나의 폭.
@@ -8701,7 +8726,42 @@ def run_gui():
         # 화면에 닿지 못한 원인이었다. 이제 상한이 화면이라 접힘은 현실에서 거의 발화하지
         # 않는 안전장치지만, 제공자가 더 늘거나 값이 비정상적으로 길어지는 날을 위해 남는다.
         measure = lambda v: astr(v, F_SUMMARY).size().width
-        groups = [(pid, [seg]) for pid, seg in zip(("claude", "codex"), segments)]
+        # ── 제공자별 상태와 로딩 행렬 ────────────────────────────────────────────
+        # 제공자마다 상태가 셋이다: **없음**(읽을 것이 없다) / **받는중**(첫 응답 전) /
+        # **옴**(수치가 있다). 규칙 하나: **모든 제공자가 '받는중'이면 전역 한 줄에 마크
+        # 없음**, 그 외에는 제공자마다 자기 블록과 자기 마크 — 아직 받는 중인 쪽도
+        # 자기 마크와 함께 '조회 중'을 보인다. 그래야 "느린 거지 없는 게 아니다"가
+        # 전달된다. 두 제공자는 **대칭**이고 어느 쪽도 먼저 보지 않는다(한쪽을 먼저 보는
+        # 구조면 세 번째 제공자가 오는 날 또 고쳐야 한다).
+        # '받는중'과 '없음'을 가르는 신호. 새 state 키를 만들지 않고 이미 있는 것을 읽는다:
+        # stats 는 새로고침 워커가 한 번이라도 끝나야 dict 가 되고, 그 한 번의 패스가
+        # oauth 와 codex 를 **같이** 가져온다. 그래서 오늘은 두 제공자의 '첫 응답 도착'이
+        # 같은 순간이다. (두 조회가 나중에 서로 독립이 되면 여기서 제공자별 신호가
+        # 필요해진다 — 그때는 이 한 줄이 갈라져야 한다.)
+        fetched = isinstance(state.get("stats"), dict)
+        kinds = {}
+        for pid, seg in zip(("claude", "codex"), segments):
+            if seg and seg[0] != "status":
+                kinds[pid] = ("ready", seg)
+            elif not fetched:
+                kinds[pid] = ("loading", ("status", "loading"))
+            else:
+                kinds[pid] = ("absent", seg)
+        if kinds and all(k == "loading" for k, _s in kinds.values()):
+            # 공통 로딩 — 어느 제공자의 줄도 아니므로 마크가 붙으면 안 된다.
+            groups = [(None, [("status", "loading")])]
+        else:
+            groups = []
+            for pid in ("claude", "codex"):
+                kind, seg = kinds.get(pid, ("absent", None))
+                if kind == "ready":
+                    groups.append((pid, [seg]))
+                elif kind == "loading":
+                    groups.append((pid, [seg]))
+                elif seg is not None and pid == "claude":
+                    # Claude 의 status(온보딩·토큰 만료·스캔 중)는 버리지 않는다. 다만
+                    # 제공자 블록이 아니라 전역 줄이다 — 마크 없이 필 전체 폭을 쓴다.
+                    groups.insert(0, (None, [seg]))
         # 폭을 **접기 전** 내용에서 정한다. 접은 뒤의 폭으로 정하면 영원히 안 커진다:
         # 접힘은 지금 예산에 맞춰 줄을 나누므로 결과는 언제나 예산 안이고, 그러면
         # "더 필요하다"는 신호가 나올 자리가 없다. 그래서 펼친 상태의 폭으로 창을 먼저
@@ -8709,14 +8769,20 @@ def run_gui():
         need = 0.0
         for _pid, segs in groups:
             m, sub = roam_summary_runs(segs, t)
-            for runs in (m, sub):
-                need = max(need, sum(_stable_w(txt) for txt, _k in runs))
+            # 리셋 줄은 작은 글꼴로 그려지므로 **그 글꼴로 잰다.** 큰 글꼴로 재면 필이
+            # 필요보다 넓어진다 — 리셋 줄이 가장 긴 줄인 경우가 실제로 있다.
+            need = max(need, sum(_stable_w(txt) for txt, _k in m))
+            need = max(need, sum(_stable_w(txt, F_SUMMARY_SUB) for txt, _k in sub))
         # 폭 결정은 state 훅을 거친다 — roam_release·autostart_read 와 같은 이유다.
         # 이 함수는 창 없는 시험이 손으로 만든 state 로 구동하고, 훅이 그냥 없으면 그
         # 시험의 scope 가 그대로 유지된다. 훅이 없으면 **예산이 무한**이라 접지 않는다 —
         # need 를 그대로 주면 summary_lines 가 거기서 로고 폭을 또 빼서 오히려 접힌다.
         hook = state.get("pill_budget")
-        budget = hook(need) if hook is not None else float("inf")
+        # 훅이 주는 것은 **글자 자리** 폭이고 summary_lines 가 받는 것은 **필 안쪽 전체**
+        # 폭이다 — 로고 뺄셈은 summary_lines 의 것이라(그 docstring 참조) 여기서 로고 폭을
+        # 되돌려 준다. 이 한 줄이 없으면 예산이 두 번 깎여, 가장 긴 줄이 딱 로고 폭만큼
+        # 넘쳐 접힌다. 화면에서는 마지막 게이지의 라벨과 값이 갈라지는 것으로 보였다.
+        budget = (hook(need) + SUMMARY_LOGO_W) if hook is not None else float("inf")
         blocks = summary_lines(groups, measure, budget)
         # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
         # run 하나로 붙인다. 두 가지를 동시에 틀리기 쉬운 자리다:
@@ -8734,7 +8800,7 @@ def run_gui():
             gauge_runs = roam_summary_runs([segment], t)[0]
             n_gauge = len(_summary_fold_runs(gauge_runs, budget - SUMMARY_LOGO_W, measure))
             for pid, lines in blocks:
-                if pid == "claude" and lines:
+                if pid in ("claude", None) and lines:
                     lines[min(max(n_gauge, 1), len(lines)) - 1].append((" ⚠", "status"))
                     break
         text_w = 0.0
@@ -8855,21 +8921,30 @@ def run_gui():
         x, y, w, h = pill
         C_PILL.set()
         NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-            NSMakeRect(x, y, w, h), h / 2, h / 2).fill()
+            NSMakeRect(x, y, w, h), SUMMARY_RADIUS, SUMMARY_RADIUS).fill()
         blocks, _tw, _th = roam_summary_text()
         rows = [(pid, line) for pid, lines in blocks for line in lines]
         if not rows:
             return
-        text_x = x + PILL_PAD + SUMMARY_LOGO_W
-        text_w = w - 2 * PILL_PAD - SUMMARY_LOGO_W
+        indented = x + PILL_PAD + SUMMARY_LOGO_W
+        indented_w = w - 2 * PILL_PAD - SUMMARY_LOGO_W
         top = y + (h - len(rows) * SUMMARY_LINE_H) / 2.0
         seen = set()
         for i, (pid, line) in enumerate(rows):
             cy = top + i * SUMMARY_LINE_H + SUMMARY_LINE_H / 2.0
-            if pid not in seen:          # 마크는 제공자의 첫 줄에만
+            # pid 가 None 이면 전역 줄이다 — 마크도 들여쓰기도 없고 필 전체 폭을 쓴다.
+            text_x = indented if pid is not None else x + PILL_PAD
+            text_w = indented_w if pid is not None else w - 2 * PILL_PAD
+            if pid is not None and pid not in seen:   # 마크는 제공자의 첫 줄에만
                 seen.add(pid)
                 draw_summary_logo(pid, x + PILL_PAD, cy)
-            _draw_runs(line, F_SUMMARY_BY_KIND, F_SUMMARY, text_x, text_w, cy)
+            # 리셋 줄은 **작은 글꼴 + dim 색** 둘 다다. 색만으로는 위계가 약해서 리셋
+            # 줄이 게이지 줄만큼 눈을 끈다(실제 화면에서 그랬다). 줄 높이는 그대로 두어
+            # pill_h(줄 수) 계약을 지킨다 — 16pt 줄상자 안의 9.5pt 글자는 보통 행간이다.
+            if all(kind == "sub" for _t, kind in line):
+                _draw_runs(line, F_SUMMARY_SUB_BY_KIND, F_SUMMARY_SUB, text_x, text_w, cy)
+            else:
+                _draw_runs(line, F_SUMMARY_BY_KIND, F_SUMMARY, text_x, text_w, cy)
 
     def roam_apply_display(phase):
         """표시 모드 → crop/rect → 실제 창 크기·원점. 경로·집은 건드리지 않는다 → 다시 그릴지."""
@@ -8990,8 +9065,12 @@ def run_gui():
     def _regeom():
         """필 폭이 바뀌었을 때 논리 창을 새 크기로 맞춘다. set_scale 의 크기 반영과 같은 춤이다."""
         nonlocal PW, PH, W, H
-        if not g.pop("pill_w_dirty", False):
+        # 줄 수도 여기서 g 로 옮긴다. 어댑터는 state 에만 쓰고(그쪽은 창 없이 시험된다)
+        # 기하가 읽는 곳은 g 하나로 둔다 — 두 곳이 같은 수를 들고 있으면 갈라진다.
+        lines = state.get("summary_lines_n") or 2
+        if not g.pop("pill_w_dirty", False) and g.get("lines") == lines:
             return False
+        g["lines"] = lines
         lx, ly = roam_logical_origin()
         PW, PH, W, H = geom()
         win.setFrame_display_(NSMakeRect(lx, ly, W, H), True)
