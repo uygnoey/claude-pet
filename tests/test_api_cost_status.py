@@ -164,6 +164,97 @@ class SummaryDistinguishesLoadingFromFailureTests(unittest.TestCase):
         self.assertIn("key", claude_pet.TR["en"][key].lower())
 
 
+class TransientFailureIsAlsoSaidOutLoudTests(unittest.TestCase):
+    """5xx·망·본문 오류도 "조회 중…" 으로 위장하지 않는다.
+
+    첫 라운드에서 경고는 401/403 에만 올렸다. 좁게 잡은 판단 자체는 옳았다 — 망
+    장애에 "설정에서 키를 확인하세요" 를 띄우면 그것도 거짓 안내다. 하지만 그 결과
+    5xx·망·파싱 실패가 여전히 "조회 중…" 으로 보이고, 사용자는 같은 자리에서 같은
+    질문("왜 안 뜨지")을 하게 된다. 남은 절반이다.
+
+    그래서 **두 번째 문구**를 둔다. 키를 고치라는 말과 섞이면 안 되므로 별도 키다.
+    """
+
+    def _summary(self, err):
+        claude_pet.API_STATUS["last_error"] = err
+        return claude_pet.roam_summary(
+            "api", None, None, None, None, True, None,
+            api_error=claude_pet.api_error_kind(err) == "key",
+            api_stale=claude_pet.api_error_kind(err) == "transient")
+
+    def test_the_three_transient_kinds_share_one_verdict(self):
+        for err in ("http:500", "http:503", "net", "parse"):
+            with self.subTest(err=err):
+                self.assertEqual(claude_pet.api_error_kind(err), "transient")
+
+    def test_a_rejected_key_is_not_transient(self):
+        for err in ("http:401", "http:403"):
+            with self.subTest(err=err):
+                self.assertEqual(claude_pet.api_error_kind(err), "key")
+
+    def test_no_error_is_neither(self):
+        self.assertIsNone(claude_pet.api_error_kind(None))
+
+    def test_a_transient_failure_is_not_shown_as_loading(self):
+        kind, key = self._summary("net")
+        self.assertEqual(kind, "status")
+        self.assertNotEqual(key, "loading",
+                            "망 장애가 '잠시만 기다리세요' 로 보인다")
+
+    def test_it_is_also_not_shown_as_a_key_problem(self):
+        """사용자가 멀쩡한 키를 의심하게 만들면 안 된다."""
+        _, transient = self._summary("net")
+        _, rejected = self._summary("http:401")
+        self.assertNotEqual(transient, rejected)
+
+    def test_the_transient_message_exists_in_every_locale_and_is_translated(self):
+        _, key = self._summary("net")
+        for lang in ("en", "ko", "ja", "es"):
+            with self.subTest(lang=lang):
+                self.assertIsInstance(claude_pet.TR[lang].get(key), str)
+        en = claude_pet.TR["en"][key]
+        self.assertEqual([l for l in ("ko", "ja", "es")
+                          if claude_pet.TR[l].get(key) == en], [])
+
+    def test_the_transient_message_does_not_blame_the_key(self):
+        _, key = self._summary("net")
+        self.assertNotIn("key", claude_pet.TR["en"][key].lower())
+
+    def test_numbers_still_win_over_a_transient_failure(self):
+        claude_pet.API_STATUS["last_error"] = "net"
+        kind, payload = claude_pet.roam_summary(
+            "api", None, None, None, 1.23, True, None, api_stale=True)
+        self.assertEqual(kind, "cost")
+        self.assertEqual(payload[0], 1.23)
+
+
+class SettingsAreReachableFromTheMessageTests(unittest.TestCase):
+    """"설정에서 확인하세요" 라고 써 놓고 클릭이 안 되면 안내가 아니다."""
+
+    def act(self, status_key):
+        return claude_pet.summary_click_action(
+            status_key=status_key, in_pill=True, click_count=1, moved=False)
+
+    def test_a_rejected_key_opens_settings(self):
+        self.assertEqual(self.act("api_key_rejected"), "settings")
+
+    def test_a_missing_key_opens_settings_too(self):
+        """같은 말을 하는 문구인데 하나만 열리면 그게 더 헷갈린다."""
+        self.assertEqual(self.act("need_admin_key"), "settings")
+
+    def test_a_transient_failure_does_not_open_settings(self):
+        """사용자가 할 일이 없는 상태다 — 설정을 열어 봐야 고칠 것이 없다."""
+        _, key = claude_pet.roam_summary(
+            "api", None, None, None, None, True, None, api_stale=True)
+        self.assertIsNone(self.act(key))
+
+    def test_the_existing_click_meanings_are_unchanged(self):
+        self.assertEqual(self.act("onb_login"), "login")
+        self.assertEqual(self.act("onb_install"), "install")
+        self.assertEqual(self.act("token_expired"), "recover")
+        self.assertIsNone(self.act("loading"))
+
+
 class ApiKeyPrivacyTests(unittest.TestCase):
     """키는 어디에도 남지 않는다."""
 

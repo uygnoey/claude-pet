@@ -512,7 +512,18 @@ class PillClickTests(unittest.TestCase):
         self.assertIsNone(self.act(in_pill=False))
 
     def test_non_status_segments_are_not_clickable(self):
-        for key in (None, "", "loading", "scanning", "need_admin_key"):
+        """`need_admin_key` 는 이 목록에서 빠졌다 — 낡은 항목이었다.
+
+        이 목록을 처음 쓸 때 `need_admin_key` 는 아무 동작도 없는 문구였다. 그 뒤
+        API 모드 작업에서 그 문구가 "설정에서 키를 확인하세요" 라고 행동을 지시하게
+        됐고, 지시해 놓고 클릭이 죽어 있으면 그건 안내가 아니다. 그래서 지금은
+        `test_api_cost_status.SettingsAreReachableFromTheMessageTests` 가 그 키를
+        `"settings"` 로 고정한다. 두 파일이 같은 함수의 같은 입력을 정반대로 요구하고
+        있었고, 새 쪽이 사용자 결정을 담고 있으므로 이쪽을 뺀다.
+
+        나머지는 그대로 — 수치가 보이는 동안의 클릭이 로그인이나 설정을 띄우면 안 된다.
+        """
+        for key in (None, "", "loading", "scanning"):
             self.assertIsNone(self.act(status_key=key), "status_key=%r" % key)
 
 
