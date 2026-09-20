@@ -4,8 +4,15 @@ ClaudePet.app/
 build/
 dist/
 dist-universal/
+build-win/
+dist-win/
 *.zip
 *.dmg
+# make_zip() 은 ZIP + ".tmp" 에 쓴 뒤 옮긴다. *.zip 은 .zip.tmp 에 안 걸려서,
+# 빌드가 끊기면 70MB 짜리가 release/ 에 남는다. release/ 는 사용자 소유 파일이
+# 섞인 디렉터리라 *.exe 같은 전역 패턴 대신 이 둘만 이름으로 적는다.
+release/claude-pet-win-setup.exe
+release/claude-pet-win.zip.tmp
 
 # 서명/공증 자격증명 (레포에 넣지 말 것)
 *.p12
