@@ -7641,7 +7641,7 @@ def _summary_only_gauge_label(segments):
     return None
 
 
-def summary_lines(groups, measure, budget):
+def summary_lines(groups, measure, budget, measure_sub=None):
     """제공자별 구간 묶음 → 제공자별 줄 묶음.
 
         [(provider_id, [segment, ...]), ...]
@@ -7653,6 +7653,10 @@ def summary_lines(groups, measure, budget):
     **접힘은 여기서 일어나고 호출자는 절대 trim 하지 않는다.** 호출자가 roam_fit_runs 를
     부르던 구조가 Codex 행이 화면에서 잘려 나가던 원인이었다. 잘라 내는 쪽은 언제나 맨
     뒤 구간이었고, 맨 뒤는 언제나 새로 붙인 제공자였다.
+
+    measure 는 게이지 줄의 폭을, measure_sub 는 리셋 줄의 폭을 주는 콜러블이다. 두 줄이
+    **다른 글꼴로 그려지므로 다른 자로 재야 한다** — measure_sub 를 생략하면 measure 로
+    재고, 그건 리셋 줄이 게이지 줄과 같은 글꼴일 때만 맞다.
 
     **budget 은 필 안쪽의 전체 가로 폭이다. 호출자는 로고 폭을 빼지 않는다** — 그 뺄셈은
     이 함수가 소유한다. 로고는 제공자별 개념이고, 제공자가 몇인지·어느 줄에 마크가 붙는지
@@ -7701,8 +7705,17 @@ def summary_lines(groups, measure, budget):
             if inline:
                 main = list(main) + [(SUMMARY_SEP, "sub")] + inline
             sub = []
+        # **접는 데 쓰는 measure 는 그 줄을 그리는 글꼴과 같아야 한다.** 리셋 줄은 9.5pt 로
+        # 그려지는데 11pt 로 재면 잰 폭이 실제보다 커서 그만큼 일찍 접힌다(실측: 영어
+        # 3게이지 리셋 줄 11pt 255.0 대 9.5pt 220.2 — 34.8pt 가 샌다). 이 규칙이 그리기
+        # 쪽에만 있고 접기 쪽에 없던 것이 결함이었다.
+        #
+        # measure_sub 를 **줄 단위**로 고르는 것이 요점이다. run 종류별 지도로 만들면
+        # 안 된다 — 인라인된 리셋은 "sub" run 인데 게이지와 같은 줄에 있어 11pt 로
+        # 그려지므로, run 종류로 고르면 그 조각만 9.5pt 로 재어 또 어긋난다. 그리기 쪽의
+        # 판정도 줄 단위(all(kind == "sub"))이고, 두 쪽이 같은 규칙을 써야 한다.
         lines = _summary_fold_runs(main, text_budget, measure)
-        lines += _summary_fold_runs(sub, text_budget, measure)
+        lines += _summary_fold_runs(sub, text_budget, measure_sub or measure)
         if lines:
             out.append((provider_id, lines))
     return out
@@ -8853,7 +8866,10 @@ def run_gui():
         # 되돌려 준다. 이 한 줄이 없으면 예산이 두 번 깎여, 가장 긴 줄이 딱 로고 폭만큼
         # 넘쳐 접힌다. 화면에서는 마지막 게이지의 라벨과 값이 갈라지는 것으로 보였다.
         budget = (hook(need) + SUMMARY_LOGO_W) if hook is not None else float("inf")
-        blocks = summary_lines(groups, measure, budget)
+        # 리셋 줄은 9.5pt 로 그려지므로 **9.5pt 자로 잰다.** 11pt 로 재면 잰 폭이 실제보다
+        # 커서 리셋 줄이 일찍 접힌다 — 접는 자와 그리는 글꼴이 어긋나던 결함이다.
+        measure_sub = lambda v: astr(v, F_SUMMARY_SUB).size().width
+        blocks = summary_lines(groups, measure, budget, measure_sub)
         # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
         # run 하나로 붙인다. 두 가지를 동시에 틀리기 쉬운 자리다:
         #
@@ -8873,10 +8889,12 @@ def run_gui():
                 if pid in ("claude", None) and lines:
                     lines[min(max(n_gauge, 1), len(lines)) - 1].append((" ⚠", "status"))
                     break
+        # 폭도 **그 줄을 그리는 글꼴로** 잰다. 판정은 그리기 쪽과 같은 규칙(줄 전체가 sub).
         text_w = 0.0
         for _pid, lines in blocks:
             for line in lines:
-                text_w = max(text_w, sum(measure(txt) for txt, _k in line))
+                m = measure_sub if all(k == "sub" for _t, k in line) else measure
+                text_w = max(text_w, sum(m(txt) for txt, _k in line))
         n_lines = sum(len(lines) for _pid, lines in blocks)
         state["summary_lines_n"] = n_lines      # 창 높이가 따라간다(pill_band)
         value = (blocks, text_w + SUMMARY_LOGO_W, pill_h(n_lines))

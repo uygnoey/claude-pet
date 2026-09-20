@@ -61,7 +61,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import claude_pet  # noqa: E402
 
 # 문자 advance 표는 한 벌만 존재한다. 두 벌이 되면 갈라진다.
-from test_summary_pill import pretendard_width  # noqa: E402
+from test_summary_pill import pretendard_width, pretendard_width_sub  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ELLIPSIS = "…"
@@ -408,6 +408,166 @@ class NothingIsEverTruncatedTests(LangMixin, unittest.TestCase):
         produced = [r for line in lines for r in line]
         self.assertEqual(content_runs(produced), content_runs(runs),
                          "접히면서 내용이 사라졌다")
+
+
+class FoldingMeasuresEachLineInTheFontItIsDrawnInTests(LangMixin, unittest.TestCase):
+    """접는 데 쓰는 자가 **그 줄을 그리는 글꼴**과 같은가.
+
+    ── 이 게이트가 왜 뒤늦게 생겼는지, 그리고 내 검증이 왜 실패할 수 없었는지 ──────
+
+    게이지 줄은 11pt, 리셋 줄은 9.5pt 로 그려진다. `summary_lines` 가 둘 다 11pt 로 재면
+    리셋 줄의 잰 폭이 실제보다 **약 16% 크고**, 그만큼 일찍 접힌다. 윈도우가 찾았고 맥에도
+    있었다(맥 실측: 영어 3게이지 리셋 줄 11pt 195.2 대 9.5pt 171.7 — 23.5pt 누수).
+
+    **내 픽스처가 이걸 못 본 이유가 이 클래스의 존재 이유다.** 나는 `len(s) * 1.0` 같은
+    단일 measure 로 쟀다. 그 세계에서는 두 글꼴의 차이가 **0** 이라 이 결함이 원리상
+    드러날 수가 없다 — 내 검증은 통과한 게 아니라 **실패할 수가 없었다.**
+
+    이것은 내가 이 릴리즈에서 네 번 물린 "픽스처가 생산의 계산을 재현한다"의 사촌인데,
+    방향이 반대다. 재현이 아니라 **소거**다: 생산에 있는 차원(글꼴이 둘)을 픽스처가
+    지워 버렸다. 결과는 같다 — 테스트가 자기 자신과 일치하고 결함을 못 본다.
+
+    그래서 두 measure 의 비가 **1이 아니어야** 하고, **실제 글꼴 비율이어야** 한다
+    (`SUMMARY_SUB_SCALE`, 실측 0.8636). 임의의 큰 차이를 쓰면 통과하면서 실제 비율에서만
+    실패하는 구간이 생긴다.
+
+    ── 왜 줄 단위인가 ───────────────────────────────────────────────────────────
+
+    Coordinator 가 `_draw_runs(fonts_by_kind)` 와 대칭으로 **run 종류별 measure 지도**를
+    제안했고 Developer 가 반박했는데, 반박이 옳다. 렌더러의 글꼴 판정은 **줄 단위**다
+    (`all(k == "sub" for _t, k in line)`). 인라인된 리셋 run 은 kind 가 `sub` 이지만
+    게이지와 같은 줄에 살아 **11pt 로 그려진다.** run 종류로 고르면 그 조각만 9.5pt 로
+    재어 같은 버그를 반대 방향으로 만든다. 거울로 삼을 것은 줄 단위 결정이므로, 이
+    게이트도 그 층에서 묻는다.
+    """
+
+    def fold_widths(self, line):
+        """이 줄을 그릴 글꼴로 잰 폭. 렌더러와 **같은 규칙**으로 고른다."""
+        drawn_small = bool(line) and all(k == "sub" for _t, k in line)
+        m = pretendard_width_sub if drawn_small else pretendard_width
+        return sum(m(txt) for txt, _k in line), drawn_small
+
+    def test_the_two_measures_are_not_the_same_ruler(self):
+        """먼저 픽스처 자체를 검사한다. 두 자가 같으면 아래 전부가 공허하다.
+
+        이것이 이 릴리즈에서 **실제로 일어난 일**이라 게이트로 박아 둔다 — 단일 measure
+        로 재고 "코어는 정상"이라고 결론 낸 검증이 있었다.
+        """
+        sample = "reset Session 3h 43m · Weekly 2d 4h"
+        big, small = pretendard_width(sample), pretendard_width_sub(sample)
+        self.assertGreater(big, 0)
+        self.assertNotAlmostEqual(
+            big, small, places=1,
+            msg="두 measure 가 같은 자다 — 이 클래스가 검사하는 차원이 픽스처에서 지워졌다")
+        ratio = small / big
+        self.assertAlmostEqual(
+            ratio, 9.5 / 11, delta=0.02,
+            msg=f"두 자의 비가 {ratio:.4f} — 실제 글꼴 비율(9.5/11={9.5/11:.4f})이 아니면 "
+                "통과하면서 실제 비율에서만 실패하는 구간이 생긴다")
+
+    def test_a_reset_line_that_fits_at_its_own_size_is_not_folded(self):
+        """핵심. 9.5pt 로는 들어가는 리셋 줄이 11pt 로 재였다는 이유로 접히면 안 된다.
+
+        예산을 **두 폭 사이**에 놓는다: 9.5pt 폭보다 넓고 11pt 폭보다 좁게. 올바른
+        구현은 접지 않고, `measure_sub` 를 무시하는 구현은 접는다.
+
+        Rival: `_summary_fold_runs(sub, budget, measure)` — 이번에 고친 그 줄.
+        """
+        for lang in ("ko", "en"):
+            with self.subTest(lang=lang):
+                self.use(lang)
+                groups = groups_for(lang, claude=True, codex=0)
+                main, sub = claude_pet.roam_summary_runs(groups[0][1], claude_pet.t)
+                self.assertTrue(sub, "리셋 줄이 있는 픽스처여야 한다")
+                wide = sum(pretendard_width(x) for x, _k in sub)
+                narrow = sum(pretendard_width_sub(x) for x, _k in sub)
+                self.assertLess(narrow, wide, "두 자가 같다 — 판별력이 없다")
+                budget = (wide + narrow) / 2.0      # 두 폭 사이
+                blocks = claude_pet.summary_lines(
+                    groups, pretendard_width, budget + claude_pet.SUMMARY_LOGO_W,
+                    measure_sub=pretendard_width_sub)
+                reset_lines = [ln for _pid, lines in blocks for ln in lines
+                               if ln and all(k == "sub" for _t, k in ln)]
+                self.assertEqual(
+                    len(reset_lines), 1,
+                    f"9.5pt 로 {narrow:.1f}pt 인 리셋 줄이 예산 {budget:.1f}pt 안에서 "
+                    f"{len(reset_lines)}줄로 접혔다 — 11pt({wide:.1f}pt)로 재고 있다")
+
+    def test_every_produced_line_fits_measured_in_its_own_font(self):
+        """생산된 모든 줄이 **자기 글꼴로 재서** 예산 안에 있는가.
+
+        한 자로만 검사하면 둘 중 한 종류는 반드시 틀린 답을 얻는다. 렌더러와 같은 규칙
+        (`all(kind == "sub")`)으로 자를 고른다.
+        """
+        problems = []
+        for lang in ("ko", "en"):
+            for credit in (False, True):
+                for codex in (0, 1, 2):
+                    self.use(lang)
+                    groups = groups_for(lang, claude=True, codex=codex, credit=credit)
+                    budget = full_budget()
+                    blocks = claude_pet.summary_lines(
+                        groups, pretendard_width, budget + claude_pet.SUMMARY_LOGO_W,
+                        measure_sub=pretendard_width_sub)
+                    for _pid, lines in blocks:
+                        for line in lines:
+                            width, small = self.fold_widths(line)
+                            if width > budget + 0.5:
+                                problems.append(
+                                    f"[{lang} credit={credit} codex={codex}] "
+                                    f"{'9.5' if small else '11'}pt {width:.1f} > {budget:.1f}: "
+                                    f"{''.join(x for x, _k in line)!r}")
+        self.assertEqual(problems, [],
+                         "자기 글꼴로 재도 예산을 넘는 줄이 있다:\\n  " + "\\n  ".join(problems))
+
+    def test_an_inlined_reset_is_measured_at_the_gauge_size_not_the_small_one(self):
+        """인라인된 리셋은 `sub` run 이지만 **11pt 줄 안에 산다.**
+
+        run 종류로 자를 고르면 그 조각만 9.5pt 로 재어 잰 폭이 실제보다 **작아지고**,
+        이번엔 반대 방향으로 — 너무 늦게 접혀 글자가 필 밖으로 나간다. 렌더러가 줄 단위로
+        판정하므로 접기도 줄 단위여야 한다는 것이 이 테스트의 내용이다.
+
+        Rival: Coordinator 가 제안했다가 철회한 run 종류별 measure 지도.
+        """
+        self.use("ko")
+        groups = groups_for("ko", claude=False, codex=1)     # single gauge -> inlined
+        self.assertEqual(claude_pet._summary_gauge_count(groups[0][1]), 1)
+        blocks = claude_pet.summary_lines(
+            groups, pretendard_width, full_budget() + claude_pet.SUMMARY_LOGO_W,
+            measure_sub=pretendard_width_sub)
+        lines = [ln for _pid, block in blocks for ln in block]
+        self.assertEqual(len(lines), 1, f"인라인이면 한 줄이어야 한다: {lines!r}")
+        line = lines[0]
+        self.assertTrue(any(k == "sub" for _t, k in line),
+                        "인라인된 리셋 run 이 그 줄에 없다")
+        self.assertFalse(
+            all(k == "sub" for _t, k in line),
+            "그 줄이 통째로 sub 로 분류된다 — 렌더러가 9.5pt 로 그리게 되고, "
+            "인라인의 전제(게이지와 같은 줄, 같은 크기)가 깨진다")
+
+        # 위 단언만으로는 **run 종류별 자**를 못 잡는다 — 줄 구성은 두 구현에서 같기
+        # 때문이다(실측으로 확인했다: 그 변이가 살아남았다). 갈라지는 것은 **잰 폭**이므로
+        # 두 폭 사이에 예산을 놓아 강제로 갈라 놓는다:
+        #
+        #   올바름(줄 단위, 전부 11pt)  115.7pt  -> 예산을 넘어 접힌다
+        #   run 단위(sub 조각만 9.5pt)  107.2pt  -> 안 넘는다고 보고 안 접는다
+        #
+        # 인라인된 리셋은 11pt 로 **그려지므로**, 9.5pt 로 재는 구현은 화면에서 넘치는
+        # 줄을 넘치지 않는다고 판단한다. 방향이 이번 결함과 반대일 뿐 같은 종류다.
+        correct = sum(pretendard_width(txt) for txt, _k in line)
+        rival = sum((pretendard_width_sub if k == "sub" else pretendard_width)(txt)
+                    for txt, k in line)
+        self.assertLess(rival, correct, "두 구현이 같은 폭을 낸다 — 판별력이 없다")
+        between = (correct + rival) / 2.0
+        folded = claude_pet.summary_lines(
+            groups, pretendard_width, between + claude_pet.SUMMARY_LOGO_W,
+            measure_sub=pretendard_width_sub)
+        produced = [ln for _pid, block in folded for ln in block]
+        self.assertGreater(
+            len(produced), 1,
+            f"인라인 줄이 11pt 로 {correct:.1f}pt 인데 예산 {between:.1f}pt 안에서 "
+            f"접히지 않았다 — 인라인된 sub 조각을 9.5pt({rival:.1f}pt)로 재고 있다. "
+            "그리기는 11pt 라 화면에서 넘친다.")
 
 
 class LabelsInOnePillAreWrittenTheSameWayTests(LangMixin, unittest.TestCase):

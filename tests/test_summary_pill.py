@@ -1009,6 +1009,28 @@ _HANGUL_ADVANCE = 9.5068
 _CJK_ADVANCE = 9.5150           # 使用量, for the ja locale, measured the same way
 
 
+# The pill draws two sizes: gauge lines at 11pt (`F_SUMMARY`) and reset lines at 9.5pt
+# (`F_SUMMARY_SUB`). A fixture with only one of them **erases a dimension production has**,
+# and a test that cannot see a dimension cannot find a defect in it — which is exactly how
+# a real fold bug survived: it was measured with a single `len(s) * 1.0` stand-in, where the
+# two fonts differ by zero and the leak is arithmetically invisible.
+#
+# MEASURED, not assumed: across all 130 characters in the table above, the 9.5pt advance
+# divided by the 11pt advance gives min 0.8636, max 0.8637, mean 0.8636 — this face scales
+# linearly, so one factor is exact rather than an approximation. The per-character spread
+# is in the fourth decimal. `test_the_sub_scale_still_matches_the_bundled_font` below
+# re-derives it from the real font so a font bump cannot leave this fiction behind.
+#
+# The factor is emphatically **not 1**. Measuring a reset line at 11pt overstates it by
+# about 16%, and that overstatement is the leak.
+SUMMARY_SUB_SCALE = 0.8636
+
+
+def pretendard_width_sub(text):
+    """Width of ``text`` in the reset line's 9.5pt font."""
+    return pretendard_width(text) * SUMMARY_SUB_SCALE
+
+
 def pretendard_width(text):
     """Width of ``text`` in the pill's font, from the measured advances above.
 
@@ -1152,6 +1174,35 @@ class CodexRowFitsThePillRealFontTests(unittest.TestCase):
     def _skip(self, why):
         print(f"\n[summary-pill] SKIPPED: {why}", file=sys.stderr, flush=True)
         self.skipTest(why)
+
+    def test_the_sub_scale_still_matches_the_bundled_font(self):
+        """`SUMMARY_SUB_SCALE` 이 실제 9.5pt 폭과 맞는가.
+
+        11pt 표에는 드리프트 검사가 있는데 9.5pt 비율에는 없으면, 글꼴이 바뀌었을 때
+        리셋 줄만 조용히 틀린 자로 재게 된다 — 이번 결함과 같은 자리다.
+
+        Rival: 글꼴이 선형 스케일이 아닌 판으로 바뀌는 경우(힌팅이 다르면 작은 크기의
+        비율이 달라진다). 그때는 이 비율 하나로는 못 재고 두 번째 표가 필요해진다.
+        """
+        from AppKit import NSFont, NSFontAttributeName, NSAttributedString
+        font = NSFont.fontWithName_size_(claude_pet.SUMMARY_FONT_NAME, 9.5)
+        if font is None:
+            self._skip("9.5pt face did not register")
+        attrs = {NSFontAttributeName: font}
+        measure = lambda s: (NSAttributedString.alloc()
+                             .initWithString_attributes_(s, attrs).size().width)
+        worst = 0.0
+        for sample in ("reset Session 3h 43m · Weekly 2d 4h",
+                       "리셋 세션 3시간 43분 · 주간 2일 4시간",
+                       "reinicio Sesión 3h · Semanal 2d", "0123456789"):
+            real = measure(sample)
+            ours = pretendard_width_sub(sample)
+            worst = max(worst, abs(real - ours) / max(real, 1.0))
+            self.assertAlmostEqual(
+                ours, real, delta=max(0.02 * real, 0.5),
+                msg=f"9.5pt 폭이 어긋난다: 우리 {ours:.2f} vs 실제 {real:.2f} ({sample!r})")
+        self.assertLess(worst, 0.02,
+                        f"최악 오차 {worst:.2%} — SUMMARY_SUB_SCALE 을 다시 재라")
 
     def test_the_measured_advance_table_still_matches_the_bundled_font(self):
         """Rival: the font is bumped, the table keeps yesterday's numbers, and the CI-safe
