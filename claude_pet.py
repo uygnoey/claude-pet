@@ -2140,6 +2140,14 @@ def compute_usage(runtime=None):
 # **키 값은 여기 들어가지 않는다.** 남기는 것은 실패의 종류뿐이다(CLAUDE.md Privacy).
 API_STATUS = {"last_error": None}
 
+# 마지막 OAuth 응답의 extra_usage 원본(크레딧 행이 만들어졌을 때만). 금액 문자열을
+# **표시 시점의** RUNTIME["credit_display"] 로 만들기 위해 남긴다 — 파싱 시점에 문자열로
+# 굳히면 180초 캐시 동안 옛 모드가 그대로 남는다.
+#
+# 이 값을 읽는 것은 새로고침 워커뿐이고, roam_summary_text 는 state 로 받는다. 어댑터가
+# 새 모듈 전역을 이름으로 참조하면 창 없는 시험(손수 만든 스코프)이 깨지기 때문이다.
+OAUTH_EXTRA = {"credit": None}
+
 
 def api_error_kind(last_error):
     """마지막 비용 조회 실패의 종류 → "key" | "transient" | None.
@@ -2697,17 +2705,20 @@ def _parse_oauth_usage(data):
     # 구버전 응답에서 게이지 3행이 통째로 사라진다. 그 판단을 크레딧을 넣기 **전에** 굳힌다.
     had_gauges = bool(found)
 
-    # 크레딧 행을 만들지 말지의 게이트. **is_enabled 를 쓰면 안 된다** — 한도를 넘기면
-    # 조직 정책이 크레딧을 끄고(disabled_reason: org_level_disabled_until,
-    # spend_limit_reached: true) 그 플래그가 false 가 되므로, 데이터가 전부 있는데도
-    # 행이 사라진다. "한도를 다 썼다"는 가장 알아야 할 사실이 바로 그 사실 때문에
-    # 화면에서 지워지는 것이고, 그것이 2026-09-20 에 보고된 버그다(실제 응답으로 확인).
+    # 크레딧 행을 만들지 말지의 게이트. 묻는 것은 둘이다: **켜져 있는가**, 그리고
+    # **보여 줄 숫자가 있는가**(켜져 있어도 수치가 null 이면 0% 를 지어내지 않는다).
     #
-    # 그래서 묻는 것은 둘이다: **사용자가 직접 끈 것이 아닌가**(user_disabled — 조직이
-    # 끈 것과 사용자가 끈 것은 다른 사실이다), 그리고 **보여 줄 숫자가 있는가**. 한 번도
-    # 켠 적 없는 계정은 두 번째에서 걸린다(수치가 전부 null 이다).
+    # 꺼진 이유는 묻지 않는다 — 사용자 결정(2026-09-20). 사용자가 직접 껐든, 한도를
+    # 다 써서 조직이 껐든(spend_limit_reached: true,
+    # disabled_reason: org_level_disabled_until) is_enabled 가 거짓이면 행이 없다.
+    #
+    # 대가는 알고 고른 것이라 여기 적어 둔다: **한도를 다 쓴 바로 그 순간에 안내를
+    # 잃는다.** 서버는 그 상태에서도 숫자를 전부 보내 주지만(used_credits, utilization
+    # 모두 값이 있다) 그리지 않는다. 이 문단을 지우고 게이트를 넓히는 변경은 버그
+    # 수정이 아니라 그 결정을 뒤집는 일이므로 사용자에게 다시 물어야 한다.
     extra = data.get("extra_usage")
-    if isinstance(extra, dict) and not extra.get("user_disabled"):
+    OAUTH_EXTRA["credit"] = None
+    if isinstance(extra, dict) and extra.get("is_enabled"):
         try:
             cpct = float(extra["utilization"])
         except (TypeError, ValueError, KeyError):
@@ -2715,6 +2726,7 @@ def _parse_oauth_usage(data):
         if cpct is not None and math.isfinite(cpct):
             found.append((9, t("credit"), min(100.0, max(0.0, cpct)),
                           _parse_reset_ts(extra.get("resets_at"))))
+            OAUTH_EXTRA["credit"] = extra
 
     if not had_gauges:                  # 구버전 응답 폴백 (크레딧은 그대로 둔다)
         found.extend(_rows_from_utilization(data))
@@ -7117,7 +7129,7 @@ def _roam_valid_pct(value):
 
 def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_month=None,
                  reset_texts=None, spike_first=False, cost_budget=None, auth_error=False,
-                 api_error=False, api_stale=False):
+                 api_error=False, api_stale=False, credit_text=None):
     """요약 필 내용(Claude 구간) → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
 
     ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login /
@@ -7126,7 +7138,10 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
     ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 호출자는 크레딧 등 게이지가 아닌 행을
                          빼고 넘긴다(어댑터 roam_summary_text 참조).
     ("estimate", rows)   로그 추정: 세션·주간·모델 게이지 중 유효 행.
-    rows 의 원소는 (label, pct, spiking, reset_text):
+    rows 의 원소는 (label, pct, spiking, reset_text) 이고, 크레딧 행만 다섯 번째로 표시 문자열을
+    더 싣는다(credit_text). 렌더러는 다섯 번째가 있으면 %를 만들지 않고 그 문자열을 그대로 쓴다.
+    credit_text 는 **어댑터가 만들어 넘긴다** — RUNTIME["credit_display"] 를 여기서 읽으면 이 함수가
+    불순해지고, 순수성은 이 함수의 기존 계약이다(시각을 계산하지 않는 것과 같은 이유다).
       label      exact 는 서버 라벨 원문(원문이 "session" 이어도 번역 키가 아니다), estimate 는 "session"/"weekly"
                  (TR 키 — 어댑터가 t() 로 옮긴다) 또는 모델 라벨 원문(예: "Fable").
       spiking    이 게이지의 급증 여부. estimate 는 stats["spikes"][gauge], exact 는 첫 행(세션)만 spike_first.
@@ -7176,7 +7191,10 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
             if not _roam_valid_pct(row[1]):
                 continue
             reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
-            rows.append((row[0], float(row[1]), bool(spike_first) and i == 0, reset_text))
+            out = (row[0], float(row[1]), bool(spike_first) and i == 0, reset_text)
+            if credit_text and _label_order(row[0]) >= 9:
+                out += (credit_text,)
+            rows.append(out)
         return ("exact", rows) if rows else ("status", "scanning")
     # 창 안에 집계된 항목이 0개면 추정 게이지의 0% 는 '안 썼다'가 아니라 '모른다'다.
     # entries 키가 아예 없는 스냅샷은 그 사실을 말해 주지 않는 옛 모양이므로 0 으로 치지
@@ -7261,13 +7279,20 @@ def _summary_segment_runs(kind, payload, tr, reset_prefix=True):
     if kind in ("exact", "estimate"):
         main, sub, last_reset = [], [], None
         approx = SUMMARY_APPROX if kind == "estimate" else ""
-        for label, pct, spiking, reset_text in payload:
+        for row in payload:
+            label, pct, spiking, reset_text = row[:4]
+            # 다섯 번째 원소는 '이 행은 %가 아니라 이 문자열로 찍어라'는 뜻이다. 크레딧
+            # 행이 금액($100.66)을 들고 오는 통로이고, 게이지 행은 4-튜플 그대로다 —
+            # 기존 계약이 게이지 행의 튜플 모양을 정확히 핀으로 박고 있어서, 모든 행에
+            # 자리를 하나 더 만드는 대신 **있으면 쓰는** 선택자로 뒀다. 없으면 예전과
+            # 한 글자도 다르지 않게 찍힌다.
+            value_text = row[4] if len(row) > 4 else None
             if main:
                 main.append((SUMMARY_SEP, "status"))
             shown = _summary_label(kind, label, tr)
             # 라벨 = 잔여량 색(급증이면 ▲ + 위험색), 수치 = 출처 색(exact/estimate)
             main.append(((SUMMARY_SPIKE if spiking else "") + shown, summary_value_kind(pct, spiking)))
-            main.append((f" {approx}{pct:.0f}%", kind))
+            main.append((f" {approx}{value_text}" if value_text else f" {approx}{pct:.0f}%", kind))
             if reset_text and reset_text != last_reset:
                 if sub:
                     sub.append((SUMMARY_SEP, "sub"))
@@ -7650,6 +7675,9 @@ def run_gui():
              # api_error_kind 로 갈라 세운다). 비어 있는 숫자를 'loading' 이라 부를지,
              # '키가 거부됨' 이라 부를지, '일시적으로 못 가져옴' 이라 부를지를 가른다.
              "api_error": False, "api_stale": False,
+             # credit_text: 크레딧 행에 %대신 찍을 금액 문자열(새로고침 워커가 만든다).
+             # 어댑터가 모듈 전역을 새로 참조하지 않도록 state 로 받는다.
+             "credit_text": None,
              "frame": 0, "mood": "idle", "override": None, "show_panel": True,
              "elapsed": 0.0, "resting": False, "rest_elapsed": 0.0,
              "last_mood": "idle", "dragging": False, "greet_cool": 0.0,
@@ -8225,7 +8253,7 @@ def run_gui():
         key = (RUNTIME["mode"], L["lang"], state.get("onboard"), id(stats), id(oauth), state["cost"],
                state["cost_month"], RUNTIME.get("api_budget"), bool(OAUTH_STATUS.get("auth_error")),
                bool(state.get("api_error")), bool(state.get("api_stale")),
-               id(state.get("codex")), int(_time.time() / 5))
+               state.get("credit_text"), id(state.get("codex")), int(_time.time() / 5))
         if _summary_memo["key"] == key:
             return _summary_memo["value"]
         if oauth:
@@ -8245,7 +8273,8 @@ def run_gui():
                                cost_budget=float(RUNTIME.get("api_budget") or 0),
                                auth_error=bool(OAUTH_STATUS.get("auth_error")),
                                api_error=bool(state.get("api_error")),
-                               api_stale=bool(state.get("api_stale")))
+                               api_stale=bool(state.get("api_stale")),
+                               credit_text=state.get("credit_text"))
         # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
         # 상태 문구가 아니면 None 이라, 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
         state["summary_status"] = segment[1] if segment[0] == "status" else None
@@ -9237,6 +9266,13 @@ def run_gui():
                     # 고칠 키가 없으니 "키를 확인하세요" 라고 말하면 거짓 안내가 된다.
                     # 모듈 이름이 아니라 state 로 넘긴다: roam_summary_text 는 창 없는
                     # 시험이 손수 만든 스코프에서 exec 되므로 새 전역을 참조하면 깨진다.
+                    # 크레딧 금액 문자열. 모드는 **지금** 읽는다(파싱 시점이 아니라) —
+                    # 파싱은 180초 캐시 뒤에 있어서, 거기서 굳히면 토글을 바꿔도 최대
+                    # 3분 동안 옛 모드가 남는다. 크레딧 행이 없으면 None 이고, 그러면
+                    # roam_summary 가 다섯 번째 원소를 붙이지 않는다.
+                    values["credit_text"] = (
+                        credit_row_text(OAUTH_EXTRA["credit"], RUNTIME["credit_display"])
+                        if OAUTH_EXTRA["credit"] else None)
                     _api_kind = api_error_kind(API_STATUS.get("last_error"))
                     values["api_error"] = _api_kind == "key"
                     values["api_stale"] = _api_kind == "transient"
