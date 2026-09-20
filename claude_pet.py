@@ -1074,6 +1074,7 @@ TR = {
     "menu_roam": "Roam the screen",
     "menu_autostart": "Start at sign-in",
     "menu_auto_recover": "Auto-refresh token",
+    "menu_credit_money": "Credits in money",
     "autostart_title": "Start at sign-in",
     "autostart_approval": "macOS needs your approval: System Settings → General → Login Items.",
     "autostart_open_settings": "Open Login Items",
@@ -1165,6 +1166,7 @@ TR = {
     "menu_roam": "화면 돌아다니기",
     "menu_autostart": "로그인 시 자동 실행",
     "menu_auto_recover": "토큰 자동 갱신",
+    "menu_credit_money": "크레딧 금액으로",
     "autostart_title": "로그인 시 자동 실행",
     "autostart_approval": "macOS 승인이 필요합니다: 시스템 설정 → 일반 → 로그인 항목",
     "autostart_open_settings": "로그인 항목 열기",
@@ -1252,6 +1254,7 @@ TR = {
     "menu_roam": "画面を歩き回る",
     "menu_autostart": "サインイン時に自動起動",
     "menu_auto_recover": "トークン自動更新",
+    "menu_credit_money": "クレジットを金額で",
     "autostart_title": "サインイン時に自動起動",
     "autostart_approval": "macOS の承認が必要です: システム設定 → 一般 → ログイン項目",
     "autostart_open_settings": "ログイン項目を開く",
@@ -1344,6 +1347,7 @@ TR = {
     "menu_roam": "Pasear por la pantalla",
     "menu_autostart": "Abrir al iniciar sesión",
     "menu_auto_recover": "Auto-renovar token",
+    "menu_credit_money": "Créditos en importe",
     "autostart_title": "Abrir al iniciar sesión",
     "autostart_approval": "macOS necesita tu aprobación: Ajustes del Sistema → General → Ítems de inicio",
     "autostart_open_settings": "Abrir Ítems de inicio",
@@ -2705,20 +2709,25 @@ def _parse_oauth_usage(data):
     # 구버전 응답에서 게이지 3행이 통째로 사라진다. 그 판단을 크레딧을 넣기 **전에** 굳힌다.
     had_gauges = bool(found)
 
-    # 크레딧 행을 만들지 말지의 게이트. 묻는 것은 둘이다: **켜져 있는가**, 그리고
-    # **보여 줄 숫자가 있는가**(켜져 있어도 수치가 null 이면 0% 를 지어내지 않는다).
+    # 크레딧 행을 만들지 말지의 게이트. 묻는 것은 둘이다: **사용자가 손으로 껐는가**,
+    # 그리고 **보여 줄 숫자가 있는가**(켜져 있어도 수치가 null 이면 0% 를 지어내지 않는다).
     #
-    # 꺼진 이유는 묻지 않는다 — 사용자 결정(2026-09-20). 사용자가 직접 껐든, 한도를
-    # 다 써서 조직이 껐든(spend_limit_reached: true,
-    # disabled_reason: org_level_disabled_until) is_enabled 가 거짓이면 행이 없다.
+    # **`is_enabled` 를 게이트로 쓰면 안 된다.** 서버는 두 가지를 다른 필드로 말한다:
     #
-    # 대가는 알고 고른 것이라 여기 적어 둔다: **한도를 다 쓴 바로 그 순간에 안내를
-    # 잃는다.** 서버는 그 상태에서도 숫자를 전부 보내 주지만(used_credits, utilization
-    # 모두 값이 있다) 그리지 않는다. 이 문단을 지우고 게이트를 넓히는 변경은 버그
-    # 수정이 아니라 그 결정을 뒤집는 일이므로 사용자에게 다시 물어야 한다.
+    #     user_disabled : 사용자가 손으로 껐는가        ← 게이트는 이것
+    #     is_enabled    : 지금 실제로 쓸 수 있는가      ← 한도를 다 쓰면 조직이 내린다
+    #
+    # 사용자가 2026-09-20 에 신고한 상태가 정확히 user_disabled=false + is_enabled=false
+    # + spend_limit_reached=true 였다. 즉 is_enabled 로 막으면 **신고된 바로 그 상황이
+    # 다시 안 보인다** — 한도를 다 썼다는 가장 알아야 할 사실이, 바로 그 사실 때문에
+    # 화면에서 지워진다. 켜고 끄는 것은 사용자가 수동으로 하는 일이고, 조직이 한도로
+    # 내린 것은 '끈 것'이 아니다.
+    #
+    # 이 게이트를 is_enabled 로 바꾸는 변경은 버그 수정이 아니라 사용자 결정을 뒤집는
+    # 일이므로 사용자에게 다시 물어야 한다. (실제로 한 번 뒤집혔다가 되돌아왔다.)
     extra = data.get("extra_usage")
     OAUTH_EXTRA["credit"] = None
-    if isinstance(extra, dict) and extra.get("is_enabled"):
+    if isinstance(extra, dict) and not extra.get("user_disabled"):
         try:
             cpct = float(extra["utilization"])
         except (TypeError, ValueError, KeyError):
@@ -2782,6 +2791,28 @@ def credit_facts(extra):
             "currency": extra.get("currency")}
 
 
+CREDIT_DISPLAY_MODES = ("money", "pct")
+CREDIT_DISPLAY_DEFAULT = "money"
+
+
+def credit_display_mode(mode):
+    """저장된 표시 모드를 아는 값으로 정규화한다. 모르는 값이면 기본값.
+
+    설정 파일은 사람이 손으로 고칠 수 있다. 모르는 값을 그대로 흘리면 필이 무엇을
+    그릴지 아무도 모르는 상태가 되므로, 읽는 자리에서 한 번 막는다.
+    """
+    return mode if mode in CREDIT_DISPLAY_MODES else CREDIT_DISPLAY_DEFAULT
+
+
+def credit_display_next(mode):
+    """토글이 다음에 갈 값. **두 값 사이만** 오간다.
+
+    세 번째 값이 들어가면 렌더러가 무엇을 그릴지 알 수 없다. 모르는 값에서 누르면
+    기본값에서 누른 것처럼 움직인다 — 사용자가 한 번 눌러 정상 상태로 빠져나온다.
+    """
+    return "pct" if credit_display_mode(mode) == "money" else "money"
+
+
 def credit_row_text(extra, mode="money"):
     """크레딧 행에 쓸 문자열. mode 는 RUNTIME["credit_display"] — "money"(기본) | "pct".
 
@@ -2790,7 +2821,7 @@ def credit_row_text(extra, mode="money"):
     얼굴이다. 둘 다 없으면 빈 문자열이고, 그때는 행 자체가 만들어지지 않는다.
     """
     facts = credit_facts(extra)
-    if mode == "money" and facts["used"] is not None:
+    if credit_display_mode(mode) == "money" and facts["used"] is not None:
         places = extra.get("decimal_places") if isinstance(extra, dict) else None
         digits = places if isinstance(places, int) and 0 <= places <= 8 else 2
         amount = "%.*f" % (digits, facts["used"])
@@ -7995,6 +8026,7 @@ def run_gui():
                                   # menu_roam 과 menu_reset_size 사이라는 것은 AST 로
                                   # 고정돼 있으니(tests/test_autostart.py) 새 항목은
                                   # 그 쌍 사이가 아니라 앞에 놓는다.
+                                  (t("menu_credit_money"), "toggleCreditMoney:"),
                                   (t("menu_auto_recover"), "toggleAutoRecover:"),
                                   (t("menu_roam"), "toggleRoam:"),
                                   (t("menu_autostart"), "toggleAutostart:"),
@@ -8008,7 +8040,14 @@ def run_gui():
                 mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     title, action, "")
                 mi.setTarget_(handler)
-                if action == "toggleAutoRecover:":
+                if action == "toggleCreditMoney:":
+                    # 체크 = 금액 모드. 진실의 출처는 우리 설정 키다(RUNTIME).
+                    # credit_display_mode() 를 부르지 않는 이유는 이 메서드가 창 없는
+                    # 시험에서 손수 만든 스코프로 exec 되기 때문이다 — 새 모듈 전역을
+                    # 이름으로 참조하면 거기서 NameError 가 난다. 기본값이 money 라
+                    # "pct 가 아니면 금액" 은 그 함수와 같은 뜻이다.
+                    mi.setState_(0 if RUNTIME.get("credit_display") == "pct" else 1)
+                elif action == "toggleAutoRecover:":
                     # 체크 표시는 RUNTIME 에서 온다 — autostart 와 달리 OS 등록 상태가
                     # 아니라 우리 설정 키가 진실의 출처다(SETTINGS_OWNED_KEYS 에 있다).
                     mi.setState_(1 if RUNTIME.get("auto_recover") else 0)
@@ -8052,7 +8091,7 @@ def run_gui():
                 pet_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                     t("menu_pets"), None, "")
                 pet_item.setSubmenu_(sub)
-                menu.insertItem_atIndex_(pet_item, 6)       # '크기 원래대로' 다음
+                menu.insertItem_atIndex_(pet_item, 7)       # '크기 원래대로' 다음
             # 버전 표시 (비활성 항목)
             menu.addItem_(NSMenuItem.separatorItem())
             vitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
@@ -8931,6 +8970,29 @@ def run_gui():
                                    else not state["show_panel"])
             view.setNeedsDisplay_(True)
 
+        def toggleCreditMoney_(self, sender):
+            """크레딧 행을 금액($100.66)으로 볼지 %로 볼지. toggleAutoRecover_ 과 같은 모양.
+
+            선택은 ~/.claude_pet.json 에 남는다 — 바꿨는데 다음 실행에 돌아가 있으면
+            바꾼 게 아니다.
+
+            필 문자열을 여기서 바로 다시 만든다. 평소에는 새로고침 워커가 만들지만,
+            그 주기는 30초라 누르고 나서 한참 그대로처럼 보인다. 이 핸들러는 어댑터와
+            달리 모듈 전역을 그대로 쓸 수 있는 자리다(창 없는 시험이 exec 하는 것은
+            roam_summary_text 쪽이다). credit_text 는 memo 키에 있으므로 다음 tick 에
+            바로 다시 그려진다.
+            """
+            value = credit_display_next(RUNTIME.get("credit_display"))
+            RUNTIME["credit_display"] = value
+            if OAUTH_EXTRA["credit"]:
+                state["credit_text"] = credit_row_text(OAUTH_EXTRA["credit"], value)
+            ok, merged = merge_config_updates({"credit_display": value})
+            if ok:
+                cfg.clear()
+                cfg.update(merged)
+            else:
+                cfg["credit_display"] = value
+
         def toggleAutoRecover_(self, sender):
             """토큰 자동 갱신·복구 켜기/끄기.
 
@@ -9271,7 +9333,8 @@ def run_gui():
                     # 3분 동안 옛 모드가 남는다. 크레딧 행이 없으면 None 이고, 그러면
                     # roam_summary 가 다섯 번째 원소를 붙이지 않는다.
                     values["credit_text"] = (
-                        credit_row_text(OAUTH_EXTRA["credit"], RUNTIME["credit_display"])
+                        credit_row_text(OAUTH_EXTRA["credit"],
+                                        credit_display_mode(RUNTIME.get("credit_display")))
                         if OAUTH_EXTRA["credit"] else None)
                     _api_kind = api_error_kind(API_STATUS.get("last_error"))
                     values["api_error"] = _api_kind == "key"
