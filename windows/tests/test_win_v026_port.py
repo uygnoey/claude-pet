@@ -1417,6 +1417,173 @@ class BundleCarriesTheLogosTests(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# H — v0.26.1: a Codex-ready user is not nagged to install Claude Code
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CodexOnboardingSuppressionTests(_QtCase):
+    """Onboarding is hidden when Codex has real data, and nothing else is.
+
+    The suppression is a **local of the adapter closure**, so no call to
+    ``roam_summary()`` can see it: these drive the port's real
+    ``roam_summary_text`` through ``_settle`` and read both things it decides --
+    what reaches the pill, and what ``state["summary_status"]`` is left holding.
+
+    The condition has four conjuncts, and each one is a separate way to be wrong::
+
+        segment[0] == "status"
+        and segment[1] in ("onb_install", "onb_login")
+        and bool(codex_seg)
+        and codex_seg[0] != "status"
+
+    so the fixtures are chosen to kill one conjunct each. Rows are the seven cases;
+    columns are the implementations someone might actually write.
+
+    ====================================  ====  ====  ====  ====  ====  =====
+    case                                  pre   R2    R3    R4    R5    ok
+    ====================================  ====  ====  ====  ====  ====  =====
+    1 onb_install + Codex ready           SHOW  hide  hide  hide  hide* hide
+    2 onb_login   + Codex ready           SHOW  hide  hide  hide  hide* hide
+    3 onb_install + no Codex hook         show  show  HIDE  show  show  show
+    4 onb_login   + hook returns None     show  show  HIDE  show  show  show
+    5 token_expired + Codex ready         show  HIDE  show  show  show  show
+    6 scanning     + Codex ready          show  HIDE  show  show  show  show
+    7 onb_install + Codex is a *status*   show  show  HIDE  HIDE  show  show
+    ====================================  ====  ====  ====  ====  ====  =====
+
+    ``pre`` is the state before this fix; R2 suppresses every Claude status once
+    Codex is ready; R3 suppresses onboarding unconditionally; R4 gates on
+    ``bool(codex_seg)`` and forgets the kind; R5 hides the line but leaves
+    ``summary_status`` set. Capitals mark where each rival departs from the right
+    answer, and ``hide*`` marks R5 hiding the line while still reporting the key --
+    which is why every row asserts the status as well as the text. No column matches
+    the ``ok`` column on every row, so the seven together separate all five.
+
+    **Case 7 is gated nowhere else.** macOS's ``CodexOnboardingSuppressionTests``
+    names this rival in its class docstring -- "a Codex *status* segment
+    (loading/absent) is not real data and must not suppress anything" -- but its
+    non-overreach test only covers a hook that is absent and a hook that returns
+    ``None``. No test on either platform passes a ``("status", ...)`` Codex segment,
+    so the fourth conjunct is currently load-bearing and unexercised. That is the
+    same shape this release keeps producing: prose that asserts more than the code
+    below it checks.
+
+    Re-derived rather than transcribed. The Developer reported six of these from
+    their own adapter; under AGENTS.md section 5 that is a hypothesis until a
+    non-author reproduces it, so every expected value below was measured here first,
+    from the core's condition, before their table was read back against it. The six
+    agreed; the seventh is new.
+    """
+
+    CODEX_READY = [("codex_weekly", 73.0, None, "5d 18h")]
+
+    def _window(self, *, onboard=None, entries=0, auth_error=False, codex="ready"):
+        """The adapter under its real collaborators, with one knob per conjunct."""
+        cp.OAUTH_STATUS["auth_error"] = auth_error
+        stats = {"entries": entries, "spikes": {}, "model_kw": "fable", "now": None}
+        if entries:
+            # entries > 0 with no usable gauge is what roam_summary() turns into
+            # ("status", "scanning") -- the fixture for case 6.
+            stats.update(session={}, weekly={}, opus={})
+        w = _make_window(self.port, oauth=None, stats=stats)
+        w.state["onboard"] = onboard
+        rows = list(self.CODEX_READY)
+        if codex == "ready":
+            w.state["codex_summary"] = lambda: cp.roam_summary_codex(list(rows))
+        elif codex == "none":
+            w.state["codex_summary"] = lambda: None
+        elif codex != "absent":
+            # A Codex segment that is a *status*: present, truthy, and not data.
+            w.state["codex_summary"] = lambda: ("status", codex)
+        return w
+
+    def _read(self, w):
+        blocks, _tw, _th = _settle(w)
+        pids = [pid for pid, _lines in blocks]
+        text = "".join(_line_text(line) for _p, lines in blocks for line in lines)
+        return pids, text, w.state.get("summary_status")
+
+    # -- cases 1 and 2: suppressed ------------------------------------------
+    def test_a_codex_ready_user_is_not_told_to_install_or_sign_in(self):
+        for onboard in ("install", "login"):
+            with self.subTest(onboard=onboard):
+                pids, text, status = self._read(self._window(onboard=onboard))
+                key = "onb_" + onboard
+                self.assertNotIn(
+                    None, pids,
+                    "a global status line reached the pill for a user who is already "
+                    "getting numbers from Codex. pids=%r text=%r" % (pids, text))
+                self.assertNotIn(
+                    cp.t(key), text,
+                    "the onboarding line is still on the pill: %r" % text)
+                self.assertIn(
+                    "codex", pids,
+                    "suppressing the nag took the Codex block with it -- the user is "
+                    "left with an empty pill. pids=%r" % (pids,))
+                self.assertIsNone(
+                    status,
+                    "summary_status is still %r after the line was hidden. A click "
+                    "then acts on text nobody can see -- the pill would start "
+                    "installing Claude Code because the user clicked a Codex "
+                    "percentage." % (status,))
+
+    # -- cases 3 and 4: the far larger population that does not use Codex ----
+    def test_a_user_without_codex_still_gets_the_onboarding_line(self):
+        for onboard, codex, label in (("install", "absent", "hook never set"),
+                                      ("login", "none", "hook returns None")):
+            with self.subTest(onboard=onboard, codex=label):
+                pids, text, status = self._read(
+                    self._window(onboard=onboard, codex=codex))
+                key = "onb_" + onboard
+                self.assertIn(
+                    None, pids,
+                    "the onboarding line vanished for a user with no Codex at all. "
+                    "This is the pre-fix behaviour for everyone else and must not "
+                    "regress. pids=%r" % (pids,))
+                self.assertIn(cp.t(key), text, "pill=%r" % text)
+                self.assertEqual(status, key)
+
+    # -- cases 5 and 6: suppression must not spread to other statuses --------
+    def test_every_other_claude_status_survives_a_ready_codex(self):
+        for label, kw, key in (("token expired", dict(auth_error=True), "token_expired"),
+                               ("scanning", dict(entries=5), "scanning")):
+            with self.subTest(status=label):
+                pids, text, status = self._read(self._window(**kw))
+                self.assertIn(
+                    None, pids,
+                    "%s was suppressed by a ready Codex row. Suppression is for the "
+                    "two onboarding keys only: %r says something is wrong with Claude "
+                    "Code *now*, which is true whatever Codex is doing. pids=%r"
+                    % (label, key, pids))
+                self.assertIn(cp.t(key), text, "pill=%r" % text)
+                self.assertEqual(status, key)
+                self.assertIn("codex", pids, "the Codex block stopped rendering")
+
+    # -- case 7: the conjunct nothing else exercises -------------------------
+    def test_a_codex_that_is_only_a_status_suppresses_nothing(self):
+        """``bool(codex_seg)`` is true for a status segment, and it is not data.
+
+        A Codex segment that says "loading" or "needs a key" means the user may not
+        have Codex working at all -- exactly the person the onboarding line is for.
+        Suppressing on truthiness alone hides it from them and leaves them with a
+        pill that offers nothing and explains nothing.
+
+        Three shapes, because the routing for a Codex status differs between
+        ``loading`` and the rest and the conjunct must hold for all of them.
+        """
+        for key in ("loading", "scanning", "need_admin_key"):
+            with self.subTest(codex_status=key):
+                pids, text, status = self._read(
+                    self._window(onboard="install", codex=key))
+                self.assertIn(
+                    None, pids,
+                    "a Codex segment of kind 'status' (%r) suppressed the onboarding "
+                    "line. Only ('exact', rows) is real data; the condition's fourth "
+                    "conjunct is codex_seg[0] != 'status'. pids=%r" % (key, pids))
+                self.assertIn(cp.t("onb_install"), text, "pill=%r" % text)
+                self.assertEqual(status, "onb_install")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # G — the label carries no provider prefix, and a lone gauge inlines its reset
 # ═══════════════════════════════════════════════════════════════════════════════
 
