@@ -1555,9 +1555,24 @@ class CodexOnboardingSuppressionTests(unittest.TestCase):
 
     def test_onb_install_still_shows_without_codex(self):
         """Non-overreach: a user who does not use Codex (hook absent, or present but
-        empty) must keep seeing the onboarding line exactly as before this fix."""
-        for label, install_hook in (("codex_summary hook never set", None),
-                                    ("codex_summary hook returns None", lambda: None)):
+        empty) must keep seeing the onboarding line exactly as before this fix.
+
+        The third case is the one that actually exercises ``codex_seg[0] != "status"``:
+        a hook that returns something *truthy* but is itself a Codex-side status (still
+        loading, not real data yet) — a plausible real state during the same refresh
+        cycle that also finds Claude unonboarded. ``bool(codex_seg)`` alone is True
+        here, so a mutant that dropped the ``!= "status"`` conjunct from
+        ``claude_onboarding_suppressed`` would suppress the onboarding line in this
+        case too, even though Codex has nothing real to show — the first two cases
+        alone (hook absent / hook returns None) both leave ``codex_seg`` falsy, so
+        neither one reaches that conjunct at all. This case must stay in the loop for
+        that reason, not merely for symmetry."""
+        for label, install_hook in (
+            ("codex_summary hook never set", None),
+            ("codex_summary hook returns None", lambda: None),
+            ("codex_summary hook returns a Codex-side status (loading), not real data",
+             lambda: ("status", "loading")),
+        ):
             with self.subTest(case=label):
                 text, state = self._harness()
                 state["onboard"] = "install"
@@ -1566,9 +1581,11 @@ class CodexOnboardingSuppressionTests(unittest.TestCase):
                 blocks, _width, _height = text()
                 pids = dict(blocks)
                 self.assertIn(None, pids,
-                             "a non-Codex user must still see the onboarding line")
+                             "a non-Codex-ready user must still see the onboarding line")
                 self.assertIn("ONBOARD-INSTALL-MARK", self._rendered(blocks))
                 self.assertEqual(state["summary_status"], "onb_install")
+                self.assertNotIn("codex", pids,
+                                 "a Codex status segment must not produce its own block")
 
     def test_scanning_shows_regardless_of_ready_codex(self):
         """Non-overreach: a status other than onb_install/onb_login is never

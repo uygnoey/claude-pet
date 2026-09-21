@@ -1156,6 +1156,14 @@ shapes ("42 rows, 3 files"), never contents.
 > unreleased version only means the notes were drafted during implementation, which is the
 > normal state described below. And an authorization is never a **finding that the gate
 > passed**; those are separate questions and both must be answered.
+>
+> **One narrow, named exception to "not an agent's report of them"** now exists, added
+> 2026-09-21 — see [AGENTS.md §0](AGENTS.md#0-how-to-read-the-prohibitions)'s "One named
+> exception" and its "This exception reaches release push/publish" paragraph. It covers
+> only a double-confirmed, per-instance relay from the user's own other Claude Code
+> session on their Mac, only for `push`/`publish`, and nothing else here changes: read
+> AGENTS.md §0 for the exact condition before relying on it, rather than assuming this
+> paragraph restates it in full.
 
 **Version and changelog can be out of step, and that is meaningful.** `RELEASE_NOTES.md`
 may already contain a section for a version that `APP_VERSION` has not yet reached. That
