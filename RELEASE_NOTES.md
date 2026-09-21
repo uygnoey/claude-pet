@@ -79,6 +79,12 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
      단가·창·중복 제거를 실제로 건드리는 릴리즈에서는 CLAUDE.md 의 Danger zone 대로
      반드시 ⚠️ 다시 보정 안내를 넣으세요. -->
 
+**v0.26.1**
+
+- Codex만 설정되어 있고 Claude Code는 설치·로그인 전이면, 이제 필에 "Claude Code 미설치" 안내 대신 Codex 사용량만 표시됩니다.
+- Claude Code를 실제로 쓰다가 토큰이 만료되었거나 조회 중일 때는 예전처럼 그대로 안내가 뜹니다.
+- macOS·Windows 모두 적용되며, 따로 설정할 것은 없습니다.
+
 **v0.26**
 
 - 표준 위치에 Claude Code가 있으면, 한동안 안 써서 토큰이 끊기던 상황에서도 정확 모드가 유지됩니다 — 펫이 만료 직전에 알아서 되살립니다. 할 일은 없고(우클릭 메뉴 "토큰 자동 갱신"에서 끌 수 있습니다), 다른 곳에 설치했다면 만료 문구를 눌러 설치 안내로 갈 수 있습니다.

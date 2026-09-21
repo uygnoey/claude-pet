@@ -1,29 +1,41 @@
-"""Static release-preparation gates for v0.26.
+"""Static release-preparation gates for v0.26.1.
 
-Status as of 2026-09-20 (Verifier verifier-v026): v0.25 is published (tag ``v0.25`` on
-origin, GitHub release of 2026-09-14T05:05:58Z, release commit aaf0ca6, tag pointing at
-8614a65), so everything from the ``**v0.25**`` heading to the end of ``RELEASE_NOTES.md``
-is frozen text and is pinned here byte for byte, alongside the older v0.24, v0.23 and
-v0.22 pins.  The single unpublished section above it is ``**v0.26**``, and ``APP_VERSION``
-is ``"0.26"`` — the bump the release commit carries.  ``PublishedV023NotesContractTests``,
-``PublishedV024NotesContractTests`` and ``PublishedV025NotesContractTests`` keep holding
-the frozen v0.23, v0.24 and v0.25 prose to the source they describe (a published promise
-outlives its release; the v0.25 class is the former ``StagedV025NotesFormatTests`` with
-its assertions and method names unchanged, only its status renamed — the same promotion
-the v0.24 class went through a release earlier), and ``StagedV026NotesFormatTests`` holds
-the v0.26 section to CLAUDE.md's release-note format rule and cross-checks every
-checkable claim in it against the source.
+Status as of 2026-09-21 (Verifier role for this rewrite has no assigned handle yet in
+this session — do not copy a name from here into the ``Verifier:`` commit trailer;
+get one from whoever assigns roles before committing): v0.26 is
+published — tag ``v0.26`` on origin, GitHub release published 2026-09-20T15:50:23Z, tag
+pointing at commit 2541669.  That commit is a later Windows-port commit, not the macOS
+release commit that actually bumped ``APP_VERSION`` to ``"0.26"`` (d3828ab,
+2026-09-20T21:23:02+09:00) — several follow-up fix commits landed on ``main`` between the
+two before the tag was pushed, and one of them reworded the v0.26 notes' second bullet
+once more (``git diff d3828ab v0.26 -- RELEASE_NOTES.md``).  **What is pinned below as
+"published" is the tag's tree** (``git show v0.26:RELEASE_NOTES.md``), independently
+confirmed byte-for-byte against the live GitHub release body
+(``gh release view v0.26 --json body``, checked 2026-09-21) — that body is the actual
+record of what users received, not the release commit's first wording, which never
+shipped.  So everything from the ``**v0.26**`` heading to the end of
+``RELEASE_NOTES.md`` is frozen text and is pinned here byte for byte, alongside the older
+v0.25, v0.24, v0.23 and v0.22 pins.  The single unpublished section above it is
+``**v0.26.1**``, and ``APP_VERSION`` is ``"0.26.1"`` — the bump the release commit
+carries.  ``PublishedV023NotesContractTests``, ``PublishedV024NotesContractTests``,
+``PublishedV025NotesContractTests`` and ``PublishedV026NotesContractTests`` keep holding
+the frozen v0.23, v0.24, v0.25 and v0.26 prose to the source they describe (a published
+promise outlives its release; the v0.26 class is the former ``StagedV026NotesFormatTests``
+with its assertions and method names unchanged, only its status renamed — the same
+promotion the v0.25 class went through a release earlier), and
+``StagedV0261NotesFormatTests`` holds the v0.26.1 section to CLAUDE.md's release-note
+format rule and cross-checks every checkable claim in it against the source.
 
 Lineage: ``test_v022_release_contract.py`` → ``test_v023_release_contract.py`` →
-``test_v024_release_contract.py`` → ``test_v025_release_contract.py`` → this file; each
-release renames the module with ``git mv`` and rewrites it for the version its release
-commit carries.
+``test_v024_release_contract.py`` → ``test_v025_release_contract.py`` →
+``test_v026_release_contract.py`` → this file; each release renames the module with
+``git mv`` and rewrites it for the version its release commit carries.
 
 These tests deliberately do not import the application, source a shell script, inspect
 the installed app, or access the network/user home.  They only parse repository text and
 bytes (the tracked sources, plus the two files under ``fonts/`` the v0.24 notes promise
 are bundled).  The source-pin assertions keep the executable manual-update and upload
-harnesses fail-closed when the final v0.26 application/verifier/script bytes change, and
+harnesses fail-closed when the final v0.26.1 application/verifier/script bytes change, and
 the ``--expect-version`` usage example in ``verify_release_artifact.py`` is held to the
 bumped version because every release commit since v0.21 moved it with ``APP_VERSION``
 (``git log -S'--expect-version 0.22'``; a1f3d22 moved it to 0.24, aaf0ca6 to 0.25) and
@@ -31,35 +43,50 @@ bumped version because every release commit since v0.21 moved it with ``APP_VERS
 version literal can survive a release.
 
 Claims in the notes are cross-checked against the source rather than merely spelled out
-here, because a note and a constant can drift apart in either direction.  The v0.26
-pairs: the quoted menu label "토큰 자동 갱신" against ``TR["ko"]["menu_auto_recover"]``
-and "펫이 만료 직전에 알아서 되살립니다" against ``recovery_tick``'s pre-emptive branch
-(``REFRESH_MARGIN_SEC`` before ``expires_at``, gated on ``RUNTIME["auto_recover"]``) and
-against ``recovery_spawn_argv`` putting ``claude -p /usage`` behind ``launchctl submit``
-so the CLI is never our descendant; "Codex 사용량이 같은 줄에" against the single
-``chatgpt.com/backend-api/wham/usage`` endpoint and against ``fetch_codex_usage`` /
-``roam_summary_codex`` returning ``None`` — no row at all — when there are no Codex
-credentials; the quoted "크레딧 금액으로" against ``TR["ko"]["menu_credit_money"]``,
-"쓴 금액이 $로" against ``CREDIT_DISPLAY_DEFAULT`` being ``"money"`` and
-``credit_row_text`` formatting an amount, "켜 두었다면" against ``_parse_oauth_usage``
-gating the credit row on ``user_disabled`` rather than ``is_enabled``, and "조회 중에
-머물지 않고 이유를" against ``roam_summary``'s API branch splitting a rejected key from a
-transient failure through ``api_error_kind``.  The v0.25 pairs keep theirs (the sign-in
-label, the OS-read checkmark, the token cache, the uninstall label and the surviving pet
-folder), the v0.24 pairs theirs (thresholds, marker glyphs, font, nested layout, toggle
-wording, colour roles), and the v0.23 pairs theirs ("1시간" against ``UPDATE_CHECK_SEC``,
-the quoted menu label, no check at launch, straight to the latest release).  Pinning only
-one side of any of these pairs would let the other side move silently.  The behavioural
-gates live elsewhere — tests/test_oauth_token_cache.py for the token cache,
-tests/test_token_recovery.py for the recovery cycle, tests/test_codex_usage.py for the
-Codex rows, tests/test_credit_row.py and tests/test_api_cost_status.py for the credit row
-and the API status line, tests/test_autostart.py for the sign-in item; this module only
-ties the prose to them.
+here, because a note and a constant can drift apart in either direction.  The v0.26.1
+pair: the quoted status "Claude Code 미설치" against ``TR["ko"]["onb_install"]`` and
+against ``roam_summary_text``'s own ``claude_onboarding_suppressed`` local, which gates
+the suppression on exactly ``onb_install``/``onb_login`` and on a Codex segment that
+actually carries data (not itself a ``"status"`` segment) — the behavioural proof, both
+the positive case and its two non-overreach cases (a non-Codex user; every other Claude
+status untouched), lives in tests/test_companion_motion.py's
+``CodexOnboardingSuppressionTests``; this module only ties the prose to it.  The v0.26
+pairs (kept, now published): the quoted menu label "토큰 자동 갱신" against
+``TR["ko"]["menu_auto_recover"]`` and "펫이 만료 직전에 알아서 되살립니다" against
+``recovery_tick``'s pre-emptive branch (``REFRESH_MARGIN_SEC`` before ``expires_at``,
+gated on ``RUNTIME["auto_recover"]``) and against ``recovery_spawn_argv`` putting
+``claude -p /usage`` behind ``launchctl submit`` so the CLI is never our descendant;
+"로고와 함께" and "줄도 로고도 생기지 않습니다" (the tag's wording; see the provenance
+note above) against the single ``chatgpt.com/backend-api/wham/usage`` endpoint and
+against ``fetch_codex_usage`` / ``roam_summary_codex`` returning ``None`` — no row at
+all — when there are no Codex credentials; the quoted "크레딧 금액으로" against
+``TR["ko"]["menu_credit_money"]``, "쓴 금액이 $로" against ``CREDIT_DISPLAY_DEFAULT``
+being ``"money"`` and ``credit_row_text`` formatting an amount, "켜 두었다면" against
+``_parse_oauth_usage`` gating the credit row on ``user_disabled`` rather than
+``is_enabled``, and "조회 중에 머물지 않고 이유를" against ``roam_summary``'s API branch
+splitting a rejected key from a transient failure through ``api_error_kind``.  The v0.25
+pairs keep theirs (the sign-in label, the OS-read checkmark, the token cache, the
+uninstall label and the surviving pet folder), the v0.24 pairs theirs (thresholds, marker
+glyphs, font, nested layout, toggle wording, colour roles), and the v0.23 pairs theirs
+("1시간" against ``UPDATE_CHECK_SEC``, the quoted menu label, no check at launch, straight
+to the latest release).  Pinning only one side of any of these pairs would let the other
+side move silently.  The behavioural gates live elsewhere — tests/test_oauth_token_cache.py
+for the token cache, tests/test_token_recovery.py for the recovery cycle,
+tests/test_codex_usage.py for the Codex rows, tests/test_credit_row.py and
+tests/test_api_cost_status.py for the credit row and the API status line,
+tests/test_autostart.py for the sign-in item, and tests/test_companion_motion.py's
+``CodexOnboardingSuppressionTests`` for the v0.26.1 onboarding suppression; this module
+only ties the prose to them.
 
 The Windows claims in the v0.25 notes (the same menu item there, in-app update for the
 installer and the portable zip, "작업 관리자") are built on the Windows branch, not by
 this tree, so no gate in this checkout can say whether they hold — only the macOS half of
-each sentence is checked here.  The v0.26 notes make no Windows claim.
+each sentence is checked here.  The v0.26 notes make no Windows claim.  The v0.26.1
+notes' third bullet claims both platforms ("macOS·Windows 모두 적용되며, 따로 설정할
+것은 없습니다") — the Windows half is, again, built on the Windows branch and out of
+scope for this checkout/session; this module pins the wording and checks only the macOS
+half, that the fix needs no new config/``RUNTIME`` key, consistent with "따로 설정할
+것은 없습니다".
 """
 
 from __future__ import annotations
@@ -113,6 +140,20 @@ PUBLISHED_V024_AND_OLDER_SHA256 = (
 PUBLISHED_V025_AND_OLDER_SHA256 = (
     "a862d2cf6fe512c7937eed3305781577cc243ef78ce857db6dee424012ae5920"
 )
+# v0.26-and-older: from the ``**v0.26**`` heading through EOF.  The v0.26 *release
+# commit* (d3828ab) staged a different wording for the second bullet than what actually
+# shipped: two follow-up commits landed on main before the tag was pushed, and one of
+# them reworded that bullet.  What is pinned here is therefore the *tag*'s tree
+# (`git show v0.26:RELEASE_NOTES.md`, tag -> commit 2541669, 25399 bytes, of which the
+# suffix is 21019), independently confirmed byte-for-byte against the live GitHub
+# release body (`gh release view v0.26 --json body`, checked 2026-09-21) — that is the
+# only record of what users actually received.  Identical in the working tree after the
+# v0.26.1 section was staged above it (2026-09-21).  The v0.25 suffix is unchanged at
+# 20096 bytes across all of these trees, so the v0.26 section was appended above it and
+# nothing below moved.
+PUBLISHED_V026_AND_OLDER_SHA256 = (
+    "1fe0efa1423c5a6e626cf1be27d2f50384e45ee94f49ab1f48ae0a112b58c403"
+)
 
 # The cadence the published v0.23 notes promise, and the Korean label they name.
 EXPECTED_UPDATE_CHECK_SEC = 3600
@@ -133,6 +174,11 @@ KO_CREDIT_MONEY_LABEL = "크레딧 금액으로"
 
 # The one Codex endpoint the v0.26 notes' "Codex 사용량" row is allowed to come from.
 CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+
+# The onboarding status the v0.26.1 notes quote, exactly as TR["ko"]["onb_install"]
+# spells it — an independent anchor, so a rename that moves both the source string and
+# the note's quote together in the same wrong direction still gets caught.
+KO_ONB_INSTALL_LABEL = "Claude Code 미설치"
 
 
 # CLAUDE.md release-note step 2 forbids these in a user-facing entry.
@@ -303,18 +349,23 @@ def _method_calls(node: ast.AST, attr: str) -> list[ast.Call]:
 
 
 class VersionAndPinContractTests(unittest.TestCase):
-    def test_v026_version_and_final_source_pins_propagate(self):
+    def test_v0261_version_and_final_source_pins_propagate(self):
         problems: list[str] = []
 
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
-        if versions != ["0.26"]:
-            problems.append(f"APP_VERSION must be one literal '0.26', got {versions!r}")
+        if versions != ["0.26.1"]:
+            problems.append(f"APP_VERSION must be one literal '0.26.1', got {versions!r}")
 
         verifier_text = RELEASE_VERIFIER.read_text(encoding="utf-8")
-        if "--expect-version 0.26" not in verifier_text:
-            problems.append("verify_release_artifact.py usage must show --expect-version 0.26")
-        for stale in ("0.25", "0.24", "0.27"):
-            if f"--expect-version {stale}" in verifier_text:
+        if "--expect-version 0.26.1" not in verifier_text:
+            problems.append("verify_release_artifact.py usage must show --expect-version 0.26.1")
+        # A bare version-number substring check would false-positive here: "0.26" is a
+        # literal prefix of "0.26.1", so a naive `f"--expect-version {stale}" in text`
+        # would flag the very string this test just required above. The negative
+        # lookahead excludes exactly that case — it only fires on a *bare* stale
+        # version, never on it being a prefix of the current one.
+        for stale in ("0.26", "0.25", "0.24", "0.27"):
+            if re.search(rf"--expect-version {re.escape(stale)}(?!\.\d)", verifier_text):
                 problems.append(
                     f"verify_release_artifact.py still advertises --expect-version {stale}"
                 )
@@ -388,20 +439,37 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
             "published v0.25-and-older bytes were rewritten or dropped",
         )
 
-    def test_v026_is_the_only_unpublished_heading_and_sits_directly_above_v025(self):
+    def test_published_v026_and_older_bytes_are_untouched(self):
+        raw = RELEASE_NOTES.read_bytes()
+        published_marker = b"**v0.26**"
+        self.assertEqual(raw.count(published_marker), 1, "published v0.26 heading changed")
+        published_suffix = raw[raw.index(published_marker) :]
+        self.assertEqual(
+            hashlib.sha256(published_suffix).hexdigest(),
+            PUBLISHED_V026_AND_OLDER_SHA256,
+            "published v0.26-and-older bytes were rewritten or dropped",
+        )
+
+    def test_v0261_is_the_only_unpublished_heading_and_sits_directly_above_v026(self):
+        """Rivals this heading-shape regex must not miss: a stale two-part-only pattern
+        (``\\d+\\.\\d+``) silently fails to match a three-part heading like
+        ``**v0.26.1**`` at all — a regex bug that would have made every assertion below
+        vacuously pass against an empty ``headings`` list rather than catching a
+        misplaced or duplicated heading. The pattern below allows an optional third
+        component for exactly this reason."""
         text = RELEASE_NOTES.read_text(encoding="utf-8")
         changelog = "### 📝 변경 내역 / Changelog"
         self.assertEqual(text.count(changelog), 1)
         release_area = text.split(changelog, 1)[1]
-        headings = re.findall(r"(?m)^\*\*v(\d+\.\d+)\*\*$", release_area)
+        headings = re.findall(r"(?m)^\*\*v(\d+\.\d+(?:\.\d+)?)\*\*$", release_area)
         self.assertTrue(headings, "changelog has no release heading")
         self.assertEqual(
             headings[:2],
-            ["0.26", "0.25"],
-            "the unpublished v0.26 section must sit directly above the published v0.25 "
-            f"heading, with nothing newer above it; got {headings[:2]!r}",
+            ["0.26.1", "0.26"],
+            "the unpublished v0.26.1 section must sit directly above the published "
+            f"v0.26 heading, with nothing newer above it; got {headings[:2]!r}",
         )
-        self.assertEqual(headings.count("0.26"), 1, "v0.26 heading must appear once")
+        self.assertEqual(headings.count("0.26.1"), 1, "v0.26.1 heading must appear once")
 
 
 class PublishedV023NotesContractTests(unittest.TestCase):
@@ -916,12 +984,16 @@ class PublishedV025NotesContractTests(unittest.TestCase):
         self.assertIn("UNINSTALL_PATHS", _names(targets), "uninstall_targets must read UNINSTALL_PATHS")
 
 
-class StagedV026NotesFormatTests(unittest.TestCase):
-    """The unpublished v0.26 section, held to CLAUDE.md's release-note format rule and to
-    the source it describes.
+class PublishedV026NotesContractTests(unittest.TestCase):
+    """The published v0.26 section: its bytes are frozen above, and the source must still
+    keep every promise it made.
 
-    The section is staged text until the tag is pushed, so correcting it is ordinary
-    work; the format gate only says what CLAUDE.md step 2 says: exactly three top-level
+    This is the v0.26 release's former ``StagedV026NotesFormatTests`` with its assertions
+    and method names unchanged — only its status moved from staged to published when the
+    ``v0.26`` tag and GitHub release went out on 2026-09-20T15:50:23Z (the same promotion
+    the v0.25 class went through a release earlier).  Every assertion below was
+    re-verified against current source before this rename (2026-09-21) and still holds.
+    The format gate still says what CLAUDE.md step 2 says: exactly three top-level
     bullets, no nesting, at most 450 normalized characters, 1-2 Korean sentences per
     bullet, and none of the forbidden token classes.  Every checkable claim in it is then
     tied to the source, one test per bullet:
@@ -934,11 +1006,14 @@ class StagedV026NotesFormatTests(unittest.TestCase):
       "할 일은 없고" to the ``RUNTIME["auto_recover"]`` default being on and to
       ``recovery_spawn_argv`` handing ``claude -p /usage`` to ``launchctl submit`` rather
       than running it as our own child.
-    * "Codex 사용량이 같은 줄에 … 쓰지 않으면 아무것도 달라지지 않습니다" — to the single
+    * "각 제공자의 수치가 그 로고와 함께 자기 줄에 보입니다 … 쓰지 않으면 줄도 로고도
+      생기지 않습니다" — the wording the *tag*'s tree actually carries (a later commit
+      reworded this bullet after the release commit that first staged it; see the module
+      docstring's provenance note) — to the single
       ``chatgpt.com/backend-api/wham/usage`` endpoint, to the row carrying the same
-      ``"exact"`` segment kind the Claude rows use (which is what "같은 줄" means), and to
-      both ``fetch_codex_usage`` and ``roam_summary_codex`` returning ``None`` — no row at
-      all, not a 0% row — when there are no Codex credentials.
+      ``"exact"`` segment kind the Claude rows use, and to both ``fetch_codex_usage`` and
+      ``roam_summary_codex`` returning ``None`` — no row at all, not a 0% row — when
+      there are no Codex credentials.
     * "크레딧을 켜 두었다면 쓴 금액이 $로 … "크레딧 금액으로"에서 %로 … "조회 중"에
       머물지 않고 이유를" — "켜 두었다면" to ``_parse_oauth_usage`` gating the credit row
       on ``user_disabled`` and **not** on ``is_enabled``; "$" to ``CREDIT_DISPLAY_DEFAULT``
@@ -1251,6 +1326,202 @@ class StagedV026NotesFormatTests(unittest.TestCase):
                       "a rejected key must reach its own status line")
         self.assertIn("return ('status', 'api_unreachable' if api_stale else 'loading')", summary_src,
                       "'loading' must survive only while nothing has failed yet")
+
+
+class StagedV0261NotesFormatTests(unittest.TestCase):
+    """The unpublished v0.26.1 section, held to CLAUDE.md's release-note format rule and
+    to the source it describes.
+
+    The section is staged text until the tag is pushed, so correcting it is ordinary
+    work; the format gate only says what CLAUDE.md step 2 says: exactly three top-level
+    bullets, no nesting, at most 450 normalized characters, 1-2 Korean sentences per
+    bullet, and none of the forbidden token classes.  Every checkable claim in it is then
+    tied to the source, one test per bullet.  Consistent with this module's own stated
+    principle ("behavioural gates live elsewhere … this module only ties the prose to
+    them"), the per-bullet tests below cite the actual behavioural proof in
+    tests/test_companion_motion.py's ``CodexOnboardingSuppressionTests`` rather than
+    re-implementing its ``roam_summary_text`` harness here — this module only checks that
+    the prose is anchored to a real, named piece of source:
+
+    * "Codex만 설정되어 있고 Claude Code는 설치·로그인 전이면, 이제 필에 "Claude Code
+      미설치" 안내 대신 Codex 사용량만 표시됩니다" — the quoted status to
+      ``TR["ko"]["onb_install"]`` and to ``roam_summary_text``'s own
+      ``claude_onboarding_suppressed`` local, which must gate the suppression on exactly
+      the two onboarding status keys and on the Codex segment actually carrying data.
+    * "Claude Code를 실제로 쓰다가 토큰이 만료되었거나 조회 중일 때는 예전처럼 그대로
+      안내가 뜹니다" — the same local must **not** name any other status key, so
+      token_expired/scanning/etc reach the pill exactly as before this release, Codex or
+      not.
+    * "macOS·Windows 모두 적용되며, 따로 설정할 것은 없습니다" — the Windows half is
+      built on the Windows branch and out of scope for this checkout/session (the same
+      treatment the v0.25 notes' Windows claims get, in this module's own docstring);
+      the macOS half is checked here: the suppression needs no new config/``RUNTIME``
+      key.
+    """
+
+    def setUp(self):
+        text = RELEASE_NOTES.read_text(encoding="utf-8")
+        self.visible = _notes_block(text, "**v0.26.1**", "**v0.26**")
+        self.top_level, self.nested, self.bullets = _bullet_shape(self.visible)
+        self.body = "\n".join(self.bullets)
+
+    def test_v0261_notes_follow_the_three_bullet_450_character_format(self):
+        problems: list[str] = []
+        if len(self.top_level) != 3:
+            problems.append(f"v0.26.1 must have exactly 3 top-level bullets, got {len(self.top_level)}")
+        if self.nested:
+            problems.append("v0.26.1 must not contain nested bullets")
+        normalized_body = " ".join(self.visible.split())
+        if len(normalized_body) > 450:
+            problems.append(f"v0.26.1 Korean body is {len(normalized_body)} Unicode characters; max is 450")
+        for index, bullet in enumerate(self.bullets, 1):
+            if not re.search(r"[가-힣]", bullet):
+                problems.append(f"bullet {index} must be Korean")
+            count = len(_sentences(bullet))
+            if not 1 <= count <= 2:
+                problems.append(f"bullet {index} has {count} sentences; CLAUDE.md allows 1-2")
+        prose_for_forbidden_scan = self.body.replace("`", "")
+        for label, pattern in FORBIDDEN_NOTE_PATTERNS.items():
+            match = re.search(pattern, prose_for_forbidden_scan, re.I)
+            if match:
+                problems.append(f"remove {label}: {match.group(0)!r}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_every_quoted_string_in_the_notes_is_a_real_korean_ui_string(self):
+        """Same discriminator as ``PublishedV026NotesContractTests``'s namesake test: every
+        quoted string in the v0.26.1 body must be a real ``TR["ko"]`` value (allowing the
+        same two intentional variants — a trailing ellipsis dropped, a leading glyph
+        dropped), so a quote that drifted from the actual menu/status text is caught even
+        if no other test happens to name that particular key."""
+        table = _tr_table()["ko"]
+
+        def forms(value):
+            out = {value}
+            out.add(value.rstrip("…").strip())
+            head, _, rest = value.partition(" ")
+            if rest and not re.match(r"[0-9A-Za-z가-힣]", head):
+                out.add(rest)
+                out.add(rest.rstrip("…").strip())
+            return {form for form in out if form}
+
+        index = {}
+        for key, value in table.items():
+            if isinstance(value, str):
+                for form in forms(value):
+                    index.setdefault(form, []).append(key)
+
+        quoted = re.findall(r'"([^"]+)"', self.body)
+        self.assertTrue(
+            quoted,
+            "the v0.26.1 notes quote no UI string at all — either this test is now "
+            "vacuous or the quote disappeared; a human must check which")
+        problems = [q for q in quoted if q not in index]
+        self.assertEqual(
+            problems, [],
+            f"the v0.26.1 notes quote a string that matches no TR['ko'] value: {problems!r} "
+            f"— the user cannot find this on screen (checked quotes: {quoted!r})")
+
+    def test_v0261_codex_only_users_no_longer_see_the_onboarding_status(self):
+        """"이제 필에 "Claude Code 미설치" 안내 대신 Codex 사용량만 표시됩니다": the quoted
+        status is ``TR["ko"]["onb_install"]`` verbatim, and ``roam_summary_text``'s own
+        ``claude_onboarding_suppressed`` local must gate the suppression on exactly
+        ``onb_install``/``onb_login`` and on the Codex segment actually carrying data —
+        ``bool(codex_seg) and codex_seg[0] != "status"``, not merely a truthy Codex
+        segment (a Codex-side loading/absent status is not "real" data). The flag must
+        also be consulted at both use sites: it clears the clickable
+        ``state["summary_status"]`` and it is what drops the global status line from the
+        provider blocks.
+
+        The actual suppress/don't-suppress behaviour — including the positive case and
+        both of its non-overreach cases (a user who does not use Codex; every other
+        Claude status shown regardless of Codex) — is proven behaviourally, not here, by
+        tests/test_companion_motion.py::CodexOnboardingSuppressionTests
+        (``test_codex_ready_suppresses_onb_install``,
+        ``test_codex_ready_suppresses_onb_login``,
+        ``test_onb_install_still_shows_without_codex``). This test only ties the quoted
+        prose to the named local that implements it. Rivals this rules out: the quoted
+        status text drifting from the real TR value while the note still reads
+        plausibly; the suppression computed but consulted at only one of its two use
+        sites (leaving a ghost-clickable or a still-visible line); the condition gated on
+        Codex truthiness alone rather than on it carrying real data."""
+        table = _tr_table()
+        label = table["ko"]["onb_install"]
+        self.assertEqual(label, KO_ONB_INSTALL_LABEL,
+                         "the v0.26.1 notes quote this onboarding status")
+        self.assertIn(f'"{label}"', self.body,
+                      f"the v0.26.1 notes must quote the Korean onboarding status {label!r} verbatim")
+
+        run_gui = _module_def(APP_SOURCE, "run_gui")
+        text_fn = _nested_function(run_gui, "roam_summary_text")
+        src = ast.unparse(text_fn)
+        self.assertIn(
+            "claude_onboarding_suppressed", src,
+            "roam_summary_text must gate the suppression through its own named local")
+        self.assertIn(
+            "segment[1] in ('onb_install', 'onb_login')", src,
+            "the suppression must be scoped to exactly the two onboarding status keys")
+        self.assertIn(
+            "bool(codex_seg) and (codex_seg[0] != 'status')", src,
+            "the suppression must require a real (non-status) Codex segment, not merely "
+            "a truthy one")
+        self.assertEqual(
+            src.count("claude_onboarding_suppressed"), 3,
+            "the flag must be computed once and consulted at both of its use sites "
+            "(state['summary_status'] and the global-line insert) — a stray or missing "
+            "use site is exactly how this fix would half-apply")
+
+    def test_v0261_other_claude_statuses_are_unaffected_by_codex(self):
+        """"Claude Code를 실제로 쓰다가 토큰이 만료되었거나 조회 중일 때는 예전처럼 그대로
+        안내가 뜹니다": the suppression above must not be widened to any status other
+        than the two onboarding keys, so token_expired/scanning/need_admin_key/loading/…
+        reach the pill exactly as before this release, whether or not Codex has data.
+
+        Behavioural proof: tests/test_companion_motion.py::CodexOnboardingSuppressionTests
+        .test_scanning_shows_regardless_of_ready_codex and
+        .test_token_expired_shows_regardless_of_ready_codex, each with a Codex segment
+        that is actually ready (the case a narrower suppression condition could still get
+        wrong). This test only checks that the condition text itself names no status
+        other than the two onboarding keys — the rivals it rules out: a suppression that
+        silently grew to swallow "every Claude status once Codex is ready" (the note's
+        first sentence would still read true while the second sentence became false)."""
+        self.assertRegex(self.body, r"토큰이\s*만료되었거나\s*조회\s*중")
+        run_gui = _module_def(APP_SOURCE, "run_gui")
+        text_fn = _nested_function(run_gui, "roam_summary_text")
+        src = ast.unparse(text_fn)
+        match = re.search(r"claude_onboarding_suppressed = (.+?)\n", src)
+        self.assertIsNotNone(match, "roam_summary_text must define claude_onboarding_suppressed")
+        condition = match.group(1)
+        self.assertIn("'onb_install', 'onb_login'", condition)
+        for other_status in ("token_expired", "scanning", "need_admin_key", "loading",
+                             "api_key_rejected", "api_unreachable"):
+            self.assertNotIn(
+                repr(other_status), condition,
+                f"the suppression condition must not name {other_status!r} — only "
+                "onb_install/onb_login may ever be suppressed")
+
+    def test_v0261_applies_to_both_platforms_with_nothing_new_to_configure(self):
+        """"macOS·Windows 모두 적용되며, 따로 설정할 것은 없습니다": the Windows half is
+        built on the Windows branch, not by this tree — following this module's own
+        precedent for the v0.25 notes' Windows claims (see the module docstring's
+        "Windows claims" paragraph), no gate in this checkout/session can say whether the
+        Windows half holds, so it is out of scope here and is not attempted. This test
+        pins the wording and checks only the macOS half: the fix is a local computed
+        inside an existing closure, not a new user-facing switch, so it reads no
+        ``RUNTIME``/``cfg`` key and needs no new one."""
+        self.assertRegex(self.body, r"macOS\s*[·・]\s*Windows\s*모두\s*적용")
+        self.assertRegex(self.body, r"따로\s*설정할\s*것은\s*없습니다")
+        run_gui = _module_def(APP_SOURCE, "run_gui")
+        text_fn = _nested_function(run_gui, "roam_summary_text")
+        src = ast.unparse(text_fn)
+        match = re.search(r"claude_onboarding_suppressed = (.+?)\n", src)
+        self.assertIsNotNone(match, "roam_summary_text must define claude_onboarding_suppressed")
+        condition = match.group(1)
+        self.assertNotIn("RUNTIME[", condition,
+                         "the suppression must not be gated by a new RUNTIME toggle — "
+                         "there is nothing for the user to configure")
+        self.assertNotIn("cfg[", condition,
+                         "the suppression must not be gated by a new config key — there "
+                         "is nothing for the user to configure")
 
 
 class SummaryMemoContractTests(unittest.TestCase):

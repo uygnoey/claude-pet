@@ -1444,6 +1444,163 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                                                  lambda key: "세션"), "session 42%")
 
 
+class CodexOnboardingSuppressionTests(unittest.TestCase):
+    """Codex-ready users must not see Claude's onboarding nag, but every other Claude
+    status must keep showing regardless of Codex. Exercises the real
+    ``roam_summary_text`` closure end to end, the same way
+    ``CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact``
+    does — the suppression (``claude_onboarding_suppressed``) is a local of that closure,
+    so a bare ``roam_summary()`` call can never see it.
+
+    Rivals this rules out:
+
+    - suppressing *every* Claude status whenever Codex has data (would hide
+      token_expired/scanning/etc, which is unrelated to onboarding and must still be
+      shown regardless of what Codex is doing);
+    - suppressing onb_install/onb_login unconditionally, Codex or not (breaks the much
+      larger population of users who do not use Codex at all — this is the original,
+      pre-fix behaviour and must not regress);
+    - gating on ``codex_seg`` truthiness alone without checking its ``kind`` — a Codex
+      *status* segment (loading/absent) is not "real" data and must not suppress
+      anything, only an ``("exact", rows)`` segment counts;
+    - leaving ``state["summary_status"]`` set to the suppressed key, which would make a
+      click on invisible text act as though the (unshown) onboarding line was clicked.
+    """
+
+    def _harness(self, auth_error=False, stats=None):
+        """Build the actual ``roam_summary_text`` closure with a minimal stub scope.
+
+        Mirrors ``CompanionCompactRegressionTests``'s harness for the same closure:
+        the required pure API, a hand-built ``state``/``RUNTIME``/``L``, and the
+        ``t()``/``astr`` stubs the closure and its module-level collaborators
+        (``summary_lines`` in particular) read through. Each call returns a *fresh*
+        closure with its own ``_summary_memo``, so callers that need two distinct
+        readings build two harnesses rather than fight the 5-second memo — the memo key
+        does not include the ad-hoc ``codex_summary`` hook used here (production keys
+        on ``id(state["codex"])`` instead, one level below the hook), so mutating the
+        hook between two calls on the same harness would silently return stale text.
+        """
+        from datetime import datetime, timezone
+        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
+                              "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
+                              "SUMMARY_LINE_H", "pill_h"})
+        state = {"oauth": None, "stats": {} if stats is None else stats, "cost": None,
+                 "cost_month": None, "onboard": None}
+        oauth_status = {"auth_error": auth_error}
+        runtime = {"mode": "sub", "api_budget": None, "admin_key": None}
+        lang_table = {"lang": "ko"}
+        clock = {"now": 1000.0}
+
+        def astr(text, font):
+            return SimpleNamespace(size=lambda: SimpleNamespace(width=len(text)))
+
+        # Distinctive, non-overlapping markers rather than the real translations, so a
+        # substring match below can't accidentally pass for the wrong reason.
+        tr_table = {"onb_install": "ONBOARD-INSTALL-MARK",
+                    "onb_login": "ONBOARD-LOGIN-MARK",
+                    "token_expired": "TOKEN-EXPIRED-MARK",
+                    "scanning": "SCANNING-MARK",
+                    "reset_prefix": "reset "}
+        scope = dict(api, state=state, RUNTIME=runtime, L=lang_table, F_SUMMARY=None,
+                     F_SUMMARY_SUB=None, OAUTH_STATUS=oauth_status,
+                     datetime=datetime, timezone=timezone,
+                     spike_info=lambda stats: None,
+                     fmt_countdown=lambda reset, at: "in 3h" if reset else "-",
+                     _label_order=lambda label: {"session": 0, "주간": 1}.get(label, 5),
+                     _summary_memo={"key": None, "value": None},
+                     _time=SimpleNamespace(time=lambda: clock["now"]),
+                     t=lambda key: tr_table.get(key, key),
+                     _pill_text_budget=lambda: 10_000.0,
+                     astr=astr)
+        # summary_lines() is module-level, so it translates through pure_api's own
+        # namespace, not this scope (see the precedent and full explanation in
+        # CompanionCompactRegressionTests.test_actual_summary_formatter_distinguishes_estimate_from_exact).
+        api["t"] = scope["t"]
+        gui_functions(self, ("roam_summary_text",), scope)
+        return scope["roam_summary_text"], state
+
+    @staticmethod
+    def _rendered(blocks):
+        return "".join(text for _pid, lines in blocks for line in lines for text, _kind in line)
+
+    def test_codex_ready_suppresses_onb_install(self):
+        text, state = self._harness()
+        state["onboard"] = "install"
+        state["codex_summary"] = lambda: ("exact", [("세션", 40.0, False, "in 3h")])
+        blocks, _width, _height = text()
+        pids = dict(blocks)
+        self.assertNotIn(None, pids,
+                         "onb_install must not appear as a global status line once "
+                         "Codex has real data")
+        self.assertNotIn("ONBOARD-INSTALL-MARK", self._rendered(blocks))
+        self.assertIn("codex", pids, "Codex's own block must still render")
+        self.assertIsNone(state["summary_status"],
+                          "a suppressed status must not stay clickable")
+
+    def test_codex_ready_suppresses_onb_login(self):
+        # roam_summary_text checks `segment[1] in ("onb_install", "onb_login")` as one
+        # condition — both keys share the exact same branch (see the diff), so one case
+        # each is enough to prove neither key was left out of that tuple; there is no
+        # separate code path for "login" to exercise independently.
+        text, state = self._harness()
+        state["onboard"] = "login"
+        state["codex_summary"] = lambda: ("exact", [("세션", 40.0, False, "in 3h")])
+        blocks, _width, _height = text()
+        pids = dict(blocks)
+        self.assertNotIn(None, pids,
+                         "onb_login must not appear as a global status line once "
+                         "Codex has real data")
+        self.assertNotIn("ONBOARD-LOGIN-MARK", self._rendered(blocks))
+        self.assertIsNone(state["summary_status"])
+
+    def test_onb_install_still_shows_without_codex(self):
+        """Non-overreach: a user who does not use Codex (hook absent, or present but
+        empty) must keep seeing the onboarding line exactly as before this fix."""
+        for label, install_hook in (("codex_summary hook never set", None),
+                                    ("codex_summary hook returns None", lambda: None)):
+            with self.subTest(case=label):
+                text, state = self._harness()
+                state["onboard"] = "install"
+                if install_hook is not None:
+                    state["codex_summary"] = install_hook
+                blocks, _width, _height = text()
+                pids = dict(blocks)
+                self.assertIn(None, pids,
+                             "a non-Codex user must still see the onboarding line")
+                self.assertIn("ONBOARD-INSTALL-MARK", self._rendered(blocks))
+                self.assertEqual(state["summary_status"], "onb_install")
+
+    def test_scanning_shows_regardless_of_ready_codex(self):
+        """Non-overreach: a status other than onb_install/onb_login is never
+        suppressed, Codex or not — it means 'something is unresolved with Claude Code
+        right now', which has nothing to do with whether Codex is configured.
+
+        The default harness state (no oauth rows, empty stats, no onboarding) already
+        falls through ``roam_summary()`` to ``("status", "scanning")``."""
+        text, state = self._harness()
+        state["codex_summary"] = lambda: ("exact", [("세션", 40.0, False, "in 3h")])
+        blocks, _width, _height = text()
+        pids = dict(blocks)
+        self.assertIn(None, pids, "scanning must not be suppressed by a ready Codex row")
+        self.assertIn("SCANNING-MARK", self._rendered(blocks))
+        self.assertEqual(state["summary_status"], "scanning")
+        self.assertIn("codex", pids)
+
+    def test_token_expired_shows_regardless_of_ready_codex(self):
+        """Same non-overreach claim as scanning, for the other non-onboarding status
+        this fix must leave untouched: the server rejected the token and the parsed
+        window is genuinely empty (``stats["entries"] == 0``)."""
+        text, state = self._harness(auth_error=True, stats={"entries": 0})
+        state["codex_summary"] = lambda: ("exact", [("세션", 40.0, False, "in 3h")])
+        blocks, _width, _height = text()
+        pids = dict(blocks)
+        self.assertIn(None, pids,
+                      "token_expired must not be suppressed by a ready Codex row")
+        self.assertIn("TOKEN-EXPIRED-MARK", self._rendered(blocks))
+        self.assertEqual(state["summary_status"], "token_expired")
+        self.assertIn("codex", pids)
+
+
 class CompanionGuiOwnershipTests(unittest.TestCase):
     def test_native_menu_validation_preserves_reduce_motion_disabled_item(self):
         # NSMenu performs its own validation when presented. Checking only the

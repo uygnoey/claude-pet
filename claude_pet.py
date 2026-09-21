@@ -958,7 +958,7 @@ def discover_pets():
 SESSION_HOURS = 5
 REFRESH_SEC = 30
 
-APP_VERSION = "0.26"                 # CFBundleShortVersionString 과 일치해야 한다
+APP_VERSION = "0.26.1"               # CFBundleShortVersionString 과 일치해야 한다
 GITHUB_REPO = "uygnoey/claude-pet"  # 자동 업데이트 확인용
 UPDATE_CHECK_SEC = 3600             # 새 릴리즈 확인 주기(1시간). 시작 시엔 확인하지 않고 한 주기 뒤부터 — run_gui 참조
 _upd_cache = {"t": 0.0, "busy": False}
@@ -8795,15 +8795,30 @@ def run_gui():
                                api_error=bool(state.get("api_error")),
                                api_stale=bool(state.get("api_stale")),
                                credit_text=state.get("credit_text"))
-        # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
-        # 상태 문구가 아니면 None 이라, 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
-        state["summary_status"] = segment[1] if segment[0] == "status" else None
         # 다른 제공자는 구간을 뒤에 덧붙이기만 한다 — 그리기·폭 계산은 run 단위라 손댈 곳이 없다.
         # 모듈 함수를 이름으로 부르지 않고 state 훅으로 받는다(roam_release 와 같은 이유):
         # 창 없는 시험은 손으로 만든 state 로 이 함수를 돌리고, 훅이 그냥 없으면 그 시험의
         # 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 구간 자체가 없다 — 0% 를 지어내지 않는다.
         codex_hook = state.get("codex_summary")
-        segments = [segment] + [s for s in ((codex_hook() if codex_hook else None),) if s]
+        codex_seg = codex_hook() if codex_hook else None
+        segments = [segment] + [s for s in (codex_seg,) if s]
+        # Codex 만 쓰는 사용자에게 "Claude Code 미설치/로그인 필요"를 계속 들이밀지 않는다 —
+        # Codex 행이 실제로 뜬다면(= 그 제공자를 켜서 쓰고 있다는 뜻) 온보딩 안내는 그 사람에게
+        # 할 일이 없는 문구다(설치 버튼을 눌러도 되는 건 여전하지만, 강요할 이유가 없다).
+        # 토큰 만료·조회 중 같은 다른 status 는 그대로 둔다 — 저건 "Claude Code 를 쓰다가
+        # 지금 문제"라는 뜻이라 Codex 유무와 무관하게 알려야 한다.
+        claude_onboarding_suppressed = (
+            segment[0] == "status" and segment[1] in ("onb_install", "onb_login")
+            and bool(codex_seg) and codex_seg[0] != "status"
+        )
+        # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
+        # 상태 문구가 아니면 None 이라, 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다.
+        # 위에서 억눌러 화면에 보이지 않는 상태를 클릭 의미로 남겨 두면, 안 보이는 문구를
+        # 누른 것으로 처리하는 유령 클릭이 생긴다.
+        state["summary_status"] = (
+            None if claude_onboarding_suppressed
+            else (segment[1] if segment[0] == "status" else None)
+        )
         # 제공자별 줄 묶음. **여기서 접히고, 그린 뒤에 다시 자르는 곳은 없다.**
         # 예산은 화면이다 — 예전에는 PILL_W(300)이라는 근거 없는 상수였고 그게 Codex 행이
         # 화면에 닿지 못한 원인이었다. 이제 상한이 화면이라 접힘은 현실에서 거의 발화하지
@@ -8841,9 +8856,10 @@ def run_gui():
                     groups.append((pid, [seg]))
                 elif kind == "loading":
                     groups.append((pid, [seg]))
-                elif seg is not None and pid == "claude":
+                elif seg is not None and pid == "claude" and not claude_onboarding_suppressed:
                     # Claude 의 status(온보딩·토큰 만료·스캔 중)는 버리지 않는다. 다만
                     # 제공자 블록이 아니라 전역 줄이다 — 마크 없이 필 전체 폭을 쓴다.
+                    # (Codex 가 실제로 뜬 상태의 온보딩 안내는 위에서 이미 걸러졌다.)
                     groups.insert(0, (None, [seg]))
         # 폭을 **접기 전** 내용에서 정한다. 접은 뒤의 폭으로 정하면 영원히 안 커진다:
         # 접힘은 지금 예산에 맞춰 줄을 나누므로 결과는 언제나 예산 안이고, 그러면
