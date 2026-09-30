@@ -1156,8 +1156,9 @@ class PublishedV026NotesContractTests(unittest.TestCase):
         ``return [LAUNCHCTL, 'submit'`` in recovery_spawn_argv, i.e. the claim that handing
         the CLI to ``launchctl submit`` spares the user a folder prompt.  That claim is what
         turned out false — ``submit`` has no working-directory option, so the CLI ran with
-        cwd ``/`` and asked for protected folders in its own name, and ``submit`` keeps a
-        failed job alive, so one spawn became several CLI runs.  The note's promise now
+        cwd ``/`` and asked for protected folders in its own name, and ``submit`` re-runs a
+        job after it exits — even after exit 0 — so one attempt became three CLI runs in the
+        06:15 launchd log.  The note's promise now
         rests on the mechanism tied below, stated as a property of everything reachable
         from _run_refresh_job (review R1: an earlier version pinned one implementation's
         shape instead).  It is a prose tie and deliberately loose — it cannot see *which*
@@ -1170,7 +1171,7 @@ class PublishedV026NotesContractTests(unittest.TestCase):
         an opt-in default, which makes "할 일은 없고" wrong for everyone; running the CLI
         as our own child, which attributes its folder scans to the pet; a launchd job with
         no private WorkingDirectory or with keep-alive (v0.26's ``submit``), which lets the
-        CLI ask for protected folders in its own name and relaunch after a failure; a
+        CLI ask for protected folders in its own name and relaunch after it exits; a
         single retry."""
         tick = _module_def(APP_SOURCE, "recovery_tick")
         tick_names = _names(tick)
@@ -1308,7 +1309,7 @@ class PublishedV026NotesContractTests(unittest.TestCase):
         whole_path = reachable("_run_refresh_job", "recovery_spawn_argv", "login_spawn_argv")
         self.assertNotIn("submit", code_strings(whole_path),
                          "`launchctl submit` must appear nowhere in the spawn path: it runs the "
-                         "CLI from / and keeps a failed job alive")
+                         "CLI from / and re-runs the job after it exits, even after exit 0")
         self.assertIn("recovery_cli_cwd",
                       {n.id for fn in spawn_path for n in ast.walk(fn) if isinstance(n, ast.Name)},
                       "the job's working directory must come from recovery_cli_cwd()")

@@ -46,11 +46,15 @@ CLI 는 절대 실제로 실행하지 않는다.
 그 job 을 어떻게 돌리는가**에 달려 있었다. 세 칸(AGENTS.md §5)을 섞지 않고 적는다.
 
 * 소스에서 읽히는 사실(관측이 아니다): v0.26 은 `launchctl submit` 을 썼다. `man
-  launchctl` 의 submit 은 "keep the program alive in the event of failure" 이고 작업
+  launchctl` 의 submit 은 "keep the program alive in the event of failure" 라고만 적고 작업
   디렉터리 옵션이 없다 — 그래서 CLI 는 launchd 의 기본 cwd 인 `/` 에서 돈다.
 * 관측(Coordinator 가 2026-09-30 09:05–09:31 KST 에 수집, 이 맥 한 대, CLI 2.1.284 —
-  cwdfix 스펙의 Evidence 절): launchd 로그에서 06:15:29 에 뜬 그 job 의 CLI 가 06:16:17 에
-  끝나자 곧바로 다시 떠서 스폰 한 번이 CLI 실행 두 번이 됐다. tccd 로그 2026-09-30
+  cwdfix 스펙의 Evidence 절; 횟수는 Verifier 가 같은 launchd 로그에서 다시 셌다): 06:15 의
+  시도 한 번에서 launchd 가 CLI 를 세 번 띄웠다 — 06:15:29, 06:16:17, 06:17:05(마지막 것은
+  06:17:36 에 job 이 내려질 때 아직 돌고 있었다). 실패할 때만이 아니다: exit 0 으로 끝난
+  submit job 도 다시 떴다 — Developer 의 프로브에서 `/usr/bin/true` 를 올린 job 이 24초 동안
+  1→2→3번 실행됐다(2026-09-30). Reviewer 의 프로브는 exit 0 뒤 job 이 "spawn scheduled" 로
+  넘어가는 것까지만 봤고, 실제 두 번째 실행은 관측하지 않았다. tccd 로그 2026-09-30
   05:28–06:52 KST 의 AUTHREQ_PROMPTING 14건은 전부 그 job 이 띄운 PID 7개에서 나왔고
   책임 프로세스는 ClaudePet 이 아니라 CLI 자신이었다. 통제 실행(09:24–09:30 KST) 3회
   중 cwd 가 빈 사설 폴더일 때는 TCC 요청 0건, cwd `/` 일 때는 5초 안에 ~/Music·
@@ -74,6 +78,7 @@ import inspect
 import os
 import pathlib
 import plistlib
+import re
 import stat
 import subprocess
 import sys
@@ -940,7 +945,7 @@ class DarwinOneShotJobTests(unittest.TestCase):
 
     def test_the_cli_is_handed_to_launchd_by_bootstrap_and_never_run_by_us(self):
         """Rivals: v0.26(이 하네스가 넘기는 새 argv 로는 CLI 를 subprocess.run 으로 직접
-        돌린다); `launchctl submit`(cwd 옵션 없음, 실패 시 재실행); submit + `env -C`;
+        돌린다); `launchctl submit`(cwd 옵션 없음, 끝난 job 을 다시 띄움 — exit 0 이어도); submit + `env -C`;
         Popen 으로 직계 자식; uid 501 하드코딩; plist 를 캐시 폴더가 아닌 곳에 둠."""
         r = _run_darwin_job(self)
         snap = _only_job(self, r)
@@ -951,7 +956,7 @@ class DarwinOneShotJobTests(unittest.TestCase):
         _cli_went_only_to_launchd(self, r, CLI_WITH_SPACE)
         for argv, _ in r.runs:
             self.assertNotIn("submit", argv,
-                             "launchctl submit — cwd 를 정할 수 없고 실패한 job 을 살려 둔다")
+                             "launchctl submit — cwd 를 정할 수 없고 끝난 job 을 다시 띄운다(exit 0 이어도)")
         self.assertFalse(r.wmi.called, "macOS 에서 WMI 경로를 탔다")
 
     def test_the_job_runs_exactly_the_given_argv_under_the_given_label(self):
@@ -995,10 +1000,12 @@ class DarwinOneShotJobTests(unittest.TestCase):
         self.assertEqual(r.result, JOB_FULL, "job 이 남긴 출력을 돌려주지 않았다")
 
     def test_the_job_runs_once_and_is_never_kept_alive(self):
-        """v0.26 의 두 번째 원인: submit 은 실패한 job 을 살려 둔다 — 관측(모듈 주석)에서
-        스폰 한 번이 CLI 실행 두 번이 됐다. 로그인이라면 취소할 때마다 브라우저가 다시 뜬다.
-        Rivals: KeepAlive true; KeepAlive {SuccessfulExit: false}(= 실패하면 재실행, 정확히
-        그 버그); 옛 이름 OnDemand false; RunAtLoad 없음(올려도 안 뜬다); 주기·감시 트리거."""
+        """v0.26 의 두 번째 원인: submit 은 끝난 job 을 다시 띄운다 — 실패했을 때만이 아니라
+        exit 0 이어도(재현됨). 관측(모듈 주석)에서 시도 한 번이 CLI 실행 세 번이 됐다.
+        로그인이라면 끝날 때마다 브라우저가 다시 뜬다.
+        Rivals: KeepAlive true; KeepAlive {SuccessfulExit: false}(실패하면 재실행 — v0.26 보다
+        좁지만 여전히 재실행이다); 옛 이름 OnDemand false; RunAtLoad 없음(올려도 안 뜬다);
+        주기·감시 트리거."""
         r = _run_darwin_job(self)
         job = _only_job(self, r)["plist"]
         self.assertIs(job.get("RunAtLoad"), True, "RunAtLoad 가 true 가 아니면 올려도 뜨지 않는다")
@@ -1182,8 +1189,8 @@ class DarwinEndToEndSpawnTests(unittest.TestCase):
         self._assert_one_shot(r, claude_pet.RECOVERY_JOB_LABEL, [CLI_WITH_SPACE, "-p", "/usage"])
 
     def test_the_login_hands_auth_login_to_a_one_shot_job(self):
-        """로그인은 keep-alive 의 대가가 가장 크다 — 취소하거나 실패한 `claude auth login` 이
-        LOGIN_TIMEOUT_SEC 까지 다시 떠서 브라우저를 또 연다(스펙 근본 원인 2)."""
+        """로그인은 keep-alive 의 대가가 가장 크다 — 끝난 `claude auth login` 이(취소든 실패든
+        성공이든) LOGIN_TIMEOUT_SEC 까지 다시 떠서 브라우저를 또 연다(스펙 근본 원인 2)."""
         with mock.patch.object(claude_pet, "_find_claude_cli", return_value=CLI_WITH_SPACE):
             r = _run_darwin_job(self, label=claude_pet.LOGIN_JOB_LABEL, stem="login",
                                 call=claude_pet.start_claude_login_background)
@@ -1232,6 +1239,327 @@ class LaunchctlBootoutTests(unittest.TestCase):
                                       create=True), \
                     mock.patch.object(claude_pet.subprocess, "run", side_effect=exc):
                 fn(PROBE_LABEL)
+
+
+# ── 업데이트·종료가 남긴 옛 job 치우기 (2026-09-30, 리뷰 R2) ─────────────────────────────────
+#
+# 소스에서 읽히는 사실: v0.26 은 `launchctl submit` 으로 job 을 올렸다(`man launchctl` 은 "keep
+# the program alive in the event of failure" 라고만 적는다). 관측(cwdfix-review 의 프로브,
+# 2026-09-30, 이 맥 한 번; Developer 도 재현): 프로그램이 exit 0 으로 끝난 submit job 도
+# "spawn scheduled" 로 넘어갔다 — 실패할 때만 다시 뜨는 것이 아니다. 그래서 앱이 업데이트
+# 되거나 시도 도중에 꺼지면, 남은 job 이 다음 시도의 bootout(최대 8시간 뒤)까지 CLI 를 `/` 에서
+# 다시 띄운다. 로그인 라벨이라면 브라우저가 다시 열린다.
+# 그래서 코드가 해야 하는 것(계약, Coordinator — 이름은 바인딩): clear_stale_launchd_jobs() 는
+# darwin 에서 _launchctl_bootout(LOGIN_JOB_LABEL) 을 늘 부르고, _launchctl_bootout(RECOVERY_JOB_LABEL)
+# 은 _recovery_busy 를 **기다리지 않고** 잡을 수 있을 때만 부른다(그 동안 쥐고 있다가 놓는다).
+# 잡혀 있으면 진행 중인 시도가 자기 bootout 으로 이미 옛 job 을 내렸고, 지금 내리면 그 시도의
+# 살아 있는 CLI 를 죽인다. 다른 플랫폼에서는 subprocess 도 bootout 도 없다. 예외를 내지 않는다.
+# run_gui() 는 기동할 때 이것을 데몬 threading.Thread 에서 한 번 띄운다(메인 스레드가 아니다).
+
+
+class _FakeLock:
+    """_recovery_busy 대역 — 절대 기다리지 않고, 무엇을 했는지 기록한다.
+
+    held            진행 중인 시도가 쥐고 있다(잡으려 해도 실패한다).
+    peek_says_free  locked() 가 '비었다' 고 답한다 — 들여다본 순간과 bootout 사이에 시도가
+                    끼어든 경우다. 들여다보고 행동하는 구현만 여기서 틀린다.
+    """
+
+    def __init__(self, events, held=False, peek_says_free=False):
+        self.events = events
+        self.held = held
+        self.peek_says_free = peek_says_free
+        self.owned = 0
+
+    def acquire(self, blocking=True, timeout=-1):
+        waits = bool(blocking) and timeout != 0
+        self.events.append(("acquire", "may-wait" if waits else "non-blocking"))
+        if self.held:
+            return False          # 진짜 Lock 이라면 기다리는 호출은 여기서 멈춘다
+        self.owned += 1
+        return True
+
+    def release(self):
+        if self.owned <= 0:
+            self.events.append(("release-of-a-lock-it-does-not-hold",))
+            return
+        self.owned -= 1
+        self.events.append(("release",))
+
+    def locked(self):
+        self.events.append(("peek",))
+        return self.held and not self.peek_says_free
+
+    def __enter__(self):
+        self.acquire()
+        return True
+
+    def __exit__(self, *exc):
+        self.release()
+        return False
+
+
+def _run_cleanup(test, platform="darwin", held=False, peek_says_free=False, fail_with=None,
+                 patch_bootout=False):
+    """clear_stale_launchd_jobs() 를 한 번 부른다. 실제 launchctl 은 절대 돌지 않는다."""
+    fn = getattr(claude_pet, "clear_stale_launchd_jobs", None)
+    test.assertTrue(callable(fn), "claude_pet.clear_stale_launchd_jobs() 가 없다 — 계약 이름이다")
+    events = []
+    lock = _FakeLock(events, held=held, peek_says_free=peek_says_free)
+
+    def fake_run(argv, *a, **kw):
+        events.append(("run", [str(x) for x in argv], lock.owned))
+        if fail_with is not None:
+            raise fail_with
+        return subprocess.CompletedProcess(argv, BOOTOUT_NOT_FOUND_RC, b"", b"")
+
+    raised = None
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(mock.patch.object(claude_pet.sys, "platform", platform))
+        _posix_shims(stack)
+        stack.enter_context(mock.patch.object(claude_pet.subprocess, "run", new=fake_run))
+        popen = stack.enter_context(mock.patch.object(claude_pet.subprocess, "Popen"))
+        stack.enter_context(mock.patch.object(claude_pet, "_recovery_busy", lock))
+        bootout = (stack.enter_context(mock.patch.object(claude_pet, "_launchctl_bootout"))
+                   if patch_bootout else None)
+        try:
+            fn()
+        except Exception as e:          # 계약 위반이다 — 테스트가 판정한다
+            raised = e
+    runs = [e for e in events if e[0] == "run"]
+    return types.SimpleNamespace(events=events, runs=runs, lock=lock, popen=popen,
+                                 bootout=bootout, raised=raised)
+
+
+def _bootout_targets(r):
+    return [e[1][2] for e in r.runs if e[1][:2] == [claude_pet.LAUNCHCTL, "bootout"]
+            and len(e[1]) == 3]
+
+
+def _own_nodes(fn):
+    """(node, in_loop) — fn 자신의 본문만. 중첩 함수·람다·클래스 안은 다른 때에 돈다.
+    (본문 맨 위에 놓인 중첩 def 도 빼야 한다 — 처음엔 자식으로 발견된 것만 걸러서, 중첩 함수
+    안의 호출을 메인 스레드 호출로 잘못 셌다. 정당한 모양 CL2·CL6 을 돌려서 찾았다.)"""
+    nested = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+    out, stack = [], [(n, False) for n in fn.body if not isinstance(n, nested)]
+    while stack:
+        node, in_loop = stack.pop()
+        out.append((node, in_loop))
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, nested):
+                continue
+            stack.append((child, in_loop or isinstance(node, (ast.For, ast.While, ast.AsyncFor))))
+    return out
+
+
+class StaleJobCleanupTests(unittest.TestCase):
+    """clear_stale_launchd_jobs() — 위 주석의 관측과 계약.
+
+    Rivals(전부 돌려 봤다 — scratchpad cwdfix-cleanup-red.txt): 부르지 않음; 한 라벨만;
+    시도가 잠금을 쥐고 있는데 복구 라벨을 내림(살아 있는 job 을 죽인다); 잠금을 기다리며 잡음;
+    잠금을 놓지 않음; 메인 스레드에서 부름; win32 에서 launchctl 을 건드림; 실패하면 예외;
+    locked() 로 들여다보고 행동함; 잡았다 놓은 뒤에 내림; 못 잡았는데도 놓음; 데몬이 아닌 스레드;
+    만들고 시작하지 않은 스레드; 두 번 띄움. 리뷰 R3 이 더 찾은 셋: 새로고침 시도마다 부름(C19 —
+    진행 중인 로그인 job 을 내린다); AppHelper.runEventLoop() 뒤에서 시작(C20 — 앱이 떠 있는 동안
+    돌지 않는다); 로그인마다 부름(C22 — '한 번' 이 깨진다).
+    """
+
+    LOGIN = "gui/%d/%s" % (PROBE_UID, claude_pet.LOGIN_JOB_LABEL)
+    RECOVERY = "gui/%d/%s" % (PROBE_UID, claude_pet.RECOVERY_JOB_LABEL)
+
+    def _no_waiting(self, r):
+        self.assertEqual([e for e in r.events if e == ("acquire", "may-wait")], [],
+                         "_recovery_busy 를 기다리며 잡으려 했다 — 시도가 끝날 때까지 멈춘다")
+        self.assertNotIn(("release-of-a-lock-it-does-not-hold",), r.events,
+                         "쥐지 않은 잠금을 풀었다 — 진행 중인 시도의 잠금이 풀린다")
+
+    def test_on_macos_both_leftover_jobs_are_booted_out_when_no_attempt_is_running(self):
+        r = _run_cleanup(self)
+        self.assertIsNone(r.raised, "예외가 밖으로 나왔다: %r" % (r.raised,))
+        self.assertEqual(sorted(_bootout_targets(r)), sorted([self.LOGIN, self.RECOVERY]),
+                         "두 라벨을 한 번씩 내려야 한다 — 실제 호출: %r" % [e[1] for e in r.runs])
+        self.assertEqual([e[1] for e in r.runs if e[1][:2] != [claude_pet.LAUNCHCTL, "bootout"]], [],
+                         "bootout 말고 다른 것을 돌렸다")
+        self.assertFalse(r.popen.called)
+        held_during = [e[2] for e in r.runs if e[1][2:] == [self.RECOVERY]]
+        self.assertEqual(held_during, [1],
+                         "복구 라벨은 _recovery_busy 를 쥔 채로 내려야 한다 — 놓은 뒤에 내리면 그 틈에 "
+                         "시작한 시도의 job 을 죽인다")
+        self.assertEqual(r.lock.owned, 0, "_recovery_busy 를 놓지 않았다 — 복구가 영영 멈춘다")
+        self._no_waiting(r)
+
+    def test_the_recovery_job_is_left_alone_while_an_attempt_holds_the_lock(self):
+        for name, kw in (("held", dict(held=True)),
+                         ("taken between a peek and the bootout", dict(held=True, peek_says_free=True))):
+            with self.subTest(lock=name):
+                r = _run_cleanup(self, **kw)
+                self.assertIsNone(r.raised, "예외가 밖으로 나왔다: %r" % (r.raised,))
+                self.assertIn(self.LOGIN, _bootout_targets(r), "로그인 라벨은 늘 내려야 한다")
+                self.assertNotIn(self.RECOVERY, _bootout_targets(r),
+                                 "시도가 잠금을 쥐고 있는데 복구 job 을 내렸다 — 살아 있는 CLI 를 죽인다")
+                self._no_waiting(r)
+
+    def test_on_other_platforms_it_touches_nothing(self):
+        for plat in ("win32", "linux"):
+            with self.subTest(platform=plat):
+                r = _run_cleanup(self, platform=plat, patch_bootout=True)
+                self.assertIsNone(r.raised, "예외가 밖으로 나왔다: %r" % (r.raised,))
+                self.assertEqual(r.runs, [], "%s 에서 subprocess 를 돌렸다" % plat)
+                self.assertFalse(r.popen.called)
+                self.assertFalse(r.bootout.called, "%s 에서 _launchctl_bootout 을 불렀다" % plat)
+
+    def test_a_failing_launchctl_never_escapes_and_both_labels_are_still_tried(self):
+        for exc in (OSError(errno.ENOENT, "No such file or directory"),
+                    subprocess.TimeoutExpired([claude_pet.LAUNCHCTL, "bootout"], 10)):
+            with self.subTest(exc=type(exc).__name__):
+                r = _run_cleanup(self, fail_with=exc)
+                self.assertIsNone(r.raised, "예외가 밖으로 나왔다 — 시작 스레드가 죽는다: %r" % (r.raised,))
+                self.assertEqual(sorted(_bootout_targets(r)), sorted([self.LOGIN, self.RECOVERY]),
+                                 "첫 실패 뒤 나머지 라벨을 내리지 않았다")
+                self.assertEqual(r.lock.owned, 0, "실패한 뒤 _recovery_busy 를 놓지 않았다")
+
+    def test_run_gui_starts_it_once_on_a_daemon_thread(self):
+        """정적 검사(run_gui 는 GUI 라 돌릴 수 없다).
+
+        허용하는 모양: run_gui 본문에서, 또는 run_gui 본문이 **한 번** 부르는 도우미 하나(모듈 함수나
+        중첩 함수) 안에서, threading.Thread(target=…) 를 루프 밖에서 한 번 만들고 시작한다. target 은
+        그 함수 자체, 그것을 부르는 람다, 또는 그것을 부르는 중첩 함수. 데몬은 daemon=True 인자나
+        .daemon = True.
+
+        리뷰 R3 이 더한 두 조건:
+        (a) 그 시작(또는 도우미 호출)은 run_gui 본문에서 AppHelper.runEventLoop() 보다 **앞**이다 —
+            그 호출은 앱이 끝날 때까지 돌아오지 않으므로, 뒤에 두면 앱이 떠 있는 동안 치우기가 돌지
+            않는다(C20). tests/test_update_check_schedule.py 가 업데이트 시각 도장에 하는 것과 같은
+            방식이다: run_gui 의 최상위 문장 번호를 비교한다.
+        (b) 모듈 어디서도 그 함수를 **스레드의 target 말고는** 참조하지 않는다 — run_gui 안의 중첩
+            메서드도 포함해서. 새로고침 시도마다(C19) 부르면 진행 중인 로그인 job 을 내리고, 로그인마다
+            (C22) 부르면 '기동할 때 한 번' 이 깨진다. 같은 이유로 스레드를 시작하는 도우미와 target 으로
+            쓴 중첩 함수도 한 번만 참조돼야 한다.
+        """
+        name = "clear_stale_launchd_jobs"
+        event_loop = "AppHelper.runEventLoop()"
+        tree = _source_tree()
+        defs = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+        self.assertIn("run_gui", defs, "run_gui 를 찾지 못했다")
+        run_gui = defs["run_gui"]
+        own = _own_nodes(run_gui)
+        nested_defs = {n.name: n for n in ast.walk(run_gui)
+                       if isinstance(n, ast.FunctionDef) and n is not run_gui}
+        called = {c.func.id for c, _ in own
+                  if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+        # run_gui 본문(메인 스레드)에서 곧바로 불리는 모듈 함수와 중첩 함수가 도우미 후보다.
+        scopes = ([run_gui] + [defs[h] for h in sorted(called) if h in defs and h != name]
+                  + [nested_defs[h] for h in sorted(called) if h in nested_defs and h != name])
+
+        def refs_in(node):
+            return [n for n in ast.walk(node) if isinstance(n, ast.Name) and n.id == name]
+
+        def calls_it(node):
+            return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Name) and c.func.id == name
+                       for c in ast.walk(node))
+
+        def target_refs(target, scope):
+            """target 이 그 함수를 돌린다면 (그 참조들, 중첩 함수 이름|None), 아니면 None."""
+            if isinstance(target, ast.Name) and target.id == name:
+                return [target], None
+            if isinstance(target, ast.Lambda) and calls_it(target.body):
+                return refs_in(target.body), None
+            if isinstance(target, ast.Name):
+                nested = [n for n in ast.walk(scope)
+                          if isinstance(n, ast.FunctionDef) and n.name == target.id and n is not scope]
+                if nested and calls_it(nested[0]):
+                    return refs_in(nested[0]), target.id
+            return None
+
+        found = []
+        for scope in scopes:
+            scope_own = _own_nodes(scope)
+            for node, in_loop in scope_own:
+                if not (isinstance(node, ast.Call) and (
+                        (isinstance(node.func, ast.Attribute) and node.func.attr == "Thread")
+                        or (isinstance(node.func, ast.Name) and node.func.id == "Thread"))):
+                    continue
+                target = next((kw.value for kw in node.keywords if kw.arg == "target"), None)
+                hit = target_refs(target, scope) if target is not None else None
+                if hit is None:
+                    continue
+                daemon = any(kw.arg == "daemon" and isinstance(kw.value, ast.Constant)
+                             and kw.value.value is True for kw in node.keywords)
+                started, var = False, None
+                for parent, _ in scope_own:
+                    if (isinstance(parent, ast.Attribute) and parent.value is node
+                            and parent.attr == "start"):
+                        started = True
+                    if isinstance(parent, ast.Assign) and parent.value is node:
+                        var = next((t.id for t in parent.targets if isinstance(t, ast.Name)), None)
+                if var:
+                    for n2, _ in scope_own:
+                        if (isinstance(n2, ast.Call) and isinstance(n2.func, ast.Attribute)
+                                and n2.func.attr == "start" and isinstance(n2.func.value, ast.Name)
+                                and n2.func.value.id == var):
+                            started = True
+                        if (isinstance(n2, ast.Assign) and any(
+                                isinstance(t, ast.Attribute) and t.attr == "daemon"
+                                and isinstance(t.value, ast.Name) and t.value.id == var
+                                for t in n2.targets)
+                                and isinstance(n2.value, ast.Constant) and n2.value.value is True):
+                            daemon = True
+                found.append({"scope": scope, "call": node, "refs": hit[0], "via": hit[1],
+                              "daemon": daemon, "started": started, "in_loop": in_loop})
+        self.assertEqual(len(found), 1,
+                         "run_gui 가 %s 를 도는 스레드를 정확히 한 번 만들어야 한다: %r"
+                         % (name, [(f["scope"].name, f["in_loop"]) for f in found]))
+        start = found[0]
+        self.assertTrue(start["daemon"], "데몬 스레드가 아니다 — 종료를 붙잡는다")
+        self.assertTrue(start["started"], "스레드를 만들고 시작하지 않았다")
+        self.assertFalse(start["in_loop"], "루프 안에서 만든다 — 기동할 때 한 번이 아니다")
+
+        # (b) 스레드의 target 말고는 모듈 어디서도 참조하지 않는다.
+        parents = {}
+        for parent in ast.walk(tree):
+            for child in ast.iter_child_nodes(parent):
+                parents[child] = parent
+
+        def where(node):
+            chain = []
+            while node in parents:
+                node = parents[node]
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    chain.append(node.name)
+            return ".".join(reversed(chain)) or "<module>"
+
+        sanctioned = {id(n) for n in start["refs"]}
+        stray = [where(n) for n in refs_in(tree) if id(n) not in sanctioned]
+        self.assertEqual(stray, [],
+                         "%s 를 스레드의 target 말고 다른 곳에서 참조한다 — 시도마다·로그인마다 부르면 "
+                         "진행 중인 job 을 내리거나 '기동할 때 한 번' 이 깨진다(C19·C22)" % name)
+        if start["via"] is not None:        # target 으로 쓴 중첩 함수도 그 한 번뿐이어야 한다
+            uses = [n for n in ast.walk(run_gui) if isinstance(n, ast.Name) and n.id == start["via"]]
+            self.assertEqual(len(uses), 1,
+                             "target 으로 쓴 중첩 함수 %s 를 다른 곳에서도 부른다" % start["via"])
+
+        # 도우미라면 run_gui 본문에서 루프 밖에서 한 번만 불리고, 다른 곳에서는 참조되지 않는다.
+        if start["scope"] is run_gui:
+            site = start["call"]
+        else:
+            helper = start["scope"].name
+            universe = tree if helper in defs else run_gui
+            uses = [n for n in ast.walk(universe) if isinstance(n, ast.Name) and n.id == helper]
+            calls = [(c, in_loop) for c, in_loop in own if isinstance(c, ast.Call)
+                     and isinstance(c.func, ast.Name) and c.func.id == helper]
+            self.assertEqual((len(uses), len(calls)), (1, 1),
+                             "스레드를 시작하는 도우미 %s 는 run_gui 본문에서 한 번만 불려야 한다" % helper)
+            self.assertFalse(calls[0][1], "도우미를 루프 안에서 부른다 — 기동할 때 한 번이 아니다")
+            site = calls[0][0]
+
+        # (a) AppHelper.runEventLoop() 보다 앞 — run_gui 최상위 문장 번호로 비교한다.
+        loops = [i for i, stmt in enumerate(run_gui.body)
+                 if isinstance(stmt, ast.Expr) and ast.unparse(stmt) == event_loop]
+        self.assertEqual(len(loops), 1, "run_gui 본문에 %s 가 정확히 하나 있어야 한다" % event_loop)
+        at = next(i for i, stmt in enumerate(run_gui.body) if any(n is site for n in ast.walk(stmt)))
+        self.assertLess(at, loops[0],
+                        "스레드 시작이 %s 뒤에 있다 — 그 호출은 앱이 끝날 때까지 돌아오지 않으므로 "
+                        "앱이 떠 있는 동안 치우기가 돌지 않는다(C20)" % event_loop)
 
 
 class WindowsCliCwdTests(unittest.TestCase):
@@ -1341,6 +1669,293 @@ class WindowsWmiCwdTests(unittest.TestCase):
         argv, kw = calls[0]
         self.assertNotIn("CurrentDirectory", self._script(argv))
         self.assertNotIn(self.NAME, kw.get("env") or {})
+
+
+# ── 윈도우: WMI 가 만드는 콘솔은 숨긴다 (2026-09-30, cwdfix 윈도우 라운드 1·1b) ──────────────
+#
+# 관측(윈도우 11 10.0.26200 한 대, Windows Terminal 이 콘솔 위임을 받는 기본 터미널인 기계,
+# cwdfix-win-verify 가 2026-09-30 11:20–11:39 KST 에 측정 — scratchpad WIN-ROUND1/1B 보고):
+# ProcessStartupInformation 없이 Win32_Process.Create 로 띄운 복구 스폰은 5회 중 5회 **보이는
+# Windows Terminal 창**을 3–4초 띄웠다(수정 전·후 모두). Win32_ProcessStartup{ShowWindow=
+# [uint16]0} 을 넘긴 변형 B 는 2회 중 2회 보이는 창이 0개였다(클래식 conhost 창은 있으나
+# IsWindowVisible=False 이고 위임이 일어나지 않았다). ReturnValue·PID·출력·cwd·트랜스크립트
+# 폴더·잔여 프로세스 0 은 같았다. CreateFlags 에 CREATE_NO_WINDOW 를 넣은 변형 C·D 는 2회씩
+# 모두 ReturnValue 21 로 **아무것도 띄우지 못했다**. 그 기계·그 표본의 사실이다.
+# 그래서 코드가 해야 하는 것(Coordinator 계약): 스크립트가 클라이언트 쪽에서 ShowWindow 가
+# 0 인 Win32_ProcessStartup 을 만들어 Create 의 ProcessStartupInformation 으로 넘긴다 — cwd 가
+# 있든 없든. CreateFlags 는 절대 두지 않는다. 명령줄과 cwd 는 여전히 두 환경변수로만 가고,
+# PID 는 여전히 $r.ProcessId, 0 이 아닌 ReturnValue 는 여전히 None 이다.
+# 모르는 것: 로그인 경로(브라우저를 여는 것)는 윈도우에서 돌려 보지 않았다. 타입 없는 0
+# (PowerShell 에서 Int32)이 클라이언트 전용 인스턴스에서 받아들여지는지도 측정되지 않았다 —
+# 그래서 아래 검사는 **측정된 형태**인 [uint16]0 을 요구한다.
+#
+# 실제 WMI 는 절대 부르지 않는다. PowerShell 로 넘어가는 -Command 스크립트를 읽어서 판단한다.
+# 한 가지 철자에 묶이지 않도록 문장·해시테이블을 나눠 읽고, PowerShell 처럼 대소문자를
+# 가리지 않는다(매개변수 순서, 변수 이름, 공백, 줄바꿈, 인라인 인스턴스 모두 허용).
+
+
+def _ps_split(text, seps=";\n"):
+    """PowerShell 텍스트를 최상위 구분자로 자른다 — 따옴표·괄호·중괄호 안은 자르지 않는다."""
+    parts, buf, depth, quote, i = [], [], 0, None, 0
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            buf.append(ch)
+            if ch == quote:
+                if i + 1 < len(text) and text[i + 1] == quote:   # '' · "" 는 따옴표 이스케이프
+                    buf.append(text[i + 1])
+                    i += 1
+                else:
+                    quote = None
+        elif ch in "'\"":
+            quote = ch
+            buf.append(ch)
+        elif ch in "([{":
+            depth += 1
+            buf.append(ch)
+        elif ch in ")]}":
+            depth -= 1
+            buf.append(ch)
+        elif ch in seps and depth == 0:
+            part = "".join(buf).strip()
+            if part:
+                parts.append(part)
+            buf = []
+        else:
+            buf.append(ch)
+        i += 1
+    part = "".join(buf).strip()
+    if part:
+        parts.append(part)
+    return parts
+
+
+def _ps_braced(text, start):
+    """text[start:] 가 '@{' 로 시작하면 짝이 맞는 '}' 까지의 조각, 아니면 None."""
+    if not text.startswith("@{", start):
+        return None
+    depth, quote = 0, None
+    for i in range(start + 1, len(text)):
+        ch = text[i]
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
+def _ps_hashtable(text):
+    """'@{k=v; k2=v2}' → {k 소문자: v 원문}. 해시테이블이 아니면 None (PowerShell 키는 대소문자 무시)."""
+    if not (isinstance(text, str) and text.startswith("@{") and text.endswith("}")):
+        return None
+    out = {}
+    for entry in _ps_split(text[2:-1]):
+        key, sep, value = entry.partition("=")
+        if not sep:
+            return None
+        out[key.strip().strip("'\"").lower()] = value.strip()
+    return out
+
+
+def _ps_param(command, name):
+    """명령 문장에서 `-name 값` 의 값 텍스트(해시테이블이면 @{…} 전체). 없으면 None."""
+    m = re.search(r"(?i)(?<![\w-])-%s(?::|\s+)" % re.escape(name), command)
+    if not m:
+        return None
+    if command.startswith("@{", m.end()):
+        return _ps_braced(command, m.end())
+    tokens = _ps_split(command[m.end():], seps=" \t")
+    return tokens[0].strip("'\"") if tokens else None
+
+
+_UINT16_ZERO = re.compile(r"(?i)^\[(?:system\.)?uint16\]\s*(?:0x)?0+$")
+
+
+def _startup_instance_problem(expr):
+    """expr 가 '클라이언트 쪽 Win32_ProcessStartup, ShowWindow=[uint16]0' 이면 None, 아니면 그 이유."""
+    expr = expr.strip()
+    while expr.startswith("(") and expr.endswith(")"):
+        expr = expr[1:-1].strip()
+    m = re.match(r"(?is)^New-CimInstance\b(.*)$", expr)
+    if not m:
+        return "시작 정보가 New-CimInstance 로 만든 인스턴스가 아니다: %r" % expr[:80]
+    args = m.group(1)
+    cls = _ps_param(args, "ClassName")
+    if cls is None:
+        tokens = _ps_split(args, seps=" \t")
+        cls = tokens[0].strip("'\"") if tokens and not tokens[0].startswith("-") else None
+    if (cls or "").lower() != "win32_processstartup":
+        return "Win32_ProcessStartup 인스턴스가 아니다: %r" % cls
+    if not re.search(r"(?i)(?<![\w-])-ClientOnly\b", args):
+        return "-ClientOnly 가 없다 — 서버에 만들려다 실패하고 기본 창 동작으로 돌아간다"
+    props = _ps_hashtable(_ps_param(args, "Property"))
+    if props is None:
+        return "-Property @{…} 를 읽을 수 없다"
+    if not _UINT16_ZERO.match(props.get("showwindow", "")):
+        return "ShowWindow 가 [uint16]0(SW_HIDE)이 아니다: %r" % props.get("showwindow")
+    return None
+
+
+def _wmi_script_problems(script):
+    """-Command 스크립트가 숨김 계약을 어기는 곳들의 목록. 비어 있으면 통과."""
+    problems = []
+    if re.search(r"(?i)createflags", script):
+        problems.append("CreateFlags 를 둔다 — WMI 가 ReturnValue 21 로 거부해 아무것도 뜨지 않는다(1b 실측)")
+    statements = _ps_split(script)
+    bound = {}                         # 변수(소문자) → [(문장 번호, 오른쪽 식)]
+    create = None
+    for i, statement in enumerate(statements):
+        m = re.match(r"(?s)^\$(\w+)\s*=\s*(.+)$", statement)
+        if not m:
+            continue
+        var, expr = m.group(1).lower(), m.group(2).strip()
+        bound.setdefault(var, []).append((i, expr))
+        if re.match(r"(?i)^Invoke-CimMethod\b", expr):
+            create = (i, var, expr)
+    if create is None:
+        return problems + ["Create 결과를 변수에 받는 Invoke-CimMethod 가 없다"]
+    at, result, expr = create
+    if not (re.search(r"(?i)(?<![\w-])-ClassName(?::|\s+)['\"]?Win32_Process['\"]?(?!\w)", expr)
+            and re.search(r"(?i)(?<![\w-])-MethodName(?::|\s+)['\"]?Create\b", expr)):
+        problems.append("Win32_Process 의 Create 호출이 아니다")
+    args = _ps_hashtable(_ps_param(expr, "Arguments"))
+    if args is None:
+        return problems + ["Create 의 -Arguments @{…} 를 읽을 수 없다"]
+    extra = sorted(set(args) - {"commandline", "currentdirectory", "processstartupinformation"})
+    if extra:
+        problems.append("Create 의 매개변수가 아닌 키가 있다: %s" % extra)
+    info = args.get("processstartupinformation")
+    if info is None:
+        problems.append("ProcessStartupInformation 을 넘기지 않는다 — 기본값이면 콘솔이 "
+                        "Windows Terminal 로 위임돼 보이는 창이 뜬다(1·1b 실측 5/5)")
+    else:
+        m = re.match(r"^\$(\w+)$", info)
+        if m:
+            earlier = [e for j, e in bound.get(m.group(1).lower(), []) if j < at]
+            problem = (_startup_instance_problem(earlier[-1]) if earlier else
+                       "ProcessStartupInformation 의 $%s 가 Create 앞에서 만들어지지 않았다"
+                       % m.group(1))
+        else:
+            problem = _startup_instance_problem(info)
+        if problem:
+            problems.append(problem)
+    if not re.search(r"(?i)\bif\s*\(\s*\$%s\.ReturnValue\s+-ne\s+0\s*\)\s*\{\s*exit\s+1\s*\}"
+                     % re.escape(result), script):
+        problems.append("Create 결과($%s)의 ReturnValue 가 0 이 아닐 때 exit 1 하지 않는다" % result)
+    if not re.search(r"(?i)\[Console\]::Out\.Write\(\s*\$%s\.ProcessId\s*\)" % re.escape(result),
+                     script):
+        problems.append("PID 를 Create 결과($%s.ProcessId)에서 내보내지 않는다" % result)
+    return problems
+
+
+class WindowsHiddenConsoleTests(unittest.TestCase):
+    """WMI 가 띄우는 콘솔은 **보이지 않게** 만든다 — 위 주석의 관측과 계약.
+
+    Rivals(전부 돌려 봤다 — scratchpad cwdfix-win-hide-red.txt): 시작 정보 없음(현재 코드,
+    그리고 '-WindowStyle Hidden 이면 된다' 는 판단 — 그 옵션은 PowerShell 자신만 숨긴다);
+    CreateFlags 만(변형 C, ReturnValue 21); ShowWindow+CreateFlags(변형 D, 21); ShowWindow 가
+    1·2 등 0 이 아닌 값; 인스턴스를 만들고 넘기지 않음; ShowWindow 를 Create 해시테이블에
+    직접(Create 의 매개변수가 아니다); cwd 가 있을 때만 시작 정보를 붙임; -ClientOnly 없음;
+    다른 변수를 넘김; Create 뒤에 만듦; 결과 배선(ReturnValue·ProcessId)을 다른 변수로.
+    """
+
+    NAME = WindowsWmiCwdTests.NAME
+    CWD = WindowsWmiCwdTests.CWD
+    CMDLINE = WindowsWmiCwdTests.CMDLINE
+    _create = WindowsWmiCwdTests._create
+    _script = WindowsWmiCwdTests._script
+
+    def test_the_console_it_creates_is_hidden_with_and_without_a_cwd(self):
+        for case, kw in (("cwd given", {"cwd": self.CWD}), ("cwd None", {"cwd": None}),
+                         ("cwd omitted", {})):
+            with self.subTest(case=case):
+                pid, calls = self._create(**kw)
+                self.assertEqual(len(calls), 1, "PowerShell 을 정확히 한 번 불러야 한다")
+                argv, k = calls[0]
+                script = self._script(argv)
+                self.assertEqual(_wmi_script_problems(script), [],
+                                 "숨김 계약 위반 — 받은 스크립트: %s" % script)
+                self.assertEqual((k.get("env") or {}).get(claude_pet.WIN_SPAWN_ENV), self.CMDLINE,
+                                 "명령줄은 여전히 환경변수로 건너가야 한다")
+                for a in argv:
+                    self.assertNotIn("O'Brien", a, "명령줄이나 cwd 가 PowerShell 인자에 그대로 들어갔다")
+                self.assertEqual(pid, 4242)
+
+    def test_a_failed_create_is_still_none_and_the_pid_still_comes_back(self):
+        """**NOT A GATE** — 회귀 가드다(작성 시점에 초록이고 그래야 맞다). 숨김을 붙이면서
+        파이썬 쪽 배선이 바뀌지 않았는지 본다: 0 이 아닌 종료 → None, 숫자가 아닌 출력 → None,
+        0 이하 PID → None, 정상 → PID."""
+        for rc, out, expected in ((0, "4242", 4242), (1, "", None), (0, "", None), (0, "0", None)):
+            with self.subTest(rc=rc, stdout=out):
+                def fake_run(argv, *a, _rc=rc, _out=out, **k):
+                    return subprocess.CompletedProcess(argv, _rc, _out, "")
+                with mock.patch.object(claude_pet.sys, "platform", "win32"), \
+                        mock.patch.dict(os.environ), \
+                        mock.patch.object(claude_pet.subprocess, "run", new=fake_run):
+                    self.assertEqual(claude_pet._win_wmi_create(self.CMDLINE, cwd=self.CWD),
+                                     expected)
+
+    def test_the_checker_itself_accepts_b_and_rejects_its_rivals(self):
+        """**NOT A GATE** — 계측기 검사다(claude_pet 을 보지 않는다). 위 게이트가 기대는
+        _wmi_script_problems 가 측정된 변형 B 와 그 정당한 변형들은 받고, 경쟁 구현은 전부
+        거절하는지 본다. 이것이 초록이 아니면 게이트의 초록은 아무것도 말하지 않는다."""
+        head = "$si = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property "
+        create = ("$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments "
+                  "@{CommandLine=$env:CLAUDEPET_SPAWN_CMDLINE; CurrentDirectory=$env:CLAUDEPET_SPAWN_CWD; %s}")
+        tail = "; if ($r.ReturnValue -ne 0) { exit 1 }; [Console]::Out.Write($r.ProcessId)"
+        b = head + "@{ShowWindow=[uint16]0}; " + create % "ProcessStartupInformation=$si" + tail
+        accepted = {
+            "B (1b, production string)": b,
+            "B without cwd": b.replace("; CurrentDirectory=$env:CLAUDEPET_SPAWN_CWD", ""),
+            "parameters reordered, other case and spacing":
+                "$Startup = new-ciminstance -ClientOnly -classname win32_processstartup "
+                "-property @{ ShowWindow = [UInt16]0 }; $R = invoke-cimmethod -MethodName Create "
+                "-ClassName Win32_Process -Arguments @{ ProcessStartupInformation = $startup ; "
+                "CommandLine = $env:CLAUDEPET_SPAWN_CMDLINE }" + tail.replace("$r", "$R"),
+            "instance inline":
+                create % ("ProcessStartupInformation=(New-CimInstance -ClassName Win32_ProcessStartup "
+                          "-ClientOnly -Property @{ShowWindow=[uint16]0})") + tail,
+            "newlines between statements, [System.UInt16]":
+                (head + "@{ShowWindow=[System.UInt16]0}\n" + create % "ProcessStartupInformation=$si"
+                 + tail).replace("; if", "\nif").replace("; [Console]", "\n[Console]"),
+        }
+        a = create % "X=1"
+        a = a.replace("; X=1", "") + tail
+        rejected = {
+            "A: no startup information (current code)": a,
+            "C: CreateFlags only": head + "@{CreateFlags=[uint32]0x08000000}; "
+                                   + create % "ProcessStartupInformation=$si" + tail,
+            "D: ShowWindow and CreateFlags": head + "@{ShowWindow=[uint16]0; CreateFlags=[uint32]0x08000000}; "
+                                             + create % "ProcessStartupInformation=$si" + tail,
+            "ShowWindow 1": b.replace("[uint16]0", "[uint16]1"),
+            "ShowWindow 2": b.replace("[uint16]0", "[uint16]2"),
+            "ShowWindow untyped 0 (unmeasured Int32)": b.replace("[uint16]0", "0"),
+            "built but not passed": head + "@{ShowWindow=[uint16]0}; " + a,
+            "ShowWindow in the Create hashtable": create % "ShowWindow=[uint16]0" + tail,
+            "no -ClientOnly": b.replace(" -ClientOnly", ""),
+            "another variable passed": b.replace("ProcessStartupInformation=$si",
+                                                 "ProcessStartupInformation=$startup"),
+            "made after Create": create % "ProcessStartupInformation=$si" + "; "
+                                 + head + "@{ShowWindow=[uint16]0}" + tail,
+            "ReturnValue check dropped": b.replace("if ($r.ReturnValue -ne 0) { exit 1 }; ", ""),
+            "PID from the wrong object": b.replace("$r.ProcessId", "$si.ProcessId"),
+            "CreateFlags 0 alongside ShowWindow": b.replace("@{ShowWindow=[uint16]0}",
+                                                            "@{ShowWindow=[uint16]0; CreateFlags=[uint32]0}"),
+            "wrong class": b.replace("Win32_ProcessStartup", "Win32_StartupCommand"),
+        }
+        for name, script in accepted.items():
+            with self.subTest(accept=name):
+                self.assertEqual(_wmi_script_problems(script), [], script)
+        for name, script in rejected.items():
+            with self.subTest(reject=name):
+                self.assertNotEqual(_wmi_script_problems(script), [], script)
 
 
 def _code_strings(fn):
