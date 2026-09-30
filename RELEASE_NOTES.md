@@ -79,6 +79,12 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
      단가·창·중복 제거를 실제로 건드리는 릴리즈에서는 CLAUDE.md 의 Danger zone 대로
      반드시 ⚠️ 다시 보정 안내를 넣으세요. -->
 
+**v1.0.0**
+
+- v0.26부터 macOS에서 "토큰 자동 갱신"이 Apple Music·네트워크 볼륨·다운로드 등의 권한 창을 띄우던 문제를 고쳤습니다. 따로 할 일은 없고, 이미 허용했든 거부했든 그대로 두면 됩니다.
+- Codex 사용량이 Codex에서 보는 값과 다르게 나올 수 있던 문제를 고쳤습니다. 이제 Codex가 실제로 쓰는 계정의 사용량이 보입니다.
+- Windows에서는 "토큰 자동 갱신" 때 터미널 창이 떴다 사라지던 문제도 고쳤습니다. macOS와 Windows 모두 1.0.0으로 나오며, 앱의 업데이트 안내에서 받을 수 있습니다.
+
 **v0.26.1**
 
 - Codex만 설정되어 있고 Claude Code는 설치·로그인 전이면, 이제 필에 "Claude Code 미설치" 안내 대신 Codex 사용량만 표시됩니다.

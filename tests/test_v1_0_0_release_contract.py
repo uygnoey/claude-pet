@@ -1,41 +1,45 @@
-"""Static release-preparation gates for v0.26.1.
+"""Static release-preparation gates for v1.0.0.
 
-Status as of 2026-09-21 (Verifier role for this rewrite has no assigned handle yet in
-this session — do not copy a name from here into the ``Verifier:`` commit trailer;
-get one from whoever assigns roles before committing): v0.26 is
-published — tag ``v0.26`` on origin, GitHub release published 2026-09-20T15:50:23Z, tag
-pointing at commit 2541669.  That commit is a later Windows-port commit, not the macOS
-release commit that actually bumped ``APP_VERSION`` to ``"0.26"`` (d3828ab,
-2026-09-20T21:23:02+09:00) — several follow-up fix commits landed on ``main`` between the
-two before the tag was pushed, and one of them reworded the v0.26 notes' second bullet
-once more (``git diff d3828ab v0.26 -- RELEASE_NOTES.md``).  **What is pinned below as
-"published" is the tag's tree** (``git show v0.26:RELEASE_NOTES.md``), independently
+Status as of 2026-09-30 (Verifier cwdfix-verify): v0.26.1 is published — tag
+``v0.26.1`` on origin, GitHub release published 2026-09-21T05:00:16Z.  The tag is
+lightweight and points at b52926f, the v0.26.1 release commit itself: unlike v0.26,
+nothing landed on ``main`` between the release commit and the tag, so the tag's
+``RELEASE_NOTES.md`` is the release commit's own blob (57996617).  **What is pinned below
+as "published" is the tag's tree** (``git show v0.26.1:RELEASE_NOTES.md``), independently
 confirmed byte-for-byte against the live GitHub release body
-(``gh release view v0.26 --json body``, checked 2026-09-21) — that body is the actual
-record of what users received, not the release commit's first wording, which never
-shipped.  So everything from the ``**v0.26**`` heading to the end of
-``RELEASE_NOTES.md`` is frozen text and is pinned here byte for byte, alongside the older
-v0.25, v0.24, v0.23 and v0.22 pins.  The single unpublished section above it is
-``**v0.26.1**``, and ``APP_VERSION`` is ``"0.26.1"`` — the bump the release commit
-carries.  ``PublishedV023NotesContractTests``, ``PublishedV024NotesContractTests``,
-``PublishedV025NotesContractTests`` and ``PublishedV026NotesContractTests`` keep holding
-the frozen v0.23, v0.24, v0.25 and v0.26 prose to the source they describe (a published
-promise outlives its release; the v0.26 class is the former ``StagedV026NotesFormatTests``
-with its assertions and method names unchanged, only its status renamed — the same
-promotion the v0.25 class went through a release earlier), and
-``StagedV0261NotesFormatTests`` holds the v0.26.1 section to CLAUDE.md's release-note
-format rule and cross-checks every checkable claim in it against the source.
+(``gh release view v0.26.1 --json body``, checked 2026-09-30) — see the provenance note
+above ``PUBLISHED_V0261_AND_OLDER_SHA256``.  So everything from the ``**v0.26.1**``
+heading to the end of ``RELEASE_NOTES.md`` is frozen text and is pinned here byte for
+byte, alongside the older v0.26, v0.25, v0.24, v0.23 and v0.22 pins.  The single
+unpublished section above it is ``**v1.0.0**``, and ``APP_VERSION`` is ``"1.0.0"`` — the
+bump the release commit carries.  ``PublishedV023NotesContractTests``,
+``PublishedV024NotesContractTests``, ``PublishedV025NotesContractTests``,
+``PublishedV026NotesContractTests`` and ``PublishedV0261NotesContractTests`` keep holding
+the frozen v0.23, v0.24, v0.25, v0.26 and v0.26.1 prose to the source they describe (a
+published promise outlives its release; the v0.26.1 class is the former
+``StagedV0261NotesFormatTests`` with its assertions and method names unchanged, only its
+status renamed — the same promotion the v0.26 class went through a release earlier), and
+``StagedV100NotesFormatTests`` holds the v1.0.0 section to CLAUDE.md's release-note format
+rule and ties every checkable claim in it to the source.
 
 Lineage: ``test_v022_release_contract.py`` → ``test_v023_release_contract.py`` →
 ``test_v024_release_contract.py`` → ``test_v025_release_contract.py`` →
-``test_v026_release_contract.py`` → this file; each release renames the module with
-``git mv`` and rewrites it for the version its release commit carries.
+``test_v026_release_contract.py`` → ``test_v026_1_release_contract.py`` → this file; each
+release renames the module with ``git mv`` and rewrites it for the version its release
+commit carries.  The name spells all three parts of the version: squeezed the way
+``v026`` squeezed 0.26, 1.0.0 would read ``v100``, which looks like version 100.  A
+pattern written for the older names (``tests/test_v0*_release_contract.py``) does not
+match this file; ``tests/test_v*_release_contract.py`` matches every name in the lineage.
 
 These tests deliberately do not import the application, source a shell script, inspect
 the installed app, or access the network/user home.  They only parse repository text and
-bytes (the tracked sources, plus the two files under ``fonts/`` the v0.24 notes promise
-are bundled).  The source-pin assertions keep the executable manual-update and upload
-harnesses fail-closed when the final v0.26.1 application/verifier/script bytes change, and
+bytes (the tracked sources — the Windows port's ``windows/`` sources included, since the
+v1.0.0 notes speak for it — plus the two files under ``fonts/`` the v0.24 notes promise
+are bundled).  One bounded exception: the v1.0.0 update tie calls the version comparator
+every published build carries, which this file holds as text (``PUBLISHED_VER_TUPLE``, a
+six-line pure function that uses nothing but builtins) — it is not taken from the
+application.  The source-pin assertions keep the executable manual-update and upload
+harnesses fail-closed when the final v1.0.0 application/verifier/script bytes change, and
 the ``--expect-version`` usage example in ``verify_release_artifact.py`` is held to the
 bumped version because every release commit since v0.21 moved it with ``APP_VERSION``
 (``git log -S'--expect-version 0.22'``; a1f3d22 moved it to 0.24, aaf0ca6 to 0.25) and
@@ -43,26 +47,51 @@ bumped version because every release commit since v0.21 moved it with ``APP_VERS
 version literal can survive a release.
 
 Claims in the notes are cross-checked against the source rather than merely spelled out
-here, because a note and a constant can drift apart in either direction.  The v0.26.1
-pair: the quoted status "Claude Code 미설치" against ``TR["ko"]["onb_install"]`` and
-against ``roam_summary_text``'s own ``claude_onboarding_suppressed`` local, which gates
-the suppression on exactly ``onb_install``/``onb_login`` and on a Codex segment that
-actually carries data (not itself a ``"status"`` segment) — the behavioural proof, both
-the positive case and its two non-overreach cases (a non-Codex user; every other Claude
-status untouched), lives in tests/test_companion_motion.py's
-``CodexOnboardingSuppressionTests``; this module only ties the prose to it.  The v0.26
-pairs (kept, now published): the quoted menu label "토큰 자동 갱신" against
-``TR["ko"]["menu_auto_recover"]`` and "펫이 만료 직전에 알아서 되살립니다" against
-``recovery_tick``'s pre-emptive branch (``REFRESH_MARGIN_SEC`` before ``expires_at``,
-gated on ``RUNTIME["auto_recover"]``) and against ``claude -p /usage`` being handed to
-launchd as a one-shot ``bootstrap`` job whose WorkingDirectory is the private
-``recovery_cli_cwd()`` and which is never kept alive, so the CLI is never our descendant
-and runs once, away from ``/`` (re-tied 2026-09-30: this used to be ``launchctl submit``,
-which is what raised the folder prompts — see that test's docstring);
-"로고와 함께" and "줄도 로고도 생기지 않습니다" (the tag's wording; see the provenance
-note above) against the single ``chatgpt.com/backend-api/wham/usage`` endpoint and
-against ``fetch_codex_usage`` / ``roam_summary_codex`` returning ``None`` — no row at
-all — when there are no Codex credentials; the quoted "크레딧 금액으로" against
+here, because a note and a constant can drift apart in either direction.  The v1.0.0
+ties, one test per bullet: "v0.26부터 macOS에서 "토큰 자동 갱신"이 … 권한 창을 띄우던
+문제를 고쳤습니다" against the recovery spawn's private working directory
+(``recovery_cli_cwd()``, beneath the app's own cache, is the only value that can reach the
+launchd job's ``WorkingDirectory``), against the one-shot ``bootstrap`` job that is never
+kept alive and never ``submit``-ted, and against ``clear_stale_launchd_jobs`` booting out
+the labels v0.26 submitted its jobs under, started from ``run_gui`` at launch behind no
+setting; "v0.26부터" against the notes' own history (v0.26 is the oldest section that
+names the label); "따로 할 일은 없고, 이미 허용했든 거부했든 그대로 두면 됩니다" against the
+cleanup running behind no setting, the job's folder admitting no alternative value, and no
+``tccutil`` anywhere in the source.  "이제 Codex가
+실제로 쓰는 계정의 사용량이 보입니다" against ``fetch_codex_usage`` putting what
+``read_codex_auth`` reads from ``tokens.account_id`` of Codex's own ``auth.json`` into a
+``ChatGPT-Account-Id`` header.  "Windows에서는 "토큰 자동 갱신" 때 터미널 창이 떴다
+사라지던 문제도 고쳤습니다" against the port's auto-recovery running the core's
+``run_token_refresh``, whose Windows spawn is ``_win_wmi_create``, which always hands WMI
+a ``Win32_ProcessStartup`` with ``ShowWindow`` 0 and never ``CreateFlags``; "macOS와
+Windows 모두 1.0.0으로 나오며, 앱의 업데이트 안내에서 받을 수 있습니다" against
+``APP_VERSION`` being the version named, the one both platforms' packagers stamp, the one
+``release.sh`` tags, and the one both updaters (``check_github_update`` and the port's
+``check_github_update_win``) compare the latest tag against — ranked newer than every
+published version by the comparator every published build carries.  The behavioural gates
+for these are tests/test_token_recovery.py (``RecoveryCliCwdTests``,
+``DarwinOneShotJobTests``, ``StaleJobCleanupTests``, ``WindowsHiddenConsoleTests``) and
+tests/test_codex_usage.py (``CodexAuthReadTests``, ``CodexAccountHeaderTests``).  The
+v0.26.1 pair (kept, now published): the quoted status "Claude Code 미설치" against
+``TR["ko"]["onb_install"]`` and against ``roam_summary_text``'s own
+``claude_onboarding_suppressed`` local, which gates the suppression on exactly
+``onb_install``/``onb_login`` and on a Codex segment that actually carries data (not
+itself a ``"status"`` segment) — the behavioural proof, both the positive case and its two
+non-overreach cases (a non-Codex user; every other Claude status untouched), lives in
+tests/test_companion_motion.py's ``CodexOnboardingSuppressionTests``; this module only
+ties the prose to it.  The v0.26 pairs (kept, published): the quoted menu label
+"토큰 자동 갱신" against ``TR["ko"]["menu_auto_recover"]`` and "펫이 만료 직전에 알아서
+되살립니다" against ``recovery_tick``'s pre-emptive branch (``REFRESH_MARGIN_SEC`` before
+``expires_at``, gated on ``RUNTIME["auto_recover"]``) and against ``claude -p /usage``
+being handed to launchd as a one-shot ``bootstrap`` job whose WorkingDirectory is the
+private ``recovery_cli_cwd()`` and which is never kept alive, so the CLI is never our
+descendant and runs once, away from ``/`` (re-tied 2026-09-30: this used to be
+``launchctl submit``, which is what raised the folder prompts — see that test's
+docstring); "로고와 함께" and "줄도 로고도 생기지 않습니다" (the v0.26 tag's wording, not
+its release commit's — see the provenance note above ``PUBLISHED_V026_AND_OLDER_SHA256``)
+against the single ``chatgpt.com/backend-api/wham/usage`` endpoint and against
+``fetch_codex_usage`` / ``roam_summary_codex`` returning ``None`` — no row at all — when
+there are no Codex credentials; the quoted "크레딧 금액으로" against
 ``TR["ko"]["menu_credit_money"]``, "쓴 금액이 $로" against ``CREDIT_DISPLAY_DEFAULT``
 being ``"money"`` and ``credit_row_text`` formatting an amount, "켜 두었다면" against
 ``_parse_oauth_usage`` gating the credit row on ``user_disabled`` rather than
@@ -89,7 +118,15 @@ notes' third bullet claims both platforms ("macOS·Windows 모두 적용되며, 
 것은 없습니다") — the Windows half is, again, built on the Windows branch and out of
 scope for this checkout/session; this module pins the wording and checks only the macOS
 half, that the fix needs no new config/``RUNTIME`` key, consistent with "따로 설정할
-것은 없습니다".
+것은 없습니다".  The v1.0.0 notes are tied differently: the port is in this tree under
+``windows/`` (it has been since before the v0.26 tag) and imports ``claude_pet.py`` as its
+core (``windows/win_core.py``), so both halves of their third bullet are tied here — the
+hidden console to the core spawn the port's auto-recovery runs, the 1.0.0 update to
+``windows/win_update.py``, its call site in ``windows/claude_pet_win.py`` and
+``windows/build_win.py``'s version.  What no static tie can say is whether a Windows
+machine actually shows a window: that was observed on one Windows 11 machine (see
+``_win_wmi_create``) and is gated behaviourally by ``WindowsHiddenConsoleTests``, which the
+CI also runs on Windows.
 """
 
 from __future__ import annotations
@@ -112,6 +149,9 @@ RELEASE_NOTES = REPO / "RELEASE_NOTES.md"
 CLAUDE_POLICY = REPO / "CLAUDE.md"
 MANUAL_TEST = REPO / "tests" / "test_manual_update_transaction.py"
 UPLOAD_TEST = REPO / "tests" / "test_upload_artifact_gate.py"
+WIN_APP = REPO / "windows" / "claude_pet_win.py"
+WIN_UPDATE = REPO / "windows" / "win_update.py"
+WIN_BUILD = REPO / "windows" / "build_win.py"
 
 # Pinning from the newest *published* heading through EOF lets the unpublished section
 # be rewritten freely while making every byte users already received immutable.
@@ -157,6 +197,21 @@ PUBLISHED_V025_AND_OLDER_SHA256 = (
 PUBLISHED_V026_AND_OLDER_SHA256 = (
     "1fe0efa1423c5a6e626cf1be27d2f50384e45ee94f49ab1f48ae0a112b58c403"
 )
+# v0.26.1-and-older: from the ``**v0.26.1**`` heading through EOF, computed from the
+# *tag*'s tree (`git show v0.26.1:RELEASE_NOTES.md`; the tag is lightweight and points at
+# b52926f, the v0.26.1 release commit itself — blob 57996617, 25783 bytes, of which the
+# suffix is 21403).  Independently confirmed byte-for-byte against the live GitHub release
+# body (`gh release view v0.26.1 --json body`, checked 2026-09-30; release published
+# 2026-09-21T05:00:16Z): the body is release.sh's gen_release_notes output — the notes'
+# preamble, the changelog heading and the v0.26.1 section alone — and running that awk
+# program (ver=**v0.26.1**) over the tag's file reproduces all 3095 bytes of the body, so
+# the 384-byte v0.26.1 section users received is the one pinned here.  Identical in the
+# working tree after the v1.0.0 section was staged above it (2026-09-30).  The v0.26 suffix
+# is unchanged at 21019 bytes across all of these trees, so the v0.26.1 section was
+# appended above it and nothing below moved.
+PUBLISHED_V0261_AND_OLDER_SHA256 = (
+    "8e29e813f25b44d4d32002e17ec5562a322c28fd4e91e00227780e11143c2d16"
+)
 
 # The cadence the published v0.23 notes promise, and the Korean label they name.
 EXPECTED_UPDATE_CHECK_SEC = 3600
@@ -182,6 +237,34 @@ CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 # spells it — an independent anchor, so a rename that moves both the source string and
 # the note's quote together in the same wrong direction still gets caught.
 KO_ONB_INSTALL_LABEL = "Claude Code 미설치"
+
+# The launchd labels v0.26 and v0.26.1 submitted their jobs under (RECOVERY_JOB_LABEL and
+# LOGIN_JOB_LABEL in `git show v0.26:claude_pet.py` and `git show v0.26.1:claude_pet.py`,
+# checked 2026-09-30).  The v1.0.0 notes' first bullet rests partly on the startup cleanup
+# clearing a job v0.26 left behind, and launchd knows that job only by these names.
+V026_JOB_LABELS = ("me.yeongyu.claudepet.token-refresh", "me.yeongyu.claudepet.login")
+
+# The header the v1.0.0 notes' "Codex가 실제로 쓰는 계정" rests on: the one Codex CLI itself
+# sends, carrying auth.json's tokens.account_id (the comment block above codex_auth_path
+# records the 2026-09-30 comparison that found it missing).
+CODEX_ACCOUNT_HEADER = "ChatGPT-Account-Id"
+
+# The version comparator every published build carries.  `ast.unparse` of ``_ver_tuple``
+# is exactly this text (sha256 e9e2eab254b805f736520d7cdb382659b9896d5e4fcf79bb594046b6a1a80f7d)
+# in claude_pet.py at every tag from v0.1-beta through v0.26.1 — 27 tags, checked
+# 2026-09-30 — and each of those tags' ``check_github_update`` compares
+# ``_ver_tuple(tag) <= _ver_tuple(APP_VERSION)``; the Windows port's
+# ``check_github_update_win`` (in the v0.26 and v0.26.1 tags) makes the same comparison
+# through ``cp._ver_tuple``.  Whether an installed copy offers v1.0.0 is decided by the
+# comparator *it* carries, not by this tree's, so the update tie evaluates this text.
+PUBLISHED_VER_TUPLE = (
+    "def _ver_tuple(v):\n"
+    "    out = []\n"
+    "    for part in str(v).split('.'):\n"
+    "        num = ''.join((ch for ch in part if ch.isdigit()))\n"
+    "        out.append(int(num) if num else 0)\n"
+    "    return tuple(out)"
+)
 
 
 # CLAUDE.md release-note step 2 forbids these in a user-facing entry.
@@ -351,23 +434,245 @@ def _method_calls(node: ast.AST, attr: str) -> list[ast.Call]:
             and n.func.attr == attr]
 
 
+# ── Helpers for the v1.0.0 ties ──────────────────────────────────────────────────────────
+# PublishedV026NotesContractTests keeps its own nested copies of the first few of these (it
+# was re-tied inside this release and is left as it was reviewed); the ones below serve
+# StagedV100NotesFormatTests.
+
+
+def _changelog_sections(text: str) -> list[tuple[str, str]]:
+    """(version, visible body) for every release heading under the changelog, newest
+    first, comments stripped."""
+    changelog = "### 📝 변경 내역 / Changelog"
+    if text.count(changelog) != 1:
+        raise AssertionError("expected exactly one changelog heading")
+    parts = re.split(r"(?m)^\*\*v(\d+\.\d+(?:\.\d+)?)\*\*$", text.split(changelog, 1)[1])
+    return [(parts[i], re.sub(r"<!--.*?-->", "", parts[i + 1], flags=re.S).strip())
+            for i in range(1, len(parts), 2)]
+
+
+def _module_defs(path: Path) -> dict:
+    """Every module-level function in path, by name."""
+    return {n.name: n for n in _module_tree(path).body
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+
+def _module_literals(path: Path) -> dict[str, set[str]]:
+    """NAME -> every string literal a module-level ``NAME = …`` can hold, following the
+    module-level names its value mentions (``LABELS = (A_LABEL, B_LABEL)`` holds both)."""
+    direct: dict[str, set[str]] = {}
+    refs: dict[str, set[str]] = {}
+    for node in _module_tree(path).body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                direct.setdefault(target.id, set()).update(
+                    c.value for c in ast.walk(node.value)
+                    if isinstance(c, ast.Constant) and isinstance(c.value, str))
+                refs.setdefault(target.id, set()).update(
+                    c.id for c in ast.walk(node.value) if isinstance(c, ast.Name))
+    out: dict[str, set[str]] = {}
+    for name in direct:
+        seen, todo = set(), [name]
+        while todo:
+            current = todo.pop()
+            if current in seen or current not in direct:
+                continue
+            seen.add(current)
+            todo.extend(refs[current])
+        out[name] = set().union(*(direct[n] for n in seen))
+    return out
+
+
+def _reachable(defs: dict, *roots: str) -> list:
+    """Every module-level function reachable from roots through any bare name, at any
+    depth.  Over-approximate on purpose: a local that shares a function's name is followed
+    too, which can only add code to what an absence check has to clear."""
+    seen, todo = set(), list(roots)
+    while todo:
+        name = todo.pop()
+        if name in seen or name not in defs:
+            continue
+        seen.add(name)
+        todo.extend(n.id for n in ast.walk(defs[name]) if isinstance(n, ast.Name))
+    return [defs[name] for name in sorted(seen)]
+
+
+def _docstring_ids(nodes) -> set[int]:
+    ids: set[int] = set()
+    for node in nodes:
+        for n in ast.walk(node):
+            if (isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                    and n.body and isinstance(n.body[0], ast.Expr)
+                    and isinstance(n.body[0].value, ast.Constant)
+                    and isinstance(n.body[0].value.value, str)):
+                ids.add(id(n.body[0].value))
+    return ids
+
+
+def _code_strings(nodes, literals: dict | None = None) -> set[str]:
+    """String literals the code uses — docstrings excluded, since those may tell the
+    history (``submit``, ``CreateFlags``) — plus, given ``literals``, the literals of the
+    module constants the code names."""
+    skip, out = _docstring_ids(nodes), set()
+    for node in nodes:
+        for n in ast.walk(node):
+            if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in skip:
+                out.add(n.value)
+            elif literals is not None and isinstance(n, ast.Name) and n.id in literals:
+                out |= literals[n.id]
+    return out
+
+
+def _values_given(fn, key: str, *, fold_case: bool = False) -> list:
+    """Every value fn gives ``key``: in a dict display, a subscript assignment, a keyword
+    argument, or ``.setdefault(key, v)`` / ``.add_header(key, v)``.  Any other mention of
+    the key is a value this cannot read — recorded as None, which fails closed."""
+    def same(value):
+        if fold_case:
+            return isinstance(value, str) and value.lower() == key.lower()
+        return isinstance(value, str) and value == key
+
+    found, placed, skip = [], set(), _docstring_ids([fn])
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Dict):
+            for k, v in zip(n.keys, n.values):
+                if isinstance(k, ast.Constant) and same(k.value):
+                    found.append(v)
+                    placed.add(id(k))
+        elif isinstance(n, ast.Assign):
+            for target in n.targets:
+                if (isinstance(target, ast.Subscript) and isinstance(target.slice, ast.Constant)
+                        and same(target.slice.value)):
+                    found.append(n.value)
+                    placed.add(id(target.slice))
+        elif isinstance(n, ast.Call):
+            found.extend(kw.value for kw in n.keywords if kw.arg and same(kw.arg))
+            if (isinstance(n.func, ast.Attribute) and n.func.attr in ("setdefault", "add_header")
+                    and len(n.args) == 2 and isinstance(n.args[0], ast.Constant)
+                    and same(n.args[0].value)):
+                found.append(n.args[1])
+                placed.add(id(n.args[0]))
+    for n in ast.walk(fn):
+        if (isinstance(n, ast.Constant) and same(n.value)
+                and id(n) not in placed and id(n) not in skip):
+            found.append(None)
+    return found
+
+
+def _only_carries(defs: dict, fn, expr, source: str, index: int | None = None,
+                  _seen: set | None = None) -> bool:
+    """Whether ``expr``, inside the module-level function ``fn``, can only hold what a call
+    to the module-level function ``source`` returned (element ``index`` of it, when given).
+
+    Accepted: the call itself (``source(...)[index]`` for an element); a local every
+    binding of which only carries it — a plain or annotated assignment, a walrus, or, for
+    an element, its position in a tuple unpacking; a parameter that every call site in the
+    module fills, positionally or by keyword, with something that only carries it.
+    Anything else — a literal, another call, a global, a parameter nobody passes, any
+    other kind of binding — is False, so a tie built on this fails closed."""
+    seen = set() if _seen is None else _seen
+    if isinstance(expr, ast.Call):
+        return index is None and isinstance(expr.func, ast.Name) and expr.func.id == source
+    if isinstance(expr, ast.Subscript):
+        return (index is not None and isinstance(expr.slice, ast.Constant)
+                and expr.slice.value == index
+                and _only_carries(defs, fn, expr.value, source, None, seen))
+    if not isinstance(expr, ast.Name):
+        return False
+    if (fn.name, expr.id, index) in seen:
+        return True              # a cycle adds no new value; the other bindings decide
+    seen.add((fn.name, expr.id, index))
+    parents = {id(child): parent for parent in ast.walk(fn)
+               for child in ast.iter_child_nodes(parent)}
+    positional = [a.arg for a in fn.args.posonlyargs + fn.args.args]
+    is_param = expr.id in positional or expr.id in [a.arg for a in fn.args.kwonlyargs]
+    bindings = [n for n in ast.walk(fn)
+                if isinstance(n, ast.Name) and n.id == expr.id and isinstance(n.ctx, ast.Store)]
+    if not bindings and not is_param:
+        return False
+    for name in bindings:
+        holder = parents.get(id(name))
+        if isinstance(holder, ast.Assign) and any(t is name for t in holder.targets):
+            value = holder.value
+        elif (isinstance(holder, (ast.AnnAssign, ast.NamedExpr)) and holder.target is name
+              and holder.value is not None):
+            value = holder.value
+        elif (isinstance(holder, ast.Tuple) and isinstance(parents.get(id(holder)), ast.Assign)
+              and any(t is holder for t in parents[id(holder)].targets)
+              and not any(isinstance(e, ast.Starred) for e in holder.elts)):
+            position = next(i for i, e in enumerate(holder.elts) if e is name)
+            if index is None or position != index:
+                return False
+            if not _only_carries(defs, fn, parents[id(holder)].value, source, None, seen):
+                return False
+            continue
+        else:
+            return False
+        if not _only_carries(defs, fn, value, source, index, seen):
+            return False
+    if is_param:
+        calls = [(caller, call) for caller in defs.values() for call in ast.walk(caller)
+                 if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                 and call.func.id == fn.name]
+        if not calls:
+            return False
+        for caller, call in calls:
+            if any(isinstance(a, ast.Starred) for a in call.args):
+                return False
+            slot = positional.index(expr.id) if expr.id in positional else None
+            if slot is not None and slot < len(call.args):
+                arg = call.args[slot]
+            else:
+                arg = next((kw.value for kw in call.keywords if kw.arg == expr.id), None)
+            if arg is None or not _only_carries(defs, caller, arg, source, index, seen):
+                return False
+    return True
+
+
+def _own_walk(node):
+    """ast.walk without entering nested function or class bodies: the nodes that run when
+    node itself runs.  Lambdas are entered — a lambda handed to a thread runs there."""
+    todo = [node]
+    while todo:
+        current = todo.pop()
+        yield current
+        todo.extend(child for child in ast.iter_child_nodes(current)
+                    if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                              ast.ClassDef)))
+
+
+def _guards(root: ast.AST, node: ast.AST) -> list[ast.AST]:
+    """The tests of every if/while/conditional expression between root and node."""
+    parents = {id(child): parent for parent in ast.walk(root)
+               for child in ast.iter_child_nodes(parent)}
+    tests, current = [], node
+    while id(current) in parents:
+        current = parents[id(current)]
+        if isinstance(current, (ast.If, ast.IfExp, ast.While)):
+            tests.append(current.test)
+    return tests
+
+
 class VersionAndPinContractTests(unittest.TestCase):
-    def test_v0261_version_and_final_source_pins_propagate(self):
+    def test_v100_version_and_final_source_pins_propagate(self):
         problems: list[str] = []
 
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
-        if versions != ["0.26.1"]:
-            problems.append(f"APP_VERSION must be one literal '0.26.1', got {versions!r}")
+        if versions != ["1.0.0"]:
+            problems.append(f"APP_VERSION must be one literal '1.0.0', got {versions!r}")
 
         verifier_text = RELEASE_VERIFIER.read_text(encoding="utf-8")
-        if "--expect-version 0.26.1" not in verifier_text:
-            problems.append("verify_release_artifact.py usage must show --expect-version 0.26.1")
-        # A bare version-number substring check would false-positive here: "0.26" is a
-        # literal prefix of "0.26.1", so a naive `f"--expect-version {stale}" in text`
-        # would flag the very string this test just required above. The negative
-        # lookahead excludes exactly that case — it only fires on a *bare* stale
-        # version, never on it being a prefix of the current one.
-        for stale in ("0.26", "0.25", "0.24", "0.27"):
+        if "--expect-version 1.0.0" not in verifier_text:
+            problems.append("verify_release_artifact.py usage must show --expect-version 1.0.0")
+        # A bare version-number substring check would false-positive here: "1.0" is a
+        # literal prefix of "1.0.0" (as "0.26" was of "0.26.1"), so a naive
+        # `f"--expect-version {stale}" in text` would flag the very string this test just
+        # required above. The negative lookahead excludes exactly that case — it only
+        # fires on a *bare* stale version, never on it being a prefix of the current one.
+        # "1.0" and "0.27" are the plausible wrong bumps; the rest are the versions before.
+        for stale in ("0.26.1", "0.26", "0.25", "0.24", "0.27", "1.0"):
             if re.search(rf"--expect-version {re.escape(stale)}(?!\.\d)", verifier_text):
                 problems.append(
                     f"verify_release_artifact.py still advertises --expect-version {stale}"
@@ -453,13 +758,24 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
             "published v0.26-and-older bytes were rewritten or dropped",
         )
 
-    def test_v0261_is_the_only_unpublished_heading_and_sits_directly_above_v026(self):
+    def test_published_v0261_and_older_bytes_are_untouched(self):
+        raw = RELEASE_NOTES.read_bytes()
+        published_marker = b"**v0.26.1**"
+        self.assertEqual(raw.count(published_marker), 1, "published v0.26.1 heading changed")
+        published_suffix = raw[raw.index(published_marker) :]
+        self.assertEqual(
+            hashlib.sha256(published_suffix).hexdigest(),
+            PUBLISHED_V0261_AND_OLDER_SHA256,
+            "published v0.26.1-and-older bytes were rewritten or dropped",
+        )
+
+    def test_v100_is_the_only_unpublished_heading_and_sits_directly_above_v0261(self):
         """Rivals this heading-shape regex must not miss: a stale two-part-only pattern
         (``\\d+\\.\\d+``) silently fails to match a three-part heading like
         ``**v0.26.1**`` at all — a regex bug that would have made every assertion below
         vacuously pass against an empty ``headings`` list rather than catching a
         misplaced or duplicated heading. The pattern below allows an optional third
-        component for exactly this reason."""
+        component for exactly this reason — and ``**v1.0.0**`` has one too."""
         text = RELEASE_NOTES.read_text(encoding="utf-8")
         changelog = "### 📝 변경 내역 / Changelog"
         self.assertEqual(text.count(changelog), 1)
@@ -468,11 +784,11 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
         self.assertTrue(headings, "changelog has no release heading")
         self.assertEqual(
             headings[:2],
-            ["0.26.1", "0.26"],
-            "the unpublished v0.26.1 section must sit directly above the published "
-            f"v0.26 heading, with nothing newer above it; got {headings[:2]!r}",
+            ["1.0.0", "0.26.1"],
+            "the unpublished v1.0.0 section must sit directly above the published "
+            f"v0.26.1 heading, with nothing newer above it; got {headings[:2]!r}",
         )
-        self.assertEqual(headings.count("0.26.1"), 1, "v0.26.1 heading must appear once")
+        self.assertEqual(headings.count("1.0.0"), 1, "v1.0.0 heading must appear once")
 
 
 class PublishedV023NotesContractTests(unittest.TestCase):
@@ -1472,15 +1788,20 @@ class PublishedV026NotesContractTests(unittest.TestCase):
                       "'loading' must survive only while nothing has failed yet")
 
 
-class StagedV0261NotesFormatTests(unittest.TestCase):
-    """The unpublished v0.26.1 section, held to CLAUDE.md's release-note format rule and
-    to the source it describes.
+class PublishedV0261NotesContractTests(unittest.TestCase):
+    """The published v0.26.1 section: its bytes are frozen above, and the source must
+    still keep every promise it made.
 
-    The section is staged text until the tag is pushed, so correcting it is ordinary
-    work; the format gate only says what CLAUDE.md step 2 says: exactly three top-level
-    bullets, no nesting, at most 450 normalized characters, 1-2 Korean sentences per
-    bullet, and none of the forbidden token classes.  Every checkable claim in it is then
-    tied to the source, one test per bullet.  Consistent with this module's own stated
+    This is the v0.26.1 release's former ``StagedV0261NotesFormatTests`` with its
+    assertions and method names unchanged — only its status moved from staged to
+    published when the ``v0.26.1`` tag and GitHub release went out on
+    2026-09-21T05:00:16Z (the same promotion the v0.26 class went through a release
+    earlier).  Every assertion below was re-run against the v1.0.0 release tree before
+    this rename (2026-09-30) and still holds.  The format gate still says what CLAUDE.md
+    step 2 says: exactly three top-level bullets, no nesting, at most 450 normalized
+    characters, 1-2 Korean sentences per bullet, and none of the forbidden token classes.
+    Every checkable claim in it is then tied to the source, one test per bullet.
+    Consistent with this module's own stated
     principle ("behavioural gates live elsewhere … this module only ties the prose to
     them"), the per-bullet tests below cite the actual behavioural proof in
     tests/test_companion_motion.py's ``CodexOnboardingSuppressionTests`` rather than
@@ -1666,6 +1987,554 @@ class StagedV0261NotesFormatTests(unittest.TestCase):
         self.assertNotIn("cfg[", condition,
                          "the suppression must not be gated by a new config key — there "
                          "is nothing for the user to configure")
+
+
+class StagedV100NotesFormatTests(unittest.TestCase):
+    """The unpublished v1.0.0 section, held to CLAUDE.md's release-note format rule and to
+    the source it describes.
+
+    The section is staged text until the tag is pushed, so correcting it is ordinary work;
+    the format gate only says what CLAUDE.md step 2 says: exactly three top-level bullets,
+    no nesting, at most 450 normalized characters, 1-2 Korean sentences per bullet, and
+    none of the forbidden token classes.  Every checkable claim in it is then tied to the
+    source, one test per bullet.  The ties are prose ties and deliberately loose about
+    *shape* — each is written as a property of the named mechanism, so a helper, a dict
+    built key by key or a keyword argument all pass — while the behaviour itself is gated
+    in tests/test_token_recovery.py and tests/test_codex_usage.py:
+
+    * "v0.26부터 macOS에서 "토큰 자동 갱신"이 Apple Music·네트워크 볼륨·다운로드 등의 권한
+      창을 띄우던 문제를 고쳤습니다. 따로 할 일은 없고, 이미 허용했든 거부했든 그대로 두면
+      됩니다" — the quoted label to ``TR["ko"]["menu_auto_recover"]``; "v0.26부터" to the
+      oldest published section that names it; the fix to the three things that removed the
+      prompts: the CLI's private working directory (``recovery_cli_cwd()``, beneath the
+      app's own cache, as the only value that can reach the launchd job's
+      ``WorkingDirectory``), the one-shot ``bootstrap`` job (never ``submit``, never kept
+      alive), and ``clear_stale_launchd_jobs`` booting out the labels v0.26 used, started
+      by ``run_gui`` at launch; "따로 할 일은 없고" to no setting in front of either;
+      "허용했든 거부했든 그대로" to the source never running ``tccutil``.
+    * "Codex 사용량이 Codex에서 보는 값과 다르게 나올 수 있던 문제를 고쳤습니다. 이제
+      Codex가 실제로 쓰는 계정의 사용량이 보입니다" — to ``fetch_codex_usage`` sending a
+      ``ChatGPT-Account-Id`` header that can only hold what ``read_codex_auth`` read from
+      ``tokens.account_id`` of Codex's own ``auth.json`` (``codex_auth_path``).
+    * "Windows에서는 "토큰 자동 갱신" 때 터미널 창이 떴다 사라지던 문제도 고쳤습니다. macOS와
+      Windows 모두 1.0.0으로 나오며, 앱의 업데이트 안내에서 받을 수 있습니다" — the window
+      to the port's auto-recovery calling the core's ``run_token_refresh``, whose Windows
+      spawn ``_win_wmi_create`` always passes a ``Win32_ProcessStartup`` with
+      ``ShowWindow`` 0 and never ``CreateFlags``; "1.0.0으로" to ``APP_VERSION`` and to
+      both platforms' packagers taking their version from it; "업데이트 안내에서" to
+      ``release.sh`` tagging the release from ``APP_VERSION``, to both updaters comparing
+      the latest tag against ``APP_VERSION`` (the port's through ``cp.APP_VERSION``), and
+      to the comparator every published build carries ranking it above every published
+      version.
+    """
+
+    def setUp(self):
+        text = RELEASE_NOTES.read_text(encoding="utf-8")
+        self.text = text
+        self.visible = _notes_block(text, "**v1.0.0**", "**v0.26.1**")
+        self.top_level, self.nested, self.bullets = _bullet_shape(self.visible)
+        self.body = "\n".join(self.bullets)
+
+    def _bullet(self, pattern: str) -> str:
+        """The one bullet matching pattern — found by what it says, not by its position."""
+        matching = [b for b in self.bullets if re.search(pattern, b)]
+        self.assertEqual(len(matching), 1,
+                         f"expected exactly one v1.0.0 bullet matching {pattern!r}, "
+                         f"got {len(matching)}")
+        return matching[0]
+
+    def test_v100_notes_follow_the_three_bullet_450_character_format(self):
+        problems: list[str] = []
+        if len(self.top_level) != 3:
+            problems.append(f"v1.0.0 must have exactly 3 top-level bullets, got {len(self.top_level)}")
+        if self.nested:
+            problems.append("v1.0.0 must not contain nested bullets")
+        normalized_body = " ".join(self.visible.split())
+        if len(normalized_body) > 450:
+            problems.append(f"v1.0.0 Korean body is {len(normalized_body)} Unicode characters; max is 450")
+        for index, bullet in enumerate(self.bullets, 1):
+            if not re.search(r"[가-힣]", bullet):
+                problems.append(f"bullet {index} must be Korean")
+            count = len(_sentences(bullet))
+            if not 1 <= count <= 2:
+                problems.append(f"bullet {index} has {count} sentences; CLAUDE.md allows 1-2")
+        prose_for_forbidden_scan = self.body.replace("`", "")
+        for label, pattern in FORBIDDEN_NOTE_PATTERNS.items():
+            match = re.search(pattern, prose_for_forbidden_scan, re.I)
+            if match:
+                problems.append(f"remove {label}: {match.group(0)!r}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_every_quoted_string_in_the_notes_is_a_real_korean_ui_string(self):
+        """Same discriminator as ``PublishedV026NotesContractTests``'s namesake test: every
+        quoted string in the v1.0.0 body must be a real ``TR["ko"]`` value (allowing the
+        same two intentional variants — a trailing ellipsis dropped, a leading glyph
+        dropped), so a quote that drifted from the actual menu text is caught even if no
+        other test happens to name that key."""
+        table = _tr_table()["ko"]
+
+        def forms(value):
+            out = {value}
+            out.add(value.rstrip("…").strip())
+            head, _, rest = value.partition(" ")
+            if rest and not re.match(r"[0-9A-Za-z가-힣]", head):
+                out.add(rest)
+                out.add(rest.rstrip("…").strip())
+            return {form for form in out if form}
+
+        index = {}
+        for key, value in table.items():
+            if isinstance(value, str):
+                for form in forms(value):
+                    index.setdefault(form, []).append(key)
+
+        quoted = re.findall(r'"([^"]+)"', self.body)
+        self.assertTrue(
+            quoted,
+            "the v1.0.0 notes quote no UI string at all — either this test is now vacuous "
+            "or the quote disappeared; a human must check which")
+        problems = [q for q in quoted if q not in index]
+        self.assertEqual(
+            problems, [],
+            f"the v1.0.0 notes quote a string that matches no TR['ko'] value: {problems!r} "
+            f"— the user cannot find this on screen (checked quotes: {quoted!r})")
+
+    def test_v100_macos_prompts_are_fixed_with_nothing_left_for_the_user(self):
+        """"v0.26부터 macOS에서 "토큰 자동 갱신"이 … 권한 창을 띄우던 문제를 고쳤습니다. 따로
+        할 일은 없고, 이미 허용했든 거부했든 그대로 두면 됩니다."
+
+        What removed the prompts, per the 2026-09-30 record in claude_pet.py (the comment
+        block above REFRESH_MARGIN_SEC): the CLI no longer starts in ``/`` — it starts in
+        ``recovery_cli_cwd()``, a folder beneath the app's own cache — and it runs once per
+        attempt, as a ``bootstrap``-ed job that is never kept alive, where v0.26's
+        ``submit`` job started it in ``/`` and ran it again after it exited.  A v0.26 job
+        orphaned by the update would go on doing that until the next attempt booted it
+        out, so ``clear_stale_launchd_jobs`` boots out v0.26's labels when the app starts.
+        "따로 할 일은 없고": neither of those waits for a setting.  "허용했든 거부했든 그대로
+        두면 됩니다": the fix works by not triggering the reads, not by changing the
+        user's answers — nothing in the source runs ``tccutil``.
+
+        Rivals, each of which would leave a sentence false: the label quoted differently
+        from the menu; a "since" version that is not where the feature arrived; the CLI's
+        folder moved back to ``/`` or the home folder, in ``recovery_cli_cwd`` or anywhere
+        between it and ``WorkingDirectory`` (a literal, another call, a caller passing
+        something else); ``submit`` back anywhere on the spawn path; ``KeepAlive`` true or a
+        relaunch trigger; a cleanup that misses a label v0.26 used or a label a job is
+        created under, or that renamed the labels so v0.26's jobs are no longer the ones it
+        clears; the cleanup reached only from a menu action, or behind a setting; a
+        ``tccutil reset`` "to clear the old answers"."""
+        problems: list[str] = []
+        bullet = self._bullet(r"권한\s*창")
+        table = _tr_table()
+        label = table["ko"]["menu_auto_recover"]
+        if f'"{label}"' not in bullet:
+            problems.append(f"the bullet must quote the menu label {label!r} verbatim")
+
+        # "v0.26부터" — the oldest published section that names the label.
+        since = re.search(r"v(\d+\.\d+(?:\.\d+)?)부터", bullet)
+        naming = [version for version, body in _changelog_sections(self.text)[1:]
+                  if f'"{label}"' in body]
+        if not since:
+            problems.append("the bullet must say since which version the prompts appeared")
+        elif not naming:
+            problems.append(f"no published section names {label!r}")
+        elif since.group(1) != naming[-1]:
+            problems.append(f"the bullet dates the problem from v{since.group(1)}, but the "
+                            f"oldest published section naming {label!r} is v{naming[-1]}")
+
+        defs = _module_defs(APP_SOURCE)
+        literals = _module_literals(APP_SOURCE)
+        undefined = [name for name in ("recovery_cli_cwd", "_recovery_cache_dir",
+                                       "_run_refresh_job", "clear_stale_launchd_jobs", "run_gui")
+                     if name not in defs]
+        if undefined:
+            problems.append(f"claude_pet.py must define {undefined} at module level")
+            self.fail("\n" + "\n".join(f"- {p}" for p in problems))
+
+        # The private working directory: a folder beneath the app's own cache …
+        cache_dirs = _literal_assignments(APP_SOURCE, "RECOVERY_CACHE_DIR")
+        if not (len(cache_dirs) == 1 and isinstance(cache_dirs[0], str)
+                and re.fullmatch(r"~/Library/Caches/[^/]+(?:/[^/]+)*", cache_dirs[0])):
+            problems.append("RECOVERY_CACHE_DIR must be one literal folder under "
+                            f"~/Library/Caches, got {cache_dirs!r}")
+        if "RECOVERY_CACHE_DIR" not in _names(defs["_recovery_cache_dir"]):
+            problems.append("_recovery_cache_dir must be built from RECOVERY_CACHE_DIR")
+        returns = [n.value for n in ast.walk(defs["recovery_cli_cwd"]) if isinstance(n, ast.Return)]
+        if not returns or not all(r is not None and _calls_to(r, "_recovery_cache_dir")
+                                  for r in returns):
+            problems.append("every return of recovery_cli_cwd must be built from "
+                            "_recovery_cache_dir() — the CLI's folder is the app's own")
+        # … and the only value that can reach the launchd job's WorkingDirectory.
+        spawn = _reachable(defs, "_run_refresh_job")
+        given = [(fn, value) for fn in spawn for value in _values_given(fn, "WorkingDirectory")]
+        if not given:
+            problems.append("the launchd job never sets WorkingDirectory (launchd would use /)")
+        stray = ["<unreadable>" if value is None else f"{fn.name}: {ast.unparse(value)}"
+                 for fn, value in given
+                 if value is None or not _only_carries(defs, fn, value, "recovery_cli_cwd")]
+        if stray:
+            problems.append(f"WorkingDirectory can hold something other than recovery_cli_cwd(): {stray}")
+
+        # The one-shot job: bootstrap, never submit, never kept alive, nothing that relaunches.
+        whole = _reachable(defs, "_run_refresh_job", "recovery_spawn_argv", "login_spawn_argv",
+                           "clear_stale_launchd_jobs")
+        if "bootstrap" not in _code_strings(spawn, literals):
+            problems.append("the CLI must be handed to launchd with `launchctl bootstrap`")
+        if "submit" in _code_strings(whole, literals):
+            problems.append("`launchctl submit` must appear nowhere on the spawn path")
+        spelled = _code_strings(spawn, literals) | {
+            kw.arg for fn in spawn for kw in ast.walk(fn) if isinstance(kw, ast.keyword) and kw.arg}
+        if "RunAtLoad" not in spelled:
+            problems.append("the launchd job must set RunAtLoad")
+        for key, required in (("RunAtLoad", True), ("KeepAlive", False), ("OnDemand", True)):
+            wrong = ["<unreadable>" if value is None else ast.unparse(value)
+                     for fn in spawn for value in _values_given(fn, key)
+                     if not (isinstance(value, ast.Constant) and value.value is required)]
+            if wrong:
+                problems.append(f"{key} must be literally {required} wherever it is set; got {wrong}")
+        triggers = sorted({"StartInterval", "StartCalendarInterval", "WatchPaths",
+                           "QueueDirectories", "StartOnMount", "Sockets", "MachServices",
+                           "LaunchEvents"} & spelled)
+        if triggers:
+            problems.append(f"the launchd job carries relaunch triggers {triggers}")
+
+        # The startup cleanup clears what v0.26 left, and every label a job is created under.
+        cleared = _code_strings([defs["clear_stale_launchd_jobs"]], literals)
+        missing = [lbl for lbl in V026_JOB_LABELS if lbl not in cleared]
+        if missing:
+            problems.append(f"clear_stale_launchd_jobs does not clear the v0.26 labels {missing}")
+        if "bootout" not in _code_strings(_reachable(defs, "clear_stale_launchd_jobs"), literals):
+            problems.append("clear_stale_launchd_jobs must boot the jobs out (`launchctl bootout`)")
+        job_labels: set[str] = set()
+        for fn in defs.values():
+            for call in _calls_to(fn, "_run_refresh_job"):
+                arg = (call.args[1] if len(call.args) > 1
+                       else next((kw.value for kw in call.keywords if kw.arg == "label"), None))
+                if isinstance(arg, ast.Name) and literals.get(arg.id):
+                    job_labels |= literals[arg.id]
+                elif isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    job_labels.add(arg.value)
+                else:
+                    job_labels.add("<unreadable label>")
+        if not job_labels:
+            problems.append("no call of _run_refresh_job names a label")
+        uncleared = sorted(job_labels - cleared)
+        if uncleared:
+            problems.append(f"jobs are created under labels the cleanup never clears: {uncleared}")
+
+        # Started by run_gui itself at launch — its own top-level code or a helper that code
+        # calls, not a menu action — and behind no setting.
+        run_gui = defs["run_gui"]
+        top = [s for s in run_gui.body
+               if not isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
+        nested = {n.name: n for n in ast.walk(run_gui)
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n is not run_gui}
+
+        def mentions(stmts):
+            return [n for s in stmts for n in _own_walk(s)
+                    if isinstance(n, ast.Name) and n.id == "clear_stale_launchd_jobs"]
+
+        sites = [(run_gui, n) for n in mentions(top)]      # (where it sits, what to check)
+        for call in (n for s in top for n in _own_walk(s)
+                     if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                     and n.func.id in nested):
+            inner = mentions(nested[call.func.id].body)
+            if inner:
+                sites += [(run_gui, call)] + [(nested[call.func.id], n) for n in inner]
+        if not sites:
+            problems.append("run_gui must start clear_stale_launchd_jobs at launch, from its own "
+                            "top-level code or a helper that code calls")
+        for root, site in sites:
+            gated = [ast.unparse(test) for test in _guards(root, site)
+                     if _names(test) & {"RUNTIME", "cfg", "config", "load_config"}]
+            if gated:
+                problems.append(f"the startup cleanup is behind a setting: {gated}")
+
+        # "허용했든 거부했든 그대로": the user's earlier answers are left alone.
+        resets = sorted(s for s in _code_strings([_module_tree(APP_SOURCE)]) if "tccutil" in s)
+        if resets:
+            problems.append(f"the source runs tccutil ({resets}); the notes say the user's "
+                            "earlier answers stay as they are")
+
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v100_codex_asks_for_the_account_codex_itself_uses(self):
+        """"Codex 사용량이 Codex에서 보는 값과 다르게 나올 수 있던 문제를 고쳤습니다. 이제
+        Codex가 실제로 쓰는 계정의 사용량이 보입니다."
+
+        "Codex가 실제로 쓰는 계정" is the account in Codex's own credentials file: the one
+        ``codex_auth_path`` names (``CODEX_HOME`` or the home folder's ``.codex``,
+        ``auth.json``), read by ``read_codex_auth`` from ``tokens.account_id``.  The fix is
+        that ``fetch_codex_usage`` now sends it as ``ChatGPT-Account-Id``, as Codex CLI does;
+        without it the server answered for another account context (the comment block above
+        ``codex_auth_path``).  Which requests carry the header, and exactly when, is gated
+        in tests/test_codex_usage.py (``CodexAccountHeaderTests``, ``CodexAuthReadTests``);
+        this ties the sentence to that mechanism.
+
+        Rivals: no header (v0.26.1); another header name; a header fed from a literal, from
+        the token's position, or from somewhere other than read_codex_auth; an account id
+        read from outside the ``tokens`` object; credentials read from a file Codex does
+        not use."""
+        problems: list[str] = []
+        bullet = self._bullet(r"Codex")
+        for pattern in (r"Codex에서\s*보는\s*값", r"Codex가\s*실제로\s*쓰는\s*계정"):
+            if not re.search(pattern, bullet):
+                problems.append(f"the bullet no longer says {pattern!r}")
+        defs = _module_defs(APP_SOURCE)
+        undefined = [name for name in ("codex_auth_path", "read_codex_auth", "fetch_codex_usage")
+                     if name not in defs]
+        if undefined:
+            problems.append(f"claude_pet.py must define {undefined} at module level")
+            self.fail("\n" + "\n".join(f"- {p}" for p in problems))
+
+        path_strings = _code_strings([defs["codex_auth_path"]])
+        for needed in ("CODEX_HOME", ".codex", "auth.json"):
+            if needed not in path_strings:
+                problems.append(f"codex_auth_path no longer names {needed!r} — is it still "
+                                "the file Codex itself uses?")
+
+        # read_codex_auth takes the account from tokens.account_id; find where it returns it.
+        read = defs["read_codex_auth"]
+        read_parents = {id(c): p for p in ast.walk(read) for c in ast.iter_child_nodes(p)}
+
+        def bound_values(name):
+            out = []
+            for n in ast.walk(read):
+                if isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, ast.Store):
+                    holder = read_parents.get(id(n))
+                    out.append(getattr(holder, "value", None))
+            return out
+
+        def mentions_tokens(expr, seen=frozenset()):
+            """expr is, or is a name only ever bound to, a lookup of "tokens"."""
+            if expr is None:
+                return False
+            if any(isinstance(c, ast.Constant) and c.value == "tokens" for c in ast.walk(expr)):
+                return True
+            if not isinstance(expr, ast.Name) or expr.id in seen:
+                return False
+            values = bound_values(expr.id)
+            return bool(values) and all(mentions_tokens(v, seen | {expr.id}) for v in values)
+
+        lookups = [n for n in ast.walk(read)
+                   if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                       and n.func.attr == "get" and n.args
+                       and isinstance(n.args[0], ast.Constant) and n.args[0].value == "account_id"
+                       and mentions_tokens(n.func.value))
+                   or (isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Constant)
+                       and n.slice.value == "account_id" and mentions_tokens(n.value))]
+        if not lookups:
+            problems.append("read_codex_auth must read account_id from the tokens object")
+        carriers = {n.id for n in ast.walk(read)
+                    if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)
+                    and any(lk in list(ast.walk(read_parents.get(id(n))))
+                            for lk in lookups)}
+        positions = {i for n in ast.walk(read)
+                     if isinstance(n, ast.Return) and isinstance(n.value, ast.Tuple)
+                     for i, e in enumerate(n.value.elts)
+                     if (isinstance(e, ast.Name) and e.id in carriers) or e in lookups}
+        if len(positions) != 1:
+            problems.append("read_codex_auth must return the account id at one fixed "
+                            f"position of its result; found {sorted(positions)}")
+        else:
+            account = positions.pop()
+            fetch_path = _reachable(defs, "fetch_codex_usage")
+            if not {"read_codex_auth", "codex_auth_path"} <= _names(defs["fetch_codex_usage"]):
+                problems.append("fetch_codex_usage must read Codex's auth.json through "
+                                "read_codex_auth(codex_auth_path())")
+            given = [(fn, value) for fn in fetch_path
+                     for value in _values_given(fn, CODEX_ACCOUNT_HEADER, fold_case=True)]
+            if not given:
+                problems.append(f"no {CODEX_ACCOUNT_HEADER} header on the Codex request")
+            stray = ["<unreadable>" if value is None else f"{fn.name}: {ast.unparse(value)}"
+                     for fn, value in given
+                     if value is None
+                     or not _only_carries(defs, fn, value, "read_codex_auth", account)]
+            if stray:
+                problems.append(f"the {CODEX_ACCOUNT_HEADER} header can hold something other "
+                                f"than the account read_codex_auth read: {stray}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v100_windows_console_is_hidden_and_both_platforms_ship_the_version_named(self):
+        """"Windows에서는 "토큰 자동 갱신" 때 터미널 창이 떴다 사라지던 문제도 고쳤습니다.
+        macOS와 Windows 모두 1.0.0으로 나오며, 앱의 업데이트 안내에서 받을 수 있습니다."
+
+        The window: the port's auto-recovery runs the core's ``run_token_refresh``, whose
+        Windows spawn is ``_win_wmi_create``; it must hand WMI a ``Win32_ProcessStartup``
+        with ``ShowWindow`` 0 on every call (with or without a working directory) and must
+        never pass ``CreateFlags`` — WMI refuses that with ReturnValue 21 and nothing runs
+        (the record is in ``_win_wmi_create``'s docstring; the behaviour is gated by
+        tests/test_token_recovery.py's ``WindowsHiddenConsoleTests``).  "1.0.0으로
+        나오며": the version named is ``APP_VERSION``, which ``setup.py``, ``build_app.sh``
+        and ``windows/build_win.py`` all read from claude_pet.py.  "앱의 업데이트
+        안내에서": ``release.sh`` tags the release ``v`` + ``APP_VERSION``, both updaters
+        compare the latest tag against ``APP_VERSION`` with the core's ``_ver_tuple`` (the
+        port passes ``cp.APP_VERSION``), and — what decides it for users already installed
+        — the comparator every published build carries (``PUBLISHED_VER_TUPLE``) ranks
+        this version above every published one.
+
+        Rivals: the startup information dropped, sent only when a working directory is
+        given, or set to a visible ``ShowWindow``; ``CreateFlags`` added "to be safe"; the
+        port's recovery spawning some other way; a version in the notes that is not
+        ``APP_VERSION``; a packager with its own version literal; a tag not taken from
+        ``APP_VERSION``; an updater comparing against something other than the running
+        version; a version the installed comparator does not rank above every published
+        one (``0.9.0`` is a real example: it reads as older than 0.26.1)."""
+        problems: list[str] = []
+        bullet = self._bullet(r"터미널\s*창")
+        table = _tr_table()
+        label = table["ko"]["menu_auto_recover"]
+        if not _has_all(bullet, (r"Windows에서는", re.escape(f'"{label}"'), r"터미널\s*창")):
+            problems.append("the bullet must say the Windows terminal window during "
+                            f'"{label}" is fixed')
+
+        defs = _module_defs(APP_SOURCE)
+        literals = _module_literals(APP_SOURCE)
+        port = _module_tree(WIN_APP)
+        port_spawns = [n for n in ast.walk(port) if isinstance(n, ast.Call)
+                       and isinstance(n.func, ast.Attribute) and n.func.attr == "run_token_refresh"
+                       and isinstance(n.func.value, ast.Name) and n.func.value.id == "cp"]
+        if not port_spawns:
+            problems.append("the port's auto-recovery must run the core's cp.run_token_refresh")
+        wmi = defs.get("_win_wmi_create")
+        if wmi is None or wmi not in _reachable(defs, "run_token_refresh"):
+            problems.append("run_token_refresh must reach _win_wmi_create on Windows")
+        else:
+            strings = _code_strings([wmi], literals)
+            if not any("Win32_ProcessStartup" in s for s in strings):
+                problems.append("_win_wmi_create must build a Win32_ProcessStartup")
+            if not any(re.search(r"ShowWindow\s*=\s*(?:\[u?int(?:16|32)\]\s*)?0(?![\dxX.])", s)
+                       for s in strings):
+                problems.append("the startup information must set ShowWindow to 0 (SW_HIDE)")
+            if any("CreateFlags" in s for s in strings):
+                problems.append("CreateFlags must not be passed: WMI refuses it and nothing spawns")
+            skip = _docstring_ids([wmi])
+            carriers = [n for n in ast.walk(wmi) if isinstance(n, ast.Constant)
+                        and isinstance(n.value, str) and id(n) not in skip
+                        and ("ProcessStartupInformation" in n.value
+                             or "Win32_ProcessStartup" in n.value)]
+            if not any("ProcessStartupInformation" in n.value for n in carriers):
+                problems.append("_win_wmi_create must pass the startup information to Create "
+                                "(ProcessStartupInformation)")
+            conditional = sorted({ast.unparse(test) for n in carriers for test in _guards(wmi, n)})
+            if conditional:
+                problems.append("the hidden-window startup information must go with every "
+                                f"Create, not only when {conditional}")
+
+        # "1.0.0으로 나오며": the version named is APP_VERSION, and every packager takes it.
+        versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
+        named = re.search(r"(\d+(?:\.\d+)+)\s*으로\s*나오", bullet)
+        if not named:
+            problems.append("the bullet must name the version both platforms ship")
+        elif versions != [named.group(1)]:
+            problems.append(f"the bullet says both platforms ship {named.group(1)}; "
+                            f"APP_VERSION is {versions!r}")
+        setup_tree = _module_tree(SETUP)
+        setup_version = [n for n in setup_tree.body if isinstance(n, ast.Assign)
+                         and any(isinstance(t, ast.Name) and t.id == "APP_VERSION" for t in n.targets)]
+        setup_reads = _code_strings(setup_version)
+        if not (len(setup_version) == 1 and "claude_pet.py" in setup_reads
+                and any("APP_VERSION" in s for s in setup_reads)):
+            problems.append("setup.py must read APP_VERSION out of claude_pet.py")
+        stamped = [v for n in ast.walk(setup_tree) if isinstance(n, ast.Dict)
+                   for k, v in zip(n.keys, n.values)
+                   if isinstance(k, ast.Constant) and k.value == "CFBundleShortVersionString"]
+        if not stamped or not all(isinstance(v, ast.Name) and v.id == "APP_VERSION" for v in stamped):
+            problems.append("setup.py must stamp CFBundleShortVersionString with APP_VERSION")
+        build_text = BUILD_SCRIPT.read_text(encoding="utf-8")
+        if not re.search(r"(?m)^APP_VERSION=\$\(sed [^\n]*APP_VERSION[^\n]*claude_pet\.py", build_text):
+            problems.append("build_app.sh must read APP_VERSION out of claude_pet.py")
+        if "<key>CFBundleShortVersionString</key><string>${APP_VERSION}</string>" not in build_text:
+            problems.append("build_app.sh must stamp CFBundleShortVersionString with APP_VERSION")
+        win_version = _module_defs(WIN_BUILD).get("app_version")
+        if win_version is None or not ("claude_pet.py" in _code_strings([win_version])
+                                       and any("APP_VERSION" in s for s in _code_strings([win_version]))):
+            problems.append("windows/build_win.py's app_version must read APP_VERSION out of "
+                            "claude_pet.py")
+
+        # "앱의 업데이트 안내에서 받을 수 있습니다": the tag is taken from APP_VERSION …
+        release_text = RELEASE_SCRIPT.read_text(encoding="utf-8")
+        cur = re.search(r"(?ms)^cur_version\(\)\s*\{(.*?)^\}", release_text)
+        if not cur or "APP_VERSION" not in cur.group(1) or "claude_pet.py" not in cur.group(1):
+            problems.append("release.sh's cur_version must read APP_VERSION out of claude_pet.py")
+        if not re.search(r'TAG="v\$\(cur_version\)"', release_text):
+            problems.append('release.sh must publish under TAG="v$(cur_version)"')
+
+        # … both updaters compare the latest tag against the running version …
+        def compares(fn, qualifier, running):
+            """A comparison of <q>_ver_tuple(<tag>) with <q>_ver_tuple(<running>)."""
+            def ver_arg(node):
+                if not (isinstance(node, ast.Call) and len(node.args) == 1):
+                    return None
+                func = node.func
+                if qualifier is None and isinstance(func, ast.Name) and func.id == "_ver_tuple":
+                    return node.args[0]
+                if (qualifier is not None and isinstance(func, ast.Attribute)
+                        and func.attr == "_ver_tuple" and isinstance(func.value, ast.Name)
+                        and func.value.id == qualifier):
+                    return node.args[0]
+                return None
+            for n in ast.walk(fn):
+                if isinstance(n, ast.Compare) and len(n.comparators) == 1:
+                    args = [ver_arg(n.left), ver_arg(n.comparators[0])]
+                    if None in args:
+                        continue
+                    if any(ast.unparse(a) == running for a in args) and any(
+                            isinstance(a, ast.Name) and a.id != running for a in args):
+                        return True
+            return False
+
+        if "check_github_update" not in defs or not compares(
+                defs["check_github_update"], None, "APP_VERSION"):
+            problems.append("check_github_update must compare the latest tag against "
+                            "_ver_tuple(APP_VERSION)")
+        win_update = _module_defs(WIN_UPDATE).get("check_github_update_win")
+        if win_update is None:
+            problems.append("windows/win_update.py must define check_github_update_win")
+        else:
+            params = [a.arg for a in win_update.args.posonlyargs + win_update.args.args]
+            running = next((p for p in params if compares(win_update, "cp", p)), None)
+            if compares(win_update, "cp", "cp.APP_VERSION"):
+                pass                    # compares against the running core's version directly
+            elif running is None:
+                problems.append("check_github_update_win must compare the latest tag against "
+                                "the running version (cp.APP_VERSION, or an argument the port "
+                                "fills with it)")
+            else:
+                slot = params.index(running)
+                calls = [n for n in ast.walk(port) if isinstance(n, ast.Call)
+                         and isinstance(n.func, ast.Attribute)
+                         and n.func.attr == "check_github_update_win"]
+                if not calls:
+                    problems.append("the port never runs check_github_update_win")
+                for call in calls:
+                    arg = (call.args[slot] if slot < len(call.args)
+                           else next((kw.value for kw in call.keywords if kw.arg == running), None))
+                    if arg is None or ast.unparse(arg) != "cp.APP_VERSION":
+                        problems.append("the port must hand check_github_update_win cp.APP_VERSION, "
+                                        f"got {ast.unparse(arg) if arg is not None else None!r}")
+            latest = [n for n in _module_tree(WIN_UPDATE).body if isinstance(n, ast.Assign)
+                      and any(isinstance(t, ast.Name) and t.id == "LATEST_RELEASE_URL"
+                              for t in n.targets)]
+            if not (len(latest) == 1 and "cp.GITHUB_REPO" in ast.unparse(latest[0])
+                    and "/releases/latest" in ast.unparse(latest[0])
+                    and "LATEST_RELEASE_URL" in _names(win_update)):
+                problems.append("check_github_update_win must read the latest release of the "
+                                "core's GITHUB_REPO")
+
+        # … and what installed copies decide with: the comparator every published build
+        # carries must rank APP_VERSION above every published version.
+        if len(versions) == 1 and isinstance(versions[0], str):
+            namespace = {"__builtins__": {"str": str, "int": int, "tuple": tuple}}
+            exec(compile(PUBLISHED_VER_TUPLE, "<PUBLISHED_VER_TUPLE>", "exec"), namespace)
+            published_ver = namespace["_ver_tuple"]
+            published = [version for version, _ in _changelog_sections(self.text)[1:]]
+            not_newer = [v for v in published if not published_ver(versions[0]) > published_ver(v)]
+            if not published or not_newer:
+                problems.append(f"installed copies would not offer {versions[0]}: their "
+                                f"comparator does not rank it above {not_newer or 'anything'}")
+
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
 
 
 class SummaryMemoContractTests(unittest.TestCase):

@@ -817,6 +817,73 @@ protected-folder prompts (Downloads, Photos, network volumes). Since OAuth alrea
 supplies session, weekly, per-model, and credit rows, the CLI buys nothing and costs a
 wall of permission dialogs. Leave it off.
 
+### Token auto-recovery runs the CLI detached, in a private folder, once per attempt
+
+Token auto-recovery (`recovery_tick` → `run_token_refresh`, both platforms) and, on macOS
+only, the pill's login click (`start_claude_login_background`) run the `claude` CLI by
+default, and **both go through `_run_refresh_job`, which never makes the CLI our child**.
+Recovery is the Windows port's only use of `_run_refresh_job`. The other ways the CLI runs:
+the opt-in `_fetch_cli_usage()` above (both platforms, same environment variable), and
+user-visible console paths — on macOS the Terminal paths `start_claude_login` /
+`start_claude_install`, on Windows the context-menu items `_login_claude` / `_install_claude`
+in `windows/claude_pet_win.py`, which run it in a new PowerShell console.
+`recovery_spawn_argv` / `login_spawn_argv` return only the program the job runs — on macOS its
+`argv[0]` is the CLI itself, which is fine: detachment is a property of `_run_refresh_job`,
+not of an argv's shape.
+
+- **macOS** — a one-shot launchd job: `_launchd_job_spec()` written as a plist and
+  bootstrapped into `gui/<uid>`, with `WorkingDirectory = recovery_cli_cwd()` and `KeepAlive`
+  false. `_launchctl_bootout()` runs before (a stale job with the same label — v0.26's, after
+  an update — makes `bootstrap` fail) and after. `clear_stale_launchd_jobs()`, started once by
+  `run_gui()` on a daemon thread, also boots out both labels at launch — the recovery one only
+  when no attempt holds `_recovery_busy` — so a v0.26 job orphaned by an update or a quit
+  mid-attempt does not wait for the next attempt to be cleared.
+- **Windows** (recovery only) — WMI `Win32_Process.Create` (`_win_wmi_create`) with
+  `CurrentDirectory = recovery_cli_cwd()` and `ProcessStartupInformation =
+  Win32_ProcessStartup{ShowWindow=0}`.
+
+Three changes to refuse:
+
+- **`launchctl submit`.** It has no working-directory option (launchctl(1)), so the CLI
+  started in `/`, and launchd keeps re-running the job (observed below). v0.26 shipped it.
+- **Starting the CLI in `/`, the home directory, or wherever the app happens to be** (the
+  installed bundle's own working directory is its `Contents/Resources`). Always
+  `recovery_cli_cwd()`.
+- **`CreateFlags` = `CREATE_NO_WINDOW` (0x08000000) on the WMI call**, added "to be safe": WMI
+  rejects it with ReturnValue 21 and nothing spawns. `_spawn_no_window_flags()` is for our
+  own helper subprocesses only.
+
+**Observed** — scoped samples, not invariants:
+
+- 2026-09-30, one Mac, Claude Code CLI 2.1.284, launched by launchd with the token hours from
+  expiry: started in `/`, it tried to read `~/Music`, `~/Pictures`, `/Volumes`, `/home` and a
+  path under `~/Documents` within 5 s. Started in a private folder it requested no protected
+  location — four runs with the TCC log checked: three in an empty folder (a scratch folder
+  once, the app's own `cli` folder twice) and one in a non-empty scratch folder; the only TCC
+  request in those windows was a non-prompting `DeveloperTool` preflight by `syspolicyd`, in
+  one run. (That `/` run was sandboxed with every service already granted, so it could not
+  prompt.) The prompts that did appear came from v0.26's own recovery jobs, which also ran the
+  CLI in `/`: the tccd log for 05:28–06:52 holds 14 `AUTHREQ_PROMPTING` lines from 7 PIDs of
+  the token-refresh job (CLI 2.1.284). TCC attributed them to the CLI itself and keyed them to
+  its **versioned install path** — this Mac holds separate rows for four versions (2.1.271,
+  2.1.278, 2.1.283, 2.1.284) — so an answer for one version did not carry to the next. Hence
+  the fix is to not trigger the reads, not to get the user to answer once.
+- Same day, same Mac: launchd re-ran `submit` jobs after a clean `exit(0)`, although
+  launchctl(1) says only "in the event of failure" — one logged v0.26 attempt spawned the CLI
+  three times, and a probe `submit` of `/usr/bin/true` ran three times in 24 s.
+- One Windows 11 machine (10.0.26200), Windows Terminal as the default terminal: without
+  `ShowWindow=0` a visible terminal window appeared for the CLI's run in 5/5 spawns; with it,
+  0/2.
+- Not observed: a private-folder run that actually refreshes the token (it cannot be forced),
+  other CLI versions, other Windows versions or default terminals, and the login shape through
+  `_run_refresh_job` (macOS only — the Windows port never takes it). The full record is in
+  `_win_wmi_create` and the comment block above `REFRESH_MARGIN_SEC`.
+
+**To see what a process touches without prompting anyone:** a `sandbox-exec` deny on a path
+short-circuits TCC (a sandboxed `ls ~/Downloads` made no `tccd` request; the same `ls`
+unsandboxed did), so deny the protected locations and read the kernel's `Sandbox: … deny` log
+lines.
+
 ### Timing: what recomputes when
 
 Two `NSTimer`s are registered on the same `Ticker` object, and conflating them is the
