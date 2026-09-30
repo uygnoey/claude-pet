@@ -268,7 +268,7 @@
       </h1>
       <p class="updated">
         <span data-copy="updated">Last updated</span>
-        2026-09-14
+        2026-09-30
       </p>
 
       <p data-copy="intro">
@@ -348,6 +348,7 @@
       </p>
       <ul>
         <li data-copy="app.li1">Exact mode sends your existing Claude Code credential to Anthropic to ask for your account usage.</li>
+        <li data-copy="app.li5">If you use Codex, your existing Codex credential (<code>auth.json</code> in <code>~/.codex</code>, or in <code>$CODEX_HOME</code> if set) is sent to OpenAI to ask for your Codex usage. Codex logs on your computer are not read.</li>
         <li data-copy="app.li2">Update checks and downloads contact GitHub.</li>
         <li data-copy="app.li3">Usage parsing happens on your computer. Prompts, transcripts and source code are never uploaded by those paths.</li>
         <li data-copy="app.li4">An optional Admin API key is stored in plaintext in <code>~/.claude_pet.json</code> on your own machine.</li>
@@ -366,9 +367,9 @@
     <footer class="foot">
       <div class="wrap">
         <a href="./" data-copy="foot.home">Back to Claude Pet</a>
-        <a href="https://github.com/uygnoey/claude-pet" data-copy="foot.source">Explore the source</a>
+        <a href="https://github.com/uygnoey/claude-pet" data-copy="foot.source">Open source on GitHub (MIT)</a>
         <br>
-        <span data-copy="foot.fine">An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC.</span>
+        <span data-copy="foot.fine">An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic or OpenAI. Claude is a trademark of Anthropic PBC; Codex and ChatGPT are trademarks of OpenAI.</span>
       </div>
     </footer>
     <script>
@@ -407,6 +408,7 @@
           "app.title": "The desktop app is separate",
           "app.body": "Claude Pet the app has nothing to do with this website's analytics. It does not contact Google, and it does not report anything to this site. What it does do:",
           "app.li1": "Exact mode sends your existing Claude Code credential to Anthropic to ask for your account usage.",
+          "app.li5": "If you use Codex, your existing Codex credential (<code>auth.json</code> in <code>~/.codex</code>, or in <code>$CODEX_HOME</code> if set) is sent to OpenAI to ask for your Codex usage. Codex logs on your computer are not read.",
           "app.li2": "Update checks and downloads contact GitHub.",
           "app.li3": "Usage parsing happens on your computer. Prompts, transcripts and source code are never uploaded by those paths.",
           "app.li4": "An optional Admin API key is stored in plaintext in <code>~/.claude_pet.json</code> on your own machine.",
@@ -414,8 +416,8 @@
           "contact.body": "Open an issue on GitHub and I will answer there.",
           "contact.link": "Open an issue",
           "foot.home": "Back to Claude Pet",
-          "foot.source": "Explore the source",
-          "foot.fine": "An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic PBC."
+          "foot.source": "Open source on GitHub (MIT)",
+          "foot.fine": "An independent project by Yeongyu Yang. Not affiliated with or endorsed by Anthropic or OpenAI. Claude is a trademark of Anthropic PBC; Codex and ChatGPT are trademarks of OpenAI."
         },
         "ko": {
           "docTitle": "개인정보 — Claude Pet",
@@ -451,6 +453,7 @@
           "app.title": "데스크톱 앱은 별개예요",
           "app.body": "앱 Claude Pet은 이 웹사이트의 애널리틱스와 아무 관계가 없어요. Google에 연결하지 않고, 이 사이트로 무엇도 보고하지 않습니다. 앱이 실제로 하는 일은:",
           "app.li1": "정확 모드는 기존 Claude Code 인증 정보를 Anthropic에 보내 계정 사용량을 요청해요.",
+          "app.li5": "Codex를 쓰면 기존 Codex 인증 정보(<code>~/.codex</code>, 또는 설정돼 있으면 <code>$CODEX_HOME</code> 안의 <code>auth.json</code>)를 OpenAI에 보내 Codex 사용량을 요청해요. 내 컴퓨터의 Codex 로그는 읽지 않아요.",
           "app.li2": "업데이트 확인과 다운로드는 GitHub에 연결해요.",
           "app.li3": "사용량 파싱은 내 컴퓨터에서 이뤄져요. 이 경로들은 프롬프트·대화 내용·소스 코드를 업로드하지 않습니다.",
           "app.li4": "선택적 Admin API 키는 내 컴퓨터의 <code>~/.claude_pet.json</code>에 평문으로 저장돼요.",
@@ -458,8 +461,8 @@
           "contact.body": "GitHub에 이슈를 남겨 주시면 거기서 답변할게요.",
           "contact.link": "이슈 남기기",
           "foot.home": "Claude Pet으로 돌아가기",
-          "foot.source": "소스 보기",
-          "foot.fine": "Yeongyu Yang의 개인 프로젝트입니다. Anthropic과 제휴하거나 보증받지 않았어요. Claude는 Anthropic PBC의 상표입니다."
+          "foot.source": "GitHub의 오픈소스 (MIT)",
+          "foot.fine": "Yeongyu Yang의 개인 프로젝트입니다. Anthropic이나 OpenAI와 제휴하거나 보증받지 않았어요. Claude는 Anthropic PBC의 상표이고, Codex와 ChatGPT는 OpenAI의 상표입니다."
         },
         "ja": {
           "docTitle": "プライバシー — Claude Pet",
@@ -495,6 +498,7 @@
           "app.title": "デスクトップアプリは別です",
           "app.body": "アプリの Claude Pet は、このウェブサイトの解析とは無関係です。Google には接続せず、このサイトへ何も報告しません。アプリが実際に行うのは次のことです。",
           "app.li1": "正確モードは既存の Claude Code 認証情報を Anthropic に送り、アカウントの使用量を要求します。",
+          "app.li5": "Codex を使う場合は、既存の Codex 認証情報（<code>~/.codex</code>、または設定されていれば <code>$CODEX_HOME</code> にある <code>auth.json</code>）を OpenAI に送り、Codex の使用量を要求します。コンピューター上の Codex のログは読みません。",
           "app.li2": "更新の確認とダウンロードは GitHub に接続します。",
           "app.li3": "使用量の解析は自分のコンピューター上で行われます。これらの経路がプロンプト・会話・ソースコードをアップロードすることはありません。",
           "app.li4": "任意の Admin API キーは自分のマシンの <code>~/.claude_pet.json</code> に平文で保存されます。",
@@ -502,8 +506,8 @@
           "contact.body": "GitHub で issue を立てていただければ、そこでお答えします。",
           "contact.link": "issue を立てる",
           "foot.home": "Claude Pet に戻る",
-          "foot.source": "ソースを見る",
-          "foot.fine": "Yeongyu Yang による個人プロジェクトです。Anthropic とは提携しておらず、承認も受けていません。Claude は Anthropic PBC の商標です。"
+          "foot.source": "GitHub のオープンソース（MIT）",
+          "foot.fine": "Yeongyu Yang による個人プロジェクトです。Anthropic や OpenAI とは提携しておらず、承認も受けていません。Claude は Anthropic PBC の商標、Codex と ChatGPT は OpenAI の商標です。"
         },
         "es": {
           "docTitle": "Privacidad — Claude Pet",
@@ -539,6 +543,7 @@
           "app.title": "La app de escritorio es aparte",
           "app.body": "La app Claude Pet no tiene nada que ver con la analítica de este sitio web. No contacta con Google ni informa de nada a este sitio. Lo que sí hace:",
           "app.li1": "El modo exacto envía tu credencial de Claude Code a Anthropic para consultar el uso de tu cuenta.",
+          "app.li5": "Si usas Codex, tu credencial de Codex (<code>auth.json</code> en <code>~/.codex</code>, o en <code>$CODEX_HOME</code> si está definido) se envía a OpenAI para consultar tu uso de Codex. No se leen los registros de Codex de tu ordenador.",
           "app.li2": "Las comprobaciones de actualización y las descargas contactan con GitHub.",
           "app.li3": "El análisis del uso ocurre en tu ordenador. Esas rutas nunca suben prompts, conversaciones ni código fuente.",
           "app.li4": "Una clave opcional de Admin API se guarda en texto plano en <code>~/.claude_pet.json</code>, en tu propia máquina.",
@@ -546,8 +551,8 @@
           "contact.body": "Abre una issue en GitHub y te responderé allí.",
           "contact.link": "Abrir una issue",
           "foot.home": "Volver a Claude Pet",
-          "foot.source": "Ver el código",
-          "foot.fine": "Un proyecto independiente de Yeongyu Yang. Sin afiliación ni respaldo de Anthropic. Claude es una marca de Anthropic PBC."
+          "foot.source": "Código abierto en GitHub (MIT)",
+          "foot.fine": "Un proyecto independiente de Yeongyu Yang. Sin afiliación ni respaldo de Anthropic ni de OpenAI. Claude es una marca de Anthropic PBC; Codex y ChatGPT son marcas de OpenAI."
         }
       };
       const supported=Object.keys(I18N);

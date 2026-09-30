@@ -154,3 +154,7 @@ Todos los ajustes, tamaño y posición se guardan en `~/.claude_pet.json`.
 - Los datos se basan en los registros locales de Claude Code — el uso del chat web/escritorio no se incluye. Por eso puede mostrar menos que el % de la app; recalibra periódicamente para mantener la precisión.
 - El coste de Admin API es el de tu organización en Console, independiente del límite de la suscripción.
 - La clave de Admin API se guarda en texto plano en `~/.claude_pet.json`, úsala solo en un equipo personal.
+
+## Licencia
+
+[MIT](LICENSE) © 2026 Yeongyu Yang. La tipografía Pretendard incluida usa la SIL Open Font License (`fonts/`).

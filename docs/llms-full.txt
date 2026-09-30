@@ -1,43 +1,44 @@
 # Claude Pet — Full product reference
 
 Canonical website: https://claude-pet.yeongyu.me/
-Reference release: v0.26, published 2026-09-20T15:50:23Z (2026-09-21 00:50 KST).
-Reference updated: 2026-09-13.
+Reference release: v1.0.1, published 2026-09-30T09:45:29Z (2026-09-30 18:45 KST).
+Reference updated: 2026-09-30.
 
 ## Purpose
 
-Claude Pet is a free desktop companion for macOS and Windows that displays Claude usage in a compact summary pill. It combines an animated character with usage percentages and reset times so users can check their allowance while working. It has public source on GitHub; source availability alone does not establish a software license.
+Claude Pet is a free, open-source (MIT License) desktop pet for macOS and Windows that shows Claude Code and Codex usage in one compact summary pill. It combines an animated character with usage percentages and reset times so users can check their allowance while working. Claude Code and Codex are equal peers: use either one or both.
 
 ## Platform capabilities
 
 | Capability | macOS | Windows |
 | --- | --- | --- |
 | System | macOS 12 or later | Windows 10/11 |
-| Architecture | Apple Silicon; Intel through universal build | x64 |
-| Main download | ClaudePet.dmg or ClaudePet-universal.dmg | claude-pet-win-setup.exe |
+| Architecture | Apple Silicon and Intel (universal build runs on both) | x64 (no separate ARM build) |
+| Main download | ClaudePet.dmg (Apple Silicon) or ClaudePet-universal.dmg (Intel and Apple Silicon) | claude-pet-win-setup.exe |
 | ZIP alternative | ClaudePet.zip or ClaudePet-universal.zip | claude-pet-win.zip |
 | Signing | Developer ID signed and Apple-notarized | Unsigned; security warnings may appear |
 | Claude Code credential | Keychain or ~/.claude/.credentials.json | %USERPROFILE%/.claude/.credentials.json |
-| Updates | Hourly checks after launch; in-app installation from right-click menu | Right-click check opens releases for newer installer download |
+| Codex credential | The existing Codex login (auth.json under $CODEX_HOME or ~/.codex) | The existing Codex login (auth.json under %CODEX_HOME% or the user profile's .codex) |
+| Updates | Hourly checks after launch; check and install from the right-click menu | Same |
 | Custom pets | ~/.claude_pet/pets | %USERPROFILE%/.claude_pet/pets |
-| Start at login | Configure in macOS Login Items | Optional installer setting |
-| Uninstall | Right-click → Uninstall completely… | Settings → Apps for installer version |
+| Start at sign-in | Right-click menu "Start at sign-in" | Right-click menu "Start at sign-in"; also an installer option |
+| Uninstall | Right-click → Uninstall completely… | Right-click → Uninstall completely…, or Settings → Apps for the installer version |
 
 Python is bundled with the packaged applications. Neither platform requires a separate Python installation for these downloads.
 
 ## Installation: macOS
 
-1. Sign in to Claude Code on the Mac.
-2. Download ClaudePet.dmg for Apple Silicon or ClaudePet-universal.dmg for Intel from GitHub Releases.
+1. Sign in to Claude Code or Codex on the Mac.
+2. Download ClaudePet.dmg for Apple Silicon or ClaudePet-universal.dmg (Intel and Apple Silicon) from GitHub Releases.
 3. Open the DMG and drag ClaudePet.app to Applications. Launch the app.
-4. When prompted, allow access to the existing Claude Code credential and usage logs. A credential file may be used instead of Keychain on some installations.
-5. Right-click the companion to adjust settings, pet selection, size and roaming.
+4. If you use Claude Code and are prompted, allow access to the existing Claude Code credential and usage logs. A credential file may be used instead of Keychain on some installations.
+5. Right-click the pet to adjust settings, pet selection, size and roaming.
 
 ZIP installation is also available: extract the appropriate ZIP and move ClaudePet.app to Applications.
 
 ## Installation: Windows
 
-1. Sign in to Claude Code on Windows. The app uses the credential stored in %USERPROFILE%/.claude/.credentials.json.
+1. Sign in to Claude Code or Codex on Windows.
 2. For installation, run claude-pet-win-setup.exe. It installs per user, adds a Start Menu entry and offers optional start at sign-in.
 3. Alternatively, extract claude-pet-win.zip and run ClaudePet/ClaudePet.exe from the extracted folder.
 4. Windows builds are unsigned. SmartScreen or another warning may appear depending on Windows settings and organizational policies. Download from the project's GitHub release and review the file before running it. Do not promise that warnings appear only once or that every system permits execution.
@@ -45,54 +46,57 @@ ZIP installation is also available: extract the appropriate ZIP and move ClaudeP
 
 ## Usage data and interpretation
 
-Exact mode requests Anthropic's server-computed account usage percentages and reset times using the existing Claude Code OAuth credential. macOS reads Keychain or the Claude Code credentials file; Windows reads the credentials file. Usage categories, such as session, weekly, model or credits, depend on what Anthropic returns for that account.
+Claude Code: exact mode requests Anthropic's server-computed usage percentages and reset times using the existing Claude Code OAuth credential. Categories such as session, weekly and per-model usage depend on what Anthropic returns for that account.
 
-Local fallback estimates usage from Claude Code records under ~/.claude, under the Windows user profile on Windows. Web and desktop chat activity absent from those records is not counted. Optional calibration uses the percentage from Claude Settings → Usage to adjust the local estimate. This does not alter server-computed percentages. An estimate is not a guarantee of remaining token allowance.
+Claude Code local fallback: when server values cannot be fetched, usage is estimated from Claude Code records under ~/.claude (under the user profile on Windows) and marked with ≈. Web and desktop chat activity absent from those records is not counted. Optional calibration uses the percentage from Claude Settings → Usage to adjust the local estimate; it does not alter server-computed percentages. An estimate is not a guarantee of remaining token allowance.
 
-In v0.24 the display is a compact summary pill, with percentages and a second line of reset times when available. Number color identifies source: server usage is emerald, estimated usage is amber and marked ≈, and API cost uses coral. Labels reflect utilization: white below 50%, yellow from 50%, red from 85%; surge detection can also show a red label and ▲. An expired-token fallback may show ⚠. Do not confuse data-source colors with utilization thresholds.
+Codex: usage is read from OpenAI's server using the existing Codex login on the computer. Codex never uses local logs. Codex shows the limits its account has — today a single weekly limit — on one line with the time left until it resets. There is nothing to set up; if Codex is not used, nothing is added. Codex has no local estimate and no spike alert.
 
-The website's interactive pill is a labeled illustration using fixed example values. It does not read the visitor's account and is not a screenshot of the running application.
+The pill gives each provider its own line, marked with its logo. Number color identifies the source: server usage is green (emerald), estimated Claude Code usage is amber and marked ≈, and API cost uses coral. Labels reflect utilization: white below 50%, yellow from 50%, red from 85%; a Claude Code usage spike can also show a red label and ▲. Do not confuse data-source colors with utilization thresholds.
+
+The website's pills are labeled illustrations using fixed example values. They do not read the visitor's account and are not screenshots of the running application.
 
 ## Companion behavior and customization
 
 The cat is built in; dog, fox, scorpion and elephant are bundled. Switch pets through the right-click menu. Users may add compatible pet.json and sprite-sheet folders under ~/.claude_pet/pets (Mac) or %USERPROFILE%/.claude_pet/pets (Windows).
 
-Roaming can be enabled or disabled. The companion can wander, follow the cursor at a distance and move between monitors. The summary pill tucks away while the pet moves. Users can drag the pet, resize it and adjust display settings. Double-clicking jumps and refreshes usage; the companion reacts to a detected session reset. Interface languages include English, Korean, Japanese and Spanish.
+Roaming can be enabled or disabled. The pet can wander, follow the cursor at a distance and move between monitors. Users can drag the pet and resize it from the right-click menu. Double-clicking jumps and refreshes usage; the pet reacts to a detected Claude Code session reset. Interface languages include English, Korean, Japanese and Spanish.
 
 ## Updates
 
-macOS checks GitHub hourly, beginning one hour after launch. The right-click menu also offers an immediate check and installation of a newer release. Installation downloads, replaces and relaunches the app.
-
-Windows provides an update check in the right-click menu. If a newer version is available, the flow opens the latest GitHub Releases page so the user can download the new installer. Do not apply the macOS hourly timer or automatic in-app replacement description to Windows.
+Both macOS and Windows check GitHub hourly, beginning one hour after launch. The right-click menu also offers "Check for updates…", which checks immediately and, when a newer release exists, downloads and installs it in the app. Updates go straight to the latest GitHub release.
 
 ## Privacy and optional Admin API mode
 
-Usage log parsing happens locally on the user's computer. Exact mode sends the existing Claude Code credential to Anthropic to request account usage. Update checking and downloading contact GitHub. Those usage and update paths do not upload prompts, transcripts or source code. The app also reads its settings, assets and installed resources; it is not an offline-only program.
+Usage log parsing happens locally on the user's computer. The existing Claude Code credential is sent to Anthropic, and the existing Codex credential to OpenAI, only to request account usage. Update checking and downloading contact GitHub. Those paths do not upload prompts, transcripts or source code. The app also reads its settings, assets and installed resources; it is not an offline-only program.
 
 The website at claude-pet.yeongyu.me is separate from the app. It runs Google Analytics 4 on every page to count visits; measurement is not optional there. The app never contacts the website or Google.
 
 Optional Admin API mode reports Anthropic Console organization costs and a configured budget. This is separate from Claude subscription limits. A configured Admin API key is stored in plaintext in ~/.claude_pet.json, under the user profile on Windows.
 
-## Scope and independence
+## License, scope and independence
 
-This release monitors Claude, not other AI services. Claude Pet is an independent project by Yeongyu Yang (GitHub: uygnoey). It is not affiliated with or endorsed by Anthropic PBC. Claude is a trademark of Anthropic PBC.
+Claude Pet is open source under the MIT License (see LICENSE in the repository). It monitors Claude Code and Codex; other AI services are not supported. Claude Pet is an independent project by Yeongyu Yang (GitHub: uygnoey), not affiliated with or endorsed by Anthropic or OpenAI. Claude is a trademark of Anthropic PBC; Codex and ChatGPT are trademarks of OpenAI.
 
 ## Canonical links
 
 Website: https://claude-pet.yeongyu.me/
 Website privacy: https://claude-pet.yeongyu.me/privacy.html
 Repository: https://github.com/uygnoey/claude-pet
-Published release: https://github.com/uygnoey/claude-pet/releases/tag/v0.26
+License: https://github.com/uygnoey/claude-pet/blob/main/LICENSE
+Published release: https://github.com/uygnoey/claude-pet/releases/tag/v1.0.1
 Latest downloads: https://github.com/uygnoey/claude-pet/releases/latest
-Apple Silicon: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg
-Intel universal: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg
+Apple Silicon DMG: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg
+Universal DMG (Intel and Apple Silicon): https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg
+Apple Silicon ZIP: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.zip
+Universal ZIP: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.zip
 Windows installer: https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe
 Windows ZIP: https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip
 
 ## 한국어 안내
 
-Claude Pet은 macOS와 Windows에서 Claude 사용량을 확인하는 무료 데스크톱 펫입니다. macOS 12 이상과 Windows 10/11 x64를 지원합니다. Mac은 Apple Silicon용과 Intel universal 빌드가 있고, Windows는 설치 파일과 무설치 ZIP을 제공합니다. Windows 배포본은 서명이 없어 보안 경고가 나타날 수 있습니다.
+Claude Pet은 macOS와 Windows에서 Claude Code와 Codex 사용량을 한 필로 보여 주는 무료 오픈소스(MIT) 데스크톱 펫입니다. macOS 12 이상(Apple Silicon·Intel)과 Windows 10/11 x64를 지원합니다. Mac은 Apple Silicon용과 universal 빌드가 있고, Windows는 설치 파일과 무설치 ZIP을 제공합니다. Windows 배포본은 서명이 없어 보안 경고가 나타날 수 있습니다.
 
-정확 모드는 기존 Claude Code 인증 정보로 Anthropic의 계정 사용률과 리셋 시간을 요청합니다. Mac에서는 키체인 또는 자격 증명 파일, Windows에서는 %USERPROFILE%/.claude/.credentials.json을 읽습니다. 로컬 대체 모드는 Claude Code 로그만 추정하며 기록되지 않은 웹·데스크톱 사용량은 포함하지 못합니다.
+Claude Code는 기존 인증 정보로 Anthropic의 세션·주간 사용률과 리셋 시간을 받아 오고, 받을 수 없으면 Claude Code 로그로 추정해 ≈를 붙입니다. Codex는 이 컴퓨터의 Codex 로그인으로 OpenAI 서버에서 사용량을 읽어 계정에 있는 한도를 보여 주고(지금은 주간 한도 하나예요), 로컬 로그는 쓰지 않고 따로 설정할 것도 없습니다. Claude Code나 Codex 중 하나에 로그인돼 있으면 되고, 둘 다 쓰면 둘 다 보입니다.
 
-Mac은 실행 후 1시간마다 업데이트를 확인하고 앱 안에서 설치할 수 있습니다. Windows는 우클릭 메뉴에서 확인한 뒤 GitHub Releases에서 새 설치 파일을 다운로드합니다. 사용량 표시, 화면 산책, 펫 선택은 두 플랫폼에서 제공하며, 다른 AI 서비스는 현재 지원 범위에 포함하지 않습니다.
+두 플랫폼 모두 실행 후 1시간마다 업데이트를 확인하고, 우클릭 메뉴에서 바로 확인·설치할 수 있습니다. 로그인 시 자동 실행과 완전 삭제도 우클릭 메뉴에 있습니다.

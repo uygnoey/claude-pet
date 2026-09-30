@@ -151,3 +151,7 @@ python3 claude_pet.py --report   # GUI なしのターミナルレポートの�
 - データは Claude Code のローカルログ基準 — Web/デスクトップのチャット使用量は含まれません。そのためアプリの % より低く出ることがあり、定期的に再キャリブレーションすると正確になります。
 - Admin API のコストは Console の組織のもので、サブスクリプションの上限とは別です。
 - Admin API キーは `~/.claude_pet.json` に平文で保存されるため、個人のマシンでのみ使用してください。
+
+## ライセンス
+
+[MIT](LICENSE) © 2026 Yeongyu Yang。同梱の Pretendard フォントは SIL Open Font License です（`fonts/`）。

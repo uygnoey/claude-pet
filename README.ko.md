@@ -150,3 +150,7 @@ README와 함께 열립니다. 펫은 `pet.json` + `spritesheet.webp`가 든 폴
 - 데이터는 Claude Code 로컬 로그 기준 — 웹/데스크톱 채팅 사용량은 미포함. 그래서 앱 %보다 낮게 나올 수 있고, 보정을 주기적으로 다시 해주면 정확해짐.
 - Admin API 비용은 Console 조직 것이며 구독 한도와 별개.
 - Admin API 키는 `~/.claude_pet.json`에 평문 저장되니 개인 기기에서만 사용 권장.
+
+## 라이선스
+
+[MIT](LICENSE) © 2026 Yeongyu Yang. 앱에 내장한 Pretendard 글꼴은 SIL Open Font License를 따릅니다(`fonts/`).

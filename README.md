@@ -152,3 +152,7 @@ All settings, size, and position are saved in `~/.claude_pet.json`.
 - Data is based on Claude Code's local logs — web/desktop chat usage is not included. So it can read lower than the app's %; recalibrate periodically to stay accurate.
 - Admin API cost is your Console organization's, separate from the subscription limit.
 - The Admin API key is stored in plaintext in `~/.claude_pet.json`, so use it only on a personal machine.
+
+## License
+
+[MIT](LICENSE) © 2026 Yeongyu Yang. The bundled Pretendard typeface is under the SIL Open Font License (`fonts/`).
