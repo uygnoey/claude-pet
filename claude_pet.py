@@ -3150,9 +3150,12 @@ def _fetch_cli_usage():
 #    v0.26 이 둘 다 했다. 2026-09-30 사용자가 Apple Music·네트워크 등의 권한 요청이 다시
 #    뜬다고 보고했고, 원인이 이 둘이었다.
 #
-#    **관측된 것** (2026-09-30, 이 맥, CLI 2.1.284 한 버전). `launchctl submit` 은 작업
-#    디렉터리를 정할 수 없어 CLI 가 launchd 기본값 `/` 에서 떴다 — Claude Code 가 `/` 의
-#    세션을 적는 `~/.claude/projects/-/` 에 복구 실행분 세션 37개(09-19~09-30)가 있다.
+#    **문서 사실** (launchctl(1)): `submit` 에는 작업 디렉터리를 정하는 인자가 없고, 문서는
+#    그 job 을 "실패하면(in the event of failure) 계속 살려 둔다"고 적는다.
+#
+#    **관측된 것** (2026-09-30, 이 맥, CLI 2.1.284 한 버전). v0.26 의 복구 job 이 띄운 CLI 는
+#    `/` 에서 돌았다 — Claude Code 가 `/` 의 세션을 적는 `~/.claude/projects/-/` 에 복구
+#    실행분 세션 37개(09-19~09-30)가 있다.
 #    05:28~06:52 tccd 로그의 AUTHREQ_PROMPTING 14건이 전부 그 job 이 띄운 PID 7개에서
 #    나왔고, 책임 프로세스는 모두 CLI 자신(버전별 경로)이었다. 서비스는 Apple Music·네트워크
 #    볼륨(마운트된 것은 없었다)·다운로드·문서·데스크탑·다른 앱의 데이터. 같은 CLI 를 launchd
@@ -3167,15 +3170,18 @@ def _fetch_cli_usage():
 #
 #    **그래서 코드는** CLI 를 recovery_cli_cwd() 에서 띄운다. 관측에서 끌어낸 불변식이
 #    아니라 알려진 촉발 조건을 없애는 조치다 — 미래의 CLI 가 작업 디렉터리와 상관없이 보호
-#    위치를 읽기 시작하면 다시 뜬다. 그리고 사용자가 답해서 끝낼 수 있는 프롬프트도 아니다:
-#    TCC 는 이 CLI 를 버전별 경로로 기억해서(이 맥 TCC DB 에 2.1.271·2.1.278·2.1.283·2.1.284
-#    가 따로 있다) 자동 업데이트 때마다 처음부터 다시 묻는다. 촉발하지 않는 것만이 답이다.
+#    위치를 읽기 시작하면 다시 뜬다. 그리고 사용자가 답해서 끝낼 수 있는 프롬프트도 아니었다:
+#    TCC 는 이 CLI 를 버전별 경로로 기억했다 — 이 맥 TCC DB 에 네 버전(2.1.271·2.1.278·
+#    2.1.283·2.1.284)이 네 개의 따로 된 행으로 있고, 넷 다 따로 물었다. 한 버전에 준 답이 다음
+#    버전으로 이어지지 않았다는 뜻이다. 촉발하지 않는 것만이 답이다.
 #
-#    `submit` 은 또 "실패하면 계속 살려 두는"(launchctl(1)) job 을 만든다. 06:15:29 에 뜬
-#    claude 가 48초 만에 끝나자 launchd 가 곧바로 다시 띄웠고("because inefficient"), 한
-#    번의 시도가 120초 제한까지 CLI 여러 번이 됐다. 로그인 job 이라면 실패한 로그인이 다시
-#    떠 브라우저를 또 열 수 있다(추론 — 관측되지 않았다). 그래서 KeepAlive 를 끈 일회성
-#    job 을 plist 로 bootstrap 한다 — _run_refresh_job 참조.
+#    되살리기는 문서보다 넓었다(관측, 같은 날): 06:15:29 에 시작한 시도의 launchd 로그에 CLI
+#    spawn 이 세 번 찍혔다 — 앞의 둘은 48초씩 돌고 exit(0) 으로 끝나자마자 다시 떴고("because
+#    inefficient"), 세 번째는 120초 제한에서 job 을 내리자 SIGKILL 로 끝났다. /usr/bin/true 를
+#    submit 한 프로브도 exit 0 인데 24초 사이에 세 번 돌았다. 로그인 job 이었다면 끝난 로그인이
+#    다시 떠 브라우저를 또 열었을 것이다(추론 — 관측되지 않았다). 그래서 KeepAlive 를 끈 일회성
+#    job 을 plist 로 bootstrap 하고(_run_refresh_job), 시도 도중에 앱이 꺼져 남았을 v0.26 의
+#    job 은 시작할 때 내린다(clear_stale_launchd_jobs).
 #
 # 시점은 주기가 아니라 만료 기준이다. expiresAt 은 프롬프트 없이 읽히고 수명이 8시간이라
 # 만료 임박에 한 번이면 하루 세 번이 상한이고, 실제로는 CLI 를 쓰는 사용자에게 0 에
@@ -3285,8 +3291,11 @@ def recovery_cli_cwd():
     가 보호 위치를 읽은 것이 2026-09-30 의 권한 프롬프트였다(모듈 주석 3). 캐시 디렉터리
     자체가 아닌 것은 거기에 .out/.err/.plist 가 떨어지기 때문이다 — CLI 가 도는 자리에
     우리 파일을 두지 않는다. 윈도우에서도 같은 자리를 쓴다: WMI 가 만든 프로세스는 따로
-    정하지 않으면 호출자인 WmiPrvSE 의 작업 디렉터리를 물려받는다(Win32_Process.Create
-    문서 — 윈도우 기계에서 확인되지는 않았다).
+    정하지 않으면 WmiPrvSE 의 작업 디렉터리를 물려받고, 그 자리는 우리 것이 아니다.
+    2026-09-30 윈도우 11 한 대에서 잰 값은 system32 도 아닌 프린터 드라이버 폴더
+    (System32\\DriverStore\\FileRepository\\ntprint.inf_amd64_…\\Amd64)였고, Claude Code 가
+    그 폴더 이름으로 적은 세션 파일이 2026-09-23 부터 27개 쌓여 있었다(파일마다 출처를
+    가리지는 않았다). 고친 뒤 같은 기계의 스폰 6회는 전부 이 디렉터리 이름으로 세션을 적었다.
     """
     return os.path.join(_recovery_cache_dir(), "cli")
 
@@ -3412,7 +3421,11 @@ def recovery_spawn_argv(cli_path):
               `claude.cmd`·`claude.bat` 이 CreateProcess 로는 직접 뜨지 않는다는 것과,
               타임아웃 때 `taskkill /T` 가 걸 수 있는 안정된 트리 뿌리가 생긴다는 것.
 
-    터미널 창은 어느 쪽에서도 띄우지 않는다.
+    터미널 창은 어느 쪽에서도 띄우지 않는다. 윈도우에서 이 문장은 저절로 참이 되지
+    않았다 — 이렇게 적어 두고도, 기본 터미널이 Windows Terminal 인 기계에서 시작 정보
+    (ProcessStartupInformation) 없이 띄운 WMI 스폰 5/5 가 CLI 가 도는 3~4초 동안 보이는 창을
+    띄웠다(cwd 수정 전 코드와 후 코드 모두 — 측정은 _win_wmi_create). 지금은 거기서 콘솔을
+    SW_HIDE 로 띄워 막는다.
 
     `-p /usage` 를 쓰는 이유는 출력이 아니라 **부수효과**를 노려서다: 이 한 번이 CLI 의
     갱신을 일으킨다. 만료된 토큰에 대해서는 측정됐고(스폰 +0.78초에 두 지문이 모두 교체),
@@ -3443,13 +3456,16 @@ def login_spawn_argv(cli_path):
     떼어 내는 방법도 작업 디렉터리도 복구 스폰과 같다(_run_refresh_job). macOS 에서 브라우저를
     여는 것 자체는 /usr/bin/open 이라 무해하지만 CLI 가 `/` 에서 뜨면 보호 위치를 읽는 것은
     똑같으므로, 같은 전용 디렉터리에서 띄운다. 한 번만 도는 것은 여기서 더 중요하다 —
-    실패한 로그인이 다시 뜨면 브라우저가 또 열린다.
+    로그인이 다시 뜨면 브라우저가 또 열린다(v0.26 의 submit job 은 exit 0 으로 끝나도 다시
+    떴다 — 모듈 주석 3).
 
-    **윈도우의 미확인 위험**: 이 경로는 WMI 가 띄우는데(_run_refresh_job), 로컬 WMI 가
-    만든 프로세스가 호출자와 같은 대화형 세션에 뜨는지는 여기서 확인되지 않았다. 세션 0
-    에 뜬다면 브라우저가 사용자 화면에 나타나지 않고, 그러면 사용자는 눌렀는데 아무 일도
-    안 일어난 것으로 본다. 복구 스폰은 화면에 뭘 띄울 일이 없어 이 위험이 없다 — 로그인만
-    다르다. 윈도우에서 이 항목을 처음 돌려 보는 사람은 이것부터 확인해라.
+    **윈도우에서 로그인 모양은 돌려 보지 않았다.** 이 경로도 WMI 가 띄운다(_run_refresh_job).
+    같은 Create 로 띄운 복구 모양은 전부 대화형 세션(세션 1)에 떴다 — 2026-09-30 윈도우 11
+    한 대, 스폰 7회. 그래서 브라우저가 세션 0 에 갇힐 걱정은 복구 쪽 측정으로 줄었지만,
+    로그인 자체로 확인한 것은 아니다. 콘솔을 숨기는 SW_HIDE(_win_wmi_create)는 WMI 가 만든
+    cmd.exe 의 콘솔 창에만 걸리므로 그 아래에서 claude 가 기본 브라우저를 따로 여는 것은
+    막지 않을 것이다 — **추론이다, 재 보지 않았다.** 윈도우에서 이 항목을 처음 돌려 보는
+    사람은 브라우저가 실제로 뜨는지부터 확인해라.
     """
     if sys.platform != "darwin":
         return [_windows_cmd_exe(), "/c", str(cli_path), "auth", "login", "--claudeai"]
@@ -3489,8 +3505,8 @@ def _launchd_job_spec(label, argv, cwd, out, err):
 
     두 키가 이 job 의 존재 이유다(모듈 주석 3):
       WorkingDirectory  CLI 를 `/` 가 아니라 우리 전용 디렉터리에서 띄운다.
-      KeepAlive=False   끝나면 끝이다. `submit` 은 실패한 job 을 계속 살려 둬서, 한 번의
-                        시도가 CLI 여러 번이 됐다.
+      KeepAlive=False   끝나면 끝이다. v0.26 의 `submit` job 은 exit 0 으로 끝나도 다시
+                        떴고, 로그에 남은 시도 하나에서 CLI 가 세 번 떴다(모듈 주석 3).
     ProcessType 은 두지 않는다 — launchd 기본값인 이 job 으로 CLI 가 4.5초 만에 exit 0
     했고(2026-09-30, 2.1.284, 1회), 바꿀 근거가 없다.
     """
@@ -3512,6 +3528,11 @@ def _spawn_no_window_flags():
     PseudoConsoleWindow 관측). DETACHED_PROCESS 도 창은 막지만 콘솔 자체가 없어지므로,
     Node 가 기대하는 환경에 더 가깝고 한 번 실행에 최대 7개까지 붙는 자식들(bash·conhost·
     cmd)의 창까지 같이 막아 주는 CREATE_NO_WINDOW 를 쓴다.
+
+    이 플래그가 닿는 것은 우리가 subprocess 로 직접 띄우는 보조 도구(PowerShell·tasklist·
+    taskkill)뿐이다. WMI 가 만드는 CLI 트리의 창은 _win_wmi_create 의 SW_HIDE 가 맡는다 —
+    같은 값을 Win32_ProcessStartup.CreateFlags 로 넘기면 Create 가 21 로 거부해 아무것도
+    뜨지 않는다(실측, 그쪽 docstring).
     """
     return 0x08000000 if sys.platform == "win32" else 0
 
@@ -3565,13 +3586,29 @@ def _win_wmi_create(cmdline, cwd=None):
 
     명령줄은 환경변수로 건넨다. PowerShell 인용을 거치지 않으므로 경로에 공백이나
     작은따옴표가 있어도 그대로 도착한다. cwd 가 있으면 CurrentDirectory 도 같은 방식으로
-    건넨다 — 없으면 뜨는 프로세스는 호출자인 WmiPrvSE 의 작업 디렉터리를 물려받는다
-    (recovery_cli_cwd 참조).
+    건넨다 — 없으면 뜨는 프로세스는 WmiPrvSE 의 작업 디렉터리를 물려받는다(recovery_cli_cwd
+    참조: 잰 값은 프린터 드라이버 폴더였다).
+
+    **콘솔 창은 SW_HIDE 로 숨긴다 — Win32_ProcessStartup{ShowWindow=0} 을 cwd 와 상관없이
+    언제나 ProcessStartupInformation 으로 넘긴다.**
+    관측(2026-09-30, 윈도우 11 10.0.26200 한 대, 기본 터미널 = Windows Terminal 콘솔 위임):
+      · 그것 없이: WMI 가 만든 cmd.exe 의 콘솔이 Windows Terminal 로 위임돼, CLI 가 도는
+        3~4초 동안 보이는 창이 떴다 — 5/5(cwd 수정 전 코드와 후 코드 모두).
+      · ShowWindow=0 으로: 보이는 창 0/2. 클래식 conhost 창이 생기지만 끝까지 보이지 않았고
+        위임(OpenConsole.exe)이 일어나지 않았다. PID·트리·출력·세션 파일 자리는 같았고
+        남은 프로세스도 없었다.
+      · CreateFlags=0x08000000(CREATE_NO_WINDOW)은 혼자서도, ShowWindow 와 같이도 Create 가
+        ReturnValue 21 로 거부해 아무것도 뜨지 않았다(4/4). **넣지 말 것** — "안전하게 하나
+        더"로 보이지만 스폰을 통째로 죽인다.
+    관측되지 않은 것: 다른 윈도우 버전, 기본 터미널이 conhost 인 기계, 로그인 모양.
     """
     fields = "CommandLine=$env:%s" % WIN_SPAWN_ENV
     if cwd:
         fields += "; CurrentDirectory=$env:%s" % WIN_SPAWN_CWD_ENV
-    script = ("$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
+    fields += "; ProcessStartupInformation=$si"
+    script = ("$si = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly "
+              "-Property @{ShowWindow=[uint16]0}; "
+              "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
               "-Arguments @{%s}; "
               "if ($r.ReturnValue -ne 0) { exit 1 }; "
               "[Console]::Out.Write($r.ProcessId)" % fields)
@@ -3628,18 +3665,23 @@ def _run_refresh_job(argv, label, stem, timeout):
 
     * macOS — KeepAlive 를 끈 일회성 job 을 plist 로 써서 gui 도메인에 bootstrap 한다
       (부모 = launchd, ppid 1). `launchctl submit` 은 쓰지 않는다: 작업 디렉터리를 정할 수
-      없고(그래서 CLI 가 `/` 에서 떴다), 실패한 job 을 계속 살려 둔다(모듈 주석 3). 출력은
+      없고(그래서 CLI 가 `/` 에서 떴다), 끝난 job 을 exit 0 이어도 다시 띄운다(모듈 주석 3). 출력은
       launchd 가 파일로 적어 주므로 그 파일을 읽고 지운다. 다 끝났든 제한을 넘겼든
       bootout 이 job 을 내리고, 아직 돌고 있으면 끝낸다. plist 도 지운다.
-    * Windows — argv 를 명령줄로 조립해 WMI 가 같은 작업 디렉터리에서 띄운다(부모 =
-      WmiPrvSE.exe). 출력은 명령줄 안의 리디렉션으로 파일에 받는다. 여기서 놓치기 쉬운
-      것이 정리다: 간접화했으니 우리에겐 Popen 객체가 없고, **WMI 가 돌려준 PID 만이
-      손잡이다.** 제한을 넘기면 그 PID 를 뿌리로 `taskkill /F /T` 한다.
+    * Windows — argv 를 명령줄로 조립해 WMI 가 같은 작업 디렉터리에서, 콘솔 창을 숨긴 채
+      (SW_HIDE — _win_wmi_create) 띄운다(부모 = WmiPrvSE.exe). 출력은 명령줄 안의
+      리디렉션으로 파일에 받는다. 여기서 놓치기 쉬운 것이 정리다: 간접화했으니 우리에겐
+      Popen 객체가 없고, **WMI 가 돌려준 PID 만이 손잡이다.** 제한을 넘기면 그 PID 를
+      뿌리로 `taskkill /F /T` 한다.
 
-    **미측정**: 이 윈도우 경로는 윈도우 기계에서 실행되지 않았다. WMI 가 우리 트리에서
-    떨어진다는 것은 피어의 실측이고, 여기서 그 위에 얹은 PID 배선·리디렉션·폴링은
-    아직 아무도 돌려 보지 않았다. `claude.cmd`(npm 설치판)도 같다 — `cmd.exe /c` 한 겹이
-    그것까지 받아 내도록 넣었지만 확인된 바는 없다.
+    **윈도우 경로는 측정됐다 — 갈래별로** (2026-09-30, 윈도우 11 10.0.26200 한 대, 네이티브
+    claude.exe). 돌아 본 갈래: WMI 스폰, PID 배선, 리디렉션, PID 가 사라질 때까지의 폴링, 출력
+    파일 읽고 지우기 — 출력을 받은 스폰 7회(cwd 수정 전 코드 1회 포함) 모두 트리가 대화형
+    세션에 떴고 끝난 뒤 남은 프로세스가 0이었다. 그리고 Create 가 거부되는 갈래 — CreateFlags
+    실험 4회에서 None 을 돌려주고 아무것도 남기지 않았다. 돌지 않은 갈래: 제한 시간을 넘겨
+    `taskkill /F /T` 로 트리를 끝내는 경로(가장 긴 실행이 17초였다)와 `claude.cmd`(npm
+    설치판) — `cmd.exe /c` 한 겹이 그것까지 받아 내도록 넣었지만 그 기계는 네이티브 claude.exe
+    였다.
     """
     if sys.platform != "darwin":
         out, err = _recovery_io_paths(stem)
@@ -3803,6 +3845,35 @@ def start_claude_login_background():
         return False
     return _run_refresh_job(login_spawn_argv(cli), LOGIN_JOB_LABEL, "login",
                             LOGIN_TIMEOUT_SEC) is not None
+
+
+def clear_stale_launchd_jobs():
+    """앱이 시작할 때 한 번, 우리 label 로 남은 옛 launchd job 을 내린다(macOS). 예외는 없다.
+
+    v0.26 은 `launchctl submit` 으로 job 을 올렸다. 그 job 을 내리는 것은 시도를 연
+    _run_refresh_job 뿐이라, 시도 도중에 앱이 업데이트되거나 종료되면 내려 줄 쪽이 사라진다.
+      관측(2026-09-30, 이 맥): submit job 은 exit 0 으로 끝나도 launchd 가 다시 띄운다 —
+        /usr/bin/true 를 submit 한 프로브가 24초 사이에 세 번 돌았다("spawn scheduled").
+      관측되지 않은 것: 업데이트·종료로 실제로 남은 job. 그런 job 은 CLI 를 `/` 에서 거듭
+        띄울 것이고(모듈 주석 3), 로그인 job 이면 브라우저를 다시 열 것이다 — 추론이다.
+      그래서: 다음 복구 시도가 시작하며 내릴 때(만료 기준이라 최대 8시간 뒤)까지 기다리지
+        않고 앱이 시작할 때 내린다. 메인 스레드에서 부르지 않는다 — launchctl 을 기다린다.
+
+    로그인 label 은 언제나 내린다 — 로그인은 필을 눌러야 시작되는데 이것은 뜨자마자 돈다.
+    복구 label 은 _recovery_busy 를 잡았을 때만 내린다. 못 잡았다면 시도가 도는 중이고, 그
+    시도는 시작할 때 이미 옛 job 을 내렸다 — 여기서 내리면 그 시도의 job 을 죽이게 된다.
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        _launchctl_bootout(LOGIN_JOB_LABEL)
+        if _recovery_busy.acquire(blocking=False):
+            try:
+                _launchctl_bootout(RECOVERY_JOB_LABEL)
+            finally:
+                _recovery_busy.release()
+    except Exception as e:
+        _dbg("recovery: stale job cleanup failed", type(e).__name__)
 
 
 def summary_click_action(*, status_key, in_pill, click_count, moved):
@@ -8051,6 +8122,10 @@ def run_gui():
         print("macOS 네이티브 렌더링에 pyobjc가 필요합니다. 설치:", file=sys.stderr)
         print("  pip3 install pyobjc-framework-Cocoa", file=sys.stderr)
         sys.exit(1)
+
+    # 옛 launchd job 정리는 시작할 때 한 번, 데몬 스레드에서 — launchctl 을 기다리는 일이
+    # 화면이 뜨는 것을 막지 않게(clear_stale_launchd_jobs 참조).
+    threading.Thread(target=clear_stale_launchd_jobs, daemon=True).start()
 
     def hexcolor(h, a=1.0):
         h = h.lstrip("#")
