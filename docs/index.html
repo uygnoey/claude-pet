@@ -374,18 +374,21 @@ footer small span{display:block}
   border:1px solid var(--line);background:var(--win);color:var(--ink);box-shadow:var(--shadow);font:600 13px/1 var(--font-body);cursor:pointer;
   transition:gap .25s,padding .25s,background .2s}
 .fab-txt{display:inline-block;max-width:0;overflow:hidden;white-space:nowrap;opacity:0;transition:max-width .3s cubic-bezier(.2,.8,.2,1),opacity .2s}
-.fabwrap:hover .fab,.fabwrap:focus-within .fab{gap:8px;padding:5px 14px 5px 5px}
-.fabwrap:hover .fab-txt,.fabwrap:focus-within .fab-txt{max-width:260px;opacity:1}
+/* pointer devices open on hover/focus; touch devices open on the first tap (.open, set by the script) */
+.fabwrap.open .fab{gap:8px;padding:5px 14px 5px 5px}
+@media (hover:hover){ .fabwrap:hover .fab,.fabwrap:focus-within .fab{gap:8px;padding:5px 14px 5px 5px} }
+.fabwrap.open .fab-txt{max-width:260px;opacity:1}
+@media (hover:hover){ .fabwrap:hover .fab-txt,.fabwrap:focus-within .fab-txt{max-width:260px;opacity:1} }
 .fab-pick{display:flex;gap:6px;padding:6px;border-radius:999px;border:1px solid var(--line);background:var(--win);box-shadow:var(--shadow);
   opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.2,.8,.2,1)}
-.fabwrap:hover .fab-pick,.fabwrap:focus-within .fab-pick{opacity:1;transform:none;pointer-events:auto}
+.fabwrap.open .fab-pick{opacity:1;transform:none;pointer-events:auto}
+@media (hover:hover){ .fabwrap:hover .fab-pick,.fabwrap:focus-within .fab-pick{opacity:1;transform:none;pointer-events:auto} }
 .fab-pick button{position:relative;width:40px;height:43px;padding:0;border:2px solid transparent;border-radius:50%;background-color:var(--bar);
   background-repeat:no-repeat;background-size:320px 473px;background-position:-2px -2px;cursor:pointer;transition:transform .15s}
 .fab-pick button:hover{transform:translateY(-2px)}
 .fab-pick button[aria-pressed="true"]{border-color:var(--link)}
 .fab-pick button[aria-pressed="true"]::after{content:"✓";position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;border-radius:50%;
   background:var(--link);color:var(--win);font:700 10px/16px var(--font-body);text-align:center}
-@media (hover:none){ .fabwrap .fab-pick{opacity:1;transform:none;pointer-events:auto} }
 .fab-spr{flex:none;width:40px;height:43px;border-radius:50%;background-color:var(--bar);background-repeat:no-repeat;background-size:320px 473px;background-position:0 0}
 .fab b{font-weight:700;color:var(--muted)}
 .fab[aria-pressed="true"]{background:var(--cta);color:var(--cta-ink);border-color:var(--cta)}
@@ -2015,7 +2018,7 @@ footer small span{display:block}
   // the friend picker inside the floating switch
   const picks = Object.entries(PETS).map(([key, def]) => {
     const b = document.createElement("button"); b.type = "button"; b.dataset.pet = key; b.style.backgroundImage = `url(${def.src})`;
-    b.addEventListener("click", () => setFollow(true, key)); $("fabPick").append(b); return b; });
+    b.addEventListener("click", () => { setFollow(true, key); pickerOpen(false); }); $("fabPick").append(b); return b; });
   function paintFab(){
     const state = t(following ? "fab.on" : "fab.off");
     fab.setAttribute("aria-pressed", String(following)); fabState.textContent = state;
@@ -2035,7 +2038,14 @@ footer small span{display:block}
     if (on){ startFollow(follower); for (const k in spoke) delete spoke[k]; } // the new guide explains each window afresh
     paintFab(); paintUsage();
   }
-  fab.addEventListener("click", () => setFollow(!following));
+  // touch screens have no hover: the first tap opens the picker, a second tap toggles following, a tap elsewhere closes it
+  const TOUCH = matchMedia("(hover: none)"), fabwrap = $("fabwrap");
+  function pickerOpen(on){ fabwrap.classList.toggle("open", on); }
+  fab.addEventListener("click", () => {
+    if (TOUCH.matches && !fabwrap.classList.contains("open")){ pickerOpen(true); return; }
+    setFollow(!following); pickerOpen(false);
+  });
+  addEventListener("pointerdown", e => { if (!fabwrap.contains(e.target)) pickerOpen(false); }, {passive: true});
   cards.forEach(c => c.el.addEventListener("click", () => setFollow(true, c.key)));
   paintFab();
   // keep the switch clear of the cookie notice while it is showing
