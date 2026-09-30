@@ -169,12 +169,25 @@ this is your cause.
 ```
 
 **Both build Pythons must import `ServiceManagement`.** `build_app.sh` takes the first
-`python3` it finds (pyenv on the maintainer's Mac) and `release.sh` uses that one as `PY` and
-the python.org universal2 one as `UPY`; the "Start at sign-in" toggle imports the
-`ServiceManagement` framework at call time and `setup.py` lists it for py2app. A bundle built
-from a Python that lacks `pyobjc-framework-ServiceManagement` shows the menu item disabled on
-every machine — that happened on 2026-09-13 with pyenv's Python. Check
-`python3 -c 'import ServiceManagement'` for each interpreter before a release build.
+`python3` it finds (pyenv on the maintainer's Mac). `release.sh` builds with the python.org
+universal2 Python, `UPY`, and `PY` now defaults to that same interpreter (still overridable);
+the arm64 build runs it as arm64 and thins the bundle to arm64. The "Start at sign-in" toggle
+imports the `ServiceManagement` framework at call time and `setup.py` lists it for py2app. A
+bundle built from a Python that lacks `pyobjc-framework-ServiceManagement` shows the menu item
+disabled on every machine — that happened on 2026-09-13 with pyenv's Python.
+`check_build_python()` in `release.sh` refuses, before building, an interpreter that cannot
+import `py2app`, `objc` and `ServiceManagement`.
+
+**The release build Python's deployment target must be ≤ macOS 12.0.** py2app ships the
+building interpreter's own `Python.framework` and extension modules, so their minimum macOS
+becomes the app's. pyenv's Python is compiled on the maintainer's Mac and carries that Mac's
+macOS as its target (26.3), and `release.sh` used to default `PY` to it: the arm64 artifacts
+through v1.0.0 (from at least v0.24) opened only on macOS 26.3+, while the site promises 12+.
+`check_build_python()` now refuses an interpreter whose `MACOSX_DEPLOYMENT_TARGET` is above
+`MIN_MACOS` (12.0), and `verify_release_artifact.py minos` — run after each build and inside
+the upload gate's `app` check — rejects a bundle in which any Mach-O slice has an
+`LC_BUILD_VERSION` minos or `LC_VERSION_MIN_MACOSX` above 12.0. `build_app.sh` (local
+installs only) has no such check.
 
 **`update` is a whole-bundle transaction: either all of it lands, or the installed
 bundle is exactly what it was.** It refreshes four things that have to move together —
@@ -1490,8 +1503,10 @@ in `RELEASE_NOTES.md`, and `git tag --sort=-v:refname | head -1`.
 
    If any condition is unmet: build the unsigned artifact if asked, then stop and hand it
    to the maintainer, saying plainly what remains.
-4. **The universal build needs a `universal2` Python** from python.org (pyenv's Python
-   is single-architecture). `release.sh` checks with `lipo -archs` and refuses otherwise.
+4. **Both release builds need the `universal2` Python** from python.org (pyenv's Python
+   is single-architecture, and its deployment target is this Mac's macOS). `release.sh`
+   checks the universal one with `lipo -archs`, and both builds' deployment target against
+   12.0, and refuses otherwise.
 5. **Tag and push.** The tag is the version with a `v` prefix — `vX.Y` for `APP_VERSION`
    `"X.Y"` — since the tag is what the updater compares against.
 
