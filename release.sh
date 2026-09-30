@@ -19,9 +19,15 @@
 #     --apple-id <개발자Apple ID> --team-id RXGNVSLYF5 --password <앱 암호>
 set -e
 cd "$(dirname "$0")"
-PY="${PY:-$HOME/.pyenv/shims/python3}"
 # 유니버설 빌드용 python — python.org 공식 설치본(universal2)이어야 함
 UPY="${UPY:-/Library/Frameworks/Python.framework/Versions/Current/bin/python3}"
+# arm64 빌드(와 게이트 스크립트)용 python. 기본값은 UPY 다 — pyenv 가 아니다.
+# pyenv 파이썬은 이 Mac 에서 컴파일돼 배포 타깃이 빌드 머신의 macOS(26.3)이고,
+# py2app 은 그 Python.framework 를 그대로 싣는다. 그래서 v0.24 부터 arm64
+# 산출물(ClaudePet.zip/.dmg)이 macOS 26.3 이상에서만 떴다. build() 가 배포
+# 타깃을 확인하고 12.0 을 넘으면 빌드 전에 거부한다.
+PY="${PY:-$UPY}"
+MIN_MACOS="12.0"   # 사이트·README 의 약속. verify_release_artifact.MIN_MACOS 와 같아야 한다
 ID="Developer ID Application: Yeongyu Yang (RXGNVSLYF5)"
 ENT="$(pwd)/entitlements.plist"
 APP="dist/ClaudePet.app"
@@ -162,15 +168,52 @@ verify_upload_artifact() {
   return $rc
 }
 
+# 빌드 파이썬의 배포 타깃이 MIN_MACOS 이하인지 — 빌드 '전에' 본다. py2app 은
+# 그 파이썬의 Python.framework·확장 모듈을 그대로 실으므로, 여기서 넘으면
+# 산출물은 그 버전 미만의 macOS 에서 뜨지 않는다. ServiceManagement 도 같이 본다
+# (없으면 "로그인 시 시작" 항목이 모든 기기에서 비활성으로 나간다).
+check_build_python() {
+  local py="$1" target
+  if [ ! -x "$py" ] && ! command -v "$py" >/dev/null 2>&1; then
+    echo "❌ 빌드 python 없음: $py"; return 1
+  fi
+  target=$("$py" -c 'import sysconfig; print(sysconfig.get_config_var("MACOSX_DEPLOYMENT_TARGET") or "")') \
+    || { echo "❌ $py 를 실행할 수 없습니다"; return 1; }
+  if ! "$py" -c 'import sys
+t, m = sys.argv[1], sys.argv[2]
+v = lambda s: tuple((list(map(int, s.split("."))) + [0, 0])[:2])
+sys.exit(0 if t and v(t) <= v(m) else 1)' "$target" "$MIN_MACOS" 2>/dev/null; then
+    echo "❌ $py 의 MACOSX_DEPLOYMENT_TARGET=${target:-알수없음} — macOS $MIN_MACOS 초과(또는 읽을 수 없음)."
+    echo "   이 파이썬으로 만든 번들은 macOS ${target:-?} 미만에서 뜨지 않습니다. 빌드하지 않습니다."
+    echo "   python.org 공식 설치본(universal2)을 쓰세요: PY=$UPY"
+    return 1
+  fi
+  "$py" -c 'import py2app, objc, ServiceManagement' 2>/dev/null || {
+    echo "❌ $py 에 py2app/pyobjc/ServiceManagement 가 없습니다: $py -m pip install py2app pyobjc"; return 1; }
+  echo "✓ 빌드 python: $py (MACOSX_DEPLOYMENT_TARGET=$target ≤ $MIN_MACOS)"
+}
+
 build() {
+  check_build_python "$PY" || exit 1
   rm -rf build dist
-  "$PY" setup.py py2app >/tmp/py2app.log 2>&1 || { echo "❌ py2app 실패:"; tail -25 /tmp/py2app.log; exit 1; }
+  # universal2 파이썬이면 arm64 로 돌려 arm64 스텁을 고른다(--arch arm64).
+  arch -arm64 "$PY" setup.py py2app --arch arm64 >/tmp/py2app.log 2>&1 || { echo "❌ py2app 실패:"; tail -25 /tmp/py2app.log; exit 1; }
+  # --arch 는 스텁만 고른다. universal2 파이썬의 프레임워크·확장 모듈은 fat 으로
+  # 실리므로 arm64 만 남긴다(ditto --arch 는 모든 Mach-O 를 얇게 하고 심볼릭 링크를
+  # 보존한다). 서명은 아직 없다 — sign() 이 모든 Mach-O 를 다시 서명한다.
+  rm -rf "$APP.thin"
+  ditto --arch arm64 "$APP" "$APP.thin" || { echo "❌ arm64 thin 실패"; rm -rf "$APP.thin"; exit 1; }
+  rm -rf "$APP" && mv "$APP.thin" "$APP"
+  local archs
+  archs=$(lipo -archs "$APP/Contents/MacOS/python" 2>/dev/null || true)
+  [ "$archs" = "arm64" ] || { echo "❌ arm64 산출물이 아님 (MacOS/python archs: ${archs:-알수없음})"; exit 1; }
   verify_bundled_pet_payload "$APP" || exit 1
+  "$PY" verify_release_artifact.py minos "$APP" || { echo "❌ 최소 macOS 검사 실패: $APP"; exit 1; }
   echo "✅ 빌드: $APP ($(du -sh "$APP" | cut -f1))"
 }
 
 # 유니버설(arm64+x86_64) 빌드 — Intel Mac 지원용. 기존 build()와 별개 산출물.
-# pyenv 파이썬은 단일 아키텍처라 못 쓰고, python.org universal2 설치본이 필요.
+# pyenv 파이썬은 단일 아키텍처(이고 배포 타깃도 높아서) 못 쓰고, python.org universal2 설치본이 필요.
 build_universal() {
   if [ ! -x "$UPY" ]; then
     echo "❌ universal2 python 없음: $UPY"
@@ -185,8 +228,7 @@ build_universal() {
     *) echo "❌ $UPY 는 universal2가 아님 (archs: ${archs:-알수없음})"
        echo "   python.org 공식 macOS 설치본(universal2)을 설치하세요"; return 1 ;;
   esac
-  "$UPY" -c 'import py2app, objc' 2>/dev/null || {
-    echo "❌ py2app/pyobjc 미설치: $UPY -m pip install py2app pyobjc"; return 1; }
+  check_build_python "$UPY" || return 1
 
   rm -rf build "$UDIST"
   "$UPY" setup.py py2app --arch universal2 --dist-dir "$UDIST" >/tmp/py2app-universal.log 2>&1 \
@@ -197,6 +239,7 @@ build_universal() {
     *) echo "❌ 산출물이 유니버설이 아님 (archs: ${archs:-알수없음}) — /tmp/py2app-universal.log 확인"; exit 1 ;;
   esac
   verify_bundled_pet_payload "$UAPP" || exit 1
+  "$PY" verify_release_artifact.py minos "$UAPP" || { echo "❌ 최소 macOS 검사 실패: $UAPP"; exit 1; }
   echo "✅ 유니버설 빌드: $UAPP ($(du -sh "$UAPP" | cut -f1), archs: $archs)"
 }
 

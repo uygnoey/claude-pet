@@ -27,11 +27,14 @@ verify_pet_payload.py 와의 분업:
   verify_release_artifact.py scan <artifact.zip|artifact.dmg>
   verify_release_artifact.py app <app_path> --expect-version 1.0.0 --arches arm64,x86_64
   verify_release_artifact.py assets <올릴 파일…>
+  verify_release_artifact.py minos <app_path>
 """
 import argparse
 import hashlib
 import os
+import re
 import stat
+import subprocess
 import sys
 
 
@@ -183,11 +186,140 @@ def check_app(app_path, expect_version, arches):
         if not (head.startswith(b"<?xml") or head.startswith(b"<svg")):
             print(f"[gate] rejected: the {provider} logo is not an SVG")
             return False
+    if not check_minos(app_path):
+        return False
     ok = cp.validate_update_app(app_path, expect_version,
                                 expect_arches=tuple(arches))
     if not ok:
         print(f"[gate] rejected by the updater's own preflight: {app_path}")
     return bool(ok)
+
+
+# 사이트·README 가 약속하는 최소 macOS. 번들 안의 Mach-O 중 하나라도 이보다
+# 높은 minos 를 달고 있으면 그 macOS 에서는 앱이 뜨지 않는다.
+MIN_MACOS = (12, 0)
+
+# Mach-O(thin 32/64, 양쪽 바이트 순서)와 fat(32/64) 매직.
+_MACHO_MAGICS = {b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe",
+                 b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe"}
+_FAT_MAGICS = {b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf",
+               b"\xbe\xba\xfe\xca", b"\xbf\xba\xfe\xca"}
+
+
+def _is_macho(path):
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(8)
+    except OSError:
+        return None                     # 못 읽으면 호출부가 거부한다
+    if head[:4] in _MACHO_MAGICS:
+        return True
+    if head[:4] in _FAT_MAGICS and len(head) == 8:
+        # 0xcafebabe 는 Java class 파일과 겹친다. fat 이면 다음 4바이트가
+        # 슬라이스 수(작다), class 파일이면 버전(45 이상 << 16)이다.
+        big = head[:2] == b"\xca\xfe"
+        n = int.from_bytes(head[4:8], "big" if big else "little")
+        return 0 < n < 64
+    return False
+
+
+def _parse_version(text):
+    parts = text.strip().split(".")
+    try:
+        nums = [int(x) for x in parts]
+    except ValueError:
+        return None
+    return tuple((nums + [0, 0])[:2])
+
+
+def _macho_minos(path):
+    """Mach-O 한 파일의 슬라이스별 minos 목록, 또는 읽지 못하면 None.
+
+    LC_BUILD_VERSION 의 minos 와 LC_VERSION_MIN_MACOSX 의 version 을 둘 다 본다.
+    한 슬라이스가 둘을 다 가질 수 있고(python.org 프레임워크의 x86_64 쪽처럼),
+    그때는 둘 중 **높은 쪽**이 그 슬라이스의 하한이다.
+    """
+    try:
+        out = subprocess.run(["/usr/bin/otool", "-arch", "all", "-l", path],
+                             capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    found = []          # (arch, (major, minor))
+    arch, cmd = "thin", None
+    for line in out.stdout.splitlines():
+        m = re.search(r"\(architecture (\S+)\)", line)
+        if m:
+            arch, cmd = m.group(1), None
+            continue
+        words = line.split()
+        if len(words) != 2:
+            continue
+        key, val = words
+        if key == "cmd":
+            cmd = val
+        elif (cmd == "LC_BUILD_VERSION" and key == "minos") or \
+             (cmd == "LC_VERSION_MIN_MACOSX" and key == "version"):
+            ver = _parse_version(val)
+            if ver is None:
+                return None
+            found.append((arch, ver))
+    return found
+
+
+def check_minos(app_path, floor=MIN_MACOS):
+    """번들 안의 **모든** Mach-O 가 floor(기본 12.0) 이하의 minos 로 빌드됐는지.
+
+    이 검사가 없어서 v0.24 부터 arm64 산출물이 macOS 26.3 이상에서만 떴다 —
+    pyenv 파이썬(이 Mac 에서 컴파일, 배포 타깃 26.3)의 Python.framework 와
+    MacOS/python 이 그대로 실렸다. 서명·공증·아키텍처 검사는 전부 통과했다.
+    하나라도 넘으면, 읽지 못하면, 하한 명령이 없으면 거부한다(fail-closed).
+    """
+    if not os.path.isdir(app_path) or os.path.islink(app_path):
+        print("[gate] rejected: the app is not a real directory")
+        return False
+    too_new, unreadable, checked = [], [], 0
+    for root, dirs, files in os.walk(app_path, followlinks=False):
+        for name in files:
+            path = os.path.join(root, name)
+            if os.path.islink(path) or not os.path.isfile(path):
+                continue
+            rel = os.path.relpath(path, app_path)
+            kind = _is_macho(path)
+            if kind is None:
+                unreadable.append(rel)
+                continue
+            if not kind:
+                continue
+            checked += 1
+            slices = _macho_minos(path)
+            if not slices:
+                unreadable.append(rel)
+                continue
+            for arch, ver in slices:
+                if ver > floor:
+                    too_new.append(f"{rel} [{arch}] minos {ver[0]}.{ver[1]}")
+    floor_s = f"{floor[0]}.{floor[1]}"
+    if unreadable:
+        print(f"[gate] rejected: could not read a minimum macOS version from "
+              f"{len(unreadable)} file(s):")
+        for rel in unreadable[:40]:
+            print(f"   {rel}")
+        return False
+    if too_new:
+        print(f"[gate] rejected: {len(too_new)} Mach-O slice(s) need a macOS "
+              f"newer than {floor_s}:")
+        for line in too_new[:40]:
+            print(f"   {line}")
+        if len(too_new) > 40:
+            print(f"   … and {len(too_new) - 40} more")
+        return False
+    if checked == 0:
+        print("[gate] rejected: no Mach-O found in the bundle — nothing verified")
+        return False
+    print(f"[gate] minos: {checked} Mach-O file(s), all ≤ macOS {floor_s}")
+    return True
 
 
 def check_assets(paths):
@@ -233,6 +365,8 @@ def main(argv=None):
     a.add_argument("app_path")
     a.add_argument("--expect-version", required=True)
     a.add_argument("--arches", default="")
+    mo = sub.add_parser("minos", help="every Mach-O's minimum macOS <= 12.0")
+    mo.add_argument("app_path")
     n = sub.add_parser("assets", help="upload set vs the updater's asset table")
     n.add_argument("paths", nargs="+")
     ns = ap.parse_args(argv)
@@ -240,6 +374,8 @@ def main(argv=None):
         return 0 if scan(ns.artifact) else 1
     if ns.cmd == "assets":
         return 0 if check_assets(ns.paths) else 1
+    if ns.cmd == "minos":
+        return 0 if check_minos(ns.app_path) else 1
     arches = [x for x in ns.arches.replace(",", " ").split() if x]
     if not arches:
         # 기본값을 '이 기기'로 두지 않는다. 릴리즈 게이트에서 기준을 빌드
