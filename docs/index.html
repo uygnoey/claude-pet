@@ -69,8 +69,8 @@
             "name": "Claude Pet",
             "url": "https://claude-pet.yeongyu.me/",
             "description": "A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.",
-            "softwareVersion": "1.0.0",
-            "operatingSystem": "macOS 12+ (Universal build, Apple Silicon and Intel); macOS 26.3+ for the Apple Silicon-only build; Windows 10/11 (x64)",
+            "softwareVersion": "1.0.1",
+            "operatingSystem": "macOS 12+ (Apple Silicon and Intel); Windows 10/11 (x64)",
             "applicationCategory": "UtilitiesApplication",
             "softwareRequirements": "A Claude Code or Codex login on this computer",
             "isAccessibleForFree": true,
@@ -85,7 +85,7 @@
               "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe",
               "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip"
             ],
-            "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v1.0.0",
+            "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v1.0.1",
             "author": {
               "@type": "Person",
               "name": "Yeongyu Yang",
@@ -479,7 +479,7 @@ footer small span{display:block}
     <span class="langsel"><select id="language" aria-label="Language" data-i18n-attr="aria-label:lang.label"><option value="en">English</option><option value="ko">한국어</option><option value="ja">日本語</option><option value="es">Español</option></select></span>
     <button type="button" class="chipbtn" id="themeBtn" aria-label="Switch between light and dark theme" data-i18n-attr="aria-label:theme.aria">◐</button>
     <a class="chipbtn heartchip" href="https://github.com/sponsors/uygnoey" title="Sponsor via GitHub Sponsors" data-i18n-attr="title:chip.sponsorTitle"><span aria-hidden="true">♥</span><span class="chiptxt"> <span data-i18n="chip.sponsor">Sponsor</span></span></a>
-    <a class="chipbtn" id="verChip" href="https://github.com/uygnoey/claude-pet/releases/latest" title="Latest release on GitHub" data-i18n-attr="title:chip.latestTitle"><span class="chiptxt" data-i18n="chip.latest">Latest</span> <b id="ver">v1.0.0</b></a>
+    <a class="chipbtn" id="verChip" href="https://github.com/uygnoey/claude-pet/releases/latest" title="Latest release on GitHub" data-i18n-attr="title:chip.latestTitle"><span class="chiptxt" data-i18n="chip.latest">Latest</span> <b id="ver">v1.0.1</b></a>
   </header>
 
   <main>
@@ -617,15 +617,15 @@ footer small span{display:block}
       <div class="body one">
         <div class="dl-head">
           <h2 id="h-dl" data-i18n="dl.h">Bring home<br>a new friend.</h2>
-          <p class="muted"><span data-i18n="dl.latest">Latest version</span> <b class="num" id="ver2">v1.0.0</b> · <a id="relnotes" href="https://github.com/uygnoey/claude-pet/releases/latest" data-i18n="dl.notes">Release notes</a></p>
+          <p class="muted"><span data-i18n="dl.latest">Latest version</span> <b class="num" id="ver2">v1.0.1</b> · <a id="relnotes" href="https://github.com/uygnoey/claude-pet/releases/latest" data-i18n="dl.notes">Release notes</a></p>
         </div>
         <p class="detect muted" id="detectBox" hidden></p>
         <div class="plats">
           <div class="plat" data-os="mac">
             <h3>macOS</h3>
             <div class="chips">
-              <a class="chiprow" data-arch="arm" data-mine="This computer" data-i18n-attr="data-mine:dl.mine" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg"><span><b>Apple Silicon</b><small data-i18n="dl.armSub">macOS 26.3 or later · M1, M2, M3, M4 and later · arm64 only</small></span><span class="file">ClaudePet.dmg</span></a>
-              <a class="chiprow" data-arch="x86" data-mine="This computer" data-i18n-attr="data-mine:dl.mine" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg"><span><b>Intel</b><small data-i18n="dl.intelSub">macOS 12 or later · Universal build for Intel and Apple Silicon · get this one on macOS older than 26.3</small></span><span class="file">ClaudePet-universal.dmg</span></a>
+              <a class="chiprow" data-arch="arm" data-mine="This computer" data-i18n-attr="data-mine:dl.mine" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg"><span><b>Apple Silicon</b><small data-i18n="dl.armSub">macOS 12 or later · M1, M2, M3, M4 and later · arm64 only</small></span><span class="file">ClaudePet.dmg</span></a>
+              <a class="chiprow" data-arch="x86" data-mine="This computer" data-i18n-attr="data-mine:dl.mine" href="https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg"><span><b>Intel</b><small data-i18n="dl.intelSub">macOS 12 or later · Universal build · runs on both Intel and Apple Silicon</small></span><span class="file">ClaudePet-universal.dmg</span></a>
             </div>
             <ul><li data-i18n="dl.mac1">Signed with a Developer ID and notarized by Apple</li><li data-i18n="dl.mac2">All you need is a Claude Code or Codex login. If you’re asked for access to the Claude Code credential, allow it</li><li data-i18n="dl.mac3">Find your chip under Apple menu ▸ About This Mac</li></ul>
           </div>
@@ -796,8 +796,8 @@ footer small span{display:block}
     "dl.notes": "Release notes",
     "dl.detect": "Detected on this computer: {label} — the matching file is marked “This computer”.",
     "dl.mine": "This computer",
-    "dl.armSub": "macOS 26.3 or later · M1, M2, M3, M4 and later · arm64 only",
-    "dl.intelSub": "macOS 12 or later · Universal build for Intel and Apple Silicon · get this one on macOS older than 26.3",
+    "dl.armSub": "macOS 12 or later · M1, M2, M3, M4 and later · arm64 only",
+    "dl.intelSub": "macOS 12 or later · Universal build · runs on both Intel and Apple Silicon",
     "dl.mac1": "Signed with a Developer ID and notarized by Apple",
     "dl.mac2": "All you need is a Claude Code or Codex login. If you’re asked for access to the Claude Code credential, allow it",
     "dl.mac3": "Find your chip under Apple menu ▸ About This Mac",
@@ -1008,8 +1008,8 @@ footer small span{display:block}
     "dl.notes": "변경 내역",
     "dl.detect": "감지된 이 컴퓨터: {label} — 맞는 파일에 '이 컴퓨터' 표시를 해 뒀어요.",
     "dl.mine": "이 컴퓨터",
-    "dl.armSub": "macOS 26.3 이상 · M1·M2·M3·M4 이후 · arm64 전용",
-    "dl.intelSub": "macOS 12 이상 · Intel과 Apple Silicon 모두 실행하는 Universal 빌드 · macOS 26.3 미만이면 이 파일을 받으세요",
+    "dl.armSub": "macOS 12 이상 · M1·M2·M3·M4 이후 · arm64 전용",
+    "dl.intelSub": "macOS 12 이상 · Universal 빌드 · Intel과 Apple Silicon 모두 실행",
     "dl.mac1": "Developer ID 서명과 Apple 공증을 받았어요",
     "dl.mac2": "Claude Code나 Codex에 로그인돼 있으면 돼요. Claude Code 인증 정보 접근 요청이 뜨면 허용하세요",
     "dl.mac3": "칩은 Apple 메뉴 ▸ 이 Mac에 관하여에서 확인할 수 있어요",
@@ -1220,8 +1220,8 @@ footer small span{display:block}
     "dl.notes": "変更履歴",
     "dl.detect": "検出したこのパソコン：{label} — 合うファイルに「このパソコン」の印を付けました。",
     "dl.mine": "このパソコン",
-    "dl.armSub": "macOS 26.3 以降 · M1・M2・M3・M4 以降 · arm64 専用",
-    "dl.intelSub": "macOS 12 以降 · Intel と Apple Silicon の両方で動く Universal ビルド · macOS 26.3 より前ならこちらを選んでください",
+    "dl.armSub": "macOS 12 以降 · M1・M2・M3・M4 以降 · arm64 専用",
+    "dl.intelSub": "macOS 12 以降 · Universal ビルド · Intel と Apple Silicon の両方で動作",
     "dl.mac1": "Developer ID で署名され、Apple の公証を受けています",
     "dl.mac2": "Claude Code か Codex にログインしていれば大丈夫です。Claude Code の認証情報へのアクセスを求められたら許可してください",
     "dl.mac3": "チップは Apple メニュー ▸ この Mac について で確認できます",
@@ -1432,8 +1432,8 @@ footer small span{display:block}
     "dl.notes": "Novedades",
     "dl.detect": "Equipo detectado: {label}. El archivo adecuado está marcado con “Este equipo”.",
     "dl.mine": "Este equipo",
-    "dl.armSub": "macOS 26.3 o posterior · M1, M2, M3, M4 y posteriores · solo arm64",
-    "dl.intelSub": "macOS 12 o posterior · compilación universal para Intel y Apple Silicon · elígela si tu macOS es anterior a 26.3",
+    "dl.armSub": "macOS 12 o posterior · M1, M2, M3, M4 y posteriores · solo arm64",
+    "dl.intelSub": "macOS 12 o posterior · compilación universal · funciona en Intel y en Apple Silicon",
     "dl.mac1": "Firmada con Developer ID y notarizada por Apple",
     "dl.mac2": "Basta con tener la sesión iniciada en Claude Code o Codex. Si se pide acceso a la credencial de Claude Code, permítelo",
     "dl.mac3": "Consulta tu chip en el menú Apple ▸ Acerca de este Mac",
@@ -1591,7 +1591,7 @@ footer small span{display:block}
   };
   // which pet explains which window; the words are "lines.<window>"
   const NARR = {hero:"cat", providers:"scorpion", usage:"fox", reset:"elephant", pets:"dog", walk:"cat", sponsor:"dog", download:"cat"};
-  let latestTag = "v1.0.0";
+  let latestTag = "v1.0.1";
   const linesFor = id => L("lines." + id, {ver: latestTag});
 
   // ── theme toggle and menu-bar clock ──
@@ -2068,7 +2068,7 @@ footer small span{display:block}
   let det = null; // {os, arch} once detected
   function paintHero(){
     let macKey = "hero.mac";
-    if (det && det.os === "mac" && det.arch === "x86") macKey = "hero.macIntel"; // the hero always links the Universal DMG (macOS 12+)
+    if (det && det.os === "mac" && det.arch === "x86") macKey = "hero.macIntel"; // the hero always links the Universal DMG, which runs on every Mac
     $("heroMacTxt").textContent = t(macKey);
     if (!det) return;
     const label = det.os === "mac"
@@ -2089,7 +2089,7 @@ footer small span{display:block}
     }
     let sel = null;
     if (os === "mac"){
-      if (arch === "arm") sel = '[data-os=mac] [data-arch=arm]'; // highlight only: ClaudePet.dmg needs macOS 26.3+
+      if (arch === "arm") sel = '[data-os=mac] [data-arch=arm]'; // highlight only; the hero keeps the Universal DMG
       else if (arch === "x86") sel = '[data-os=mac] [data-arch=x86]';
     } else {
       sel = '[data-os=win] [data-arch=x64]';
