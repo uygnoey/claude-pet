@@ -442,6 +442,18 @@ footer small span{display:block}
 @media (max-width:1400px){ .clock{display:none} }
 @media (max-width:1200px){ .menubar{gap:12px} .menubar nav{gap:11px} }
 @media (max-width:1100px){ .menubar nav{display:none} }
+/* narrow screens: the hero window grows with its content and the pill sits under the code lines;
+   pill rows flow as text and wrap only at the " · " separators */
+@media (max-width:860px){
+  .desk{aspect-ratio:auto;min-height:0}
+  .hero-pill{position:static;padding:0 clamp(14px,4vw,24px) 22px}
+  .pill{white-space:nowrap;max-width:100%}
+  .pill .row{display:block}
+  .pill .row .mark{display:inline-block;vertical-align:-.25em;margin-right:6px}
+  .pill .sep{white-space:normal}
+  .hero-pill .fold{vertical-align:top;max-width:100%}
+  .hero-pill:not(.open) .fold{max-width:0}
+}
 @media (max-width:560px){ .menubar{gap:10px} .chiptxt{display:none} }
 @media (max-width:420px){ #verChip{display:none} }
 @media (max-width:360px){ .menubar{gap:6px} .brand{font-size:17px} .langsel select{padding-left:8px;padding-right:20px} .langsel::after{right:8px} }
@@ -489,7 +501,7 @@ footer small span{display:block}
           <div class="hero-pill" id="heroPill">
             <div class="pill big" role="img" aria-label="Example summary pill: Claude Code session 42%, weekly 17%, Fable 12%; session resets in 3h 43m, weekly in 2d 4h. Codex weekly 38%, resets in 4d 6h." data-i18n-attr="aria-label:hero.pillAria">
               <div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="fold"><span class="lab" data-i18n="pill.session">Session</span> <span class="v num" data-to="42">0%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num" data-to="17">0%</span><span class="sep"> · </span><span class="lab">Fable</span> <span class="v num" data-to="12">0%</span></span></div>
-              <div class="row sub"><span class="mark" aria-hidden="true"></span><span class="fold" data-i18n="pill.resetLine">reset Session 3h 43m · Weekly 2d 4h</span></div>
+              <div class="row sub"><span class="mark" aria-hidden="true"></span><span class="fold" data-i18n="pill.resetLine">reset Session 3h 43m<span class="sep"> · </span>Weekly 2d 4h</span></div>
               <div class="row"><svg class="mark" aria-hidden="true"><use href="#m-openai"/></svg><span class="fold"><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num" data-to="38">0%</span><span class="sep"> · </span><span class="rs" data-i18n="pill.codexReset">4d 6h</span></span></div>
             </div>
           </div>
@@ -508,9 +520,9 @@ footer small span{display:block}
           <p data-i18n="prov.p2">Codex usage is read from the OpenAI API, not from local logs, so only the limits your account actually has are shown. Codex usually has a single weekly limit right now, so one line carries both the usage and the time left until it resets. There’s nothing to set up.</p>
         </div>
         <div class="variants">
-          <figure><figcaption data-i18n="prov.claudeOnly">Claude Code only</figcaption><div class="pill mid"><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="lab" data-i18n="pill.session">Session</span> <span class="v num">42%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">17%</span></div><div class="row sub" data-i18n="pill.resetLine">reset Session 3h 43m · Weekly 2d 4h</div></div></figure>
+          <figure><figcaption data-i18n="prov.claudeOnly">Claude Code only</figcaption><div class="pill mid"><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="lab" data-i18n="pill.session">Session</span> <span class="v num">42%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">17%</span></div><div class="row sub" data-i18n="pill.resetLine">reset Session 3h 43m<span class="sep"> · </span>Weekly 2d 4h</div></div></figure>
           <figure><figcaption data-i18n="prov.codexOnly">Codex only</figcaption><div class="pill mid"><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-openai"/></svg><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">38%</span><span class="sep"> · </span><span class="rs" data-i18n="pill.codexReset">4d 6h</span></div></div></figure>
-          <figure><figcaption data-i18n="prov.both">Both</figcaption><div class="pill mid"><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="lab" data-i18n="pill.session">Session</span> <span class="v num">42%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">17%</span></div><div class="row sub"><span class="mark" aria-hidden="true"></span><span data-i18n="pill.resetLine">reset Session 3h 43m · Weekly 2d 4h</span></div><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-openai"/></svg><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">38%</span><span class="sep"> · </span><span class="rs" data-i18n="pill.codexReset">4d 6h</span></div></div></figure>
+          <figure><figcaption data-i18n="prov.both">Both</figcaption><div class="pill mid"><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="lab" data-i18n="pill.session">Session</span> <span class="v num">42%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">17%</span></div><div class="row sub"><span class="mark" aria-hidden="true"></span><span data-i18n="pill.resetLine">reset Session 3h 43m<span class="sep"> · </span>Weekly 2d 4h</span></div><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-openai"/></svg><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">38%</span><span class="sep"> · </span><span class="rs" data-i18n="pill.codexReset">4d 6h</span></div></div></figure>
           <p class="example" data-i18n="ex.screen">Example screen</p>
         </div>
       </div>
@@ -532,7 +544,7 @@ footer small span{display:block}
         <div class="console">
           <div class="pill big" aria-live="polite">
             <div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="lab" id="uLabC">Session</span> <span class="v num" id="uValC">42%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num" id="uWeekC">17%</span></div>
-            <div class="row sub"><span class="mark" aria-hidden="true"></span><span data-i18n="pill.resetLine">reset Session 3h 43m · Weekly 2d 4h</span></div>
+            <div class="row sub"><span class="mark" aria-hidden="true"></span><span data-i18n="pill.resetLine">reset Session 3h 43m<span class="sep"> · </span>Weekly 2d 4h</span></div>
             <div class="row"><svg class="mark" aria-hidden="true"><use href="#m-openai"/></svg><span class="lab" id="uLabX" data-i18n="pill.weekly">Weekly</span> <span class="v num" id="uValX">38%</span><span class="sep"> · </span><span class="rs" data-i18n="pill.codexReset">4d 6h</span></div>
           </div>
           <div class="ctl">
@@ -716,7 +728,7 @@ footer small span{display:block}
     "ex.screen": "Example screen",
     "pill.session": "Session",
     "pill.weekly": "Weekly",
-    "pill.resetLine": "reset Session 3h 43m · Weekly 2d 4h",
+    "pill.resetLine": "reset Session 3h 43m<span class=\"sep\"> · </span>Weekly 2d 4h",
     "pill.codexReset": "4d 6h",
     "win.close": "Close window",
     "win.fold": "Fold window",
@@ -928,7 +940,7 @@ footer small span{display:block}
     "ex.screen": "예시 화면",
     "pill.session": "세션",
     "pill.weekly": "주간",
-    "pill.resetLine": "리셋 세션 3시간 43분 후 · 주간 2일 4시간 후",
+    "pill.resetLine": "리셋 세션 3시간 43분 후<span class=\"sep\"> · </span>주간 2일 4시간 후",
     "pill.codexReset": "4일 6시간",
     "win.close": "창 닫기",
     "win.fold": "창 접기",
@@ -1140,7 +1152,7 @@ footer small span{display:block}
     "ex.screen": "表示例",
     "pill.session": "セッション",
     "pill.weekly": "週間",
-    "pill.resetLine": "リセット セッション 3時間43分後 · 週間 2日4時間後",
+    "pill.resetLine": "リセット セッション 3時間43分後<span class=\"sep\"> · </span>週間 2日4時間後",
     "pill.codexReset": "4日6時間",
     "win.close": "ウィンドウを閉じる",
     "win.fold": "ウィンドウをたたむ",
@@ -1352,7 +1364,7 @@ footer small span{display:block}
     "ex.screen": "Pantalla de ejemplo",
     "pill.session": "Sesión",
     "pill.weekly": "Semanal",
-    "pill.resetLine": "reinicio Sesión 3 h 43 min · Semanal 2 d 4 h",
+    "pill.resetLine": "reinicio Sesión 3 h 43 min<span class=\"sep\"> · </span>Semanal 2 d 4 h",
     "pill.codexReset": "4 d 6 h",
     "win.close": "Cerrar ventana",
     "win.fold": "Plegar ventana",
