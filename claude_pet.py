@@ -3116,7 +3116,7 @@ def _fetch_cli_usage():
 # 죽으면 되살린다. REFRESH_MARGIN_SEC 가 이 범위를 지키는 장치다: CLI 가 있는 환경에서는
 # 우리 차례가 오기 전에 CLI 가 먼저 끝내므로 아무 일도 일어나지 않는다.
 #
-# 이 모듈이 절대 하지 않는 두 가지, 둘 다 실제로 데인 적이 있어서다:
+# 이 모듈이 절대 하지 않는 세 가지, 셋 다 실제로 데인 적이 있어서다:
 #
 # 1. **우리가 직접 갱신하지 않는다.** refresh 토큰은 쓸 때마다 회전하고, 회전된 것을
 #    같은 저장소에 되써 넣어야 한다. 이 맥에서 저장소는 파일이 아니라 키체인이고,
@@ -3139,9 +3139,43 @@ def _fetch_cli_usage():
 #                        귀속됐고, 메뉴바도 Dock 도 없는 이 앱은 그 판정 UI 를 띄울 수 없다.
 #      launchctl 경유   → ppid=1(launchd), 곧바로 "Operation not permitted".
 #    두 번째가 우리가 원하는 성질이다 — 우리 자손이 아니니 귀속 사슬에 ClaudePet 이 들어갈
-#    자리가 없고, 대신 스폰된 쪽이 자기 자격으로 판정받는다. 윈도우에는 TCC 가 없어 이
-#    간접화가 필요 없고(직계 자식으로 권한 프롬프트 0/11), 거기서 막아야 하는 것은 콘솔
-#    **창**이다 — _spawn_no_window_flags() 참조.
+#    자리가 없고, 대신 스폰된 쪽이 자기 자격으로 판정받는다. **그 성질은 거기까지다.**
+#    귀속을 끊는다고 프롬프트가 사라지지는 않는다 — 판정이 CLI 이름으로 옮겨 갈 뿐이고,
+#    그 실험의 대상은 `ls` 였지 claude 가 아니었다. v0.26 은 둘을 같은 것으로 읽고 나갔고,
+#    CLI 가 자기 이름으로 프롬프트를 띄웠다(3 참조). 윈도우에는 TCC 가 없어 이 간접화가
+#    필요 없고(직계 자식으로 권한 프롬프트 0/11), 거기서 막아야 하는 것은 콘솔 **창**이다 —
+#    _spawn_no_window_flags() 참조.
+#
+# 3. **CLI 를 `/` 에서 띄우지 않고, 한 번의 시도를 여러 번의 실행으로 불리지 않는다.**
+#    v0.26 이 둘 다 했다. 2026-09-30 사용자가 Apple Music·네트워크 등의 권한 요청이 다시
+#    뜬다고 보고했고, 원인이 이 둘이었다.
+#
+#    **관측된 것** (2026-09-30, 이 맥, CLI 2.1.284 한 버전). `launchctl submit` 은 작업
+#    디렉터리를 정할 수 없어 CLI 가 launchd 기본값 `/` 에서 떴다 — Claude Code 가 `/` 의
+#    세션을 적는 `~/.claude/projects/-/` 에 복구 실행분 세션 37개(09-19~09-30)가 있다.
+#    05:28~06:52 tccd 로그의 AUTHREQ_PROMPTING 14건이 전부 그 job 이 띄운 PID 7개에서
+#    나왔고, 책임 프로세스는 모두 CLI 자신(버전별 경로)이었다. 서비스는 Apple Music·네트워크
+#    볼륨(마운트된 것은 없었다)·다운로드·문서·데스크탑·다른 앱의 데이터. 같은 CLI 를 launchd
+#    로 띄워 작업 디렉터리만 바꾼 대조 실행에서, 빈 전용 디렉터리는 TCC 요청 0건(exit 0,
+#    5초)이었고 `/` 는 — 보호 위치를 샌드박스로 먼저 막아 프롬프트가 뜰 수 없게 한 채 —
+#    5초 안에 ~/Music·~/Pictures·/Volumes·/home·~/Documents 아래를 읽으려 했다. 그 실행은
+#    토큰을 갱신하지 않았으니, `/` 하나로 충분했다는 뜻이다. 고친 뒤의 경로(아래 plist
+#    job)로 같은 CLI 를 한 번 돌렸을 때도 spawn 1회, exit 0(4.5초), 재실행 없음, TCC 요청
+#    0건이었다.
+#    **관측되지 않은 것**: 전용 디렉터리에서 실제 갱신까지 일어나는 실행(강제할 방법이
+#    없다), 그리고 다른 CLI 버전.
+#
+#    **그래서 코드는** CLI 를 recovery_cli_cwd() 에서 띄운다. 관측에서 끌어낸 불변식이
+#    아니라 알려진 촉발 조건을 없애는 조치다 — 미래의 CLI 가 작업 디렉터리와 상관없이 보호
+#    위치를 읽기 시작하면 다시 뜬다. 그리고 사용자가 답해서 끝낼 수 있는 프롬프트도 아니다:
+#    TCC 는 이 CLI 를 버전별 경로로 기억해서(이 맥 TCC DB 에 2.1.271·2.1.278·2.1.283·2.1.284
+#    가 따로 있다) 자동 업데이트 때마다 처음부터 다시 묻는다. 촉발하지 않는 것만이 답이다.
+#
+#    `submit` 은 또 "실패하면 계속 살려 두는"(launchctl(1)) job 을 만든다. 06:15:29 에 뜬
+#    claude 가 48초 만에 끝나자 launchd 가 곧바로 다시 띄웠고("because inefficient"), 한
+#    번의 시도가 120초 제한까지 CLI 여러 번이 됐다. 로그인 job 이라면 실패한 로그인이 다시
+#    떠 브라우저를 또 열 수 있다(추론 — 관측되지 않았다). 그래서 KeepAlive 를 끈 일회성
+#    job 을 plist 로 bootstrap 한다 — _run_refresh_job 참조.
 #
 # 시점은 주기가 아니라 만료 기준이다. expiresAt 은 프롬프트 없이 읽히고 수명이 8시간이라
 # 만료 임박에 한 번이면 하루 세 번이 상한이고, 실제로는 CLI 를 쓰는 사용자에게 0 에
@@ -3206,8 +3240,10 @@ LOGIN_JOB_LABEL = "me.yeongyu.claudepet.login"
 RECOVERY_CACHE_DIR = "~/Library/Caches/me.yeongyu.claudepet"
 LAUNCHCTL = "/bin/launchctl"
 # WMI 에 넘길 명령줄을 환경변수로 건넨다. PowerShell 인용 규칙을 통과시키지 않는 것이
-# 요점이다 — 경로에 공백·작은따옴표가 있어도 문자열이 그대로 도착한다.
+# 요점이다 — 경로에 공백·작은따옴표가 있어도 문자열이 그대로 도착한다. 작업 디렉터리도
+# 같은 규칙으로 건넨다.
 WIN_SPAWN_ENV = "CLAUDEPET_SPAWN_CMDLINE"
+WIN_SPAWN_CWD_ENV = "CLAUDEPET_SPAWN_CWD"
 
 
 def _windows_system32(name):
@@ -3236,10 +3272,23 @@ def _recovery_cache_dir():
 
 
 def _recovery_io_paths(stem):
-    """스폰이 쓸 (stdout, stderr) **절대경로**. 상대경로는 안 된다 — 작업 디렉터리가
-    우리 것이 아니다(launchd 도, WmiPrvSE 도 자기 자리에서 띄운다)."""
+    """스폰이 쓸 (stdout, stderr) **절대경로**. 상대경로는 안 된다 — CLI 가 도는 작업
+    디렉터리(recovery_cli_cwd)는 이 디렉터리가 아니고, 거기에 우리 파일을 두지 않는다."""
     d = _recovery_cache_dir()
     return os.path.join(d, stem + ".out"), os.path.join(d, stem + ".err")
+
+
+def recovery_cli_cwd():
+    """CLI 가 뜰 작업 디렉터리 — 우리 캐시 아래 전용 디렉터리의 **절대경로**.
+
+    만들지는 않는다(순수 함수다). 만드는 것은 _run_refresh_job 의 몫이다. `/` 에서 뜬 CLI
+    가 보호 위치를 읽은 것이 2026-09-30 의 권한 프롬프트였다(모듈 주석 3). 캐시 디렉터리
+    자체가 아닌 것은 거기에 .out/.err/.plist 가 떨어지기 때문이다 — CLI 가 도는 자리에
+    우리 파일을 두지 않는다. 윈도우에서도 같은 자리를 쓴다: WMI 가 만든 프로세스는 따로
+    정하지 않으면 호출자인 WmiPrvSE 의 작업 디렉터리를 물려받는다(Win32_Process.Create
+    문서 — 윈도우 기계에서 확인되지는 않았다).
+    """
+    return os.path.join(_recovery_cache_dir(), "cli")
 
 
 def new_recovery_state():
@@ -3349,19 +3398,19 @@ def recovery_tick(rec, now, *, auth_error, token_sig, cli_present, enabled,
 
 
 def recovery_spawn_argv(cli_path):
-    """갱신을 유발할 명령 → argv.
+    """갱신을 유발할 명령 → 떼어 낸 job 이 **실행할** argv.
 
-    argv[0] 이 claude 가 **아닌** 것이 요점이고, 그것은 양쪽 플랫폼에 같이 적용된다.
-    이유는 다르지만 성질은 하나다 — CLI 를 우리 자손으로 띄우지 않는다.
+    이 argv 를 우리가 직접 돌리는 일은 없다. CLI 를 우리 자손으로 띄우지 않는다는 성질은
+    양쪽 플랫폼에 같이 걸려 있고, 그 성질을 사는 곳은 _run_refresh_job 한 곳이다 — macOS 는
+    launchd 의 일회성 job, 윈도우는 WMI. 그러니 macOS 에서 argv[0] 이 claude 인 것은
+    정상이다. 예전에는 여기가 `launchctl submit …` 을 돌려줘서 "argv[0] 이 claude 가
+    아니다"가 분리의 증거처럼 읽혔지만, argv 모양은 분리를 증명하지 못한다(윈도우에서 먼저
+    드러났다 — 맨 앞이 cmd.exe 여도 직계 자식으로 띄울 수 있다).
 
-      macOS  launchctl 에 맡긴다. 뜨는 프로세스의 부모는 launchd 라서 우리 자손이
-             아니고, 보호폴더 접근이 ClaudePet 에 귀속될 길이 없다(2026-07-13 TCC
-             거부 8건, 커밋 67849e4).
-      Windows `cmd.exe /c` 를 한 겹 두고, 그 명령줄을 WMI(Win32_Process.Create)가
-             띄운다 — 부모는 WmiPrvSE.exe 다(_run_refresh_job 참조). cmd 한 겹은
-             장식이 아니라 두 가지를 산다: npm 설치판의 `claude.cmd`·`claude.bat` 이
-             CreateProcess 로는 직접 뜨지 않는다는 것과, 타임아웃 때 `taskkill /T` 가
-             걸 수 있는 안정된 트리 뿌리가 생긴다는 것.
+      macOS   CLI 그대로. launchd 가 recovery_cli_cwd() 에서 한 번 띄운다(모듈 주석 3).
+      Windows `cmd.exe /c` 를 한 겹 둔다. 장식이 아니라 두 가지를 산다: npm 설치판의
+              `claude.cmd`·`claude.bat` 이 CreateProcess 로는 직접 뜨지 않는다는 것과,
+              타임아웃 때 `taskkill /T` 가 걸 수 있는 안정된 트리 뿌리가 생긴다는 것.
 
     터미널 창은 어느 쪽에서도 띄우지 않는다.
 
@@ -3380,9 +3429,7 @@ def recovery_spawn_argv(cli_path):
     """
     if sys.platform != "darwin":
         return [_windows_cmd_exe(), "/c", str(cli_path), "-p", "/usage"]
-    out, err = _recovery_io_paths("token-refresh")
-    return [LAUNCHCTL, "submit", "-l", RECOVERY_JOB_LABEL,
-            "-o", out, "-e", err, "--", str(cli_path), "-p", "/usage"]
+    return [str(cli_path), "-p", "/usage"]
 
 
 def login_spawn_argv(cli_path):
@@ -3393,8 +3440,10 @@ def login_spawn_argv(cli_path):
     보인다. 2026-09-19 실측: 제어 터미널 없이 21초 만에 스스로 exit 0 했고 토큰이
     교체됐다. 붙여넣기 UI 는 필요 없다.
 
-    간접화는 복구 스폰과 같다. macOS 에서 브라우저를 여는 것 자체는 /usr/bin/open 이라
-    무해하지만 Node 앱의 폴더 스캔은 똑같이 일어나므로, 귀속을 끊어야 하는 이유도 똑같다.
+    떼어 내는 방법도 작업 디렉터리도 복구 스폰과 같다(_run_refresh_job). macOS 에서 브라우저를
+    여는 것 자체는 /usr/bin/open 이라 무해하지만 CLI 가 `/` 에서 뜨면 보호 위치를 읽는 것은
+    똑같으므로, 같은 전용 디렉터리에서 띄운다. 한 번만 도는 것은 여기서 더 중요하다 —
+    실패한 로그인이 다시 뜨면 브라우저가 또 열린다.
 
     **윈도우의 미확인 위험**: 이 경로는 WMI 가 띄우는데(_run_refresh_job), 로컬 WMI 가
     만든 프로세스가 호출자와 같은 대화형 세션에 뜨는지는 여기서 확인되지 않았다. 세션 0
@@ -3404,9 +3453,7 @@ def login_spawn_argv(cli_path):
     """
     if sys.platform != "darwin":
         return [_windows_cmd_exe(), "/c", str(cli_path), "auth", "login", "--claudeai"]
-    out, err = _recovery_io_paths("login")
-    return [LAUNCHCTL, "submit", "-l", LOGIN_JOB_LABEL,
-            "-o", out, "-e", err, "--", str(cli_path), "auth", "login", "--claudeai"]
+    return [str(cli_path), "auth", "login", "--claudeai"]
 
 
 def _launchctl_job_alive(label):
@@ -3419,12 +3466,43 @@ def _launchctl_job_alive(label):
     return r.returncode == 0 and '"PID"' in (r.stdout or "")
 
 
-def _launchctl_remove(label):
+def _launchd_gui_domain():
+    """우리 job 이 올라가는 launchd 도메인 — 로그인 세션의 gui/<uid>."""
+    return "gui/%d" % os.getuid()
+
+
+def _launchctl_bootout(label):
+    """label 의 job 을 내린다. 돌고 있으면 끝내고, 없으면 아무 일도 없다.
+
+    bootstrap 한 job 도, v0.26 이 `submit` 으로 올려 둔 같은 이름의 job 도 이것으로
+    내려간다 — 업데이트 직후 옛 job 이 남아 있으면 같은 label 의 bootstrap 이 거부된다.
+    """
     try:
-        subprocess.run([LAUNCHCTL, "remove", label],
+        subprocess.run([LAUNCHCTL, "bootout", "%s/%s" % (_launchd_gui_domain(), label)],
                        capture_output=True, timeout=10)
     except Exception:
         pass
+
+
+def _launchd_job_spec(label, argv, cwd, out, err):
+    """일회성 launchd job 의 정의(plist 로 쓸 dict). 순수 함수다.
+
+    두 키가 이 job 의 존재 이유다(모듈 주석 3):
+      WorkingDirectory  CLI 를 `/` 가 아니라 우리 전용 디렉터리에서 띄운다.
+      KeepAlive=False   끝나면 끝이다. `submit` 은 실패한 job 을 계속 살려 둬서, 한 번의
+                        시도가 CLI 여러 번이 됐다.
+    ProcessType 은 두지 않는다 — launchd 기본값인 이 job 으로 CLI 가 4.5초 만에 exit 0
+    했고(2026-09-30, 2.1.284, 1회), 바꿀 근거가 없다.
+    """
+    return {
+        "Label": label,
+        "ProgramArguments": [str(a) for a in argv],
+        "WorkingDirectory": cwd,
+        "StandardOutPath": out,
+        "StandardErrorPath": err,
+        "RunAtLoad": True,
+        "KeepAlive": False,
+    }
 
 
 def _spawn_no_window_flags():
@@ -3473,7 +3551,7 @@ def _win_run_helper(argv, timeout=60):
         return None
 
 
-def _win_wmi_create(cmdline):
+def _win_wmi_create(cmdline, cwd=None):
     """WMI Win32_Process.Create 로 명령줄 하나를 띄운다 → 스폰된 PID, 실패하면 None.
 
     **왜 WMI 인가.** 맥에서 launchctl 을 고른 이유와 같은 자리다: 뜨는 프로세스가 우리
@@ -3486,17 +3564,24 @@ def _win_wmi_create(cmdline):
     taskkill 이 걸 유일한 손잡이다.
 
     명령줄은 환경변수로 건넨다. PowerShell 인용을 거치지 않으므로 경로에 공백이나
-    작은따옴표가 있어도 그대로 도착한다.
+    작은따옴표가 있어도 그대로 도착한다. cwd 가 있으면 CurrentDirectory 도 같은 방식으로
+    건넨다 — 없으면 뜨는 프로세스는 호출자인 WmiPrvSE 의 작업 디렉터리를 물려받는다
+    (recovery_cli_cwd 참조).
     """
+    fields = "CommandLine=$env:%s" % WIN_SPAWN_ENV
+    if cwd:
+        fields += "; CurrentDirectory=$env:%s" % WIN_SPAWN_CWD_ENV
     script = ("$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
-              "-Arguments @{CommandLine=$env:%s}; "
+              "-Arguments @{%s}; "
               "if ($r.ReturnValue -ne 0) { exit 1 }; "
-              "[Console]::Out.Write($r.ProcessId)" % WIN_SPAWN_ENV)
+              "[Console]::Out.Write($r.ProcessId)" % fields)
     argv = [_windows_powershell_exe(), "-NoProfile", "-NonInteractive",
             "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
             "-Command", script]
     env = dict(os.environ)
     env[WIN_SPAWN_ENV] = cmdline
+    if cwd:
+        env[WIN_SPAWN_CWD_ENV] = cwd
     try:
         r = subprocess.run(argv, capture_output=True, text=True, timeout=60,
                            stdin=subprocess.DEVNULL, env=env,
@@ -3533,19 +3618,23 @@ def _win_kill_tree(pid):
 
 
 def _run_refresh_job(argv, label, stem, timeout):
-    """argv 를 한 번 돌리고 끝날 때까지(최대 timeout) 기다렸다가 출력을 돌려준다.
+    """argv 를 떼어 낸 job 으로 **한 번** 돌리고 끝날 때까지(최대 timeout) 기다렸다가
+    출력을 돌려준다. argv 는 *_spawn_argv 가 준, job 이 실행할 명령이다.
 
     반환은 문자열이고, 띄우는 것 자체가 실패하면 None 이다(호출자가 폴백을 고를 수 있게).
     플랫폼 분기는 **여기와 *_spawn_argv 두 곳뿐**이고, 양쪽이 같은 성질을 산다 —
-    **CLI 는 우리 자손이 아니다.**
+    **CLI 는 우리 자손이 아니고, recovery_cli_cwd() 에서 한 번 돈다.** argv 를 우리가
+    직접 실행하는 경로는 어디에도 없다.
 
-    * macOS — launchd 에 제출한다(부모 = launchd, ppid 1). 출력은 launchd 가 파일로
-      적어 주므로 그 파일을 읽고 지운다. 다 끝났든 제한을 넘겼든 `launchctl remove` 가
-      돌고 있는 job 을 실제로 끝낸다(실측).
-    * Windows — argv 를 명령줄로 조립해 WMI 가 띄운다(부모 = WmiPrvSE.exe). 출력은
-      명령줄 안의 리디렉션으로 파일에 받는다. 여기서 놓치기 쉬운 것이 정리다:
-      간접화했으니 우리에겐 Popen 객체가 없고, **WMI 가 돌려준 PID 만이 손잡이다.**
-      제한을 넘기면 그 PID 를 뿌리로 `taskkill /F /T` 한다.
+    * macOS — KeepAlive 를 끈 일회성 job 을 plist 로 써서 gui 도메인에 bootstrap 한다
+      (부모 = launchd, ppid 1). `launchctl submit` 은 쓰지 않는다: 작업 디렉터리를 정할 수
+      없고(그래서 CLI 가 `/` 에서 떴다), 실패한 job 을 계속 살려 둔다(모듈 주석 3). 출력은
+      launchd 가 파일로 적어 주므로 그 파일을 읽고 지운다. 다 끝났든 제한을 넘겼든
+      bootout 이 job 을 내리고, 아직 돌고 있으면 끝낸다. plist 도 지운다.
+    * Windows — argv 를 명령줄로 조립해 WMI 가 같은 작업 디렉터리에서 띄운다(부모 =
+      WmiPrvSE.exe). 출력은 명령줄 안의 리디렉션으로 파일에 받는다. 여기서 놓치기 쉬운
+      것이 정리다: 간접화했으니 우리에겐 Popen 객체가 없고, **WMI 가 돌려준 PID 만이
+      손잡이다.** 제한을 넘기면 그 PID 를 뿌리로 `taskkill /F /T` 한다.
 
     **미측정**: 이 윈도우 경로는 윈도우 기계에서 실행되지 않았다. WMI 가 우리 트리에서
     떨어진다는 것은 피어의 실측이고, 여기서 그 위에 얹은 PID 배선·리디렉션·폴링은
@@ -3554,8 +3643,9 @@ def _run_refresh_job(argv, label, stem, timeout):
     """
     if sys.platform != "darwin":
         out, err = _recovery_io_paths(stem)
+        cwd = recovery_cli_cwd()
         try:
-            os.makedirs(os.path.dirname(out), exist_ok=True)
+            os.makedirs(cwd, exist_ok=True)      # 출력이 떨어질 부모 디렉터리도 같이 생긴다
         except OSError:
             pass
         for p in (out, err):
@@ -3566,7 +3656,7 @@ def _run_refresh_job(argv, label, stem, timeout):
         # 출력은 cmd 의 리디렉션으로 받는다. list2cmdline 이 공백 있는 경로만 인용하고
         # `>` 와 `2>&1` 은 그대로 두므로 cmd 가 연산자로 읽는다.
         cmdline = subprocess.list2cmdline(list(argv) + [">", out, "2>&1"])
-        pid = _win_wmi_create(cmdline)
+        pid = _win_wmi_create(cmdline, cwd=cwd)
         if pid is None:
             return None
         deadline = time.time() + timeout
@@ -3578,30 +3668,47 @@ def _run_refresh_job(argv, label, stem, timeout):
             _win_kill_tree(pid)
         return _drain_job_output(stem)
     out, err = _recovery_io_paths(stem)
+    cwd = recovery_cli_cwd()
+    plist = os.path.join(_recovery_cache_dir(), stem + ".plist")
+
+    def _drop_plist():
+        try:
+            os.remove(plist)
+        except OSError:
+            pass
+
     try:
-        os.makedirs(os.path.dirname(out), exist_ok=True)
+        os.makedirs(cwd, mode=0o700, exist_ok=True)   # 출력이 떨어질 부모도 같이 생긴다
         for p in (out, err):
             try:
                 os.remove(p)
             except OSError:
                 pass
-        _launchctl_remove(label)
-        r = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+        fd = os.open(plist, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            plistlib.dump(_launchd_job_spec(label, argv, cwd, out, err), f)
+        _launchctl_bootout(label)      # 같은 label 의 옛 job(v0.26 의 submit 포함)을 먼저 내린다
+        r = subprocess.run([LAUNCHCTL, "bootstrap", _launchd_gui_domain(), plist],
+                           capture_output=True, text=True, timeout=30)
         if r.returncode != 0:
-            _dbg("recovery: submit rc", r.returncode)
-            _launchctl_remove(label)
+            _dbg("recovery: bootstrap rc", r.returncode)
+            _launchctl_bootout(label)
+            _drop_plist()
             return None
     except Exception as e:
-        _dbg("recovery: submit failed", type(e).__name__)
+        _dbg("recovery: bootstrap failed", type(e).__name__)
+        _launchctl_bootout(label)
+        _drop_plist()
         return None
     deadline = time.time() + timeout
     while time.time() < deadline:
         time.sleep(2.0)
         if not _launchctl_job_alive(label):
             break
-    # 제한을 넘겼든 제때 끝났든 여기서 지운다. remove 는 아직 돌고 있는 job 을 실제로
-    # 끝낸다(실측) — 붙어 있는 자식이 다음 시도를 영원히 막는 상태를 만들지 않는다.
-    _launchctl_remove(label)
+    # 제한을 넘겼든 제때 끝났든 여기서 내린다. bootout 은 아직 돌고 있는 job 을 끝낸다 —
+    # 붙어 있는 자식이 다음 시도를 영원히 막는 상태를 만들지 않는다.
+    _launchctl_bootout(label)
+    _drop_plist()
     return _drain_job_output(stem)
 
 
@@ -3757,13 +3864,22 @@ def fetch_exact_usage():
 # secondary_window 를 주간 레인으로 읽는다. 자격증명은 $CODEX_HOME 또는 홈의 .codex 아래
 # auth.json 이다.
 #
+# **요청에는 토큰과 계정이 둘 다 필요하다.** 토큰만 보내면 서버는 Codex 가 쓰는 계정이
+# 아닌 다른 계정 문맥으로 답한다 — 2026-09-30 사용자가 "codex 토큰 사용량 정확하지가
+# 않아"라고 보고한 원인이 그것이었다. 같은 순간 같은 토큰으로(2026-09-30T00:19Z) 토큰만
+# 보내면 account_id 가 빈 값, 주간 used_percent 100 에 limit_reached 였고,
+# ChatGPT-Account-Id 헤더에 auth.json 의 tokens.account_id 를 실으면 76 이었다. Codex CLI
+# 가 자기 세션 파일에 적어 둔 마지막 한도 스냅샷도 같은 창 같은 리셋 시각에 76.0 이다 —
+# 헤더가 Codex CLI 자신이 보는 계정을 고른다. (2026-09-13 조사도 이 엔드포인트가 토큰과
+# 계정 id 를 함께 받는다고 적었는데, 구현이 뒤의 것을 빠뜨렸었다.)
+#
 # 원칙 셋, 전부 Claude 쪽과 같다:
 #   1. 읽기만 한다. 그 파일의 주인은 Codex CLI 이고, 회전된 자격증명을 되쓸 수 없는 쪽이
 #      갱신을 시도하면 사용자가 재로그인하게 된다. 우리는 관찰자지 ADE 가 아니다.
 #   2. 0% 를 지어내지 않는다. 자격증명이 없거나 응답에 쓸 수치가 없으면 행을 **아예 그리지
 #      않는다** — 0% 행은 "안 썼다"로 읽히기 때문이다.
 #   3. 토큰 값은 로그에도 예외 메시지에도 반환값에도 남기지 않는다(CLAUDE.md Privacy).
-#      경로도 남기지 않는다 — 경로는 신원 정보다.
+#      계정 id 도 같다. 경로도 남기지 않는다 — 경로는 신원 정보다.
 
 def codex_auth_path(env=None, home=None):
     """Codex 자격증명 파일의 경로. CODEX_HOME 이 있으면 그 아래, 없으면 홈의 .codex 아래.
@@ -3780,28 +3896,45 @@ def codex_auth_path(env=None, home=None):
     return os.path.join(root, "auth.json")
 
 
-def read_codex_token(path):
-    """auth.json 에서 OAuth 액세스 토큰만 읽어 돌려준다. 없으면 None — 예외는 내보내지 않는다.
+def read_codex_auth(path):
+    """auth.json 에서 (OAuth 액세스 토큰, 계정 id) 를 읽는다. 쓸 토큰이 없으면 (None, None) —
+    예외는 내보내지 않는다.
 
     없는 파일, 깨진 JSON, tokens 가 없는 파일(API 키만 있는 설치), 공백뿐인 토큰은 모두
     '토큰 없음'이다. 셋을 구분해 봐야 할 일이 다르지 않고, 구분해서 보고하려면 경로나
     본문을 로그에 흘려야 한다. 남기는 것은 개수와 모양뿐이다.
+
+    계정 id 는 tokens.account_id 가 공백이 아닌 문자열일 때만 쓰고, 아니면 None 이다. 없다고
+    토큰까지 버리지는 않는다 — 그때는 예전처럼 헤더 없이 묻는다(모듈 주석 참조). 한 번 읽어
+    둘을 함께 돌려주는 것은, Codex CLI 가 파일을 다시 쓰는 사이에 두 번 읽어 새 토큰과 옛
+    계정이 짝지어지는 일을 만들지 않으려는 것이다.
     """
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         _dbg("codex auth: unreadable", type(e).__name__)
-        return None
+        return None, None
     tokens = data.get("tokens") if isinstance(data, dict) else None
     if not isinstance(tokens, dict):
         _dbg("codex auth: no oauth tokens")
-        return None
+        return None, None
     tok = tokens.get("access_token")
     if not isinstance(tok, str) or not tok.strip():
         _dbg("codex auth: blank token")
-        return None
-    return tok.strip()
+        return None, None
+    acct = tokens.get("account_id")
+    acct = acct.strip() if isinstance(acct, str) and acct.strip() else None
+    return tok.strip(), acct
+
+
+def read_codex_token(path):
+    """auth.json 에서 OAuth 액세스 토큰만 읽어 돌려준다. 없으면 None — 예외는 내보내지 않는다.
+
+    규칙은 read_codex_auth 그대로다. 요청에는 계정 id 도 필요하니 fetch_codex_usage 는
+    그쪽을 쓴다.
+    """
+    return read_codex_auth(path)[0]
 
 
 def _codex_pct(value):
@@ -3940,20 +4073,26 @@ def fetch_codex_usage():
     조회하는 동안 다른 호출자는 직전 값을 받는다.
     토큰은 읽기만 한다. 만료됐다면 되살리는 것은 Codex CLI 의 일이고, 우리는 그 자리에서
     행을 지울 뿐이다 — 자격증명을 되쓸 수 없는 쪽이 갱신을 시도하면 사용자가 재로그인한다.
+
+    요청에는 auth.json 의 계정 id 를 ChatGPT-Account-Id 헤더로 싣는다. Codex CLI 가 보내는
+    것과 같고, 빠지면 서버가 다른 계정 문맥으로 답한다(모듈 주석: 같은 순간 100% 대 76%).
+    계정 id 가 없는 auth.json 이면 예전처럼 헤더 없이 묻는다.
     """
     now = time.time()
     if now - _codex_cache["t"] < OAUTH_CACHE_SEC:
         return _codex_cache["rows"]
     _codex_cache["t"] = now
-    tok = read_codex_token(codex_auth_path())
+    tok, acct = read_codex_auth(codex_auth_path())
     if not tok:
         _codex_cache["rows"] = None
         return None
+    headers = {"Authorization": "Bearer " + tok,
+               "Accept": "application/json",
+               "User-Agent": "claude-pet"}
+    if acct:
+        headers["ChatGPT-Account-Id"] = acct
     req = urllib.request.Request(
-        "https://chatgpt.com/backend-api/wham/usage",
-        headers={"Authorization": "Bearer " + tok,
-                 "Accept": "application/json",
-                 "User-Agent": "claude-pet"})
+        "https://chatgpt.com/backend-api/wham/usage", headers=headers)
     rows, err = None, None
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
