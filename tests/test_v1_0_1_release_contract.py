@@ -1,30 +1,52 @@
-"""Static release-preparation gates for v1.0.0.
+"""Static release-preparation gates for v1.0.1.
 
-Status as of 2026-09-30 (Verifier cwdfix-verify): v0.26.1 is published — tag
-``v0.26.1`` on origin, GitHub release published 2026-09-21T05:00:16Z.  The tag is
-lightweight and points at b52926f, the v0.26.1 release commit itself: unlike v0.26,
-nothing landed on ``main`` between the release commit and the tag, so the tag's
-``RELEASE_NOTES.md`` is the release commit's own blob (57996617).  **What is pinned below
-as "published" is the tag's tree** (``git show v0.26.1:RELEASE_NOTES.md``), independently
-confirmed byte-for-byte against the live GitHub release body
-(``gh release view v0.26.1 --json body``, checked 2026-09-30) — see the provenance note
-above ``PUBLISHED_V0261_AND_OLDER_SHA256``.  So everything from the ``**v0.26.1**``
-heading to the end of ``RELEASE_NOTES.md`` is frozen text and is pinned here byte for
-byte, alongside the older v0.26, v0.25, v0.24, v0.23 and v0.22 pins.  The single
-unpublished section above it is ``**v1.0.0**``, and ``APP_VERSION`` is ``"1.0.0"`` — the
-bump the release commit carries.  ``PublishedV023NotesContractTests``,
-``PublishedV024NotesContractTests``, ``PublishedV025NotesContractTests``,
-``PublishedV026NotesContractTests`` and ``PublishedV0261NotesContractTests`` keep holding
-the frozen v0.23, v0.24, v0.25, v0.26 and v0.26.1 prose to the source they describe (a
-published promise outlives its release; the v0.26.1 class is the former
-``StagedV0261NotesFormatTests`` with its assertions and method names unchanged, only its
-status renamed — the same promotion the v0.26 class went through a release earlier), and
-``StagedV100NotesFormatTests`` holds the v1.0.0 section to CLAUDE.md's release-note format
-rule and ties every checkable claim in it to the source.
+Status as of 2026-09-30 (Verifier minos-verify): v1.0.0 is published — annotated tag
+``v1.0.0`` (e340b154) on origin, pointing at 837c867; GitHub release published
+2026-09-30T05:03:07Z.  Unlike v0.26.1, the tag is *not* on the release commit: 59b807e
+carried the first v1.0.0 wording, and 8e5a722 reworded the section before the tag was
+pushed, so the release commit's blob (a165d9da) differs from the tag's (86d1e9ad).
+**What is pinned below as "published" is the tag's tree**
+(``git show v1.0.0:RELEASE_NOTES.md``), independently confirmed byte-for-byte against the
+live GitHub release body (``gh release view v1.0.0 --json body``, checked 2026-09-30) —
+see the provenance note above ``PUBLISHED_V100_AND_OLDER_SHA256``.  So everything from the
+``**v1.0.0**`` heading to the end of ``RELEASE_NOTES.md`` is frozen text and is pinned
+here byte for byte, alongside the older v0.26.1, v0.26, v0.25, v0.24, v0.23 and v0.22
+pins.  The single unpublished section above it is ``**v1.0.1**``, and ``APP_VERSION`` is
+``"1.0.1"`` — the bump the release commit carries.  ``PublishedV023NotesContractTests``
+through ``PublishedV0261NotesContractTests`` and ``PublishedV100NotesContractTests`` keep
+holding the frozen prose to the source it describes (a published promise outlives its
+release; the v1.0.0 class is the former ``StagedV100NotesFormatTests`` with its method
+names unchanged and one assertion re-scoped — see its docstring), and
+``StagedV101NotesFormatTests`` holds the v1.0.1 section to CLAUDE.md's release-note
+format rule and ties every checkable claim in it to the source.
+
+The v1.0.1 ties, one test per bullet: "Apple Silicon용 다운로드와 그 자동 업데이트가
+macOS 26.3 이상에서만 열리던 문제를 고쳤습니다. 이제 안내대로 macOS 12 이상에서 열립니다"
+against the updater's arm64 asset preference (``UPDATE_ASSET_NAMES["arm64"]`` names the
+arm64 zip ``release.sh`` builds first), against the floor both halves of the release
+tooling hold (``MIN_MACOS`` in ``release.sh`` and ``verify_release_artifact.py``, equal to
+the macOS the READMEs promise), against ``release.sh``'s arm64 build interpreter
+defaulting to the universal2 one and being checked by ``check_build_python`` before
+py2app, and against ``check_app`` running ``check_minos`` before it delegates; "26.3"
+against the deployment target ``release.sh`` records for the pyenv interpreter it no
+longer uses.  "26.3보다 낮은 macOS에서 … 다시 내려받아 설치하세요. 앱이 잘 열리던 분은 앱의
+업데이트 안내로 받으면 되고, 따로 할 일은 없습니다" against the same 26.3 and against the
+comparator every published build carries ranking ``APP_VERSION`` above every published
+version.  "Windows도 같은 1.0.1로 나오지만 기능은 달라진 것이 없습니다" against
+``APP_VERSION`` and ``windows/build_win.py`` taking its version from it.  Two facts behind
+these bullets are not static properties of this tree and were checked by hand on
+2026-09-30 (minos-verify): the published v1.0.0 ``ClaudePet.zip`` (``gh release
+download``) fails ``verify_release_artifact.py minos`` with 56 Mach-O slices at minos
+26.3 (``Contents/MacOS/python`` among them) while ``ClaudePet-universal.zip`` passes (74
+Mach-O files, all <= 12.0); and ``git diff v1.0.0 <release commit> -- windows/`` is empty
+while ``claude_pet.py`` differs from the tag only in ``APP_VERSION`` — which is what
+"기능은 달라진 것이 없습니다" rests on.  The behavioural gates are tests/test_minos_gate.py
+(``CheckMinosTests``, ``CheckAppInvokesMinosTests``, ``CheckBuildPythonTests``).
 
 Lineage: ``test_v022_release_contract.py`` → ``test_v023_release_contract.py`` →
 ``test_v024_release_contract.py`` → ``test_v025_release_contract.py`` →
-``test_v026_release_contract.py`` → ``test_v026_1_release_contract.py`` → this file; each
+``test_v026_release_contract.py`` → ``test_v026_1_release_contract.py`` →
+``test_v1_0_0_release_contract.py`` → this file; each
 release renames the module with ``git mv`` and rewrites it for the version its release
 commit carries.  The name spells all three parts of the version: squeezed the way
 ``v026`` squeezed 0.26, 1.0.0 would read ``v100``, which looks like version 100.  A
@@ -211,6 +233,22 @@ PUBLISHED_V026_AND_OLDER_SHA256 = (
 # appended above it and nothing below moved.
 PUBLISHED_V0261_AND_OLDER_SHA256 = (
     "8e29e813f25b44d4d32002e17ec5562a322c28fd4e91e00227780e11143c2d16"
+)
+# v1.0.0-and-older: from the ``**v1.0.0**`` heading through EOF, computed from the *tag*'s
+# tree (`git show v1.0.0:RELEASE_NOTES.md`; annotated tag e340b154 -> 837c867, blob
+# 86d1e9ad, 26448 bytes, of which the suffix is 22068).  The release commit 59b807e carried
+# a different blob (a165d9da): 8e5a722 reworded the v1.0.0 section before the tag was
+# pushed, so — as for v0.26 — the tag, not the release commit, is what users received.
+# Independently confirmed against the live GitHub release body
+# (`gh release view v1.0.0 --json body`, checked 2026-09-30; published
+# 2026-09-30T05:03:07Z): running release.sh's gen_release_notes awk program
+# (ver=**v1.0.0**) over the tag's file reproduces the body's 3376 bytes exactly (gh's
+# --jq output adds one trailing newline), so the 665-byte v1.0.0 section users received is
+# the one pinned here.  Identical in the working tree after the v1.0.1 section was staged
+# above it (2026-09-30).  The v0.26.1 suffix is unchanged at 21403 bytes across these
+# trees, so the v1.0.0 section was appended above it and nothing below moved.
+PUBLISHED_V100_AND_OLDER_SHA256 = (
+    "aed895d1ff5b94ba95aabac313a9aa1e5abc1a6b0131978be7202a38a06ad451"
 )
 
 # The cadence the published v0.23 notes promise, and the Korean label they name.
@@ -656,23 +694,24 @@ def _guards(root: ast.AST, node: ast.AST) -> list[ast.AST]:
 
 
 class VersionAndPinContractTests(unittest.TestCase):
-    def test_v100_version_and_final_source_pins_propagate(self):
+    def test_v101_version_and_final_source_pins_propagate(self):
         problems: list[str] = []
 
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
-        if versions != ["1.0.0"]:
-            problems.append(f"APP_VERSION must be one literal '1.0.0', got {versions!r}")
+        if versions != ["1.0.1"]:
+            problems.append(f"APP_VERSION must be one literal '1.0.1', got {versions!r}")
 
         verifier_text = RELEASE_VERIFIER.read_text(encoding="utf-8")
-        if "--expect-version 1.0.0" not in verifier_text:
-            problems.append("verify_release_artifact.py usage must show --expect-version 1.0.0")
+        if "--expect-version 1.0.1" not in verifier_text:
+            problems.append("verify_release_artifact.py usage must show --expect-version 1.0.1")
         # A bare version-number substring check would false-positive here: "1.0" is a
-        # literal prefix of "1.0.0" (as "0.26" was of "0.26.1"), so a naive
+        # literal prefix of "1.0.1" (as "0.26" was of "0.26.1"), so a naive
         # `f"--expect-version {stale}" in text` would flag the very string this test just
         # required above. The negative lookahead excludes exactly that case — it only
         # fires on a *bare* stale version, never on it being a prefix of the current one.
-        # "1.0" and "0.27" are the plausible wrong bumps; the rest are the versions before.
-        for stale in ("0.26.1", "0.26", "0.25", "0.24", "0.27", "1.0"):
+        # "1.0", "1.1" and "1.0.2" are the plausible wrong bumps; the rest are the
+        # versions before.
+        for stale in ("1.0.0", "0.26.1", "0.26", "0.25", "0.24", "1.0", "1.1", "1.0.2"):
             if re.search(rf"--expect-version {re.escape(stale)}(?!\.\d)", verifier_text):
                 problems.append(
                     f"verify_release_artifact.py still advertises --expect-version {stale}"
@@ -769,13 +808,24 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
             "published v0.26.1-and-older bytes were rewritten or dropped",
         )
 
-    def test_v100_is_the_only_unpublished_heading_and_sits_directly_above_v0261(self):
+    def test_published_v100_and_older_bytes_are_untouched(self):
+        raw = RELEASE_NOTES.read_bytes()
+        published_marker = b"**v1.0.0**"
+        self.assertEqual(raw.count(published_marker), 1, "published v1.0.0 heading changed")
+        published_suffix = raw[raw.index(published_marker) :]
+        self.assertEqual(
+            hashlib.sha256(published_suffix).hexdigest(),
+            PUBLISHED_V100_AND_OLDER_SHA256,
+            "published v1.0.0-and-older bytes were rewritten or dropped",
+        )
+
+    def test_v101_is_the_only_unpublished_heading_and_sits_directly_above_v100(self):
         """Rivals this heading-shape regex must not miss: a stale two-part-only pattern
         (``\\d+\\.\\d+``) silently fails to match a three-part heading like
         ``**v0.26.1**`` at all — a regex bug that would have made every assertion below
         vacuously pass against an empty ``headings`` list rather than catching a
         misplaced or duplicated heading. The pattern below allows an optional third
-        component for exactly this reason — and ``**v1.0.0**`` has one too."""
+        component for exactly this reason — and ``**v1.0.1**`` has one too."""
         text = RELEASE_NOTES.read_text(encoding="utf-8")
         changelog = "### 📝 변경 내역 / Changelog"
         self.assertEqual(text.count(changelog), 1)
@@ -784,11 +834,11 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
         self.assertTrue(headings, "changelog has no release heading")
         self.assertEqual(
             headings[:2],
-            ["1.0.0", "0.26.1"],
-            "the unpublished v1.0.0 section must sit directly above the published "
-            f"v0.26.1 heading, with nothing newer above it; got {headings[:2]!r}",
+            ["1.0.1", "1.0.0"],
+            "the unpublished v1.0.1 section must sit directly above the published "
+            f"v1.0.0 heading, with nothing newer above it; got {headings[:2]!r}",
         )
-        self.assertEqual(headings.count("1.0.0"), 1, "v1.0.0 heading must appear once")
+        self.assertEqual(headings.count("1.0.1"), 1, "v1.0.1 heading must appear once")
 
 
 class PublishedV023NotesContractTests(unittest.TestCase):
@@ -1989,12 +2039,20 @@ class PublishedV0261NotesContractTests(unittest.TestCase):
                          "is nothing for the user to configure")
 
 
-class StagedV100NotesFormatTests(unittest.TestCase):
-    """The unpublished v1.0.0 section, held to CLAUDE.md's release-note format rule and to
-    the source it describes.
+class PublishedV100NotesContractTests(unittest.TestCase):
+    """The published v1.0.0 section: its bytes are frozen above, and the source must still
+    keep every promise it made.
 
-    The section is staged text until the tag is pushed, so correcting it is ordinary work;
-    the format gate only says what CLAUDE.md step 2 says: exactly three top-level bullets,
+    This is the v1.0.0 release's former ``StagedV100NotesFormatTests`` with its method
+    names unchanged — its status moved from staged to published when the ``v1.0.0`` tag
+    and GitHub release went out on 2026-09-30T05:03:07Z.  One assertion is re-scoped, in
+    ``test_v100_windows_console_is_hidden_and_both_platforms_ship_the_version_named``:
+    "1.0.0으로 나오며" used to be tied to ``APP_VERSION`` being ``"1.0.0"``, which was the
+    claim while the section was staged; now that ``APP_VERSION`` has moved on, the version
+    the bullet names is tied to the section's own heading (the release it describes), while
+    every packager/updater tie beside it — each still a property of ``APP_VERSION`` — is
+    unchanged.  Every other assertion was re-run against the v1.0.1 release tree before this
+    rename (2026-09-30) and still holds.  The format gate says what CLAUDE.md step 2 says: exactly three top-level bullets,
     no nesting, at most 450 normalized characters, 1-2 Korean sentences per bullet, and
     none of the forbidden token classes.  Every checkable claim in it is then tied to the
     source, one test per bullet.  The ties are prose ties and deliberately loose about
@@ -2421,14 +2479,17 @@ class StagedV100NotesFormatTests(unittest.TestCase):
                 problems.append("the hidden-window startup information must go with every "
                                 f"Create, not only when {conditional}")
 
-        # "1.0.0으로 나오며": the version named is APP_VERSION, and every packager takes it.
+        # "1.0.0으로 나오며": the version named is the release this (published) section
+        # describes — it was APP_VERSION while the section was staged — and every packager
+        # takes its version from APP_VERSION.
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
         named = re.search(r"(\d+(?:\.\d+)+)\s*으로\s*나오", bullet)
+        own = [v for v, body in _changelog_sections(self.text) if body == self.visible]
         if not named:
             problems.append("the bullet must name the version both platforms ship")
-        elif versions != [named.group(1)]:
+        elif own != [named.group(1)]:
             problems.append(f"the bullet says both platforms ship {named.group(1)}; "
-                            f"APP_VERSION is {versions!r}")
+                            f"the section it sits in is {own!r}")
         setup_tree = _module_tree(SETUP)
         setup_version = [n for n in setup_tree.body if isinstance(n, ast.Assign)
                          and any(isinstance(t, ast.Name) and t.id == "APP_VERSION" for t in n.targets)]
@@ -2534,6 +2595,215 @@ class StagedV100NotesFormatTests(unittest.TestCase):
                 problems.append(f"installed copies would not offer {versions[0]}: their "
                                 f"comparator does not rank it above {not_newer or 'anything'}")
 
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+
+class StagedV101NotesFormatTests(unittest.TestCase):
+    """The unpublished v1.0.1 section, held to CLAUDE.md's release-note format rule and to
+    the source it describes.
+
+    The section is staged text until the tag is pushed, so correcting it is ordinary work;
+    the format gate only says what CLAUDE.md step 2 says: exactly three top-level bullets,
+    no nesting, at most 450 normalized characters, 1-2 Korean sentences per bullet, and
+    none of the forbidden token classes.  Every checkable claim in it is then tied to the
+    source, one test per bullet (see the module docstring for the two hand-checked facts
+    behind them).  The v1.0.1 notes quote no UI string, so the quoted-string test the
+    earlier classes carry has nothing to check here; ``test_v101_notes_quote_no_ui_string``
+    pins that, so a quote added later has to bring its own tie.
+    """
+
+    def setUp(self):
+        text = RELEASE_NOTES.read_text(encoding="utf-8")
+        self.text = text
+        self.visible = _notes_block(text, "**v1.0.1**", "**v1.0.0**")
+        self.top_level, self.nested, self.bullets = _bullet_shape(self.visible)
+        self.body = "\n".join(self.bullets)
+
+    def _bullet(self, pattern: str) -> str:
+        """The one bullet matching pattern — found by what it says, not by its position."""
+        matching = [b for b in self.bullets if re.search(pattern, b)]
+        self.assertEqual(len(matching), 1,
+                         f"expected exactly one v1.0.1 bullet matching {pattern!r}, "
+                         f"got {len(matching)}")
+        return matching[0]
+
+    def test_v101_notes_follow_the_three_bullet_450_character_format(self):
+        problems: list[str] = []
+        if len(self.top_level) != 3:
+            problems.append(f"v1.0.1 must have exactly 3 top-level bullets, got {len(self.top_level)}")
+        if self.nested:
+            problems.append("v1.0.1 must not contain nested bullets")
+        normalized_body = " ".join(self.visible.split())
+        if len(normalized_body) > 450:
+            problems.append(f"v1.0.1 Korean body is {len(normalized_body)} Unicode characters; max is 450")
+        for index, bullet in enumerate(self.bullets, 1):
+            if not re.search(r"[가-힣]", bullet):
+                problems.append(f"bullet {index} must be Korean")
+            count = len(_sentences(bullet))
+            if not 1 <= count <= 2:
+                problems.append(f"bullet {index} has {count} sentences; CLAUDE.md allows 1-2")
+        prose_for_forbidden_scan = self.body.replace("`", "")
+        for label, pattern in FORBIDDEN_NOTE_PATTERNS.items():
+            match = re.search(pattern, prose_for_forbidden_scan, re.I)
+            if match:
+                problems.append(f"remove {label}: {match.group(0)!r}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v101_notes_quote_no_ui_string(self):
+        self.assertEqual(re.findall(r'"([^"]+)"', self.body), [],
+                         "the v1.0.1 notes now quote a UI string — tie it to TR['ko'] "
+                         "the way the earlier classes do")
+
+    def test_v101_apple_silicon_download_and_update_open_on_macos_12(self):
+        """"Apple Silicon용 다운로드와 그 자동 업데이트가 macOS 26.3 이상에서만 열리던 문제를
+        고쳤습니다. 이제 안내대로 macOS 12 이상에서 열립니다."
+
+        "Apple Silicon용 다운로드와 그 자동 업데이트": the arm64 zip ``release.sh`` builds is
+        the updater's first choice on arm64, so the in-app update on Apple Silicon is the
+        same artifact as the download.  "macOS 12 이상 / 안내대로": the floor is 12.0 in both
+        ``release.sh`` and ``verify_release_artifact.py``, and the READMEs promise macOS 12.
+        "고쳤습니다": the arm64 build interpreter defaults to the universal2 one (not pyenv),
+        ``build()`` refuses an interpreter above the floor before py2app, and runs the minos
+        gate on what it built; ``check_app`` — the upload gate — runs ``check_minos`` before
+        delegating.  "26.3": the deployment target ``release.sh`` records for the pyenv
+        interpreter it used to default to (and the value the published v1.0.0 arm64 zip's
+        Mach-O files carry — checked by hand, see the module docstring).
+
+        Rivals, each of which would leave a sentence false: the updater preferring the
+        universal zip on arm64 (then "그 자동 업데이트" was never affected); a floor above
+        12 in either tool, or the two disagreeing; ``PY`` still defaulting to pyenv; the
+        interpreter check after py2app or absent; ``check_app`` not calling the minos
+        check, or calling it after the validator; a number in the notes other than the one
+        the tree records."""
+        problems: list[str] = []
+        bullet = self._bullet(r"Apple\s*Silicon")
+        if not _has_all(bullet, (r"자동\s*업데이트", r"macOS\s*26\.3\s*이상에서만",
+                                 r"macOS\s*12\s*이상")):
+            problems.append("the bullet must say the Apple Silicon download and its update "
+                            "opened only on macOS 26.3+ and now open on macOS 12+")
+
+        release_text = RELEASE_SCRIPT.read_text(encoding="utf-8")
+        names = _literal_assignments(APP_SOURCE, "UPDATE_ASSET_NAMES")
+        zip_line = re.search(r'(?m)^ZIP="([^"]+)"', release_text)
+        if not (len(names) == 1 and isinstance(names[0], dict) and names[0].get("arm64")
+                and zip_line
+                and names[0]["arm64"][0] == Path(zip_line.group(1)).name.lower()):
+            problems.append("the updater's first arm64 asset must be the arm64 zip release.sh "
+                            "builds (ZIP)")
+
+        floor_sh = re.search(r'(?m)^MIN_MACOS="(\d+)\.(\d+)"', release_text)
+        floor_py = _literal_assignments(RELEASE_VERIFIER, "MIN_MACOS")
+        promised = re.search(r"macOS\s*(\d+)\s*이상", bullet)
+        if not floor_sh or floor_py != [(int(floor_sh.group(1)), int(floor_sh.group(2)))]:
+            problems.append(f"release.sh MIN_MACOS and verify_release_artifact.MIN_MACOS must "
+                            f"agree; got {floor_sh and floor_sh.groups()!r} vs {floor_py!r}")
+        elif not promised or floor_py[0] != (int(promised.group(1)), 0):
+            problems.append(f"the notes promise macOS {promised and promised.group(1)}; the "
+                            f"gate's floor is {floor_py[0]!r}")
+        readme = (REPO / "README.ko.md").read_text(encoding="utf-8")
+        if not promised or f"macOS {promised.group(1)} 이상" not in readme:
+            problems.append("'안내대로': README.ko.md must promise the same macOS floor")
+
+        upy = re.search(r'(?m)^UPY="\$\{UPY:-([^}]+)\}"', release_text)
+        py = re.search(r'(?m)^PY="([^"]*)"', release_text)
+        if not upy or ".pyenv" in upy.group(1) or not py or py.group(1) != "${PY:-$UPY}":
+            problems.append(f"release.sh's PY must default to the universal2 UPY; got "
+                            f"{py and py.group(0)!r}")
+        build = re.search(r"(?ms)^build\(\)\s*\{(.*?)^\}", release_text)
+        body = build.group(1) if build else ""
+        check_at = body.find('check_build_python "$PY"')
+        py2app_at = body.find("setup.py py2app")
+        if check_at == -1 or py2app_at == -1 or check_at > py2app_at:
+            problems.append("build() must run check_build_python \"$PY\" before py2app")
+        if "verify_release_artifact.py minos" not in body:
+            problems.append("build() must run the minos gate on the bundle it built")
+        check_fn = re.search(r"(?ms)^check_build_python\(\)\s*\{(.*?)^\}", release_text)
+        if not check_fn or "MACOSX_DEPLOYMENT_TARGET" not in check_fn.group(1) \
+                or "MIN_MACOS" not in check_fn.group(1):
+            problems.append("check_build_python must compare MACOSX_DEPLOYMENT_TARGET with "
+                            "MIN_MACOS")
+
+        check_app = _module_def(RELEASE_VERIFIER, "check_app")
+        minos_calls = _calls_to(check_app, "check_minos")
+        validate_calls = _method_calls(check_app, "validate_update_app")
+        if not minos_calls or not validate_calls or \
+                min(c.lineno for c in minos_calls) > min(c.lineno for c in validate_calls):
+            problems.append("check_app must call check_minos before validate_update_app")
+
+        # "26.3": the number the tree records for the interpreter it stopped using.
+        number = re.search(r"macOS\s*(\d+\.\d+)\s*이상에서만", bullet)
+        if not number or not re.search(
+                rf"pyenv[^\n]*\n?[^\n]*\({re.escape(number.group(1))}\)", release_text):
+            problems.append(f"the notes say macOS {number and number.group(1)}; release.sh "
+                            "must record that as the pyenv interpreter's deployment target")
+
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v101_users_who_could_not_open_reinstall_others_just_update(self):
+        """"26.3보다 낮은 macOS에서 앱이 열리지 않았다면 이 버전을 다시 내려받아 설치하세요.
+        앱이 잘 열리던 분은 앱의 업데이트 안내로 받으면 되고, 따로 할 일은 없습니다."
+
+        The 26.3 here must be the first bullet's.  "업데이트 안내로 받으면": ``release.sh``
+        tags ``v`` + ``APP_VERSION`` and the comparator every published build carries ranks
+        ``APP_VERSION`` above every published version, so installed copies offer it.  (A
+        copy that cannot open cannot run its updater — hence "다시 내려받아".)
+
+        Rivals: two different thresholds in the notes; a version the installed comparator
+        does not rank above every published one; a tag not taken from ``APP_VERSION``."""
+        problems: list[str] = []
+        bullet = self._bullet(r"다시\s*내려받")
+        first = self._bullet(r"Apple\s*Silicon")
+        here = re.search(r"(\d+\.\d+)\s*보다\s*낮은\s*macOS", bullet)
+        there = re.search(r"macOS\s*(\d+\.\d+)\s*이상에서만", first)
+        if not here or not there or here.group(1) != there.group(1):
+            problems.append("the reinstall threshold must be the same version the first "
+                            "bullet names")
+        if not _has_all(bullet, (r"업데이트\s*안내", r"따로\s*할\s*일은\s*없")):
+            problems.append("the bullet must say working copies just take the in-app update")
+
+        release_text = RELEASE_SCRIPT.read_text(encoding="utf-8")
+        if not re.search(r'TAG="v\$\(cur_version\)"', release_text):
+            problems.append('release.sh must publish under TAG="v$(cur_version)"')
+        versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
+        if len(versions) == 1 and isinstance(versions[0], str):
+            namespace = {"__builtins__": {"str": str, "int": int, "tuple": tuple}}
+            exec(compile(PUBLISHED_VER_TUPLE, "<PUBLISHED_VER_TUPLE>", "exec"), namespace)
+            published_ver = namespace["_ver_tuple"]
+            published = [version for version, _ in _changelog_sections(self.text)[1:]]
+            not_newer = [v for v in published if not published_ver(versions[0]) > published_ver(v)]
+            if not published or not_newer:
+                problems.append(f"installed copies would not offer {versions[0]}: their "
+                                f"comparator does not rank it above {not_newer or 'anything'}")
+        else:
+            problems.append(f"APP_VERSION must be one literal string, got {versions!r}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v101_windows_ships_the_same_version(self):
+        """"Windows도 같은 1.0.1로 나오지만 기능은 달라진 것이 없습니다."
+
+        "같은 1.0.1로": the version named is ``APP_VERSION``, and ``windows/build_win.py``'s
+        ``app_version`` reads it out of claude_pet.py, as the macOS packagers do.  "기능은
+        달라진 것이 없습니다" is a statement about a diff, which no static tie can make; it
+        was checked by hand (module docstring).
+
+        Rivals: a version in the notes that is not ``APP_VERSION``; the Windows packager
+        carrying its own version literal."""
+        problems: list[str] = []
+        bullet = self._bullet(r"Windows")
+        named = re.search(r"(\d+(?:\.\d+)+)\s*로\s*나오", bullet)
+        versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
+        if not named or versions != [named.group(1)]:
+            problems.append(f"the bullet names {named and named.group(1)!r}; APP_VERSION is "
+                            f"{versions!r}")
+        heading = _changelog_sections(self.text)[0][0]
+        if versions != [heading]:
+            problems.append(f"the staged heading is v{heading}; APP_VERSION is {versions!r}")
+        win_version = _module_defs(WIN_BUILD).get("app_version")
+        if win_version is None or not ("claude_pet.py" in _code_strings([win_version])
+                                       and any("APP_VERSION" in s
+                                               for s in _code_strings([win_version]))):
+            problems.append("windows/build_win.py's app_version must read APP_VERSION out of "
+                            "claude_pet.py")
         self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
 
 
