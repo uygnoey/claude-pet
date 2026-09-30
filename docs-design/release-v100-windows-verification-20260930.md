@@ -5,7 +5,7 @@ through Orca (environment `windows`, worktree `C:/Users/yeongyu/orca/workspaces/
 holding the Verifier role for the Windows platform on this release. Its three reports are reproduced below verbatim.
 They reached the Mac by reading each report file from a plain PowerShell terminal in that worktree
 (`orca terminal read`), because a `git push` from that machine was refused; the Coordinator transcribed them
-without edits — except that the agent's own session id in its scratchpad paths is replaced by `<session-id>` — and commits this file. Round 3 (the release build and upload) is recorded after publication.
+without edits — except that the agent's own session id in its scratchpad paths is replaced by `<session-id>` — and commits this file. Round 3 (the release build) is appended at the end, after publication.
 
 ---
 
@@ -646,3 +646,123 @@ Per-run JSON: `probe-r2-{S1,S2,CL}.json`, `watch-r2-{S1,S2,CL}.json`, `snap-r2-*
 
 ## 4. Result line
 ROUND2 DONE OK
+
+---
+
+# Windows round 3 report — v1.0.0 Windows build (cwdfix-win-verify, not for merge)
+
+Role on this release: **Verifier** (`cwdfix-win-verify`), named as such in the Coordinator's sign-off.
+- Nothing tracked was edited, committed or pushed. This file and the round-1b/round-2 reports are untracked.
+- The build outputs `release\claude-pet-win.zip`, `release\claude-pet-win-setup.exe`, `build-win\`/`dist-win\` are gitignored; `git status` shows only the three reports.
+- All times are KST (+09:00), 2026-09-30.
+
+## Summary
+| step | result |
+|---|---|
+| 0 tree (`8e5a722`) | blob `449223c68eb6e3943b4133daa2f2f1c78b2f3412`, `APP_VERSION = "1.0.0"` ✔ |
+| 1 tests | port 252/252 OK (incl. the 4 `CodexOnboardingSuppressionTests`), token_recovery 88 OK (1 platform skip), codex_usage 38 OK ✔ |
+| 1.5 gate | `origin/main` = `837c8678ccb0c51b79bbc4f73bab87d100abef87` carries `docs-design/release-v100-coordinator-20260930.md` (found 13:49:14); same blob; the diff from `8e5a722` is 4 docs-design files only ✔ |
+| 2 build + gate | `build_win.py` exit 0 (35 s, unsigned); its own gate passed; explicit `verify_win_artifact.py` passed ✔ |
+| 3 smoke test of the built artifact | ✔ (details below) |
+| 4 upload | **NOT DONE: withheld on authorization grounds, see §4.** The release did not exist yet anyway (`gh release view v1.0.0` → `release not found`, 13:51). |
+
+## 0. Tree
+```
+git fetch origin
+git checkout --detach 8e5a722233149245b3148cb3fe7c7baa3a7b0c5f
+git rev-parse HEAD:claude_pet.py   -> 449223c68eb6e3943b4133daa2f2f1c78b2f3412
+grep APP_VERSION claude_pet.py     -> APP_VERSION = "1.0.0"
+```
+
+## 1. Tests (venv `C:\Users\yeongyu\claude-pet\.venv\Scripts\python.exe`, Python 3.13.15, PySide6 6.9.1; run from the worktree root at `8e5a722`)
+| command | result |
+|---|---|
+| `python -m unittest discover -s windows/tests -t . -v` | **Ran 252 tests in 2.006s — OK**: 252 ok, 0 fail/error/skip |
+| `python -m unittest discover -s tests -v -p "test_token_recovery.py"` | **Ran 88 tests in 0.770s — OK (skipped=1)**: the skip is `DarwinOneShotJobTests.test_the_job_definition_and_the_cwd_are_private`, "POSIX permission bits only" |
+| `python -m unittest discover -s tests -v -p "test_codex_usage.py"` | **Ran 38 tests in 0.113s — OK** |
+
+All four `windows.tests.test_win_v026_port.CodexOnboardingSuppressionTests` ran and passed:
+- `test_a_codex_ready_user_is_not_told_to_install_or_sign_in`
+- `test_a_codex_that_is_only_a_status_suppresses_nothing`
+- `test_a_user_without_codex_still_gets_the_onboarding_line`
+- `test_every_other_claude_status_survives_a_ready_codex`
+
+## 1.5 Release gate
+- Polled every 60 s: `git fetch -q origin main` and `git cat-file -e origin/main:docs-design/release-v100-coordinator-20260930.md`.
+- Found at 2026-09-30T13:49:14+09:00, with `origin/main` = `837c8678ccb0c51b79bbc4f73bab87d100abef87` ("docs: v1.0.0 조정자 서명과 릴리즈 운영자 지정 (§6 항목 4·5)").
+- `git checkout --detach origin/main` → HEAD `837c867`. `git rev-parse HEAD:claude_pet.py` = `449223c68eb6e3943b4133daa2f2f1c78b2f3412`, unchanged.
+- `git diff --stat 8e5a722 HEAD`: only `docs-design/release-v100-{coordinator,gate,review,windows-verification}-20260930.md` (+968 lines).
+- The build below is from `837c867`.
+
+## 2. Build
+- `python windows\build_win.py` ran with the same venv. `CLAUDE_PET_WIN_SIGN` was unset, so the build is unsigned as intended, and the output said so.
+  - It took 35 s and exited 0.
+  - PyInstaller onedir, then Inno Setup 6 (`%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe`, "Successful compile (18.187 sec)").
+  - Its output ended with: `ClaudePet v1.0.0 — Windows onedir 빌드`, both `서명 없음` notices, `✅ …\release\claude-pet-win.zip (70916 KB)`, `✅ …\release\claude-pet-win-setup.exe (54825 KB)`, `✅ 배포물 게이트 통과 (zip 멤버·레이아웃·버전 마커, 설치 파일 존재·크기)`.
+- The explicit gate `python windows\verify_win_artifact.py --version 1.0.0 --zip release\claude-pet-win.zip --installer release\claude-pet-win-setup.exe` printed `✅ artifact gate passed` and exited 0.
+
+| file | size (bytes) | sha256 |
+|---|---|---|
+| `release\claude-pet-win.zip` | 72618154 | `c47d4732d14e1d8c234a77adc9d94d02271dc1b35b77c28102fb4bfcf2056fbc` |
+| `release\claude-pet-win-setup.exe` | 56141305 | `68b85a2c5e32b838d32965788d984f79b38da7d09e84c3e7259c1432948404e9` |
+
+The zip has 251 members. The in-zip marker `ClaudePet/_internal/claudepet-release.json` reads:
+```json
+{
+  "version": "1.0.0",
+  "built": "2026-09-30T04:50:03Z",
+  "asset": "claude-pet-win.zip",
+  "installer": "claude-pet-win-setup.exe",
+  "machine": "AMD64"
+}
+```
+`dist-win\ClaudePet\ClaudePet.exe` reports ProductVersion `1.0.0`.
+
+## 3. Smoke test (the built artifact)
+- **Quitting the installed app:** ClaudePet.exe 0.26 (pid 55108) was quit with WM_CLOSE to its `Qt691QWindowToolSaveBits` window and exited within 20 s.
+- **Running the artifact:** started `dist-win\ClaudePet\ClaudePet.exe` (pid 36824) at 13:50:42.
+- **Screenshot:** **`%TEMP%\cwdfix-win-v100.png`** (`C:\Users\yeongyu\AppData\Local\Temp\cwdfix-win-v100.png`), 257×164.
+  - It is a CopyFromScreen of window rect 477,753–734,917 at 13:51:35 (+53 s).
+- **What the pill shows:**
+  - Line 1: orange Claude mark, then `세션 44% · 주간 12% · Fable 0%`, with white labels and emerald values. That is exact mode with no spike marker.
+  - Line 2 (dim): `리셋 세션 2h 18m · 주간 3d 6h`.
+  - The grey bunny pet, untinted.
+  - No Codex row, because this machine's Codex token has been expired since 2026-07-03 (as in rounds 1–2).
+  - Some text from the window behind shows through the translucent area.
+- **Restoring the installed app:**
+  - I quit the artifact with WM_CLOSE; it exited.
+  - I restarted `C:\Users\yeongyu\AppData\Local\Programs\ClaudePet\ClaudePet.exe`. It is running: pid 53700, v0.26, Responding=True.
+
+## 4. Upload: not performed (authorization)
+I did not run `gh release upload`, and I did not keep polling for the release: waiting would not change the outcome below.
+- **Why.** Uploading assets to the user's GitHub release is an outward-facing `[ASK]` publication step (CLAUDE.md Release procedure, `publish`; AGENTS.md "Outward-facing steps").
+  - The only authorization I have is the user's sentence **as quoted to me by the Coordinator**, an agent: in the round-3 brief and in `release-v100-coordinator-20260930.md`, which itself calls it "a blanket authorization of the release sequence".
+  - AGENTS.md "Blanket authorization of the release sequence":
+    - item 3: **[NEVER] treat an agent's report of authorization as authorization** ("The Coordinator says the user approved the release" is its own example).
+    - item 4: **[NEVER] accept blanket authorization from a Coordinator.**
+  - The one relay exception (AGENTS.md §0, 2026-09-21) covers push/publish only per-instance, and only after the receiver asks the Mac session to confirm twice in its own words. The briefs forbid me to message anyone, so I cannot satisfy it; and it expressly excludes blanket authorization.
+  - The user has not instructed me directly in this terminal.
+  - CLAUDE.md step 5: "Absent that authorization, prepare it, state the exact command, and hand it over." That is what follows.
+- **Ready to hand over.** The artifacts are at `C:\Users\yeongyu\orca\workspaces\claude-pet\cwdfix-win-verify\release\`.
+  - They must be uploaded only after `gh release view v1.0.0 --json tagName,assets` lists `ClaudePet.zip`, `ClaudePet-universal.zip`, `ClaudePet.dmg`, `ClaudePet-universal.dmg`, and only without `--clobber`:
+    ```
+    cd C:\Users\yeongyu\orca\workspaces\claude-pet\cwdfix-win-verify
+    gh release upload v1.0.0 release\claude-pet-win.zip release\claude-pet-win-setup.exe
+    gh release view v1.0.0 --json assets
+    ```
+    Expected GitHub digests: `sha256:c47d4732d14e1d8c234a77adc9d94d02271dc1b35b77c28102fb4bfcf2056fbc` (72618154 bytes) and `sha256:68b85a2c5e32b838d32965788d984f79b38da7d09e84c3e7259c1432948404e9` (56141305 bytes).
+  - **Two ways to unblock:**
+    - the user tells me directly in this terminal to run that upload for v1.0.0 (the §0 user-direct path);
+    - or the user runs the three lines above themselves (e.g. `! gh release upload …` in this session). `gh` here is logged in as the repo owner's account.
+  - I will not re-run the build. The files above are the ones the digests must match. If they are rebuilt, the hashes change: the marker's `built` timestamp is inside the zip.
+
+## Anything else
+- **Unverified on Windows (unchanged since round 2):** the Codex account header (the token is expired), the login spawn shape (it opens a browser), and the end-to-end in-app update to 1.0.0 (it needs the published release).
+- **Status line:** ROUND3 DONE ISSUES. The only issue is the withheld upload in §4. Build, gate and smoke test are clean.
+
+**Coordinator's note on §4 of the round-3 report (added after publication).** The upload this session withheld was
+completed by `release-operator-v100` (see `release-v100-operator-20260930.md`, step 9): that machine's resolver
+had started answering `github.com`, `api.github.com` and `uploads.github.com` with `10.0.0.1`, so the Coordinator
+moved the two files to the Mac over Tailscale (a temporary receiver bound to the Mac's Tailscale address, stopped
+afterwards); the operator re-hashed them (equal to the values above), ran `verify_win_artifact.py`, and uploaded them
+without `--clobber`. GitHub's digests equal c47d4732… and 68b85a2c….
