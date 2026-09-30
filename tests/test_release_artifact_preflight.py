@@ -15,9 +15,12 @@ regression would be caught.  The fixture font is a four-byte magic plus padding 
 nothing is copied from ``fonts/``.
 """
 
+import atexit
 import hashlib
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,6 +32,36 @@ import verify_release_artifact
 REAL_MKDTEMP = tempfile.mkdtemp
 CHECKOUT_SOURCE = Path(verify_release_artifact.__file__).resolve().with_name(
     "claude_pet.py")
+
+
+_MACHO = None
+
+
+def old_enough_macho():
+    """A real arm64 Mach-O built for macOS 11.0, compiled once per process.
+
+    Since the minos gate (``check_minos``), ``check_app`` refuses a bundle that holds no
+    Mach-O at all, so every fixture that is meant to *reach* the validator needs one.
+    It is a real binary rather than a stub because the gate reads its load commands
+    with ``otool``; 11.0 is below the 12.0 floor, so only the check a test targets can
+    refuse. Nothing is copied from the system: ``/usr/bin`` binaries carry the running
+    OS's minos (26.x) and would be refused.
+    """
+    global _MACHO
+    if _MACHO is None:
+        if not os.access("/usr/bin/clang", os.X_OK):
+            msg = "/usr/bin/clang not available: cannot build the fixture Mach-O"
+            sys.stderr.write(f"\n[test_release_artifact_preflight] SKIPPED: {msg}\n")
+            raise unittest.SkipTest(msg)
+        d = Path(os.path.realpath(REAL_MKDTEMP(prefix="preflight-macho-")))
+        atexit.register(shutil.rmtree, d, True)
+        (d / "m.c").write_text("int main(void) { return 0; }\n")
+        out = d / "ClaudePet"
+        subprocess.run(["/usr/bin/clang", "-arch", "arm64", "-mmacosx-version-min=11.0",
+                        "-o", str(out), str(d / "m.c")], check=True,
+                       capture_output=True)
+        _MACHO = out
+    return _MACHO
 
 
 def sha256(path):
@@ -100,6 +133,9 @@ class ReleaseArtifactAppPreflightTests(unittest.TestCase):
             raise ValueError(code)
         self.make_fonts(resources, fonts)
         self.make_logos(resources, logos)
+        macos = app / "Contents" / "MacOS"
+        macos.mkdir()
+        shutil.copyfile(old_enough_macho(), macos / "ClaudePet")
         return app, leaf
 
     def make_logos(self, resources, logos):
