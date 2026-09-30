@@ -54,8 +54,11 @@ status untouched), lives in tests/test_companion_motion.py's
 pairs (kept, now published): the quoted menu label "토큰 자동 갱신" against
 ``TR["ko"]["menu_auto_recover"]`` and "펫이 만료 직전에 알아서 되살립니다" against
 ``recovery_tick``'s pre-emptive branch (``REFRESH_MARGIN_SEC`` before ``expires_at``,
-gated on ``RUNTIME["auto_recover"]``) and against ``recovery_spawn_argv`` putting
-``claude -p /usage`` behind ``launchctl submit`` so the CLI is never our descendant;
+gated on ``RUNTIME["auto_recover"]``) and against ``claude -p /usage`` being handed to
+launchd as a one-shot ``bootstrap`` job whose WorkingDirectory is the private
+``recovery_cli_cwd()`` and which is never kept alive, so the CLI is never our descendant
+and runs once, away from ``/`` (re-tied 2026-09-30: this used to be ``launchctl submit``,
+which is what raised the folder prompts — see that test's docstring);
 "로고와 함께" and "줄도 로고도 생기지 않습니다" (the tag's wording; see the provenance
 note above) against the single ``chatgpt.com/backend-api/wham/usage`` endpoint and
 against ``fetch_codex_usage`` / ``roam_summary_codex`` returning ``None`` — no row at
@@ -993,6 +996,10 @@ class PublishedV026NotesContractTests(unittest.TestCase):
     ``v0.26`` tag and GitHub release went out on 2026-09-20T15:50:23Z (the same promotion
     the v0.25 class went through a release earlier).  Every assertion below was
     re-verified against current source before this rename (2026-09-21) and still holds.
+    One exception since: on 2026-09-30 (cwdfix) the "할 일은 없고" spawn tie in
+    ``test_v026_pre_emptive_refresh_is_backed_by_recovery_tick_and_the_spawn`` was re-tied
+    from ``launchctl submit`` to the one-shot ``bootstrap`` job, because the old tie encoded
+    the claim that turned out false; the frozen notes bytes are untouched.
     The format gate still says what CLAUDE.md step 2 says: exactly three top-level
     bullets, no nesting, at most 450 normalized characters, 1-2 Korean sentences per
     bullet, and none of the forbidden token classes.  Every checkable claim in it is then
@@ -1004,8 +1011,10 @@ class PublishedV026NotesContractTests(unittest.TestCase):
       wiring in ``run_gui``; "만료 직전" to ``recovery_tick``'s **pre-emptive** branch
       (``REFRESH_MARGIN_SEC`` before ``expires_at``, not merely a retry after rejection);
       "할 일은 없고" to the ``RUNTIME["auto_recover"]`` default being on and to
-      ``recovery_spawn_argv`` handing ``claude -p /usage`` to ``launchctl submit`` rather
-      than running it as our own child.
+      ``claude -p /usage`` being handed to launchd as a one-shot ``bootstrap`` job with the
+      private ``recovery_cli_cwd()`` as its WorkingDirectory and no keep-alive, rather than
+      run as our own child (re-tied 2026-09-30 from ``launchctl submit``, whose cwd ``/``
+      and keep-alive raised the folder prompts the note promised away).
     * "각 제공자의 수치가 그 로고와 함께 자기 줄에 보입니다 … 쓰지 않으면 줄도 로고도
       생기지 않습니다" — the wording the *tag*'s tree actually carries (a later commit
       reworded this bullet after the release commit that first staged it; see the module
@@ -1134,18 +1143,36 @@ class PublishedV026NotesContractTests(unittest.TestCase):
         treat an unknown expiry (expires_at is None) as *not* expiring, and it must rate
         limit that path with RECOVERY_COOLDOWN_SEC.  "할 일은 없고" is the default being
         on — RUNTIME["auto_recover"] reads an opt-out env var, so an untouched install is
-        True — and the spawn not costing the user a folder prompt: recovery_spawn_argv's
-        argv[0] on macOS is launchctl, so the CLI is launchd's child and not ours.  "토큰이
+        True — and the spawn not costing the user a folder prompt: on macOS the CLI is
+        handed to launchd as a one-shot ``bootstrap`` job whose WorkingDirectory is the
+        private ``recovery_cli_cwd()`` and which is never kept alive, so it is launchd's
+        child and not ours, and it runs once, away from ``/``.  "토큰이
         끊기던 상황에서도 … 유지됩니다" is the reactive path surviving more than one
         rejection — the pre-emptive branch alone would not keep the promise for a token
         that is already rejected — so RECOVERY_DELAYS_SEC must be a literal tuple with
         more than one entry.
 
+        Re-tied 2026-09-30 (cwdfix, Verifier): this used to pin
+        ``return [LAUNCHCTL, 'submit'`` in recovery_spawn_argv, i.e. the claim that handing
+        the CLI to ``launchctl submit`` spares the user a folder prompt.  That claim is what
+        turned out false — ``submit`` has no working-directory option, so the CLI ran with
+        cwd ``/`` and asked for protected folders in its own name, and ``submit`` re-runs a
+        job after it exits — even after exit 0 — so one attempt became three CLI runs in the
+        06:15 launchd log.  The note's promise now
+        rests on the mechanism tied below, stated as a property of everything reachable
+        from _run_refresh_job (review R1: an earlier version pinned one implementation's
+        shape instead).  It is a prose tie and deliberately loose — it cannot see *which*
+        directory the job gets; the behaviour itself is gated in
+        tests/test_token_recovery.py (``DarwinOneShotJobTests`` and friends).
+
         Rivals, each of which would leave the sentence false: a reactive-only cycle that
         waits for the server to reject before doing anything (no REFRESH_MARGIN_SEC); a
         tick that reads a missing expiry as expired and so spawns the CLI on every launch;
         an opt-in default, which makes "할 일은 없고" wrong for everyone; running the CLI
-        as our own child, which attributes its folder scans to the pet; a single retry."""
+        as our own child, which attributes its folder scans to the pet; a launchd job with
+        no private WorkingDirectory or with keep-alive (v0.26's ``submit``), which lets the
+        CLI ask for protected folders in its own name and relaunch after it exits; a
+        single retry."""
         tick = _module_def(APP_SOURCE, "recovery_tick")
         tick_names = _names(tick)
         for constant in ("REFRESH_MARGIN_SEC", "RECOVERY_COOLDOWN_SEC", "RECOVERY_DELAYS_SEC"):
@@ -1178,11 +1205,128 @@ class PublishedV026NotesContractTests(unittest.TestCase):
             f"nothing to do, got {defaults.get('auto_recover')!r}")
 
         spawn = _module_def(APP_SOURCE, "recovery_spawn_argv")
-        spawn_src = ast.unparse(spawn)
-        self.assertIn("return [LAUNCHCTL, 'submit'", spawn_src,
-                      "on macOS the refresh must be handed to launchctl, not run as our child")
-        self.assertIn("'-p', '/usage'", spawn_src,
+        self.assertIn("'-p', '/usage'", ast.unparse(spawn),
                       "the refresh is triggered by one `claude -p /usage` run")
+        self.assertNotIn("LAUNCHCTL", _names(spawn),
+                         "recovery_spawn_argv returns the program the detached job runs, with "
+                         "no launcher in front (the spec's words)")
+
+        # "할 일은 없고" — the spawn costs the user no folder prompt.  Written as a PROPERTY of
+        # the spawn path, read from the spec, not as the shape of one implementation: review
+        # R1 showed the two earlier versions of this block rejecting legitimate code (a job
+        # dict built key by key, bootstrap two calls down, a helper fed by a parameter) and,
+        # once amended, accepting little beyond the fix's own shape.  The spawn path is every
+        # module-level function reachable from _run_refresh_job through any name, at any
+        # depth.  What it must show: `bootstrap`, never `submit`; recovery_cli_cwd feeding it;
+        # the job keys; RunAtLoad and KeepAlive at the only values that mean "one run".
+        tree = _module_tree(APP_SOURCE)
+        defs = {n.name: n for n in tree.body
+                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        module_strings = {}               # NAME = "literal" (or any container of literals)
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                literals = {c.value for c in ast.walk(node.value)
+                            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        module_strings[target.id] = literals
+
+        def reachable(*roots):
+            seen, todo = set(), list(roots)
+            while todo:
+                name = todo.pop()
+                if name in seen or name not in defs:
+                    continue
+                seen.add(name)
+                todo.extend(n.id for n in ast.walk(defs[name]) if isinstance(n, ast.Name))
+            return [defs[name] for name in sorted(seen)]
+
+        def docstring_nodes(fns):
+            ids = set()
+            for fn in fns:
+                for n in ast.walk(fn):
+                    if (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                            and n.body and isinstance(n.body[0], ast.Expr)
+                            and isinstance(n.body[0].value, ast.Constant)
+                            and isinstance(n.body[0].value.value, str)):
+                        ids.add(id(n.body[0].value))
+            return ids
+
+        def code_strings(fns):
+            """String literals the code uses (docstrings excluded — they may tell the
+            `submit` history), plus the literals of module constants it names."""
+            skip, out = docstring_nodes(fns), set()
+            for fn in fns:
+                for n in ast.walk(fn):
+                    if (isinstance(n, ast.Constant) and isinstance(n.value, str)
+                            and id(n) not in skip):
+                        out.add(n.value)
+                    elif isinstance(n, ast.Name) and n.id in module_strings:
+                        out |= module_strings[n.id]
+            return out
+
+        def spelled_keys(fns):
+            """Every key the code can spell: string literals and keyword names (dict(...))."""
+            return code_strings(fns) | {kw.arg for fn in fns for kw in ast.walk(fn)
+                                        if isinstance(kw, ast.keyword) and kw.arg}
+
+        def values_given(fns, key):
+            """Every value the code gives `key`: in a dict display, a subscript assignment,
+            a keyword argument or `.setdefault(key, value)`.  Any other mention of the key is
+            a value this test cannot read — recorded as None, which fails closed."""
+            found, placed, skip = [], set(), docstring_nodes(fns)
+            for fn in fns:
+                for n in ast.walk(fn):
+                    if isinstance(n, ast.Dict):
+                        for k, v in zip(n.keys, n.values):
+                            if isinstance(k, ast.Constant) and k.value == key:
+                                found.append(v)
+                                placed.add(id(k))
+                    elif isinstance(n, ast.Assign):
+                        for target in n.targets:
+                            if (isinstance(target, ast.Subscript)
+                                    and isinstance(target.slice, ast.Constant)
+                                    and target.slice.value == key):
+                                found.append(n.value)
+                                placed.add(id(target.slice))
+                    elif isinstance(n, ast.Call):
+                        found.extend(kw.value for kw in n.keywords if kw.arg == key)
+                        if (isinstance(n.func, ast.Attribute) and n.func.attr == "setdefault"
+                                and len(n.args) == 2 and isinstance(n.args[0], ast.Constant)
+                                and n.args[0].value == key):
+                            found.append(n.args[1])
+                            placed.add(id(n.args[0]))
+            for fn in fns:
+                for n in ast.walk(fn):
+                    if (isinstance(n, ast.Constant) and n.value == key
+                            and id(n) not in placed and id(n) not in skip):
+                        found.append(None)
+            return found
+
+        spawn_path = reachable("_run_refresh_job")
+        self.assertIn("bootstrap", code_strings(spawn_path),
+                      "on macOS the CLI must be handed to launchd with `launchctl bootstrap`")
+        whole_path = reachable("_run_refresh_job", "recovery_spawn_argv", "login_spawn_argv")
+        self.assertNotIn("submit", code_strings(whole_path),
+                         "`launchctl submit` must appear nowhere in the spawn path: it runs the "
+                         "CLI from / and re-runs the job after it exits, even after exit 0")
+        self.assertIn("recovery_cli_cwd",
+                      {n.id for fn in spawn_path for n in ast.walk(fn) if isinstance(n, ast.Name)},
+                      "the job's working directory must come from recovery_cli_cwd()")
+        missing = sorted({"ProgramArguments", "WorkingDirectory", "RunAtLoad"}
+                         - spelled_keys(spawn_path))
+        self.assertEqual(missing, [], f"the launchd job definition lacks {missing}")
+        for key, required in (("RunAtLoad", True), ("KeepAlive", False), ("OnDemand", True)):
+            wrong = [v for v in values_given(spawn_path, key)
+                     if not (isinstance(v, ast.Constant) and v.value is required)]
+            self.assertEqual(
+                ["<unreadable>" if v is None else ast.unparse(v) for v in wrong], [],
+                f"{key} must be literally {required} wherever the spawn path sets it — the job "
+                "runs once and is never relaunched")
+        triggers = sorted({"StartInterval", "StartCalendarInterval", "WatchPaths",
+                           "QueueDirectories", "StartOnMount", "Sockets", "MachServices",
+                           "LaunchEvents"} & spelled_keys(spawn_path))
+        self.assertEqual(triggers, [], f"the launchd job carries relaunch triggers {triggers}")
 
     def test_v026_codex_row_comes_from_one_endpoint_and_vanishes_without_credentials(self):
         """"Codex 사용량이 같은 줄에 함께 보입니다. Codex에 로그인돼 있으면 자동으로

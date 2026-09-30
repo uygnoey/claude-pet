@@ -31,14 +31,31 @@ which owns that file." ClaudePet 은 관찰자지 ADE 가 아니다 — 회전�
 홈 디렉터리)은 양쪽에서 같은 뜻이어야 하고, 이 파일은 윈도우 CI 에서도 돈다.
 
 테스트 정책(CLAUDE.md): 실제 `~/.codex` 를 읽지 않는다. 모든 픽스처는 합성이다.
+
+── 2026-09-30 개정: 계정 헤더 (cwdfix, Verifier) ─────────────────────────────────────
+
+`fetch_codex_usage()` 는 `Authorization` 하나만 보냈다. Coordinator 가 2026-09-30T00:19Z 에
+같은 엔드포인트를 두 번 불러 본 결과(관측, 계정 하나·호출 두 번): 헤더 없이 부르면
+`account_id: ""`, `allowed: false`, `used_percent: 100` 이 왔고, `ChatGPT-Account-Id:
+<auth.json 의 tokens.account_id>` 를 붙이면 `allowed: true`, `used_percent: 76` — Codex CLI 자신의
+세션 파일에 남은 최신 스냅숏(76.0)과 같은 값 — 이 왔다. 2026-09-13 조사도 엔드포인트가
+`tokens.access_token` + `tokens.account_id` 를 받는다고 적어 두었는데 구현이 뒤쪽을 빠뜨렸다.
+그래서 코드가 해야 하는 것: `read_codex_auth(path)` 가 `(토큰, 계정 id)` 를 읽고, 계정 id 가
+쓸 만할 때만 그 헤더를 보낸다. 계정 id 는 식별자라 로그·행·캐시·예외 어디에도 남기지 않는다.
+아래 픽스처는 계정 id 를 **세 자리에 서로 다른 값으로** 넣어 둔다 — id_token 이나 access
+token(JWT)의 클레임에서 꺼내는 경쟁 구현을 가려내려는 것이다. 전부 합성 값이다.
 """
 
+import base64
 import inspect
+import io
 import json
 import os
 import sys
 import tempfile
+import types
 import unittest
+import urllib.error
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -111,6 +128,82 @@ def auth_payload(access="ACCESS-TOKEN-VALUE", **kw):
     return body
 
 
+# ── 계정 헤더 픽스처 (2026-09-30, cwdfix) ──────────────────────────────────────────
+
+
+def _b64url(obj):
+    raw = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def synthetic_jwt(account_claim):
+    """JWT 모양의 합성 문자열(서명 없음). 실제 Codex 토큰처럼 계정 클레임을 품고 있다."""
+    return ".".join((_b64url({"alg": "none", "typ": "JWT"}),
+                     _b64url({"https://api.openai.com/auth":
+                              {"chatgpt_account_id": account_claim}}),
+                     "c2lnbmF0dXJl"))
+
+
+# 세 자리 모두에 '계정 id' 가 있고 값이 전부 다르다. 계약이 읽으라는 곳은 첫째뿐이다.
+ACCOUNT_IN_FILE = "acct-file-0b7e"            # tokens.account_id
+ACCOUNT_IN_ID_TOKEN = "acct-idtoken-5c21"     # id_token 의 chatgpt_account_id 클레임
+ACCOUNT_IN_ACCESS_JWT = "acct-access-9d43"    # access_token 의 chatgpt_account_id 클레임
+ACCESS_JWT = synthetic_jwt(ACCOUNT_IN_ACCESS_JWT)
+ID_JWT = synthetic_jwt(ACCOUNT_IN_ID_TOKEN)
+_MISSING = object()
+
+
+def auth_with_account(account=ACCOUNT_IN_FILE, access=ACCESS_JWT):
+    tokens = {"id_token": ID_JWT, "access_token": access,
+              "refresh_token": "REFRESH-SYNTHETIC"}
+    if account is not _MISSING:
+        tokens["account_id"] = account
+    return {"OPENAI_API_KEY": None, "tokens": tokens, "last_refresh": "2026-09-30T00:00:00Z"}
+
+
+def _write_auth(td, obj, name="auth.json"):
+    p = os.path.join(td, name)
+    with open(p, "w", encoding="utf-8") as f:
+        if isinstance(obj, str):
+            f.write(obj)
+        else:
+            json.dump(obj, f)
+    return p
+
+
+def _headers(req):
+    """urllib 은 헤더 이름을 capitalize 한다 — 대소문자를 무시하고 본다."""
+    return {k.lower(): v for k, v in req.header_items()}
+
+
+def _fetch_with(test, auth_obj, respond="ok"):
+    """fetch_codex_usage() 를 합성 auth.json 과 가짜 urlopen 으로 한 번 돌린다.
+
+    네트워크는 두 겹으로 막는다: urlopen 을 바꾸고, 그래도 소켓을 열려 하면 실패시킨다.
+    """
+    td = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+    test.addCleanup(td.cleanup)
+    path = _write_auth(td.name, auth_obj)
+    requests, dbg = [], []
+
+    def fake_urlopen(req, *a, **kw):
+        requests.append(req)
+        if respond == "http":
+            raise urllib.error.HTTPError(req.full_url, 500, "server error", {}, None)
+        body = b"{not json" if respond == "garbage" else json.dumps(usage_payload()).encode()
+        return io.BytesIO(body)
+
+    with mock.patch.object(claude_pet, "codex_auth_path", new=lambda *a, **k: path), \
+         mock.patch.dict(claude_pet._codex_cache, {"t": 0.0, "rows": None}), \
+         mock.patch.object(claude_pet.urllib.request, "urlopen", new=fake_urlopen), \
+         mock.patch.object(claude_pet, "_dbg", new=lambda *a: dbg.append(a)), \
+         mock.patch("socket.create_connection",
+                    side_effect=AssertionError("테스트가 네트워크에 나가려 했다")):
+        rows = claude_pet.fetch_codex_usage()
+        cache_text = repr(dict(claude_pet._codex_cache))
+    return types.SimpleNamespace(rows=rows, requests=requests, dbg=dbg, cache_text=cache_text)
+
+
 class CodexAuthPathTests(unittest.TestCase):
     """자격증명 위치 — 양쪽 플랫폼에서 같은 뜻이어야 한다."""
 
@@ -167,6 +260,113 @@ class CodexTokenReadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = self._write(td, auth_payload(access="   "))
             self.assertIsNone(claude_pet.read_codex_token(p))
+
+
+class CodexAuthReadTests(unittest.TestCase):
+    """`read_codex_auth(path)` → `(access_token | None, account_id | None)` — 스펙 Bug 2 §1.
+
+    토큰 규칙은 `read_codex_token` 과 똑같고, 계정 id 는 `tokens.account_id` 가 공백이 아닌
+    str 일 때만(앞뒤 공백을 떼어) 준다. 토큰이 없으면 계정 id 가 있어도 `(None, None)`.
+    예외는 내보내지 않는다.
+    """
+
+    def _reader(self):
+        fn = getattr(claude_pet, "read_codex_auth", None)
+        self.assertTrue(callable(fn), "claude_pet.read_codex_auth(path) 가 없다 — 계약 이름이다")
+        return fn
+
+    def test_it_returns_the_token_and_tokens_account_id(self):
+        """Rivals: 계정 id 를 id_token 의 클레임에서 꺼냄(→ acct-idtoken-…); access token
+        JWT 의 클레임에서 꺼냄(→ acct-access-…); 토큰만 돌려줌(v0.26 의 read_codex_token)."""
+        fn = self._reader()
+        with tempfile.TemporaryDirectory() as td:
+            got = fn(_write_auth(td, auth_with_account()))
+        self.assertEqual(got, (ACCESS_JWT, ACCOUNT_IN_FILE))
+
+    def test_the_account_id_is_stripped(self):
+        """헤더 값에 공백이 붙어 나가지 않게 한다. Rival: 떼지 않고 그대로 주는 구현."""
+        fn = self._reader()
+        with tempfile.TemporaryDirectory() as td:
+            got = fn(_write_auth(td, auth_with_account(account="  %s\t" % ACCOUNT_IN_FILE)))
+        self.assertEqual(got, (ACCESS_JWT, ACCOUNT_IN_FILE))
+
+    def test_the_token_is_stripped(self):
+        """토큰 규칙은 v0.26 의 read_codex_token 과 **똑같다** — 앞뒤 공백을 뗀 값을 준다.
+
+        (리뷰 R1 이 찾은 구멍: 아래 '두 함수가 같은 값을 준다' 테스트는 둘이 **함께**
+        떼지 않는 구현을 통과시킨다 — read_codex_auth 가 날것을 주고 read_codex_token 이
+        그것을 그대로 넘기면 둘은 여전히 같다. 그래서 값 자체를 단언한다.)
+        Rival: 공백 검사만 하고 날것을 돌려주는 read_codex_auth(+ 그대로 넘기는
+        read_codex_token)."""
+        fn = self._reader()
+        with tempfile.TemporaryDirectory() as td:
+            p = _write_auth(td, auth_with_account(access="  %s\t\n" % ACCESS_JWT))
+            self.assertEqual(fn(p), (ACCESS_JWT, ACCOUNT_IN_FILE))
+            self.assertEqual(claude_pet.read_codex_token(p), ACCESS_JWT)
+
+    def test_an_unusable_account_id_is_none_but_the_token_survives(self):
+        """Rivals: str() 로 억지로 바꿈(12345 → "12345", True → "True"); 빈 문자열을 그대로
+        줌; 계정 id 가 없다고 토큰까지 버림."""
+        fn = self._reader()
+        for name, account in (("missing", _MISSING), ("null", None), ("empty", ""),
+                              ("blank", " \t "), ("number", 12345), ("bool", True),
+                              ("list", [ACCOUNT_IN_FILE]), ("dict", {"id": ACCOUNT_IN_FILE})):
+            with self.subTest(account=name), tempfile.TemporaryDirectory() as td:
+                got = fn(_write_auth(td, auth_with_account(account=account)))
+                self.assertEqual(got, (ACCESS_JWT, None))
+
+    def test_no_usable_token_is_none_none_even_with_an_account_id(self):
+        """Rivals: 토큰이 없어도 계정 id 는 돌려줌((None, acct)); 깨진 파일에서 예외."""
+        fn = self._reader()
+        with tempfile.TemporaryDirectory() as td:
+            cases = {
+                "missing file": os.path.join(td, "nope.json"),
+                "a directory": td,
+                "malformed json": _write_auth(td, "{ not json", "bad.json"),
+                "json null": _write_auth(td, "null", "null.json"),
+                "json list": _write_auth(td, [ACCOUNT_IN_FILE], "list.json"),
+                "api key only": _write_auth(td, {"OPENAI_API_KEY": "sk-synthetic",
+                                                 "tokens": None}, "apikey.json"),
+                "tokens is a list": _write_auth(td, {"tokens": [ACCESS_JWT]}, "tl.json"),
+                "blank token": _write_auth(td, auth_with_account(access="   "), "blank.json"),
+                "non-string token": _write_auth(td, auth_with_account(access=12345), "num.json"),
+                "no access_token": _write_auth(
+                    td, {"tokens": {"account_id": ACCOUNT_IN_FILE}}, "noacc.json"),
+            }
+            for name, path in cases.items():
+                with self.subTest(case=name):
+                    self.assertEqual(fn(path), (None, None))
+
+    def test_read_codex_token_is_exactly_the_token_half(self):
+        """스펙: read_codex_token(path) == read_codex_auth(path)[0]. 두 규칙이 갈라지면 행이
+        보이는 조건과 요청이 나가는 조건이 달라진다."""
+        fn = self._reader()
+        with tempfile.TemporaryDirectory() as td:
+            paths = [
+                _write_auth(td, auth_with_account(), "a.json"),
+                _write_auth(td, auth_with_account(account=_MISSING), "b.json"),
+                _write_auth(td, auth_with_account(access="  TOK-PADDED  "), "c.json"),
+                _write_auth(td, auth_with_account(access="   "), "d.json"),
+                _write_auth(td, "{ not json", "e.json"),
+                os.path.join(td, "nope.json"),
+            ]
+            for p in paths:
+                with self.subTest(path=os.path.basename(p)):
+                    self.assertEqual(claude_pet.read_codex_token(p), fn(p)[0])
+
+    def test_reading_logs_neither_the_token_nor_the_account_id(self):
+        """읽기는 됐는데(첫 단언) 흔적은 없어야 한다 — 읽지도 않은 구현으로 통과하지 않게.
+        Rival: `_dbg("codex auth: account", acct)` 같은 진단 줄."""
+        fn = self._reader()
+        seen = []
+        with mock.patch.object(claude_pet, "_dbg", new=lambda *a: seen.append(a)), \
+                tempfile.TemporaryDirectory() as td:
+            self.assertEqual(fn(_write_auth(td, auth_with_account()))[1], ACCOUNT_IN_FILE)
+            fn(_write_auth(td, auth_with_account(access="   "), "blank.json"))
+            fn(_write_auth(td, "{ not json", "bad.json"))
+        text = " ".join(str(x) for a in seen for x in a)
+        self.assertNotIn(ACCOUNT_IN_FILE, text)
+        self.assertNotIn(ACCESS_JWT, text)
 
 
 class CodexUsageParseTests(unittest.TestCase):
@@ -435,6 +635,18 @@ class CodexReadOnlyTests(unittest.TestCase):
         src = inspect.getsource(claude_pet.fetch_codex_usage)
         self.assertIn("chatgpt.com/backend-api/wham/usage", src)
 
+    def test_the_account_reader_is_read_only_too(self):
+        """2026-09-30: auth.json 을 읽는 함수가 하나 늘었다(read_codex_auth). 같은 원칙을
+        그 함수에도 건다. `_sources()` 에 넣지 않고 따로 두는 이유: 위 두 테스트는 그 함수가
+        생기기 전부터 초록이었고, 여기에 섞으면 그 둘의 뜻이 바뀐다.
+        Rivals: 계정 id 를 정리해 되써 넣는 구현; 토큰을 스스로 갱신하는 구현."""
+        fn = getattr(claude_pet, "read_codex_auth", None)
+        self.assertTrue(callable(fn), "claude_pet.read_codex_auth(path) 가 없다 — 계약 이름이다")
+        src = inspect.getsource(fn)
+        for w in ('"w"', "'w'", '"a"', "'a'", '"r+"', "'r+'",
+                  "auth.openai.com", "oauth/token", "refresh_token"):
+            self.assertNotIn(w, src)
+
 
 class CodexPrivacyTests(unittest.TestCase):
     """토큰은 로그에도 예외 메시지에도 남지 않는다."""
@@ -458,6 +670,84 @@ class CodexPrivacyTests(unittest.TestCase):
                     json.dump(auth_payload(access="SECRET-XYZ"), f)
                 claude_pet.read_codex_token(p)
         self.assertNotIn("SECRET-XYZ", repr(seen))
+
+
+class CodexAccountHeaderTests(unittest.TestCase):
+    """`fetch_codex_usage()` 는 `ChatGPT-Account-Id: <tokens.account_id>` 를 보낸다 — Codex
+    CLI 가 쓰는 계정을 서버에 알려 주는 헤더다(스펙 Bug 2 §3, 관측은 모듈 주석).
+
+    헤더 이름은 대소문자를 가리지 않고 본다(urllib 이 capitalize 한다). 엔드포인트·캐시
+    규율·파싱은 그대로여야 한다.
+    """
+
+    def test_the_request_names_the_account_from_tokens_account_id(self):
+        """Rivals: 헤더 없음(v0.26 — 서버가 다른 계정 문맥으로 100%, allowed=false 를 준다);
+        id_token 클레임의 값; access token JWT 클레임의 값; 다른 헤더 이름
+        (`OpenAI-Account-Id`, `chatgpt_account_id` …)."""
+        r = _fetch_with(self, auth_with_account())
+        self.assertEqual(len(r.requests), 1, "요청이 정확히 한 번 나가야 한다")
+        req = r.requests[0]
+        h = _headers(req)
+        self.assertEqual(req.full_url, "https://chatgpt.com/backend-api/wham/usage")
+        self.assertEqual(h.get("authorization"), "Bearer " + ACCESS_JWT,
+                         "Authorization 은 그대로여야 한다")
+        self.assertEqual(h.get("chatgpt-account-id"), ACCOUNT_IN_FILE,
+                         "ChatGPT-Account-Id 가 tokens.account_id 가 아니다 (보낸 헤더 이름: %r)"
+                         % sorted(h))
+        self.assertEqual([(row[0], row[1]) for row in r.rows or ()],
+                         [("codex_session", 12.0), ("codex_weekly", 34.0)],
+                         "헤더를 붙이면서 파싱이 달라졌다")
+
+    def test_the_header_is_sent_exactly_when_there_is_a_usable_account_id(self):
+        """표 하나로 본다 — 앞의 세 줄은 v0.26 에서 빨강이고, 나머지는 '늘 보낸다' 는 경쟁
+        구현(빈 값·"None"·"12345" 를 보냄)과 '토큰 없이도 계정만으로 요청' 하는 구현을 가른다.
+        토큰이 없으면 계정 id 가 있어도 **요청 자체가 없고** 행도 없다(v0.26.1 계약).
+        "padded token" 줄(리뷰 R1): Authorization 에는 **공백을 뗀** 토큰이 실린다 —
+        날것의 토큰으로 헤더를 만드는 구현을 가른다(모든 요청 줄이 같은 단언을 쓴다)."""
+        cases = (
+            ("present", auth_with_account(), True, ACCOUNT_IN_FILE),
+            ("padded", auth_with_account(account=" %s " % ACCOUNT_IN_FILE), True,
+             ACCOUNT_IN_FILE),
+            ("padded token", auth_with_account(access="  %s\t" % ACCESS_JWT), True,
+             ACCOUNT_IN_FILE),
+            ("missing", auth_with_account(account=_MISSING), True, None),
+            ("null", auth_with_account(account=None), True, None),
+            ("empty", auth_with_account(account=""), True, None),
+            ("blank", auth_with_account(account="   "), True, None),
+            ("number", auth_with_account(account=12345), True, None),
+            ("bool", auth_with_account(account=True), True, None),
+            ("list", auth_with_account(account=[ACCOUNT_IN_FILE]), True, None),
+            ("blank token", auth_with_account(access="   "), False, None),
+            ("no token", {"tokens": {"account_id": ACCOUNT_IN_FILE}}, False, None),
+            ("api key only", {"OPENAI_API_KEY": "sk-synthetic", "tokens": None}, False, None),
+        )
+        for name, auth_obj, requested, expected in cases:
+            with self.subTest(case=name):
+                r = _fetch_with(self, auth_obj)
+                if not requested:
+                    self.assertEqual(r.requests, [], "토큰이 없는데 요청이 나갔다")
+                    self.assertIsNone(r.rows, "토큰이 없는데 행이 생겼다")
+                    continue
+                self.assertEqual(len(r.requests), 1, "토큰이 있으면 요청은 나가야 한다")
+                h = _headers(r.requests[0])
+                self.assertEqual(h.get("authorization"), "Bearer " + ACCESS_JWT)
+                self.assertEqual(h.get("chatgpt-account-id"), expected)
+
+    def test_the_account_id_is_used_but_never_logged_cached_or_returned(self):
+        """계정 id 는 식별자다 — 로그·행·캐시 어디에도 남지 않는다. 성공·HTTP 실패·깨진 응답
+        세 경로 모두. 첫 단언(헤더로 실제로 쓰였다)이 없으면 읽지도 않는 구현으로 통과한다.
+        Rivals: `_dbg("codex fetch: http", e.code, acct)`; 행이나 캐시에 계정을 싣는 구현."""
+        for respond in ("ok", "http", "garbage"):
+            with self.subTest(response=respond):
+                r = _fetch_with(self, auth_with_account(), respond=respond)
+                self.assertEqual(len(r.requests), 1)
+                self.assertEqual(_headers(r.requests[0]).get("chatgpt-account-id"),
+                                 ACCOUNT_IN_FILE, "계정 헤더가 쓰이지 않았다")
+                logged = " ".join(str(x) for a in r.dbg for x in a)
+                self.assertNotIn(ACCOUNT_IN_FILE, logged, "계정 id 가 _dbg 에 남았다")
+                self.assertNotIn(ACCESS_JWT, logged, "토큰이 _dbg 에 남았다")
+                self.assertNotIn(ACCOUNT_IN_FILE, repr(r.rows), "계정 id 가 행에 실렸다")
+                self.assertNotIn(ACCOUNT_IN_FILE, r.cache_text, "계정 id 가 캐시에 남았다")
 
 
 if __name__ == "__main__":
