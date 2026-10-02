@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Private metrics page. It holds no data: numbers are fetched live from the GA4 Data API after the viewer signs in
+     with a Google account that has access to the property. Not linked, not in the sitemap, no analytics tag. -->
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+<meta name="googlebot" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<title>Claude Pet 사이트 지표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  /* Layout: a menubar-like header, then a summary strip, then panels in a two-column grid that stacks on phones.
+     The palette is the site's own: mint desk, emerald for server numbers, amber for estimates. */
+  :root{
+    --bg:#D6E4DD; --panel:#F7FAF8; --ink:#14201B; --sub:#5B6B64; --line:#BFD0C7;
+    --accent:#16794F; --on-accent:#FFFFFF; --accent-soft:#CDEBDD; --amber:#C98512; --coral:#D9573B; --bad:#C2413A; --track:#E3ECE7;
+    --display:"Jua","IBM Plex Sans KR",system-ui,sans-serif;
+    --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+    --bg:#0D1318; --panel:#151E25; --ink:#E6EEEA; --sub:#93A39C; --line:#26333C;
+    --accent:#3CCB8F; --on-accent:#0D1318; --accent-soft:#183A2D; --amber:#E6A63A; --coral:#F07A5E; --bad:#F06A61; --track:#1E2A32; color-scheme:dark}}
+  :root[data-theme="dark"]{
+    --bg:#0D1318; --panel:#151E25; --ink:#E6EEEA; --sub:#93A39C; --line:#26333C;
+    --accent:#3CCB8F; --on-accent:#0D1318; --accent-soft:#183A2D; --amber:#E6A63A; --coral:#F07A5E; --bad:#F06A61; --track:#1E2A32; color-scheme:dark}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--body);padding-inline:16px;padding-block:0 48px}
+  .wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;padding-block:22px 4px}
+  h1{font:400 30px/1.15 var(--display);margin:0;letter-spacing:.2px;text-wrap:balance}
+  h1 small{display:block;font:500 12px/1.4 var(--body);color:var(--sub);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--sub);font-size:12.5px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .dot.stale{background:var(--amber)}
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .kpi{background:var(--panel);padding:14px 16px;display:grid;gap:2px;min-width:0}
+  .kpi .l{color:var(--sub);font-size:12px;letter-spacing:.04em}
+  .kpi .v{font:600 26px/1.15 var(--mono);font-variant-numeric:tabular-nums}
+  .kpi .v.key{color:var(--accent)}
+  .kpi .d{font:500 12px var(--mono);color:var(--sub)}
+  .kpi .d.up{color:var(--accent)} .kpi .d.down{color:var(--coral)}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;min-width:0}
+  .panel.wide{grid-column:1/-1}
+  .panel h2{font:600 15px/1.3 var(--body);margin:0;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+  .panel h2 span{font:500 11.5px var(--mono);color:var(--sub);letter-spacing:.04em}
+  .panel p.note{margin:0;color:var(--sub);font-size:12.5px;max-width:70ch}
+  .bars{display:grid;gap:7px}
+  .bar{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr) 4.5em;gap:10px;align-items:center;font-size:13px}
+  .bar .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar .t{height:10px;border-radius:5px;background:var(--track);overflow:hidden}
+  .bar .t i{display:block;height:100%;background:var(--accent);border-radius:5px}
+  .bar .t i.amber{background:var(--amber)} .bar .t i.coral{background:var(--coral)}
+  .bar .c{font:500 12.5px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+  .tbl{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font:500 11.5px var(--body);color:var(--sub);text-align:left;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:6px 8px;border-bottom:1px solid var(--track);vertical-align:top}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  .empty{border:1px dashed var(--line);border-radius:10px;padding:14px;color:var(--sub);font-size:12.5px}
+  .empty b{color:var(--ink);font-weight:600}
+  .tag{display:inline-block;font:500 11px var(--mono);padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+  .tag.warn{background:transparent;border:1px solid var(--amber);color:var(--amber)}
+  .tag.bad{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+  svg text{fill:var(--sub);font:11px var(--mono)}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--sub)}
+  .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .funnel{display:grid;gap:6px}
+  .alert{border:1px solid var(--amber);border-radius:12px;padding:10px 14px;font-size:13px;display:flex;gap:10px;align-items:flex-start;background:var(--panel)}
+  .alert b{color:var(--amber);font-family:var(--mono);white-space:nowrap}
+  footer{color:var(--sub);font-size:12.5px;display:grid;gap:4px;max-width:80ch}
+  code{font:500 12px var(--mono);background:var(--track);padding:1px 5px;border-radius:5px}
+  @media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:22px}}
+  .gate{max-width:440px;margin:12vh auto 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;display:grid;gap:14px}
+  .gate h1{font-size:24px}
+  .gate p{margin:0;color:var(--sub);font-size:13px}
+  .gate .err{color:var(--bad);min-height:1.2em}
+  .btn{font:600 14px var(--body);padding:10px 18px;border-radius:10px;border:0;background:var(--accent);color:var(--on-accent);cursor:pointer;justify-self:start}
+  .btn:disabled{opacity:.6;cursor:default}
+  .ctl{font:500 12.5px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:3px 10px;cursor:pointer}
+  .btn:focus-visible,.ctl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<script>try{var t=localStorage.getItem("claudepet-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<section class="gate" id="gate">
+  <h1><small>claude-pet.yeongyu.me</small>사이트 지표</h1>
+  <p>GA4 속성 553879655 에 권한이 있는 Google 계정으로 로그인하면, 그 자리에서 GA 숫자를 불러와요.</p>
+  <button type="button" class="btn" id="signin">Google 로 로그인</button>
+  <p class="err" id="gateErr" role="alert"></p>
+</section>
+
+<div class="wrap" id="dash" hidden>
+  <header>
+    <h1><small>claude-pet.yeongyu.me · GA4 속성 553879655</small>Claude Pet 사이트 지표</h1>
+    <div class="meta">
+      <span class="chip"><span class="dot" id="freshDot"></span><span id="updated">불러오는 중</span></span>
+      <label class="chip" for="range">기간 <select id="range" class="ctl" style="border:0;padding:0 2px"><option value="7">최근 7일</option><option value="28" selected>최근 28일</option><option value="90">최근 90일</option></select></label>
+      <button type="button" class="ctl" id="reload">새로 고침</button>
+      <button type="button" class="ctl" id="signout">로그아웃</button>
+    </div>
+  </header>
+
+  <div id="alerts"></div>
+  <section class="kpis" id="kpis" aria-label="요약 지표"></section>
+
+  <div class="grid">
+    <section class="panel wide">
+      <h2>일별 방문 <span>사용자 · 참여 세션</span></h2>
+      <div class="legend"><span><i style="background:var(--accent)"></i>사용자</span><span><i style="background:var(--amber)"></i>참여 세션</span></div>
+      <div id="daily"></div>
+    </section>
+
+    <section class="panel">
+      <h2>다운로드 클릭 <span>download_click</span></h2>
+      <div id="dl"></div>
+    </section>
+    <section class="panel">
+      <h2>감지한 컴퓨터와 받은 파일 <span>detect_fit</span></h2>
+      <p class="note">페이지가 감지한 OS·칩과 실제로 누른 파일이 맞는지. mismatch 가 많으면 추천 문구나 버튼 순서를 손볼 곳이에요.</p>
+      <div id="fit"></div>
+    </section>
+
+    <section class="panel">
+      <h2>섹션 도달 <span>section_view · 사용자</span></h2>
+      <p class="note">페이지 위에서 아래 순서. 다운로드 섹션까지 내려오는 비율이 핵심 깔때기예요.</p>
+      <div id="sections"></div>
+    </section>
+    <section class="panel">
+      <h2>스크롤 깊이와 체류 <span>scroll_depth · engaged_time</span></h2>
+      <div id="scroll"></div>
+      <div id="engaged"></div>
+    </section>
+
+    <section class="panel">
+      <h2>유입 채널 <span>세션</span></h2>
+      <div id="channels"></div>
+    </section>
+    <section class="panel">
+      <h2>AI 답변엔진 유입 <span>GEO</span></h2>
+      <p class="note">ChatGPT·Perplexity·Claude·Gemini·Copilot 등에서 넘어온 세션. llms.txt·FAQ·구조화 데이터 개선의 성과 지표예요.</p>
+      <div id="ai"></div>
+    </section>
+
+    <section class="panel wide">
+      <h2>유입 소스 <span>source / medium</span></h2>
+      <div class="tbl" id="sources"></div>
+    </section>
+
+    <section class="panel">
+      <h2>데모 조작 <span>demo_interact</span></h2>
+      <div class="tbl" id="demo"></div>
+    </section>
+    <section class="panel">
+      <h2>펫 <span>pet_select · pet_interact · follow_toggle</span></h2>
+      <div class="tbl" id="pets"></div>
+    </section>
+
+    <section class="panel">
+      <h2>FAQ 열람 <span>faq_open</span></h2>
+      <div class="tbl" id="faq"></div>
+    </section>
+    <section class="panel">
+      <h2>후원 · GitHub 클릭 <span>위치별</span></h2>
+      <div class="tbl" id="conv"></div>
+    </section>
+
+    <section class="panel">
+      <h2>국가 <span>활성 사용자</span></h2>
+      <div id="countries"></div>
+    </section>
+    <section class="panel">
+      <h2>기기 · OS <span>활성 사용자</span></h2>
+      <div id="devices"></div>
+    </section>
+
+    <section class="panel">
+      <h2>언어 · 테마 <span>브라우저 언어 / 사이트에서 바꾼 값</span></h2>
+      <div id="langs"></div>
+      <div class="tbl" id="prefs"></div>
+    </section>
+    <section class="panel">
+      <h2>페이지 속도 <span>Core Web Vitals</span></h2>
+      <p class="note">방문자 브라우저에서 잰 값. LCP·INP·FCP·TTFB 는 ms, CLS 는 단위 없음.</p>
+      <div class="tbl" id="vitals"></div>
+      <div id="errors"></div>
+    </section>
+
+    <section class="panel wide">
+      <h2>전체 이벤트 <span>eventName</span></h2>
+      <div class="tbl" id="events"></div>
+    </section>
+  </div>
+
+  <footer>
+    <span>열 때마다 GA4 Data API 에서 바로 불러온 숫자예요(GA 처리 지연으로 오늘 값은 몇 시간 늦을 수 있어요). 로그인 토큰은 이 탭의 메모리에만 있어서 새로 고치면 다시 로그인해야 하고(두 번째부터는 한 번 누르면 돼요), 페이지에는 아무 데이터도 저장돼 있지 않아요.</span>
+    <span>새 이벤트(다운로드 클릭·섹션 도달·데모·FAQ·펫·속도)는 2026-10-02 배포부터 쌓여요. 그 전 기간은 GA 기본 이벤트(page_view, file_download 등)만 있어요.</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const R = {};                      // report name → rows
+  let updatedAt = null;
+  const nf = new Intl.NumberFormat("ko-KR");
+  const fmt = n => n == null || isNaN(n) ? "–" : nf.format(Math.round(n));
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const rows = k => (R[k] || []);
+  const sum = (k, f) => rows(k).reduce((a, r) => a + (+r[f] || 0), 0);
+  const empty = (what) => `<div class="empty"><b>아직 데이터가 없어요.</b> ${what}</div>`;
+  const NEW = "배포(2026-10-02) 뒤 방문이 쌓이면 다음 갱신 때 채워져요.";
+
+  function bars(list, {label, value, max, tone, unit}){
+    if (!list.length) return empty(NEW);
+    const m = max || Math.max(...list.map(value), 1);
+    return `<div class="bars">${list.map(r => { const v = value(r);
+      return `<div class="bar"><span class="n" title="${esc(label(r))}">${esc(label(r))}</span><span class="t"><i class="${tone ? tone(r) : ""}" style="width:${Math.max(2, v / m * 100).toFixed(1)}%"></i></span><span class="c">${fmt(v)}${unit || ""}</span></div>`; }).join("")}</div>`;
+  }
+  function table(list, cols, emptyText){
+    if (!list.length) return empty(emptyText || NEW);
+    return `<table><thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead><tbody>${
+      list.map(r => `<tr>${cols.map(c => `<td class="${c.num ? "num" : ""}">${c.html ? c.html(r) : esc(c.f(r))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  }
+
+  function kpis(){
+    const now = rows("kpi_now")[0] || {}, prev = rows("kpi_prev")[0];
+    const dls = sum("downloads", "eventCount") + sum("downloads_legacy", "eventCount");
+    const conv = n => rows("conversions").filter(r => r.eventName === n).reduce((a, r) => a + r.eventCount, 0);
+    const delta = (k, pct) => { if (!prev || prev[k] == null || !prev[k]) return `<span class="d">이전 기간 없음</span>`;
+      const d = pct ? (now[k] - prev[k]) * 100 : (now[k] - prev[k]) / prev[k] * 100;
+      return `<span class="d ${d >= 0 ? "up" : "down"}">${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1)}${pct ? "%p" : "%"}</span>`; };
+    const items = [
+      ["사용자", fmt(now.totalUsers), delta("totalUsers")],
+      ["세션", fmt(now.sessions), delta("sessions")],
+      ["참여 세션 비율", now.engagementRate != null ? (now.engagementRate * 100).toFixed(1) + "%" : "–", delta("engagementRate", true)],
+      ["평균 세션 시간", now.averageSessionDuration != null ? Math.round(now.averageSessionDuration) + "초" : "–", delta("averageSessionDuration")],
+      ["페이지뷰", fmt(now.screenPageViews), delta("screenPageViews")],
+      ["다운로드 클릭", fmt(dls), `<span class="d">새 이벤트 + 기존 file_download</span>`, true],
+      ["후원 클릭", fmt(conv("sponsor_click")), `<span class="d">sponsor_click</span>`, true],
+      ["GitHub 클릭", fmt(conv("github_click")), `<span class="d">github_click</span>`, true],
+    ];
+    $("kpis").innerHTML = items.map(([l, v, d, key]) => `<div class="kpi"><span class="l">${l}</span><span class="v ${key ? "key" : ""}">${v}</span>${d}</div>`).join("");
+  }
+
+  function daily(){
+    const d = rows("daily");
+    if (!d.length){ $("daily").innerHTML = empty("GA 일별 데이터가 비어 있어요."); return; }
+    const W = 1100, H = 200, P = {l: 40, r: 30, t: 12, b: 26};
+    const max = Math.max(...d.map(r => r.activeUsers), 1), nice = Math.ceil(max / 5) * 5 || 5;
+    const x = i => P.l + (d.length === 1 ? 0 : i / (d.length - 1) * (W - P.l - P.r));
+    const y = v => P.t + (1 - v / nice) * (H - P.t - P.b);
+    const line = k => d.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[k]).toFixed(1)}`).join("");
+    const area = `${line("activeUsers")}L${x(d.length - 1).toFixed(1)},${y(0)}L${x(0).toFixed(1)},${y(0)}Z`;
+    const ticks = [0, nice / 2, nice].map(v => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--track)"/><text x="${P.l - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`).join("");
+    const step = Math.max(1, Math.ceil(d.length / 8));
+    const labels = d.map((r, i) => i % step && i !== d.length - 1 ? "" : `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${r.date.slice(4, 6)}/${r.date.slice(6)}</text>`).join("");
+    const peak = d.reduce((a, r, i) => r.activeUsers > d[a].activeUsers ? i : a, 0);
+    $("daily").innerHTML = `<div class="tbl"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:640px" role="img" aria-label="일별 사용자와 참여 세션">${ticks}
+      <path d="${area}" fill="var(--accent-soft)" opacity=".8"/><path d="${line("activeUsers")}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <path d="${line("engagedSessions")}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3"/>
+      <circle cx="${x(peak)}" cy="${y(d[peak].activeUsers)}" r="4" fill="var(--accent)"/><text x="${Math.min(x(peak) + 8, W - 90)}" y="${y(d[peak].activeUsers) + 4}" style="fill:var(--ink)">최고 ${fmt(d[peak].activeUsers)}명 · ${d[peak].date.slice(4, 6)}/${d[peak].date.slice(6)}</text>${labels}</svg></div>`;
+  }
+
+  function alerts(){
+    const now = rows("kpi_now")[0], d = rows("daily"), out = [];
+    if (now && now.sessions > 50 && now.engagementRate < 0.2){
+      const peak = d.reduce((a, r) => !a || r.activeUsers > a.activeUsers ? r : a, null);
+      const ch = rows("channels"), tot = ch.reduce((x, r) => x + r.sessions, 0), top = ch[0];
+      const share = top && tot ? Math.round(top.sessions / tot * 100) : null;
+      out.push(`<div class="alert"><b>확인</b><span>참여 세션 비율이 ${(now.engagementRate * 100).toFixed(0)}%로 낮아요${peak ? ` · 90일 중 최고는 ${peak.date.slice(4, 6)}/${peak.date.slice(6)} 하루 ${fmt(peak.activeUsers)}명` : ""}${share != null ? ` · 세션의 ${share}%가 ${esc(top.sessionDefaultChannelGroup)} 유입` : ""}. 봇이나 링크 미리보기 트래픽이 섞였을 수 있어서, 전환율은 참여 세션 기준으로 보는 게 안전해요.</span></div>`);
+    }
+    $("alerts").innerHTML = out.join("");
+  }
+
+  function render(){
+    if (updatedAt){ const t = new Date(updatedAt); $("updated").textContent = "갱신 " + t.toLocaleString("ko-KR", {month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"});
+      $("freshDot").classList.toggle("stale", Date.now() - t > 3 * 864e5); }
+    kpis(); daily(); alerts();
+    // downloads
+    const dlNew = rows("downloads"), legacy = rows("downloads_legacy");
+    const byFile = {}; for (const r of dlNew){ const k = `${r.platform === "mac" ? "macOS" : "Windows"} · ${r.arch} · ${r.package_type}`; byFile[k] = (byFile[k] || 0) + r.eventCount; }
+    const byPlace = {}; for (const r of dlNew) byPlace[r.placement] = (byPlace[r.placement] || 0) + r.eventCount;
+    $("dl").innerHTML = (dlNew.length
+      ? bars(Object.entries(byFile).sort((a, b) => b[1] - a[1]), {label: e => e[0], value: e => e[1]}) +
+        `<p class="note">누른 위치</p>` + bars(Object.entries(byPlace).sort((a, b) => b[1] - a[1]), {label: e => ({hero: "첫 화면 버튼", download: "다운로드 목록", menubar: "메뉴바"}[e[0]] || e[0]), value: e => e[1], tone: () => "amber"})
+      : empty(NEW)) +
+      (legacy.length ? `<p class="note">이전부터 쌓인 GA 기본 file_download</p>` + bars(legacy, {label: r => r.fileName.split("/").pop(), value: r => r.eventCount, tone: () => "amber"}) : "");
+    const fit = {}; for (const r of dlNew) fit[r.detect_fit] = (fit[r.detect_fit] || 0) + r.eventCount;
+    const FIT = {match: "맞는 파일", mismatch: "칩이 다른 파일", other_os: "다른 OS 파일", unknown: "감지 못 함"};
+    $("fit").innerHTML = bars(Object.entries(fit).sort((a, b) => b[1] - a[1]), {label: e => FIT[e[0]] || e[0], value: e => e[1], tone: e => e[0] === "match" ? "" : e[0] === "mismatch" ? "coral" : "amber"});
+    // sections funnel
+    const sec = rows("sections").slice().sort((a, b) => a.section_index - b.section_index);
+    const SEC = {hero: "첫 화면", providers: "Claude·Codex", usage: "사용량 필", reset: "리셋", pets: "친구 고르기", walk: "돌아다니기", download: "다운로드", sponsor: "후원"};
+    $("sections").innerHTML = bars(sec, {label: r => `${r.section_index}. ${SEC[r.section_id] || r.section_id}`, value: r => r.totalUsers, max: sec[0] ? sec[0].totalUsers : 1, tone: r => r.section_id === "download" ? "" : "amber"});
+    $("scroll").innerHTML = bars(rows("scroll").slice().sort((a, b) => +a.percent - +b.percent), {label: r => r.percent + "% 스크롤", value: r => r.totalUsers});
+    $("engaged").innerHTML = rows("engaged").length ? `<p class="note">화면에 보인 시간이 이만큼 지난 사용자</p>` + bars(rows("engaged").slice().sort((a, b) => +a.seconds - +b.seconds), {label: r => r.seconds + "초 이상", value: r => r.totalUsers, tone: () => "amber"}) : "";
+    // acquisition
+    $("channels").innerHTML = bars(rows("channels"), {label: r => r.sessionDefaultChannelGroup, value: r => r.sessions, tone: r => r.sessionDefaultChannelGroup === "AI Assistant" ? "" : "amber"});
+    const AI = /chatgpt|openai|perplexity|claude|anthropic|gemini|bard|copilot|bing\.com\/chat|you\.com|phind|deepseek|grok|mistral/i;
+    const ai = rows("sources").filter(r => AI.test(r.sessionSource) || r.sessionMedium === "ai-assistant");
+    $("ai").innerHTML = table(ai, [{h: "소스", f: r => r.sessionSource}, {h: "세션", num: 1, f: r => fmt(r.sessions)}, {h: "참여", num: 1, f: r => fmt(r.engagedSessions)}], "AI 답변엔진에서 넘어온 세션이 아직 없어요.");
+    $("sources").innerHTML = table(rows("sources"), [{h: "소스", f: r => r.sessionSource}, {h: "매체", f: r => r.sessionMedium}, {h: "세션", num: 1, f: r => fmt(r.sessions)},
+      {h: "참여 세션", num: 1, f: r => fmt(r.engagedSessions)}, {h: "참여율", num: 1, f: r => r.sessions ? (r.engagedSessions / r.sessions * 100).toFixed(0) + "%" : "–"}, {h: "사용자", num: 1, f: r => fmt(r.totalUsers)}]);
+    // engagement detail
+    const DEMO = {usage_source: "사용량 출처 전환", spike: "급증 시뮬레이션", gather: "모두 모으기", window_control: "창 버튼", roaming: "돌아다니기 토글", pet_size: "펫 크기", usage_slider_claude: "Claude 슬라이더", usage_slider_codex: "Codex 슬라이더"};
+    $("demo").innerHTML = table(rows("demo"), [{h: "조작", f: r => DEMO[r.target] || r.target}, {h: "동작", f: r => r.action}, {h: "횟수", num: 1, f: r => fmt(r.eventCount)}, {h: "사용자", num: 1, f: r => fmt(r.totalUsers)}]);
+    const PETN = {cat: "고양이", dog: "강아지", fox: "여우", scorpion: "전갈", elephant: "코끼리"};
+    const PEV = {pet_select: "고르기", pet_interact: "만지기", follow_toggle: "따라오기"};
+    $("pets").innerHTML = table(rows("pets"), [{h: "펫", f: r => PETN[r.pet] || r.pet}, {h: "이벤트", f: r => PEV[r.eventName] || r.eventName}, {h: "동작", f: r => r.action === "(not set)" ? "" : r.action}, {h: "횟수", num: 1, f: r => fmt(r.eventCount)}]);
+    $("faq").innerHTML = table(rows("faq"), [{h: "질문", f: r => r.question}, {h: "열람", num: 1, f: r => fmt(r.eventCount)}, {h: "사용자", num: 1, f: r => fmt(r.totalUsers)}]);
+    const CONV = {sponsor_click: "후원", github_click: "GitHub", download_click: "다운로드"};
+    $("conv").innerHTML = table(rows("conversions").filter(r => r.eventName !== "download_click"), [{h: "이벤트", f: r => CONV[r.eventName] || r.eventName}, {h: "위치", f: r => r.placement}, {h: "클릭", num: 1, f: r => fmt(r.eventCount)}, {h: "사용자", num: 1, f: r => fmt(r.totalUsers)}]);
+    // audience
+    $("countries").innerHTML = bars(rows("countries"), {label: r => r.country, value: r => r.activeUsers});
+    $("devices").innerHTML = bars(rows("devices"), {label: r => `${r.operatingSystem} · ${r.deviceCategory}`, value: r => r.activeUsers, tone: r => r.deviceCategory === "desktop" ? "" : "amber"});
+    $("langs").innerHTML = bars(rows("languages"), {label: r => r.language, value: r => r.activeUsers});
+    $("prefs").innerHTML = rows("prefs").length ? table(rows("prefs"), [{h: "변경", f: r => r.eventName === "language_change" ? "언어" : "테마"}, {h: "바꾼 값", f: r => r.to}, {h: "횟수", num: 1, f: r => fmt(r.eventCount)}]) : "";
+    // speed
+    const avg = {}; for (const r of rows("vitals_avg")) avg[r.metric_name] = r.eventCount ? r.metric_value / r.eventCount : null;
+    const rate = {}; for (const r of rows("vitals")){ (rate[r.metric_name] = rate[r.metric_name] || {good: 0, needs_improvement: 0, poor: 0, n: 0}); rate[r.metric_name][r.metric_rating] += r.eventCount; rate[r.metric_name].n += r.eventCount; }
+    const vit = ["LCP", "INP", "CLS", "FCP", "TTFB"].filter(k => rate[k]).map(k => ({k, ...rate[k], avg: avg[k]}));
+    $("vitals").innerHTML = table(vit, [{h: "지표", f: r => r.k}, {h: "평균", num: 1, f: r => r.avg == null ? "–" : r.k === "CLS" ? r.avg.toFixed(3) : fmt(r.avg) + "ms"},
+      {h: "좋음", num: 1, html: r => `<span class="tag">${(r.good / r.n * 100).toFixed(0)}%</span>`}, {h: "개선 필요", num: 1, html: r => `<span class="tag warn">${(r.needs_improvement / r.n * 100).toFixed(0)}%</span>`},
+      {h: "나쁨", num: 1, html: r => `<span class="tag bad">${(r.poor / r.n * 100).toFixed(0)}%</span>`}, {h: "측정", num: 1, f: r => fmt(r.n)}]);
+    const errs = sum("errors", "eventCount");
+    $("errors").innerHTML = `<p class="note">페이지 스크립트 오류 <b style="color:${errs ? "var(--bad)" : "var(--accent)"}">${fmt(errs)}건</b> (site_error)</p>`;
+    const EVN = {download_click: "다운로드 클릭", sponsor_click: "후원 클릭", github_click: "GitHub 클릭", section_view: "섹션 도달", scroll_depth: "스크롤 깊이", engaged_time: "체류 시간", demo_interact: "데모 조작", pet_select: "펫 고르기", pet_interact: "펫 만지기", follow_toggle: "따라오기", faq_open: "FAQ 열람", nav_click: "메뉴 이동", theme_change: "테마 변경", language_change: "언어 변경", consent_change: "광고 쿠키 변경", notice_dismiss: "쿠키 안내 닫기", platform_detected: "컴퓨터 감지", web_vital: "페이지 속도", site_error: "스크립트 오류", privacy_click: "개인정보 링크", page_view: "페이지뷰", session_start: "세션 시작", first_visit: "첫 방문", user_engagement: "참여", scroll: "90% 스크롤(GA 기본)", click: "외부 링크(GA 기본)", file_download: "파일 다운로드(GA 기본)"};
+    $("events").innerHTML = table(rows("events"), [{h: "이벤트", html: r => `<code>${esc(r.eventName)}</code> ${esc(EVN[r.eventName] || "")}`}, {h: "횟수", num: 1, f: r => fmt(r.eventCount)}, {h: "사용자", num: 1, f: r => fmt(r.totalUsers)}]);
+  }
+
+  // ── live data: sign in with Google (token only, no secret), then ask the GA4 Data API directly ──
+  const CLIENT_ID = "393128143777-mp3vsk19fuof0mrkmumkgaair6k7aqv5.apps.googleusercontent.com";
+  const PROPERTY = "properties/553879655";
+  const SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
+  let token = null, tokenClient = null;
+  // the token stays in memory only: sessionStorage would be readable by the main site's scripts if this tab navigates there
+
+  const ev = (...names) => names.length === 1
+    ? {filter: {fieldName: "eventName", stringFilter: {value: names[0]}}}
+    : {filter: {fieldName: "eventName", inListFilter: {values: names}}};
+  // one entry per report the page draws; the same definitions the dashboard has always used
+  function specs(days){
+    const R = {startDate: (days - 1) + "daysAgo", endDate: "today"}, P = {startDate: (2 * days - 1) + "daysAgo", endDate: days + "daysAgo"};  // both exactly `days` long
+    const KPI = ["totalUsers", "newUsers", "sessions", "engagedSessions", "engagementRate", "averageSessionDuration", "screenPageViews", "eventCount"];
+    const s = (name, dims, mets, o = {}) => ({name, req: {dateRanges: [o.range || R], dimensions: dims.map(d => ({name: d})), metrics: mets.map(m => ({name: m})),
+      dimensionFilter: o.filter, limit: o.limit || 50,
+      orderBys: o.order || (mets.length ? [{metric: {metricName: mets[0]}, desc: true}] : undefined)}});
+    return [
+      s("kpi_now", [], KPI), s("kpi_prev", [], KPI, {range: P}),
+      s("daily", ["date"], ["activeUsers", "sessions", "screenPageViews", "engagedSessions"], {range: {startDate: "90daysAgo", endDate: "today"}, order: [{dimension: {dimensionName: "date"}}], limit: 100}),
+      s("channels", ["sessionDefaultChannelGroup"], ["sessions", "engagedSessions", "totalUsers"]),
+      s("sources", ["sessionSource", "sessionMedium"], ["sessions", "engagedSessions", "totalUsers"], {limit: 30}),
+      s("countries", ["country"], ["activeUsers", "engagedSessions"], {limit: 15}),
+      s("devices", ["deviceCategory", "operatingSystem"], ["activeUsers"], {limit: 15}),
+      s("languages", ["language"], ["activeUsers"], {limit: 10}),
+      s("events", ["eventName"], ["eventCount", "totalUsers"], {limit: 60}),
+      s("downloads", ["customEvent:platform", "customEvent:arch", "customEvent:package_type", "customEvent:placement", "customEvent:detect_fit"], ["eventCount", "totalUsers"], {filter: ev("download_click")}),
+      s("downloads_legacy", ["fileName"], ["eventCount", "totalUsers"], {filter: ev("file_download")}),
+      s("conversions", ["eventName", "customEvent:placement"], ["eventCount", "totalUsers"], {filter: ev("download_click", "sponsor_click", "github_click")}),
+      s("sections", ["customEvent:section_id", "customEvent:section_index"], ["eventCount", "totalUsers"], {filter: ev("section_view")}),
+      s("scroll", ["customEvent:percent"], ["totalUsers"], {filter: ev("scroll_depth")}),
+      s("engaged", ["customEvent:seconds"], ["totalUsers"], {filter: ev("engaged_time")}),
+      s("demo", ["customEvent:target", "customEvent:action"], ["eventCount", "totalUsers"], {filter: ev("demo_interact")}),
+      s("pets", ["eventName", "customEvent:pet", "customEvent:action"], ["eventCount", "totalUsers"], {filter: ev("pet_select", "pet_interact", "follow_toggle")}),
+      s("faq", ["customEvent:target", "customEvent:question"], ["eventCount", "totalUsers"], {filter: ev("faq_open")}),
+      s("prefs", ["eventName", "customEvent:to"], ["eventCount", "totalUsers"], {filter: ev("language_change", "theme_change")}),
+      s("vitals", ["customEvent:metric_name", "customEvent:metric_rating"], ["eventCount"], {filter: ev("web_vital")}),
+      s("vitals_avg", ["customEvent:metric_name"], ["customEvent:metric_value", "eventCount"], {filter: ev("web_vital")}),
+      s("errors", ["date"], ["eventCount"], {filter: ev("site_error")}),
+    ];
+  }
+  const strip = n => n.split(":").pop();
+  function toRows(rep, spec){
+    const dims = spec.req.dimensions.map(d => strip(d.name)), mets = spec.req.metrics.map(m => strip(m.name));
+    return (rep.rows || []).map(r => { const o = {};
+      dims.forEach((d, i) => o[d] = r.dimensionValues[i].value);
+      mets.forEach((m, i) => { const v = r.metricValues[i].value; o[m] = isNaN(+v) ? v : +v; });
+      return o; });
+  }
+  class AuthError extends Error {}
+  async function api(body){
+    const r = await fetch(`https://analyticsdata.googleapis.com/v1beta/${PROPERTY}:batchRunReports`, {method: "POST",
+      headers: {Authorization: "Bearer " + token, "Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (r.status === 401) throw new AuthError("expired");
+    if (r.status === 403) throw new AuthError("forbidden");
+    if (!r.ok) throw new Error("GA " + r.status);
+    return r.json();
+  }
+  let loading = false, again = false;
+  async function load(){
+    if (!token) return; if (loading){ again = true; return; } loading = true; again = false; $("reload").disabled = true; $("updated").textContent = "불러오는 중";
+    try {
+      const list = specs(+$("range").value);
+      for (let i = 0; i < list.length; i += 5){   // the API takes at most 5 reports per batch
+        const part = list.slice(i, i + 5), res = await api({requests: part.map(p => p.req)});
+        res.reports.forEach((rep, j) => { R[part[j].name] = toRows(rep, part[j]); });
+      }
+      if (!token) return;   // signed out while the last batch was in flight
+      updatedAt = new Date().toISOString();
+      $("gate").hidden = true; $("dash").hidden = false; render();
+    } catch (e) {
+      if (e instanceof AuthError){ token = null; clearData();
+        $("dash").hidden = true; $("gate").hidden = false;
+        $("gateErr").textContent = e.message === "forbidden" ? "이 계정으로는 GA 속성 553879655 를 읽을 수 없어요 (권한이 없거나 API 한도·설정 문제)." : "로그인이 만료됐어요. 다시 로그인하세요."; }
+      else { const msg = "GA 데이터를 불러오지 못했어요 (" + e.message + "). 잠시 뒤 다시 시도하세요.";
+        $("updated").textContent = "불러오지 못했어요 · 새로 고침을 눌러 다시 시도하세요"; if (!$("gate").hidden) $("gateErr").textContent = msg; }
+    } finally { loading = false; $("reload").disabled = false; if (again) load(); }
+  }
+  function clearData(){ for (const k of Object.keys(R)) delete R[k]; updatedAt = null; }
+  function signIn(){
+    $("gateErr").textContent = "";
+    if (!window.google || !google.accounts || !google.accounts.oauth2){ $("gateErr").textContent = "Google 로그인 스크립트를 아직 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요."; return; }
+    tokenClient = tokenClient || google.accounts.oauth2.initTokenClient({client_id: CLIENT_ID, scope: SCOPE,
+      error_callback: err => { $("gateErr").textContent = err && err.type === "popup_closed" ? "로그인 창이 닫혔어요. 다시 눌러 주세요." : "로그인 창을 열지 못했어요. 팝업 차단을 확인하세요."; },
+      callback: resp => {
+        if (resp.error){ $("gateErr").textContent = "로그인하지 못했어요 (" + resp.error + ")."; return; }
+        token = resp.access_token;
+        try { localStorage.setItem("ga-consented", "1"); } catch (e) {}
+        load();
+      }});
+    let seen = false; try { seen = localStorage.getItem("ga-consented") === "1"; } catch (e) {}
+    tokenClient.requestAccessToken({prompt: seen ? "" : "consent"});
+  }
+  $("signin").addEventListener("click", signIn);
+  $("reload").addEventListener("click", load);
+  $("range").addEventListener("change", load);
+  $("signout").addEventListener("click", () => {
+    if (token && window.google && google.accounts) try { google.accounts.oauth2.revoke(token, () => {}); } catch (e) {}
+    token = null; clearData(); try { localStorage.removeItem("ga-consented"); } catch (e) {}
+    $("dash").hidden = true; $("gate").hidden = false;
+  });
+})();
+</script>
+</body>
+</html>
