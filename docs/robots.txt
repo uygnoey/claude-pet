@@ -1,10 +1,27 @@
 # Claude Pet — https://claude-pet.yeongyu.me/
-# All crawlers welcome, including AI/LLM crawlers (AEO/LEO).
+# All crawlers welcome, including search, AI answer-engine and AI assistant crawlers.
+# A plain-text product reference for language models: /llms.txt and /llms-full.txt
 
 User-agent: *
 Allow: /
 
-# AI / answer-engine crawlers — explicitly allowed
+# Search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Yeti
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# AI answer engines and assistants — explicitly allowed
 User-agent: GPTBot
 Allow: /
 
@@ -17,6 +34,12 @@ Allow: /
 User-agent: ClaudeBot
 Allow: /
 
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
 User-agent: Claude-Web
 Allow: /
 
@@ -26,10 +49,31 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
+User-agent: Perplexity-User
+Allow: /
+
 User-agent: Google-Extended
 Allow: /
 
 User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: YouBot
 Allow: /
 
 User-agent: cohere-ai

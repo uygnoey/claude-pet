@@ -32,21 +32,38 @@
     <script>
       gtag('js', new Date());
 
-      gtag('config', 'G-FW4M0S94JZ');
+      // content_group splits the home page from the privacy page in every GA report;
+      // ?ga_debug=1 sends this visit to GA's DebugView, for checking new events.
+      gtag('config', 'G-FW4M0S94JZ', Object.assign(
+        { content_group: 'home', page_type: 'landing' },
+        /[?&]ga_debug=1/.test(location.search) ? { debug_mode: true } : {}
+      ));
     </script>
     <title>Claude Pet — Claude Code &amp; Codex usage monitor for macOS &amp; Windows</title>
     <meta name="description" content="A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.">
-    <meta name="robots" content="index,follow,max-image-preview:large">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <meta name="author" content="Yeongyu Yang">
+    <meta name="application-name" content="Claude Pet">
+    <meta name="apple-mobile-web-app-title" content="Claude Pet">
+    <meta name="keywords" content="Claude Code usage, Codex usage, Claude usage monitor, Claude Code limit, desktop pet, macOS, Windows">
     <meta name="theme-color" content="#D6E4DD" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0D1318" media="(prefers-color-scheme: dark)">
     <link rel="canonical" href="https://claude-pet.yeongyu.me/">
     <link rel="alternate" type="text/plain" href="https://claude-pet.yeongyu.me/llms.txt" title="Product reference">
+    <link rel="alternate" type="text/plain" href="https://claude-pet.yeongyu.me/llms-full.txt" title="Full product reference">
+    <link rel="author" href="https://github.com/uygnoey">
+    <link rel="license" href="https://github.com/uygnoey/claude-pet/blob/main/LICENSE">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Claude Pet">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="ko_KR">
+    <meta property="og:locale:alternate" content="ja_JP">
+    <meta property="og:locale:alternate" content="es_ES">
     <meta property="og:url" content="https://claude-pet.yeongyu.me/">
     <meta property="og:title" content="Claude Pet — Claude Code &amp; Codex usage monitor for macOS &amp; Windows">
     <meta property="og:description" content="A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.">
     <meta property="og:image" content="https://claude-pet.yeongyu.me/assets/social-preview-20260913.png">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="Claude Pet desktop companion for Mac and Windows; illustrated usage values">
@@ -55,7 +72,8 @@
     <meta name="twitter:description" content="A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.">
     <meta name="twitter:image" content="https://claude-pet.yeongyu.me/assets/social-preview-20260913.png">
     <meta name="twitter:image:alt" content="Claude Pet desktop companion for Mac and Windows; illustrated usage values">
-    <link rel="icon" href="assets/frames/idle/00.png">
+    <link rel="icon" type="image/png" href="assets/frames/idle/00.png">
+    <link rel="apple-touch-icon" href="assets/frames/idle/00.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -87,15 +105,63 @@
             ],
             "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v1.0.1",
             "author": {
-              "@type": "Person",
-              "name": "Yeongyu Yang",
-              "url": "https://github.com/uygnoey"
+              "@id": "https://claude-pet.yeongyu.me/#author"
             },
             "featureList": [
               "Claude Code and Codex usage in one compact pill, with reset times",
               "Server-reported usage, with a clearly marked local estimate for Claude Code",
               "Desktop roaming and cursor following",
-              "Built-in cat and bundled dog, fox, scorpion and elephant"
+              "Built-in cat and bundled dog, fox, scorpion and elephant",
+              "Session and weekly usage percentages with reset countdowns",
+              "In-app updates on macOS and Windows",
+              "Custom pets from pet.json and sprite-sheet folders"
+            ],
+            "alternateName": [
+              "ClaudePet",
+              "Claude Pet desktop pet"
+            ],
+            "applicationSubCategory": "Developer tool; usage monitor; desktop pet",
+            "image": "https://claude-pet.yeongyu.me/assets/social-preview-20260913.png",
+            "screenshot": "https://claude-pet.yeongyu.me/assets/preview.png",
+            "license": "https://opensource.org/licenses/MIT",
+            "datePublished": "2026-09-30",
+            "inLanguage": [
+              "en",
+              "ko",
+              "ja",
+              "es"
+            ],
+            "publisher": {
+              "@id": "https://claude-pet.yeongyu.me/#author"
+            },
+            "installUrl": "https://claude-pet.yeongyu.me/#download",
+            "sameAs": [
+              "https://github.com/uygnoey/claude-pet"
+            ],
+            "keywords": "Claude Code usage, Codex usage, Claude usage monitor, Claude Code limit, rate limit tracker, desktop pet, macOS, Windows"
+          },
+          {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://claude-pet.yeongyu.me/#source",
+            "name": "claude-pet",
+            "codeRepository": "https://github.com/uygnoey/claude-pet",
+            "programmingLanguage": "Python",
+            "license": "https://opensource.org/licenses/MIT",
+            "author": {
+              "@id": "https://claude-pet.yeongyu.me/#author"
+            },
+            "targetProduct": {
+              "@id": "https://claude-pet.yeongyu.me/#app"
+            }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://claude-pet.yeongyu.me/#author",
+            "name": "Yeongyu Yang",
+            "alternateName": "uygnoey",
+            "url": "https://github.com/uygnoey",
+            "sameAs": [
+              "https://github.com/uygnoey"
             ]
           },
           {
@@ -107,7 +173,37 @@
               "ko",
               "ja",
               "es"
-            ]
+            ],
+            "@id": "https://claude-pet.yeongyu.me/#website",
+            "description": "A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.",
+            "publisher": {
+              "@id": "https://claude-pet.yeongyu.me/#author"
+            }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://claude-pet.yeongyu.me/#webpage",
+            "url": "https://claude-pet.yeongyu.me/",
+            "name": "Claude Pet — Claude Code & Codex usage monitor for macOS & Windows",
+            "isPartOf": {
+              "@id": "https://claude-pet.yeongyu.me/#website"
+            },
+            "about": {
+              "@id": "https://claude-pet.yeongyu.me/#app"
+            },
+            "mainEntity": {
+              "@id": "https://claude-pet.yeongyu.me/#app"
+            },
+            "primaryImageOfPage": "https://claude-pet.yeongyu.me/assets/social-preview-20260913.png",
+            "dateModified": "2026-10-02",
+            "inLanguage": "en",
+            "speakable": {
+              "@type": "SpeakableSpecification",
+              "cssSelector": [
+                "h1",
+                "#download details"
+              ]
+            }
           },
           {
             "@type": "FAQPage",
@@ -136,6 +232,87 @@
                   "@type": "Answer",
                   "text": "It’s free to download and open source. You don’t need to sponsor to use the app."
                 }
+              },
+              {
+                "@type": "Question",
+                "name": "Which computers does it run on?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "macOS 12 or later on Apple Silicon and Intel Macs, and Windows 10 or 11 on x64. There is no separate Windows ARM build."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it upload my prompts or code?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Local logs are read only on your computer. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why does Windows show a security warning?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The Windows builds are not code-signed, so SmartScreen or another security warning may appear, depending on your system settings and policies. The Mac builds are Developer ID signed and notarized by Apple."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does it update?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "On both macOS and Windows, the app checks for a new release every hour after launch, and “Check for updates…” in the right-click menu downloads and installs it inside the app."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I add my own pet?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Put a compatible pet.json and sprite-sheet folder in ~/.claude_pet/pets on a Mac, or %USERPROFILE%\\.claude_pet\\pets on Windows, and it appears in the right-click menu."
+                }
+              }
+            ],
+            "isPartOf": {
+              "@id": "https://claude-pet.yeongyu.me/#webpage"
+            }
+          },
+          {
+            "@type": "HowTo",
+            "@id": "https://claude-pet.yeongyu.me/#install",
+            "name": "How to install Claude Pet",
+            "tool": [
+              {
+                "@type": "HowToTool",
+                "name": "A Claude Code or Codex login on the same computer"
+              }
+            ],
+            "step": [
+              {
+                "@type": "HowToStep",
+                "position": 1,
+                "name": "Sign in",
+                "text": "Sign in to Claude Code or Codex on the computer first. Either one is enough."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 2,
+                "name": "Download",
+                "text": "On a Mac, download ClaudePet.dmg (Apple Silicon) or ClaudePet-universal.dmg (Intel and Apple Silicon). On Windows 10/11 x64, download claude-pet-win-setup.exe or the portable claude-pet-win.zip.",
+                "url": "https://claude-pet.yeongyu.me/#download"
+              },
+              {
+                "@type": "HowToStep",
+                "position": 3,
+                "name": "Install",
+                "text": "On a Mac, open the DMG and move ClaudePet.app to Applications. On Windows, run the installer, or extract the ZIP and run ClaudePet/ClaudePet.exe."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 4,
+                "name": "Open",
+                "text": "Launch Claude Pet. The pet appears on the desktop with a pill showing your usage and reset times; right-click it for pets, roaming, updates and start at sign-in."
               }
             ]
           }
@@ -642,6 +819,11 @@ footer small span{display:block}
           <details><summary data-i18n="faq.q1">What do I need to sign in to?</summary><p data-i18n="faq.a1">Being signed in to either Claude Code or Codex is enough. If you use both, both are shown.</p></details>
           <details><summary data-i18n="faq.q2">Where does the usage come from?</summary><p data-i18n="faq.a2">For both Claude Code and Codex, it comes from the server, using the login on this computer. When Claude Code’s server values can’t be fetched, it is estimated from local logs, and estimates are marked with ≈. Codex doesn’t use local logs.</p></details>
           <details><summary data-i18n="faq.q3">Is it free?</summary><p data-i18n="faq.a3">It’s free to download and open source. You don’t need to sponsor to use the app.</p></details>
+          <details><summary data-i18n="faq.q4">Which computers does it run on?</summary><p data-i18n="faq.a4">macOS 12 or later on Apple Silicon and Intel Macs, and Windows 10 or 11 on x64. There is no separate Windows ARM build.</p></details>
+          <details><summary data-i18n="faq.q5">Does it upload my prompts or code?</summary><p data-i18n="faq.a5">No. Local logs are read only on your computer. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded.</p></details>
+          <details><summary data-i18n="faq.q6">Why does Windows show a security warning?</summary><p data-i18n="faq.a6">The Windows builds are not code-signed, so SmartScreen or another security warning may appear, depending on your system settings and policies. The Mac builds are Developer ID signed and notarized by Apple.</p></details>
+          <details><summary data-i18n="faq.q7">How does it update?</summary><p data-i18n="faq.a7">On both macOS and Windows, the app checks for a new release every hour after launch, and “Check for updates…” in the right-click menu downloads and installs it inside the app.</p></details>
+          <details><summary data-i18n="faq.q8">Can I add my own pet?</summary><p data-i18n="faq.a8">Yes. Put a compatible pet.json and sprite-sheet folder in ~/.claude_pet/pets on a Mac, or %USERPROFILE%\.claude_pet\pets on Windows, and it appears in the right-click menu.</p></details>
         </div>
       </div>
     </section>
@@ -676,7 +858,7 @@ footer small span{display:block}
 </div>
 
 <div class="notice" id="notice" role="region" aria-label="Cookie notice" data-i18n-attr="aria-label:notice.label" hidden>
-  <p><span data-i18n="notice.text">This site uses Google Analytics cookies to count visits. Counting visits is required here and cannot be turned off.</span>
+  <p><span data-i18n="notice.text">This site uses Google Analytics cookies to count visits and see how the page is used. This measurement is required here and cannot be turned off.</span>
     <a href="privacy.html" data-i18n="notice.more">What we collect</a></p>
   <label class="notice-opt"><input type="checkbox" id="notice-ads" checked><span data-i18n="notice.ads">Allow advertising cookies</span></label>
   <button type="button" id="notice-ok" data-i18n="notice.ok">Got it</button>
@@ -814,6 +996,17 @@ footer small span{display:block}
     "faq.a2": "For both Claude Code and Codex, it comes from the server, using the login on this computer. When Claude Code’s server values can’t be fetched, it is estimated from local logs, and estimates are marked with ≈. Codex doesn’t use local logs.",
     "faq.q3": "Is it free?",
     "faq.a3": "It’s free to download and open source. You don’t need to sponsor to use the app.",
+    "faq.q4": "Which computers does it run on?",
+    "faq.a4": "macOS 12 or later on Apple Silicon and Intel Macs, and Windows 10 or 11 on x64. There is no separate Windows ARM build.",
+    "faq.q5": "Does it upload my prompts or code?",
+    "faq.a5": "No. Local logs are read only on your computer. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded.",
+    "faq.q6": "Why does Windows show a security warning?",
+    "faq.a6": "The Windows builds are not code-signed, so SmartScreen or another security warning may appear, depending on your system settings and policies. The Mac builds are Developer ID signed and notarized by Apple.",
+    "faq.q7": "How does it update?",
+    "faq.a7": "On both macOS and Windows, the app checks for a new release every hour after launch, and “Check for updates…” in the right-click menu downloads and installs it inside the app.",
+    "faq.q8": "Can I add my own pet?",
+    "faq.a8": "Yes. Put a compatible pet.json and sprite-sheet folder in ~/.claude_pet/pets on a Mac, or %USERPROFILE%\\.claude_pet\\pets on Windows, and it appears in the right-click menu.",
+    "meta.desc": "A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.",
     "sp.title": "Sponsor",
     "sp.kicker": "Cheer on Claude Pet",
     "sp.h": "A little support<br>makes new friends.",
@@ -835,7 +1028,7 @@ footer small span{display:block}
     "fab.off": "Off",
     "fab.aria": "{who} follows the cursor — {state}",
     "notice.label": "Cookie notice",
-    "notice.text": "This site uses Google Analytics cookies to count visits. Counting visits is required here and cannot be turned off.",
+    "notice.text": "This site uses Google Analytics cookies to count visits and see how the page is used. This measurement is required here and cannot be turned off.",
     "notice.more": "What we collect",
     "notice.ads": "Allow advertising cookies",
     "notice.ok": "Got it",
@@ -1026,6 +1219,17 @@ footer small span{display:block}
     "faq.a2": "Claude Code와 Codex 모두 이 컴퓨터의 로그인으로 서버에서 받아 와요. Claude Code는 서버 값을 받을 수 없을 때 로컬 로그로 추정하고, 추정치에는 ≈를 붙여 구분해요. Codex는 로컬 로그를 쓰지 않아요.",
     "faq.q3": "무료인가요?",
     "faq.a3": "무료로 다운로드할 수 있고 오픈소스예요. 앱을 사용하기 위해 후원할 필요는 없어요.",
+    "faq.q4": "어떤 컴퓨터에서 돌아가나요?",
+    "faq.a4": "Apple Silicon과 Intel Mac의 macOS 12 이상, 그리고 x64 Windows 10·11에서 돌아가요. Windows ARM용 빌드는 따로 없어요.",
+    "faq.q5": "제 프롬프트나 코드를 업로드하나요?",
+    "faq.a5": "아니요. 로컬 로그는 이 컴퓨터 안에서만 읽어요. 기존 Claude Code·Codex 로그인은 사용량을 묻기 위해서만 Anthropic·OpenAI로 보내고, 업데이트 확인은 GitHub에 접속해요. 프롬프트, 대화 기록, 소스 코드는 업로드하지 않아요.",
+    "faq.q6": "Windows에서 보안 경고가 왜 뜨나요?",
+    "faq.a6": "Windows 배포본은 코드 서명이 없어서 시스템 설정과 정책에 따라 SmartScreen 같은 보안 경고가 나타날 수 있어요. Mac 배포본은 서명과 Apple 공증을 거쳤어요.",
+    "faq.q7": "업데이트는 어떻게 하나요?",
+    "faq.a7": "macOS와 Windows 모두 앱을 켠 뒤 한 시간마다 새 버전을 확인하고, 오른쪽 클릭 메뉴의 “업데이트 확인…”으로 앱 안에서 내려받아 설치해요.",
+    "faq.q8": "내 펫을 추가할 수 있나요?",
+    "faq.a8": "네. 호환되는 pet.json과 스프라이트 시트 폴더를 Mac은 ~/.claude_pet/pets, Windows는 %USERPROFILE%\\.claude_pet\\pets에 넣으면 오른쪽 클릭 메뉴에 나타나요.",
+    "meta.desc": "macOS와 Windows용 무료 오픈소스 데스크톱 펫. Claude Code와 Codex 사용량을 작은 필 하나로 보여 주고, 작은 친구가 곁을 지켜요.",
     "sp.title": "후원",
     "sp.kicker": "Claude Pet을 응원해 주세요",
     "sp.h": "작은 후원이<br>새 친구를 만들어요.",
@@ -1047,7 +1251,7 @@ footer small span{display:block}
     "fab.off": "꺼짐",
     "fab.aria": "{who} 커서 따라다니기 — {state}",
     "notice.label": "쿠키 안내",
-    "notice.text": "이 사이트는 방문 수를 세기 위해 Google Analytics 쿠키를 사용합니다. 방문 집계는 필수라 끌 수 없어요.",
+    "notice.text": "이 사이트는 방문 수와 페이지 이용 방식을 파악하기 위해 Google Analytics 쿠키를 사용합니다. 이 측정은 필수라 끌 수 없어요.",
     "notice.more": "수집 항목 보기",
     "notice.ads": "광고 쿠키 허용",
     "notice.ok": "확인",
@@ -1238,6 +1442,17 @@ footer small span{display:block}
     "faq.a2": "Claude Code も Codex も、このパソコンのログインを使ってサーバーから取得します。Claude Code はサーバーの値を受け取れないときにローカルログから推定し、推定値には ≈ を付けて区別します。Codex はローカルログを使いません。",
     "faq.q3": "無料ですか？",
     "faq.a3": "無料でダウンロードでき、オープンソースです。アプリを使うために支援する必要はありません。",
+    "faq.q4": "どのパソコンで動きますか？",
+    "faq.a4": "Apple Silicon と Intel の Mac では macOS 12 以降、x64 の Windows 10・11 で動きます。Windows ARM 向けの個別ビルドはありません。",
+    "faq.q5": "プロンプトやコードをアップロードしますか？",
+    "faq.a5": "いいえ。ローカルログはこのパソコンの中でだけ読み取ります。既存の Claude Code・Codex のログインは使用量を問い合わせるためだけに Anthropic・OpenAI へ送られ、アップデート確認は GitHub に接続します。プロンプト、会話履歴、ソースコードはアップロードしません。",
+    "faq.q6": "Windows でセキュリティ警告が出るのはなぜですか？",
+    "faq.a6": "Windows 版はコード署名がないため、システムの設定やポリシーによっては SmartScreen などのセキュリティ警告が表示されることがあります。Mac 版は署名済みで Apple の公証を受けています。",
+    "faq.q7": "アップデートはどうなりますか？",
+    "faq.a7": "macOS でも Windows でも、起動後 1 時間ごとに新しいバージョンを確認し、右クリックメニューの「アップデートを確認…」からアプリ内でダウンロードしてインストールします。",
+    "faq.q8": "自分のペットを追加できますか？",
+    "faq.a8": "はい。互換性のある pet.json とスプライトシートのフォルダを、Mac では ~/.claude_pet/pets、Windows では %USERPROFILE%\\.claude_pet\\pets に置くと、右クリックメニューに表示されます。",
+    "meta.desc": "macOS と Windows 向けの無料オープンソースのデスクトップペット。Claude Code と Codex の使用量を小さなピルひとつで表示し、小さな友だちがそばにいます。",
     "sp.title": "支援",
     "sp.kicker": "Claude Pet を応援してください",
     "sp.h": "小さな支援が<br>新しい相棒を生みます。",
@@ -1259,7 +1474,7 @@ footer small span{display:block}
     "fab.off": "オフ",
     "fab.aria": "{who}カーソルについていく — {state}",
     "notice.label": "Cookie のお知らせ",
-    "notice.text": "このサイトは訪問数の集計に Google Analytics の Cookie を使用します。訪問数の集計は必須でオフにはできません。",
+    "notice.text": "このサイトは訪問数とページの使われ方を把握するために Google Analytics の Cookie を使用します。この計測は必須でオフにはできません。",
     "notice.more": "収集する項目",
     "notice.ads": "広告 Cookie を許可",
     "notice.ok": "了解",
@@ -1450,6 +1665,17 @@ footer small span{display:block}
     "faq.a2": "Tanto en Claude Code como en Codex se obtiene del servidor con la sesión iniciada en este equipo. Si no se pueden obtener los valores del servidor de Claude Code, se estima con los registros locales y la estimación se marca con ≈. Codex no usa registros locales.",
     "faq.q3": "¿Es gratis?",
     "faq.a3": "Se descarga gratis y es de código abierto. No hace falta patrocinar para usar la app.",
+    "faq.q4": "¿En qué equipos funciona?",
+    "faq.a4": "En macOS 12 o posterior, en Mac con Apple Silicon e Intel, y en Windows 10 u 11 de x64. No hay una versión aparte para Windows ARM.",
+    "faq.q5": "¿Sube mis prompts o mi código?",
+    "faq.a5": "No. Los registros locales solo se leen en tu equipo. Tu sesión de Claude Code o Codex solo se envía a Anthropic u OpenAI para pedir tu uso, y la comprobación de actualizaciones se conecta a GitHub. Nunca se suben prompts, conversaciones ni código fuente.",
+    "faq.q6": "¿Por qué Windows muestra una advertencia de seguridad?",
+    "faq.a6": "Las versiones de Windows no tienen firma de código, así que puede aparecer SmartScreen u otra advertencia según la configuración y las políticas del sistema. Las versiones de Mac están firmadas con Developer ID y notarizadas por Apple.",
+    "faq.q7": "¿Cómo se actualiza?",
+    "faq.a7": "En macOS y en Windows, la app busca una versión nueva cada hora después de abrirse, y «Buscar actualizaciones…» en el menú del clic derecho la descarga e instala dentro de la app.",
+    "faq.q8": "¿Puedo añadir mi propia mascota?",
+    "faq.a8": "Sí. Pon una carpeta compatible con pet.json y una hoja de sprites en ~/.claude_pet/pets en Mac, o en %USERPROFILE%\\.claude_pet\\pets en Windows, y aparecerá en el menú del clic derecho.",
+    "meta.desc": "Una mascota de escritorio gratuita y de código abierto para macOS y Windows. Muestra el uso de Claude Code y Codex en una pequeña píldora mientras un amigo te acompaña.",
     "sp.title": "Patrocinio",
     "sp.kicker": "Apoya a Claude Pet",
     "sp.h": "Un pequeño apoyo<br>crea nuevos amigos.",
@@ -1471,7 +1697,7 @@ footer small span{display:block}
     "fab.off": "No",
     "fab.aria": "{who} sigue el cursor — {state}",
     "notice.label": "Aviso de cookies",
-    "notice.text": "Este sitio usa cookies de Google Analytics para contar visitas. Contar visitas es obligatorio aquí y no se puede desactivar.",
+    "notice.text": "Este sitio usa cookies de Google Analytics para contar visitas y ver cómo se usa la página. Esta medición es obligatoria aquí y no se puede desactivar.",
     "notice.more": "Qué recopilamos",
     "notice.ads": "Permitir cookies publicitarias",
     "notice.ok": "Entendido",
@@ -1562,12 +1788,13 @@ footer small span{display:block}
   function applyStatic(next){
     lang = LANGS.includes(next) ? next : "en";
     root.lang = lang; $("language").value = lang; document.title = t("meta.title");
+    document.querySelector('meta[name="description"]').setAttribute("content", t("meta.desc"));
     document.querySelectorAll("[data-i18n]").forEach(el => { el.innerHTML = t(el.dataset.i18n); });
     document.querySelectorAll("[data-i18n-attr]").forEach(el => {
       for (const pair of el.dataset.i18nAttr.split(";")){ const [a, k] = pair.split(":"); el.setAttribute(a, t(k)); } });
     try { // the FAQ in the structured data follows the page language
       const sd = $("structured-data"), schema = JSON.parse(sd.textContent), faq = schema["@graph"].find(x => x["@type"] === "FAQPage");
-      faq.mainEntity = [1, 2, 3].map(i => ({"@type": "Question", name: t("faq.q" + i), acceptedAnswer: {"@type": "Answer", text: t("faq.a" + i)}}));
+      faq.mainEntity = [1, 2, 3, 4, 5, 6, 7, 8].map(i => ({"@type": "Question", name: t("faq.q" + i), acceptedAnswer: {"@type": "Answer", text: t("faq.a" + i)}}));
       sd.textContent = JSON.stringify(schema, null, 2);
     } catch (e) {}
     if (FONTS[lang] && !fontsLoaded[lang]){
@@ -2141,6 +2368,125 @@ footer small span{display:block}
   }
   applyDynamic(false);
   $("language").addEventListener("change", e => { applyStatic(e.target.value); applyDynamic(true); persist("claudepet-lang", lang); });
+
+  // ── analytics: what visitors do here, sent to GA4. Never anything they type. Event and parameter names are the
+  // contract the GA custom definitions and the dashboard read, so rename one only together with them. ──
+  const GA = (() => {
+    const theme = () => isDark() ? "dark" : "light";
+    const send = (name, params) => { try { gtag("event", name, Object.assign({site_lang: lang, ui_theme: theme()}, params || {})); } catch (e) {} };
+    const props = extra => { try { gtag("set", "user_properties", Object.assign({site_lang: lang, ui_theme: theme(),
+      ads_consent: stored("claudepet-ads") === "denied" ? "denied" : "granted"}, extra || {})); } catch (e) {} };
+    // where on the page an element sits: menubar, hero, a section id, the follow switch, the notice or the footer
+    const placement = el => el.closest(".menubar") ? "menubar" : el.closest(".hero") ? "hero" : el.closest("footer") ? "footer"
+      : el.closest("#fabwrap") ? "follow_switch" : el.closest("#notice") ? "notice" : (el.closest("section[id]") || {}).id || "other";
+    // a release download, read from its URL so the hero buttons and the list can never disagree
+    const DL = {"ClaudePet.dmg": ["mac", "arm64", "dmg"], "ClaudePet-universal.dmg": ["mac", "universal", "dmg"],
+      "ClaudePet.zip": ["mac", "arm64", "zip"], "ClaudePet-universal.zip": ["mac", "universal", "zip"],
+      "claude-pet-win-setup.exe": ["win", "x64", "exe"], "claude-pet-win.zip": ["win", "x64", "zip"]};
+    const fit = (os, arch) => {
+      if (!det) return "unknown";
+      if (det.os !== os) return "other_os";
+      if (os === "win" || arch === "universal") return "match";
+      return det.arch === "arm" ? "match" : det.arch === "x86" ? "mismatch" : "unknown";
+    };
+    return {send, props, placement, DL, fit};
+  })();
+  GA.props();
+
+  // every link and button, by event delegation: the handlers above stay as they were
+  document.addEventListener("click", e => {
+    const el = e.target.closest("a[href], button, summary"); if (!el) return;
+    const where = GA.placement(el);
+    if (el.tagName === "A"){
+      const href = el.href, file = (href.match(/\/releases\/latest\/download\/([^/?#]+)$/) || [])[1];
+      if (file && GA.DL[file]){ const [os, arch, pkg] = GA.DL[file];
+        GA.send("download_click", {placement: where, link_id: el.id || "", file_name: file, platform: os, arch, package_type: pkg,
+          release_tag: latestTag, detected_os: det ? det.os : "unknown", detected_arch: det && det.arch ? det.arch : "unknown",
+          detect_fit: GA.fit(os, arch)});
+        return; }
+      if (/github\.com\/sponsors\//.test(href)){ GA.send("sponsor_click", {placement: where, link_id: el.id || ""}); return; }
+      if (/github\.com\/uygnoey\/claude-pet/.test(href)){
+        const target = el.id === "starBtn" ? "star" : /\/releases/.test(href) ? (el.id === "verChip" ? "version_chip" : "release_notes") : "repository";
+        GA.send("github_click", {placement: where, target, link_id: el.id || "", release_tag: latestTag}); return; }
+      if (/privacy\.html/.test(href)){ GA.send("privacy_click", {placement: where}); return; }
+      const hash = el.getAttribute("href"); if (hash && hash[0] === "#"){ GA.send("nav_click", {placement: where, target: hash.slice(1) || "top"}); return; }
+      return;
+    }
+    if (el.tagName === "SUMMARY"){ const d = el.parentElement;
+      if (!d.open) GA.send("faq_open", {target: (el.dataset.i18n || "").replace("faq.", ""), question: el.textContent.trim().slice(0, 100)}); return; }
+    // buttons
+    const id = el.id;
+    if (el.classList.contains("dot")){ const action = el.classList.contains("r") ? "close" : el.classList.contains("y") ? "fold" : "unfold";
+      GA.send("demo_interact", {target: "window_control", action, section_id: where}); return; }
+    if (el.classList.contains("pet")) return; // pet_interact below tells a poke from a drag
+    if (id === "mExact" || id === "mEst"){ GA.send("demo_interact", {target: "usage_source", action: id === "mEst" ? "estimate" : "server", section_id: where}); return; }
+    if (id === "spikeBtn"){ GA.send("demo_interact", {target: "spike", action: "simulate", section_id: where}); return; }
+    if (id === "gather"){ GA.send("demo_interact", {target: "gather", action: "click", section_id: where}); return; }
+    if (id === "themeBtn"){ setTimeout(() => { GA.send("theme_change", {to: isDark() ? "dark" : "light"}); GA.props(); }, 0); return; }
+    if (id === "notice-ok"){ GA.send("notice_dismiss", {ads_consent: $("notice-ads").checked ? "granted" : "denied"}); return; }
+    if (el.closest("#gallery")){ const c = cards.find(c => c.el === el); if (c) GA.send("pet_select", {pet: c.key, placement: where}); }
+    if (id === "followFab" || el.closest("#fabPick") || el.closest("#gallery")){
+      const was = following + ":" + follower;
+      setTimeout(() => { if (following + ":" + follower === was) return; // a first tap that only opened the picker
+        GA.send("follow_toggle", {action: following ? "on" : "off", pet: follower, placement: where}); }, 0); return; }
+  }, true);
+
+  // demo controls that change rather than click
+  $("roam").addEventListener("change", e => GA.send("demo_interact", {target: "roaming", action: e.target.checked ? "on" : "off", section_id: "walk"}));
+  $("petSize").addEventListener("change", e => GA.send("demo_interact", {target: "pet_size", action: "set", value: String(e.target.value), section_id: "walk"}));
+  [["uRangeC", "usage_slider_claude"], ["uRangeX", "usage_slider_codex"]].forEach(([id, target]) =>
+    $(id).addEventListener("change", e => GA.send("demo_interact", {target, action: "set", value: String(e.target.value), section_id: "usage"})));
+  $("notice-ads").addEventListener("change", e => { const v = e.target.checked ? "granted" : "denied"; GA.send("consent_change", {ads_consent: v}); GA.props({ads_consent: v}); });
+  { let from = lang; $("language").addEventListener("change", () => { GA.send("language_change", {from, to: lang}); from = lang; GA.props(); }); }
+
+  // the pets themselves: a short press is a poke, a moved one a drag
+  { let down = null;
+    document.addEventListener("pointerdown", e => { const el = e.target.closest(".pet"); down = el ? {el, x: e.clientX, y: e.clientY} : null; }, {capture: true, passive: true});
+    document.addEventListener("pointerup", e => { if (!down) return; const el = down.el, moved = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6; down = null;
+      const key = Object.keys(pets).find(k => pets[k].el === el) || "unknown";
+      GA.send("pet_interact", {pet: key, action: moved ? "drag" : "poke"}); }, {capture: true, passive: true}); }
+
+  // reach: each section the first time half of it is on screen, and scroll depth in quarters
+  { const seen = new Set(), order = [...document.querySelectorAll("main > section")];
+    const io = new IntersectionObserver(es => { for (const en of es){ if (!en.isIntersecting) continue;
+      const s = en.target, sid = s.id || "hero"; if (seen.has(sid)) continue; seen.add(sid); io.unobserve(s);
+      GA.send("section_view", {section_id: sid, section_index: order.indexOf(s) + 1}); } }, {threshold: 0.5});
+    order.forEach(s => io.observe(s));
+    const marks = [25, 50, 75, 100], hit = new Set();
+    const onScroll = () => { const h = document.documentElement.scrollHeight - innerHeight; if (h <= 0) return;
+      const pct = scrollY / h * 100; for (const m of marks) if (pct >= m - 1 && !hit.has(m)){ hit.add(m); GA.send("scroll_depth", {percent: m}); } };
+    addEventListener("scroll", onScroll, {passive: true}); }
+
+  // attention: seconds the page was actually visible, at a few milestones
+  { const steps = [10, 30, 60, 120, 300, 600]; let shown = 0, since = document.hidden ? 0 : performance.now();
+    document.addEventListener("visibilitychange", () => { if (document.hidden){ if (since) shown += performance.now() - since; since = 0; } else since = performance.now(); });
+    const timer = setInterval(() => { const sec = (shown + (since ? performance.now() - since : 0)) / 1000;
+      while (steps.length && sec >= steps[0]) GA.send("engaged_time", {seconds: steps.shift()});
+      if (!steps.length) clearInterval(timer); }, 2000); }
+
+  // which computer the visitor is on, once detection has settled; detection runs async above
+  { let tries = 0; const once = setInterval(() => { if (det || ++tries > 10){ clearInterval(once);
+    const os = det ? det.os : "other", arch = det && det.arch ? det.arch : "unknown";
+    GA.props({detected_os: os, detected_arch: arch}); GA.send("platform_detected", {detected_os: os, detected_arch: arch, non_interaction: true}); } }, 500); }
+
+  // page speed as visitors experience it (Core Web Vitals), sent once when the page is hidden
+  { const v = {}; const rate = (n, x) => { const t = {LCP: [2500, 4000], CLS: [0.1, 0.25], INP: [200, 500], FCP: [1800, 3000], TTFB: [800, 1800]}[n];
+      return x <= t[0] ? "good" : x <= t[1] ? "needs_improvement" : "poor"; };
+    const obs = (type, fn, opt) => { try { new PerformanceObserver(l => l.getEntries().forEach(fn)).observe(Object.assign({type, buffered: true}, opt || {})); } catch (e) {} };
+    obs("largest-contentful-paint", en => { v.LCP = en.startTime; });
+    obs("paint", en => { if (en.name === "first-contentful-paint") v.FCP = en.startTime; });
+    obs("layout-shift", en => { if (!en.hadRecentInput) v.CLS = (v.CLS || 0) + en.value; });
+    obs("event", en => { if (en.interactionId) v.INP = Math.max(v.INP || 0, en.duration); }, {durationThreshold: 40});
+    try { const nav = performance.getEntriesByType("navigation")[0]; if (nav) v.TTFB = nav.responseStart; } catch (e) {}
+    let sent = false;
+    const flush = force => { if (sent || !(force || document.hidden)) return; sent = true;
+      for (const [n, x] of Object.entries(v)) GA.send("web_vital", {metric_name: n, metric_value: n === "CLS" ? Math.round(x * 1000) / 1000 : Math.round(x),
+        metric_rating: rate(n, x), non_interaction: true}); };
+    document.addEventListener("visibilitychange", () => flush(false)); addEventListener("pagehide", () => flush(true)); }
+
+  // script errors on this page, a few per visit, so a broken release shows up in the numbers
+  { let n = 0; addEventListener("error", e => { if (++n > 3) return;
+    GA.send("site_error", {message: String(e.message || "error").slice(0, 100), source: String(e.filename || "").split("/").pop().slice(0, 60), line: e.lineno || 0, non_interaction: true}); }); }
 
   let last = performance.now();
   function loop(now){

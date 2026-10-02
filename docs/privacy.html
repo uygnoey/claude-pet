@@ -32,7 +32,12 @@
     <script>
       gtag('js', new Date());
 
-      gtag('config', 'G-FW4M0S94JZ');
+      // content_group splits the home page from the privacy page in every GA report;
+      // ?ga_debug=1 sends this visit to GA's DebugView, for checking new events.
+      gtag('config', 'G-FW4M0S94JZ', Object.assign(
+        { content_group: 'privacy', page_type: 'legal' },
+        /[?&]ga_debug=1/.test(location.search) ? { debug_mode: true } : {}
+      ));
     </script>
     <title>
       Privacy — Claude Pet
@@ -268,7 +273,7 @@
       </h1>
       <p class="updated">
         <span data-copy="updated">Last updated</span>
-        2026-09-30
+        2026-10-02
       </p>
 
       <p data-copy="intro">
@@ -283,6 +288,9 @@
       </p>
       <p data-copy="site.collect">
         Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.
+      </p>
+      <p data-copy="site.events">
+        It also receives what you do on the page: which download, sponsor, GitHub, privacy and in-page section links you click, which sections you reach and how far you scroll, how long the page stays visible, which demos and FAQ entries you try, how you interact with the pets (choosing, poking, dragging, having one follow your cursor), the language and theme you pick, your advertising-cookie choice, the operating system and chip the page detects to suggest a download, how fast the page loaded, and script errors that happen on the page. None of these carry anything you type.
       </p>
       <p data-copy="site.off">
         Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are on by default, and you can turn them off below at any time. This site carries no advertising today; the switch is here so the choice is yours before that changes.
@@ -384,6 +392,7 @@
           "site.title": "What this website collects",
           "site.body": "This site uses Google Analytics 4 to count visits. <strong>It runs on every page and is not optional</strong> — a visit is measured whether or not you do anything here.",
           "site.collect": "Google Analytics receives the pages you open, the link or search that referred you, your browser and device type, and an approximate location derived from your IP address. It does not receive your name, your email, or anything you type.",
+          "site.events": "It also receives what you do on the page: which download, sponsor, GitHub, privacy and in-page section links you click, which sections you reach and how far you scroll, how long the page stays visible, which demos and FAQ entries you try, how you interact with the pets (choosing, poking, dragging, having one follow your cursor), the language and theme you pick, your advertising-cookie choice, the operating system and chip the page detects to suggest a download, how fast the page loaded, and script errors that happen on the page. None of these carry anything you type.",
           "site.off": "Advertising is the part that <strong>is</strong> optional. Google's ad signals — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — are on by default, and you can turn them off below at any time. This site carries no advertising today; the switch is here so the choice is yours before that changes.",
           "ads.now": "Advertising cookies:",
           "ads.enable": "Allow",
@@ -429,6 +438,7 @@
           "site.title": "이 웹사이트가 수집하는 것",
           "site.body": "이 사이트는 방문 수를 세기 위해 Google Analytics 4를 씁니다. <strong>모든 페이지에서 동작하며 선택 사항이 아니에요</strong> — 여기서 무엇을 하든 방문 자체는 집계됩니다.",
           "site.collect": "Google Analytics는 열어 본 페이지, 유입된 링크나 검색, 브라우저와 기기 종류, IP 주소에서 추정한 대략적 위치를 받습니다. 이름·이메일이나 입력한 내용은 받지 않아요.",
+          "site.events": "페이지에서 한 일도 받습니다: 어떤 다운로드·후원·GitHub·개인정보·페이지 내 섹션 링크를 눌렀는지, 어느 섹션까지 보고 얼마나 스크롤했는지, 페이지가 얼마나 오래 화면에 보였는지, 어떤 데모와 FAQ를 눌러 봤는지, 펫과 어떻게 놀았는지(고르기, 콕 찌르기, 끌기, 커서 따라오게 하기), 고른 언어와 테마, 광고 쿠키 선택, 다운로드를 추천하려고 감지한 운영체제와 칩, 페이지가 얼마나 빨리 열렸는지, 그리고 페이지에서 난 스크립트 오류예요. 이 중 어디에도 입력한 내용은 들어가지 않아요.",
           "site.off": "선택인 쪽은 광고예요. Google의 광고 신호 — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — 는 기본으로 켜져 있고, 아래에서 언제든 끌 수 있어요. 지금 이 사이트에 광고는 없어요. 나중에 생기기 전에 미리 고를 수 있게 둔 스위치예요.",
           "ads.now": "광고 쿠키:",
           "ads.enable": "허용",
@@ -474,6 +484,7 @@
           "site.title": "このウェブサイトが収集するもの",
           "site.body": "このサイトは訪問数の集計に Google Analytics 4 を使います。<strong>すべてのページで動作し、任意ではありません</strong> — ここで何をするかに関わらず訪問自体は計測されます。",
           "site.collect": "Google Analytics は開いたページ、参照元のリンクや検索、ブラウザーと端末の種類、IP アドレスから推定したおおよその位置を受け取ります。氏名やメールアドレス、入力した内容は受け取りません。",
+          "site.events": "ページ上での操作も受け取ります。どのダウンロード・支援・GitHub・プライバシー・ページ内セクションのリンクを押したか、どのセクションまで見てどこまでスクロールしたか、ページが画面に表示されていた時間、試したデモや FAQ、ペットとの遊び方（選ぶ、つつく、ドラッグする、カーソルについて来させる）、選んだ言語とテーマ、広告 Cookie の選択、ダウンロードを提案するために検出した OS とチップ、ページの表示速度、ページで起きたスクリプトエラーです。いずれにも入力した内容は含まれません。",
           "site.off": "任意なのは広告のほうです。Google の広告シグナル — <code>ad_storage</code>、<code>ad_user_data</code>、<code>ad_personalization</code> — は既定でオンで、下からいつでもオフにできます。現在このサイトに広告はありません。そうなる前に選べるようにしたスイッチです。",
           "ads.now": "広告 Cookie:",
           "ads.enable": "許可する",
@@ -519,6 +530,7 @@
           "site.title": "Qué recopila este sitio web",
           "site.body": "Este sitio usa Google Analytics 4 para contar visitas. <strong>Funciona en todas las páginas y no es opcional</strong>: la visita se mide hagas lo que hagas aquí.",
           "site.collect": "Google Analytics recibe las páginas que abres, el enlace o la búsqueda que te trajo, tu tipo de navegador y dispositivo, y una ubicación aproximada derivada de tu dirección IP. No recibe tu nombre, tu correo ni nada de lo que escribas.",
+          "site.events": "También recibe lo que haces en la página: qué enlaces de descarga, patrocinio, GitHub, privacidad y secciones de la página pulsas, a qué secciones llegas y cuánto te desplazas, cuánto tiempo está visible la página, qué demos y preguntas frecuentes pruebas, cómo interactúas con las mascotas (elegirlas, tocarlas, arrastrarlas, hacer que una siga tu cursor), el idioma y el tema que eliges, tu elección sobre las cookies de publicidad, el sistema operativo y el chip que la página detecta para sugerirte una descarga, lo rápido que cargó la página y los errores de script que ocurren en ella. Nada de esto incluye lo que escribes.",
           "site.off": "Lo opcional es la publicidad. Las señales publicitarias de Google — <code>ad_storage</code>, <code>ad_user_data</code>, <code>ad_personalization</code> — están activadas por defecto y puedes desactivarlas abajo cuando quieras. Hoy este sitio no lleva publicidad; el interruptor está aquí para que la elección sea tuya antes de que eso cambie.",
           "ads.now": "Cookies publicitarias:",
           "ads.enable": "Permitir",
