@@ -48,6 +48,30 @@ jobs:
         with:
           python-version: "3.13"
       # 코어(claude_pet.py)는 fcntl 과 ctypes.CDLL(None) 때문에 윈도우에서 그대로는
+      # 임포트되지 않고, 그 우회로의 유일한 소유자는 포트의 windows/win_core.py 다.
+      # 예전에는 포트가 `windows` 브랜치에만 있어 그 디렉터리를 거기서 가져왔지만, 지금은
+      # dev 가 포트를 직접 담고 있고 `windows` 브랜치는 그보다 오래됐다. 그 단계가 남아
+      # 있으면 이 브랜치의 windows/ 를 옛 판으로 덮어써 윈도우 검사가 실제 포트를 보지
+      # 못한다(2026-10-05 발견). 그래서 체크아웃한 그대로 쓴다.
+      - name: Show environment
+        run: |
+          python3 -VV
+          sw_vers
+      # 전체 스위트를 저장소 루트에서 돌린다. tests/ 에는 __init__.py 가 없고
+      # 그게 의도된 상태라, `-s tests` 가 cwd 를 sys.path 에 넣어 주는 것에 기댄다.
+      # (CLAUDE.md 의 "Run it from the repository root" 참조. __init__.py 를 만들지 말 것.)
+      - name: Run full suite
+        run: python3 -m unittest discover -s tests -v
+
+  windows:
+    name: Windows — gating contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # 코어(claude_pet.py)는 fcntl 과 ctypes.CDLL(None) 때문에 윈도우에서 그대로는
       # 임포트되지 않는다. 그 우회로의 유일한 소유자가 포트의 windows/win_core.py 인데,
       # 포트는 `windows` 브랜치에만 있다. 복제하는 대신 그 디렉터리만 가져온다 —
       # 로직이 두 벌 생기지 않게. (main 계열에 포트를 들일지는 별도 결정 사항이다.)
@@ -76,6 +100,8 @@ jobs:
         run: python -m unittest discover -s tests -v -p "test_token_recovery.py"
       - name: Run gating contract — codex usage
         run: python -m unittest discover -s tests -v -p "test_codex_usage.py"
+      - name: Run gating contract — server-only usage
+        run: python -m unittest discover -s tests -v -p "test_server_only_usage.py"
       # 포트 자신의 스위트는 **진짜 윈도우에서 통과하지 않는다** — 이 CI 가 처음
       # 드러냈다(run 35452309458):
       #   ModuleNotFoundError: No module named 'fcntl'  (test_win_autostart, test_win_update)
