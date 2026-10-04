@@ -26,6 +26,13 @@ preference into an open one after every visit. The API cost segment gained the m
 budget: ``("cost", (today, month | None, budget | None))``. The dead pill code and the
 translation keys it alone used are gone from all four locales.
 
+2026-10-05 (sou-verify, docs-design/server-only-usage-20261005.md): the log estimate is
+removed from the pill — no ``("estimate", rows)`` segment, no ``≈``, no amber value colour.
+The three estimate row tests and the estimate runs test were deleted (they pinned the
+removed segment); the run tests that used an estimate segment only as a second source now
+use ``exact``; ``SummaryRowsTests.test_no_server_rows_yields_a_status_not_log_numbers``
+replaces them.
+
 Round 3 (user, 2026-09-12: "세션이나 주간 이 텍스트랑 수치랑 색을 반대로 하자!"): the two
 colour roles are swapped — the LABEL run (session/weekly/model, today/this month) takes
 ``summary_value_kind(pct, spiking)`` and the VALUE run (`` 42%``, ``$3.21``) takes the
@@ -131,49 +138,13 @@ class SummaryRowsTests(TreeConsistencyMixin, unittest.TestCase):
         self.assertEqual(self.summary(oauth=[("Session", 1.0, object())])[1],
                          [("Session", 1.0, False, None)])
 
-    def test_estimate_adds_the_model_row_with_capitalised_keyword_and_per_gauge_spikes(self):
-        """Rivals: session+weekly only (old); label 'fable' uncapitalised; label 'opus'
-        regardless of model_kw; spike flag from spike_first/any gauge; 2-tuples."""
-        stats = {"session": {"pct": 42.0}, "weekly": {"pct": 67.5}, "opus": {"pct": 12.0},
-                 "model_kw": "fable", "spikes": {"weekly": True}}
-        self.assertEqual(self.summary(stats=stats),
-                         ("estimate", [("session", 42.0, False, None),
-                                       ("weekly", 67.5, True, None),
-                                       ("Fable", 12.0, False, None)]))
-        stats["spikes"] = {"opus": True}
-        self.assertEqual([row[2] for row in self.summary(stats=stats)[1]], [False, False, True])
-        stats["model_kw"] = "mythos"
-        self.assertEqual(self.summary(stats=stats)[1][2][0], "Mythos")
-        del stats["model_kw"]
-        self.assertEqual(self.summary(stats=stats)[1][2][0], "Opus")
-
-    def test_estimate_tolerates_missing_or_malformed_spikes_and_model_gauge(self):
-        """Rivals: KeyError on a missing 'spikes'; a non-dict 'spikes' treated as truthy;
-        an invalid model pct reported as 0."""
-        base = {"session": {"pct": 42.0}, "weekly": {"pct": 17.0}, "model_kw": "fable"}
-        self.assertEqual(self.summary(stats=dict(base))[1],
-                         [("session", 42.0, False, None), ("weekly", 17.0, False, None)])
-        for spikes in (None, [], "weekly", True):
-            with self.subTest(spikes=repr(spikes)):
-                rows = self.summary(stats=dict(base, spikes=spikes, opus={"pct": 3.0}))[1]
-                self.assertEqual([row[2] for row in rows], [False, False, False])
-        for invalid in (None, True, -1.0, float("inf"), "12"):
-            with self.subTest(invalid=repr(invalid)):
-                rows = self.summary(stats=dict(base, opus={"pct": invalid}))[1]
-                self.assertEqual([row[0] for row in rows], ["session", "weekly"])
-
-    def test_estimate_reset_texts_flow_through_by_gauge_key(self):
-        """Rivals: reset text computed inside (a datetime leaking out); keyed by label
-        instead of gauge ('Fable' vs 'opus'); '' kept instead of None; a non-dict raising."""
-        stats = {"session": {"pct": 1.0}, "weekly": {"pct": 2.0}, "opus": {"pct": 3.0},
-                 "model_kw": "fable"}
-        resets = {"session": "in 3h", "weekly": "in 2d", "opus": "in 2d", "Fable": "WRONG"}
-        self.assertEqual([row[3] for row in self.summary(stats=stats, reset_texts=resets)[1]],
-                         ["in 3h", "in 2d", "in 2d"])
-        self.assertEqual([row[3] for row in self.summary(stats=stats, reset_texts={"session": ""})[1]],
-                         [None, None, None])
-        self.assertEqual([row[3] for row in self.summary(stats=stats, reset_texts=["in 3h"])[1]],
-                         [None, None, None])
+    def test_no_server_rows_yields_a_status_not_log_numbers(self):
+        """2026-10-05: a snapshot with old-shape gauges and real entries, no server rows →
+        a status. Rival: the removed ``("estimate", rows)`` segment (42/67.5/12)."""
+        stats = {"entries": 9, "session": {"pct": 42.0}, "weekly": {"pct": 67.5},
+                 "opus": {"pct": 12.0}, "model_kw": "fable", "spikes": {"weekly": True}}
+        kind, _payload = self.summary(stats=stats)
+        self.assertEqual(kind, "status")
 
     def test_cost_carries_today_month_and_budget_or_none(self):
         """Rivals: the old bare float; the round-1 2-tuple without the budget; the
@@ -235,20 +206,6 @@ class SummaryRunsTests(unittest.TestCase):
         self.assertEqual(claude_pet.roam_summary_line("exact", self.exact_rows, tr), text_of(main))
         self.assertEqual(claude_pet.SUMMARY_SPIKE, "▲")
 
-    def test_estimate_rows_translate_gauge_keys_keep_model_label_and_mark_approx(self):
-        """Rivals: labels untranslated; the model label passed through tr; no ≈; the
-        round-2 assignment (label 'estimate', value white/warn/bad); value kind
-        'exact'; a spiking label whose value run is also 'bad'."""
-        rows = [("session", 42.0, False, None), ("weekly", 50.0, False, None),
-                ("Fable", 12.0, True, None)]
-        main, sub = claude_pet.roam_summary_runs([("estimate", rows)], tr)
-        self.assertEqual(main, [("세션", "value"), (" ≈42%", "estimate"), (" · ", "status"),
-                                ("주간", "warn"), (" ≈50%", "estimate"), (" · ", "status"),
-                                ("▲Fable", "bad"), (" ≈12%", "estimate")])
-        self.assertEqual(sub, [])
-        self.assertEqual(claude_pet.roam_summary_line("estimate", rows, tr),
-                         "세션 ≈42% · 주간 ≈50% · ▲Fable ≈12%")
-
     def test_second_line_has_the_prefix_once_and_collapses_consecutive_duplicates(self):
         """Rivals: prefix per row; all duplicates collapsed (a set); no collapsing;
         prefix on the first line; exact reset texts re-prefixed."""
@@ -258,12 +215,12 @@ class SummaryRunsTests(unittest.TestCase):
         self.assertEqual(claude_pet.roam_summary_reset_line("exact", self.exact_rows, tr),
                          "reset Session in 3h · Weekly in 2d")
         self.assertNotIn("reset", text_of(main))
-        non_consecutive = [("session", 10.0, False, "3h"), ("weekly", 20.0, False, "2d"),
+        non_consecutive = [("Session", 10.0, False, "3h"), ("Weekly", 20.0, False, "2d"),
                            ("Fable", 30.0, False, "3h")]
-        self.assertEqual(claude_pet.roam_summary_reset_line("estimate", non_consecutive, tr),
-                         "reset 세션 3h · 주간 2d · Fable 3h")
+        self.assertEqual(claude_pet.roam_summary_reset_line("exact", non_consecutive, tr),
+                         "reset Session 3h · Weekly 2d · Fable 3h")
         self.assertEqual(claude_pet.roam_summary_reset_line(
-            "estimate", [("session", 1.0, False, None), ("weekly", 2.0, False, None)], tr), "")
+            "exact", [("Session", 1.0, False, None), ("Weekly", 2.0, False, None)], tr), "")
         self.assertEqual(claude_pet.roam_summary_reset_line("status", "scanning", tr), "")
         self.assertEqual(claude_pet.roam_summary_reset_line("cost", (1.0, None), tr), "")
 
@@ -318,7 +275,7 @@ class SummaryRunsTests(unittest.TestCase):
                 ("Fable", 50.0, False, None), ("Opus", 85.0, False, None),
                 ("Mythos", 12.0, True, None)]
         remaining = ["value", "value", "warn", "bad", "bad"]
-        for source in ("exact", "estimate"):
+        for source in ("exact",):           # "estimate" removed 2026-10-05
             with self.subTest(source=source):
                 main, _sub = claude_pet.roam_summary_runs([(source, rows)], tr)
                 values = [run for run in main if "%" in run[0]]
@@ -342,9 +299,9 @@ class SummaryRunsTests(unittest.TestCase):
         exact segment leaving a stray separator."""
         gpt = [("GPT", 10.0, False, "3h")]
         a_main, a_sub = claude_pet.roam_summary_runs([("exact", self.exact_rows)], tr)
-        b_main, b_sub = claude_pet.roam_summary_runs([("estimate", gpt)], tr)
+        b_main, b_sub = claude_pet.roam_summary_runs([("exact", gpt)], tr)
         main, sub = claude_pet.roam_summary_runs(
-            [("exact", self.exact_rows), ("estimate", gpt)], tr)
+            [("exact", self.exact_rows), ("exact", gpt)], tr)
         self.assertEqual(main, a_main + [(" · ", "status")] + b_main)
 
         # 둘째 줄은 **문자 그대로의 연결이 아니다.** 리셋 안내어는 줄 전체에 한 번만
@@ -373,23 +330,23 @@ class SummaryRunsTests(unittest.TestCase):
         self.assertEqual(claude_pet.roam_summary_runs([], tr), ([], []))
 
     def test_every_run_kind_has_a_colour_and_the_sources_differ(self):
-        """Rivals: a kind the renderer cannot colour; exact/estimate/cost sharing a
-        colour (the user's decision was three distinct colours); a non-white label
-        default."""
+        """Rivals: a kind the renderer cannot colour; exact/cost sharing a colour; a
+        leftover estimate colour (removed 2026-10-05); a non-white label default."""
         rows = [("session", 1.0, True, "x"), ("weekly", 60.0, False, "y"), ("Fable", 99.0, False, "y")]
         kinds = set()
-        for segments in ([("exact", rows)], [("estimate", rows)], [("cost", (1.0, 2.0))],
+        for segments in ([("exact", rows)], [("cost", (1.0, 2.0))],
                          [("status", "scanning")]):
             main, sub = claude_pet.roam_summary_runs(segments, tr)
             kinds |= {kind for _text, kind in main + sub}
         self.assertLessEqual(kinds, set(claude_pet.SUMMARY_COLORS))
         colours = claude_pet.SUMMARY_COLORS
-        self.assertEqual(len({colours["exact"], colours["estimate"], colours["cost"]}), 3)
+        self.assertEqual(len({colours["exact"], colours["cost"]}), 2)
+        self.assertNotIn("estimate", colours, "the amber estimate colour was removed (2026-10-05)")
         self.assertEqual(colours["value"], claude_pet.TXT_MAIN)
         self.assertEqual(colours["warn"], claude_pet.COL_WARN)
         self.assertEqual(colours["bad"], claude_pet.COL_BAD)
         self.assertEqual(colours["sub"], claude_pet.TXT_SUB)
-        for name in ("exact", "estimate", "cost"):
+        for name in ("exact", "cost"):
             self.assertRegex(colours[name], r"^#[0-9A-Fa-f]{6}$")
 
 

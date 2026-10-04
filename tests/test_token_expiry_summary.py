@@ -49,6 +49,13 @@ closure. Both AST checks are stated as such on the test.
 """
 from __future__ import annotations
 
+# ── 2026-10-05 revision (sou-verify, docs-design/server-only-usage-20261005.md) ──
+# The estimate segment no longer exists. Without server rows the pill shows a status,
+# and a rejected token is ``token_expired`` whatever the logs hold (§1: "로그 유무와
+# 무관하게"). The tests below that pinned "auth_error + entries 5 → estimate" and the
+# no-``entries``-key backward-compat estimate were rewritten to the new contract; the
+# compute_usage entry-count tests keep their substance minus the removed gauge keys.
+
 import ast
 import json
 import os
@@ -184,8 +191,6 @@ class ComputeUsageEntryCountTests(LogTreeMixin, unittest.TestCase):
         stats = claude_pet.compute_usage()
 
         self.assertEqual(stats["entries"], 0)
-        self.assertEqual(stats["session"]["pct"], 0.0)
-        self.assertEqual(stats["weekly"]["pct"], 0.0)
 
     def test_entries_is_zero_for_an_empty_tree_and_the_other_keys_are_unchanged(self):
         """An empty tree still produces the full snapshot; ``entries`` is 0, not absent.
@@ -197,24 +202,21 @@ class ComputeUsageEntryCountTests(LogTreeMixin, unittest.TestCase):
         stats = claude_pet.compute_usage()
 
         self.assertEqual(stats["entries"], 0)
-        for key in ("session", "weekly", "opus", "burn_5m", "burn_5m_opus", "spikes",
-                    "model_kw", "last_activity", "now"):
+        for key in ("burn_5m", "burn_5m_opus", "spikes", "last_activity", "now"):
             self.assertIn(key, stats, f"compute_usage() lost the {key!r} key")
 
 
-def stats_snapshot(entries=None, session_pct=0.0, weekly_pct=0.0, opus_pct=0.0):
+def stats_snapshot(entries=None, session_pct=None, weekly_pct=None, opus_pct=None):
     """A hand-built ``compute_usage()``-shaped snapshot.
 
-    ``entries=None`` means *the key is absent*, which is the pre-change shape and the
-    backward-compatibility case the contract calls out — it is not the same as ``0``.
+    ``entries=None`` means *the key is absent*. Passing any ``*_pct`` adds the OLD gauge
+    keys, so a test can hand an implementation that still reads them something to read —
+    the new contract is that nothing reaches the pill from them.
     """
     def gauge(pct):
         return {"used": 0, "limit": 1, "left": 1, "pct": pct, "reset": None}
 
     snapshot = {
-        "session": gauge(session_pct),
-        "weekly": gauge(weekly_pct),
-        "opus": gauge(opus_pct),
         "burn_5m": 0,
         "burn_5m_opus": 0,
         "spikes": {"session": False, "weekly": False, "opus": False},
@@ -222,6 +224,9 @@ def stats_snapshot(entries=None, session_pct=0.0, weekly_pct=0.0, opus_pct=0.0):
         "last_activity": None,
         "now": datetime(2026, 9, 15, 12, 0, tzinfo=UTC),
     }
+    for key, pct in (("session", session_pct), ("weekly", weekly_pct), ("opus", opus_pct)):
+        if pct is not None:
+            snapshot[key] = gauge(pct)
     if entries is not None:
         snapshot["entries"] = entries
     return snapshot
@@ -264,20 +269,19 @@ class SummaryNoDataFixtures(unittest.TestCase):
 
         self.assertEqual(segment, ("status", "token_expired"))
 
-    def test_expired_token_with_real_data_still_shows_the_estimate(self):
-        """auth_error + ``entries == 5`` → the estimate, even though every gauge is 0 %.
+    def test_expired_token_with_real_data_is_still_token_expired(self):
+        """auth_error + ``entries == 5`` → ``token_expired`` (rewritten 2026-10-05).
 
-        This is the genuine-zero-usage case: the user has logs in the window, they just
-        burned nothing measurable. It differs from the previous fixture in ONE integer,
-        so any implementation that reads "no data" off the percentages, or off
-        ``auth_error`` alone, returns ``("status","token_expired")`` here and fails.
+        Before: the estimate. Now (spec §1): a rejected token is ``token_expired`` "로그
+        유무와 무관하게" — there is no estimate to show. The fixture carries old-shape gauges
+        so an implementation that still reads them has something to read. Rival: today's
+        rule (entries decides) → ``("estimate", …)``.
         """
-        segment = self.summary(stats=stats_snapshot(entries=5), auth_error=True)
+        segment = self.summary(stats=stats_snapshot(entries=5, session_pct=0.0,
+                                                    weekly_pct=0.0, opus_pct=0.0),
+                               auth_error=True)
 
-        kind, rows = segment
-        self.assertEqual(kind, "estimate")
-        self.assertEqual([(label, pct) for label, pct, _spike, _reset in rows],
-                         [("session", 0.0), ("weekly", 0.0), ("Fable", 0.0)])
+        self.assertEqual(segment, ("status", "token_expired"))
 
     def test_no_data_without_auth_error_scans_instead_of_fabricating_zeros(self):
         """``entries == 0``, no auth error → ``("status","scanning")``.
@@ -290,7 +294,10 @@ class SummaryNoDataFixtures(unittest.TestCase):
         """
         segment = self.summary(stats=stats_snapshot(entries=0), auth_error=False)
 
-        self.assertEqual(segment, ("status", "scanning"))
+        # 2026-10-05: the spec lets the waiting state be "scanning" or "loading" (§1:
+        # "scanning 은 서버 응답을 기다리는 상태로만 남거나 없앤다"). Either is a status.
+        self.assertEqual(segment[0], "status")
+        self.assertIn(segment[1], ("scanning", "loading"))
 
     def test_entries_not_the_percentages_decides_whether_there_is_data(self):
         """``entries == 0`` with *non-zero* gauges → still ``scanning``.
@@ -304,7 +311,8 @@ class SummaryNoDataFixtures(unittest.TestCase):
                                                     weekly_pct=17.0, opus_pct=9.0),
                                auth_error=False)
 
-        self.assertEqual(segment, ("status", "scanning"))
+        self.assertEqual(segment[0], "status")
+        self.assertIn(segment[1], ("scanning", "loading"))
 
     # ---- precedence ----
 
@@ -355,47 +363,34 @@ class SummaryNoDataFixtures(unittest.TestCase):
         segment = claude_pet.roam_summary("sub", None, stats_snapshot(entries=0), None,
                                           None, False)
 
-        self.assertEqual(segment, ("status", "scanning"))
+        self.assertEqual(segment[0], "status")
+        self.assertIn(segment[1], ("scanning", "loading"))
 
     # ---- backward compatibility of a snapshot with no "entries" key ----
 
-    def test_a_snapshot_without_an_entries_key_behaves_exactly_as_today(self):
-        """No ``"entries"`` key at all → the pre-change answer, auth_error or not.
+    def test_a_snapshot_without_an_entries_key_never_yields_numbers(self):
+        """No ``"entries"`` key, old-shape gauges (rewritten 2026-10-05).
 
-        ``compute_usage()`` always sets the key; the absent case is hand-built snapshots
-        only, and the contract is that they keep working. This is the fixture that
-        separates ``stats.get("entries") == 0`` (specified: ``None == 0`` is False, so
-        there IS data) from ``not stats.get("entries")`` (the easier thing to type:
-        ``not None`` is True, so this would report ``token_expired`` and ``scanning``).
-        Both zero-gauge and non-zero-gauge snapshots are checked, because the zero one is
-        precisely where the two rivals are hardest to tell apart by eye.
-        """
-        zeros = claude_pet.roam_summary("sub", None, stats_snapshot(), None, None, False,
-                                        auth_error=True)
-        self.assertEqual(zeros[0], "estimate")
-        self.assertEqual([(label, pct) for label, pct, _s, _r in zeros[1]],
-                         [("session", 0.0), ("weekly", 0.0), ("Fable", 0.0)])
+        Before: the estimate rows, auth_error or not. Now: with auth_error →
+        ``token_expired``; without → a waiting status. Rival: today's estimate segment
+        built from the gauges (42/17/9)."""
+        numbers = stats_snapshot(session_pct=42.0, weekly_pct=17.0, opus_pct=9.0)
+        expired = claude_pet.roam_summary("sub", None, numbers, None, None, False,
+                                          auth_error=True)
+        self.assertEqual(expired, ("status", "token_expired"))
+        waiting = claude_pet.roam_summary("sub", None, numbers, None, None, False)
+        self.assertEqual(waiting[0], "status")
+        self.assertIn(waiting[1], ("scanning", "loading"))
 
-        numbers = claude_pet.roam_summary("sub", None,
-                                          stats_snapshot(session_pct=42.0, weekly_pct=17.0,
-                                                         opus_pct=9.0),
-                                          None, None, False, auth_error=True)
-        self.assertEqual(numbers[0], "estimate")
-        self.assertEqual([(label, pct) for label, pct, _s, _r in numbers[1]],
-                         [("session", 42.0), ("weekly", 17.0), ("Fable", 9.0)])
+    def test_a_missing_snapshot_with_a_rejected_token_is_token_expired(self):
+        """``stats=None`` + auth_error → ``token_expired`` (rewritten 2026-10-05).
 
-    def test_a_missing_snapshot_is_not_a_no_data_verdict(self):
-        """``stats=None`` + auth_error → ``scanning``, because "no data" is decided ONLY
-        by ``stats.get("entries") == 0`` on a dict.
-
-        A missing snapshot means the first refresh has not landed yet, which is what
-        ``scanning`` says. Rival: ``not (stats and stats.get("entries"))``, which treats
-        the absence of a snapshot as proof of an expired token and would announce
-        ``token_expired`` for the first second of every launch.
-        """
+        Before, a missing snapshot meant "first refresh not landed" → ``scanning``. But
+        ``auth_error`` is only ever set by a finished fetch, and the spec now ties
+        ``token_expired`` to the rejection alone. Rival: keeping the snapshot condition."""
         segment = self.summary(stats=None, auth_error=True)
 
-        self.assertEqual(segment, ("status", "scanning"))
+        self.assertEqual(segment, ("status", "token_expired"))
 
     def test_api_mode_is_untouched_by_the_flag(self):
         """The API branch runs before any of this. Rival: inserting the auth_error test

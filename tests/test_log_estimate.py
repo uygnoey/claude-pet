@@ -349,21 +349,11 @@ class ParseUsageEntriesTests(unittest.TestCase):
         self.assertEqual(entries[0][3], 325)
 
 
-class ComputeUsageTests(unittest.TestCase):
-    def test_rolling_week_has_no_single_reset_timestamp(self):
-        original_parser = claude_pet.parse_usage_entries
-        original_window = claude_pet._weekly_window_start
-        claude_pet.parse_usage_entries = lambda since: [
-            (BASE, 100.0, "claude-opus-5", 100.0),
-        ]
-        claude_pet._weekly_window_start = lambda: None
-        self.addCleanup(setattr, claude_pet, "parse_usage_entries", original_parser)
-        self.addCleanup(setattr, claude_pet, "_weekly_window_start", original_window)
-
-        stats = claude_pet.compute_usage()
-
-        self.assertIsNone(stats["weekly"]["reset"])
-        self.assertIsNone(stats["opus"]["reset"])
+# ComputeUsageTests.test_rolling_week_has_no_single_reset_timestamp was deleted on
+# 2026-10-05 (sou-verify, docs-design/server-only-usage-20261005.md §1): compute_usage()
+# no longer returns weekly/opus gauges, so there is no reset to pin. The parser tests above
+# stay — the spike detector still rests on every JSONL invariant they cover. What replaced
+# it: tests/test_server_only_usage.py EstimateRemovedTests.
 
 
 if __name__ == "__main__":

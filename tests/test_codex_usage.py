@@ -56,6 +56,7 @@ import tempfile
 import types
 import unittest
 import urllib.error
+import urllib.parse
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -748,6 +749,363 @@ class CodexAccountHeaderTests(unittest.TestCase):
                 self.assertNotIn(ACCESS_JWT, logged, "토큰이 _dbg 에 남았다")
                 self.assertNotIn(ACCOUNT_IN_FILE, repr(r.rows), "계정 id 가 행에 실렸다")
                 self.assertNotIn(ACCOUNT_IN_FILE, r.cache_text, "계정 id 가 캐시에 남았다")
+
+
+
+# ═══════════════ 2026-10-05: Codex 로그 급증 감지 · Codex API 비용 (sou-verify) ═══════════════
+#
+# docs-design/server-only-usage-20261005.md §3.2 / §3.3 / §6. 구현 전에 쓴 게이트다 — 작성
+# 시점에 전부 빨강이어야 한다(AGENTS.md §3). 이 파일에 둔 이유: 윈도우 CI 가 이 파일을 돌린다.
+# 실제 ~/.codex 는 읽지 않는다. 세션 루트는 언제나 임시 디렉터리다.
+
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz  # noqa: E402
+
+_UTC = _tz.utc
+
+
+def _need(test, name):
+    test.assertTrue(hasattr(claude_pet, name), "missing production interface: %s" % name)
+    return getattr(claude_pet, name)
+
+
+def _last(input_tokens=0, cached=0, cache_write=0, output=0, reasoning=0):
+    """last_token_usage — Codex CLI 가 token_count 이벤트에 적는 모양(합성)."""
+    usage = {"input_tokens": input_tokens, "cached_input_tokens": cached,
+             "output_tokens": output, "reasoning_output_tokens": reasoning}
+    if cache_write is not None:
+        usage["cache_write_input_tokens"] = cache_write
+    return usage
+
+
+def _token_event(ts, last, total_tokens, info=True):
+    payload = {"type": "token_count",
+               "info": ({"last_token_usage": last,
+                         "total_token_usage": {"total_tokens": total_tokens}}
+                        if info else None)}
+    return {"type": "event_msg", "timestamp": ts.isoformat().replace("+00:00", "Z"),
+            "payload": payload}
+
+
+class _CodexLogTree(unittest.TestCase):
+    def setUp(self):
+        self._td = tempfile.TemporaryDirectory()
+        self.addCleanup(self._td.cleanup)
+        self.root = os.path.join(self._td.name, "sessions")
+        os.makedirs(self.root)
+        self.now = _dt.now(_UTC)
+
+    def write(self, rel, records, raw_lines=()):
+        path = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            for r in records:
+                f.write(json.dumps(r) + "\n")
+            for line in raw_lines:
+                f.write(line + "\n")
+        return path
+
+    def parse(self, since=None):
+        fn = _need(self, "parse_codex_entries")
+        return fn(self.now - _td(days=7) if since is None else since, root=self.root)
+
+
+class CodexSessionsRootTests(unittest.TestCase):
+    """`codex_sessions_root(env=None, home=None)` — `codex_auth_path` 와 같은 루트 규칙(§3.2)."""
+
+    def test_same_root_rule_as_the_auth_file(self):
+        fn = _need(self, "codex_sessions_root")
+        home = os.path.join("H", "user")
+        self.assertEqual(fn(env={}, home=home), os.path.join(home, ".codex", "sessions"))
+        self.assertEqual(fn(env={"CODEX_HOME": os.path.join("X", "cx")}, home=home),
+                         os.path.join("X", "cx", "sessions"))
+        self.assertEqual(fn(env={"CODEX_HOME": "   "}, home=home),
+                         os.path.join(home, ".codex", "sessions"))
+
+
+class CodexLogWeightTests(_CodexLogTree):
+    """가중: (input−cached)×1(음수면 0) + cached×0.1 + cache_write×1.25 + output×5.
+    reasoning 은 더하지 않는다. noncache = total − cached×0.1. 행 모양은 Claude 와 같다:
+    (ts, total, model, noncache)."""
+
+    def test_the_weights(self):
+        """input 1000, cached 400, cache_write 100, output 50, reasoning 30.
+
+        | implementation                          | total | noncache |
+        | --------------------------------------- | ----- | -------- |
+        | reasoning added ×5                      | 1165  | 1125     |
+        | input not reduced by cached             | 1415  | 1375     |
+        | cached weighed ×1                       | 1375  | 975      |
+        | cache_write ignored                     | 890   | 850      |
+        | **specified**                           | **1015** | **975** |
+        """
+        self.write("2026/10/05/rollout-a.jsonl", [
+            _token_event(self.now - _td(minutes=1),
+                         _last(1000, 400, 100, 50, 30), total_tokens=1580)])
+        rows = self.parse()
+        self.assertEqual(len(rows), 1)
+        self.assertAlmostEqual(rows[0][1], 1015.0)
+        self.assertAlmostEqual(rows[0][3], 975.0)
+
+    def test_cached_above_input_clamps_the_uncached_part_to_zero(self):
+        """input 100, cached 400, output 2 → (0) + 40 + 10 = 50, noncache 10.
+        Rival: a negative uncached input (−300 → total −250, the row vanishes or subtracts)."""
+        self.write("a.jsonl", [_token_event(self.now - _td(minutes=1),
+                                            _last(100, 400, None, 2), total_tokens=502)])
+        rows = self.parse()
+        self.assertEqual(len(rows), 1)
+        self.assertAlmostEqual(rows[0][1], 50.0)
+        self.assertAlmostEqual(rows[0][3], 10.0)
+
+    def test_an_unusable_number_drops_only_that_row(self):
+        """문자열·음수·nan·bool 이 한 칸이라도 있으면 그 행 전체를 버린다. 멀쩡한 행은 남는다."""
+        bad = [_last(1000, "400", 0, 5), _last(1000, 0, 0, -1), _last(float("nan"), 0, 0, 5),
+               _last(True, 0, 0, 5)]
+        events = [_token_event(self.now - _td(minutes=2), b, total_tokens=100 + i)
+                  for i, b in enumerate(bad)]
+        events.append(_token_event(self.now - _td(minutes=1), _last(0, 0, 0, 7),
+                                   total_tokens=999))
+        self.write("a.jsonl", events)
+        rows = self.parse()
+        self.assertEqual([r[1] for r in rows], [35.0])
+
+
+class CodexLogDedupTests(_CodexLogTree):
+    """같은 파일 안에서 total_token_usage.total_tokens 가 같은 이벤트는 한 번만.
+    시각 필터가 먼저, 그 다음 중복 집합(JSONL 불변식 3 과 같은 이유)."""
+
+    def test_same_total_in_one_file_counts_once_but_not_across_files(self):
+        """file A: tt 1000 (out 10 → 50), tt 1000 again, tt 1600 (out 20 → 100).
+        file B: tt 1000 (out 30 → 150) — another session.
+
+        | implementation              | rows | sum |
+        | --------------------------- | ---- | --- |
+        | no dedup                    | 4    | 350 |
+        | dedup across files          | 2    | 150 |
+        | **per-file dedup**          | **3** | **300** |
+        """
+        t = self.now - _td(minutes=20)
+        self.write("a.jsonl", [_token_event(t, _last(0, 0, 0, 10), 1000),
+                               _token_event(t + _td(seconds=1), _last(0, 0, 0, 10), 1000),
+                               _token_event(t + _td(seconds=2), _last(0, 0, 0, 20), 1600)])
+        self.write("b.jsonl", [_token_event(t + _td(seconds=3), _last(0, 0, 0, 30), 1000)])
+        rows = self.parse()
+        self.assertEqual(len(rows), 3)
+        self.assertAlmostEqual(sum(r[1] for r in rows), 300.0)
+        self.assertEqual([r[0] for r in rows], sorted(r[0] for r in rows), "rows must be sorted")
+
+    def test_the_time_filter_runs_before_the_dedup_set(self):
+        """since−60s tt 2000, since+60s tt 2000 (same file). Rival: dedup first — the
+        out-of-window event claims the key and the in-window one vanishes (0 rows)."""
+        since = self.now - _td(hours=1)
+        self.write("a.jsonl", [_token_event(since - _td(seconds=60), _last(0, 0, 0, 10), 2000),
+                               _token_event(since + _td(seconds=60), _last(0, 0, 0, 10), 2000)])
+        rows = self.parse(since=since)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], since + _td(seconds=60))
+
+    def test_null_info_is_skipped_and_claims_nothing(self):
+        t = self.now - _td(minutes=3)
+        self.write("a.jsonl", [_token_event(t, None, 0, info=False),
+                               _token_event(t + _td(seconds=1), _last(0, 0, 0, 4), 10)])
+        rows = self.parse()
+        self.assertEqual([r[1] for r in rows], [20.0])
+
+
+class CodexLogFileTests(_CodexLogTree):
+    def test_recursion_other_events_and_garbage(self):
+        """Nested date folders are found; non-token_count events and broken lines are
+        skipped without killing the file."""
+        t = self.now - _td(minutes=3)
+        decoy = {"type": "event_msg", "timestamp": t.isoformat().replace("+00:00", "Z"),
+                 "payload": {"type": "agent_message",
+                             "info": {"last_token_usage": _last(0, 0, 0, 999),
+                                      "total_token_usage": {"total_tokens": 5}}}}
+        self.write(os.path.join("2026", "10", "05", "rollout-x.jsonl"),
+                   [decoy, _token_event(t, _last(0, 0, 0, 3), 7)],
+                   raw_lines=("{not json", "[]", '"str"'))
+        rows = self.parse()
+        self.assertEqual([r[1] for r in rows], [15.0])
+
+    def test_mtime_is_only_a_prefilter(self):
+        """A file touched now holding 10-day-old records yields nothing (불변식 6)."""
+        old = self.now - _td(days=10)
+        path = self.write("a.jsonl", [_token_event(old, _last(0, 0, 0, 3), 7)])
+        os.utime(path, None)
+        self.assertEqual(self.parse(), [])
+
+    def test_nothing_identifying_reaches_the_debug_log(self):
+        """CLAUDE.md Privacy: no path (the temp root carries a session-like name here) and
+        no content in `_dbg`."""
+        t = self.now - _td(minutes=3)
+        self.write(os.path.join("2026", "rollout-SESSIONID-777.jsonl"),
+                   [_token_event(t, _last(0, 0, 0, 3), 7)], raw_lines=("{broken",))
+        seen = []
+        with mock.patch.object(claude_pet, "_dbg", side_effect=lambda *a: seen.append(a)):
+            self.parse()
+        logged = " ".join(str(x) for a in seen for x in a)
+        self.assertNotIn("SESSIONID-777", logged)
+        self.assertNotIn(self._td.name, logged)
+
+
+class CodexSpikeTests(unittest.TestCase):
+    """`codex_spikes(entries, now, learned=None, mult=None)` → {"codex_session": bool,
+    "codex_weekly": bool}. SPIKE_BASE 의 대응값 session 2.0, weekly 0.5. Claude 와 같은 창
+    (직전 5분 burn, 그 앞 25분 활성 버킷 평균), burn 은 noncache."""
+
+    def setUp(self):
+        self.now = _dt(2026, 10, 5, 12, 0, tzinfo=_UTC)
+
+    def e(self, minutes_ago, noncache, total=None):
+        return (self.now - _td(minutes=minutes_ago), float(total or noncache), "codex",
+                float(noncache))
+
+    def test_the_base_percentages(self):
+        self.assertEqual(claude_pet.SPIKE_BASE.get("codex_session"), 2.0)
+        self.assertEqual(claude_pet.SPIKE_BASE.get("codex_weekly"), 0.5)
+
+    def test_nothing_learned_means_no_spike(self):
+        fn = _need(self, "codex_spikes")
+        out = fn([self.e(1, 10 ** 9)], self.now, learned={}, mult=1.0)
+        self.assertEqual(out, {"codex_session": False, "codex_weekly": False})
+
+    def test_lanes_use_their_own_floor_and_the_noncache_burn(self):
+        """Both lanes learned at 1_000_000: floors session 20_000, weekly 5_000. Burn:
+        noncache 10_000, total 100_000.
+
+        | implementation                 | session | weekly |
+        | ------------------------------ | ------- | ------ |
+        | base_pct swapped               | True    | False  |
+        | burn weighed by total          | True    | True   |
+        | **specified**                  | **False** | **True** |
+        """
+        fn = _need(self, "codex_spikes")
+        learned = {"codex_session": 1_000_000.0, "codex_weekly": 1_000_000.0}
+        out = fn([self.e(1, 10_000, total=100_000)], self.now, learned=learned, mult=1.0)
+        self.assertEqual(out, {"codex_session": False, "codex_weekly": True})
+
+    def test_the_active_base_gate_applies(self):
+        """Steady 8_000 per 5-minute bucket for the preceding 25 minutes → base 8_000,
+        gate 20_000 > burn 10_000 → no spike. Rival: no base gate (weekly True)."""
+        fn = _need(self, "codex_spikes")
+        learned = {"codex_weekly": 1_000_000.0}
+        entries = [self.e(m, 8_000) for m in (7, 12, 17, 22, 27)] + [self.e(1, 10_000)]
+        out = fn(entries, self.now, learned=learned, mult=1.0)
+        self.assertFalse(out["codex_weekly"])
+
+
+class _FakeHTTP:
+    """Sequential fake `urlopen`: records each Request, answers from `answers`."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.requests = []
+
+    def __call__(self, req, timeout=None):
+        self.requests.append(req)
+        ans = self.answers.pop(0)
+        if isinstance(ans, BaseException):
+            raise ans
+        body = ans if isinstance(ans, bytes) else json.dumps(ans).encode("utf-8")
+        return io.BytesIO(body)
+
+
+class CodexApiCostTests(unittest.TestCase):
+    """`fetch_codex_cost(start_dt)` and `CODEX_API_STATUS` — §6, symmetric with
+    `fetch_api_cost` / `API_STATUS`. Key from RUNTIME["openai_admin_key"]."""
+
+    KEY = "sk-admin-SYNTHETIC-123"
+    START = _dt(2026, 10, 1, 0, 0, tzinfo=_UTC)
+
+    def setUp(self):
+        saved = dict(claude_pet.RUNTIME)
+        self.addCleanup(lambda: (claude_pet.RUNTIME.clear(), claude_pet.RUNTIME.update(saved)))
+        claude_pet.RUNTIME["openai_admin_key"] = self.KEY
+        status = getattr(claude_pet, "CODEX_API_STATUS", None)
+        if isinstance(status, dict):
+            prev = dict(status)
+            self.addCleanup(lambda: (status.clear(), status.update(prev)))
+            status["last_error"] = None
+
+    def run_fetch(self, answers):
+        fetch = _need(self, "fetch_codex_cost")
+        fake = _FakeHTTP(answers)
+        dbg = []
+        with mock.patch.object(claude_pet.urllib.request, "urlopen", side_effect=fake), \
+                mock.patch.object(claude_pet, "_dbg", side_effect=lambda *a: dbg.append(a)):
+            value = fetch(self.START)
+        return value, fake, dbg
+
+    def test_no_key_no_request(self):
+        claude_pet.RUNTIME["openai_admin_key"] = ""
+        value, fake, _ = self.run_fetch([])
+        self.assertIsNone(value)
+        self.assertEqual(fake.requests, [])
+
+    def test_pages_are_followed_and_every_result_summed(self):
+        """page 1: two results 1.25 + 0.75, has_more → page 2: 3.00.
+
+        | implementation                 | result |
+        | ------------------------------ | ------ |
+        | first page only                | 2.00   |
+        | first result per bucket        | 4.25   |
+        | **all pages, all results**     | **5.00** |
+        """
+        page1 = {"object": "page", "data": [{"results": [{"amount": {"value": 1.25,
+                                                                     "currency": "usd"}},
+                                                         {"amount": {"value": 0.75,
+                                                                     "currency": "usd"}}]}],
+                 "has_more": True, "next_page": "pg_2"}
+        page2 = {"object": "page", "data": [{"results": [{"amount": {"value": 3.0,
+                                                                     "currency": "usd"}}]}],
+                 "has_more": False, "next_page": None}
+        value, fake, _ = self.run_fetch([page1, page2])
+        self.assertAlmostEqual(value, 5.0)
+        self.assertEqual(len(fake.requests), 2)
+        first = urllib.parse.urlsplit(fake.requests[0].full_url)
+        q1 = urllib.parse.parse_qs(first.query)
+        self.assertEqual((first.scheme, first.netloc, first.path),
+                         ("https", "api.openai.com", "/v1/organization/costs"))
+        self.assertEqual(q1.get("start_time"), [str(int(self.START.timestamp()))])
+        self.assertEqual(q1.get("bucket_width"), ["1d"])
+        self.assertEqual(q1.get("limit"), ["31"])
+        self.assertEqual(_headers(fake.requests[0]).get("authorization"), "Bearer " + self.KEY)
+        q2 = urllib.parse.parse_qs(urllib.parse.urlsplit(fake.requests[1].full_url).query)
+        self.assertEqual(q2.get("page"), ["pg_2"])
+        self.assertIsNone(claude_pet.CODEX_API_STATUS["last_error"])
+
+    def test_failures_are_classified_like_the_anthropic_cost(self):
+        """401/403 → "http:<code>" (api_error_kind "key"); network → "net" ("transient");
+        a broken body → "parse". Rival: everything as "net" (a rejected key would read as
+        an outage)."""
+        cases = (
+            (urllib.error.HTTPError("u", 401, "no", {}, None), "http:401", "key"),
+            (urllib.error.HTTPError("u", 403, "no", {}, None), "http:403", "key"),
+            (urllib.error.URLError("down"), "net", "transient"),
+            (b"{not json", "parse", "transient"),
+        )
+        for answer, err, kind in cases:
+            with self.subTest(err=err):
+                value, _fake, dbg = self.run_fetch([answer])
+                self.assertIsNone(value)
+                self.assertEqual(claude_pet.CODEX_API_STATUS["last_error"], err)
+                self.assertEqual(claude_pet.api_error_kind(err), kind)
+                logged = " ".join(str(x) for a in dbg for x in a)
+                self.assertNotIn(self.KEY, logged, "the admin key reached _dbg")
+
+    def test_today_and_month_are_ordered_windows(self):
+        today = _need(self, "fetch_codex_cost_today")
+        month = _need(self, "fetch_codex_cost_month")
+        starts = []
+        with mock.patch.object(claude_pet, "fetch_codex_cost",
+                               side_effect=lambda s: starts.append(s) or 0.0):
+            today()
+            month()
+        self.assertEqual(len(starts), 2)
+        now = _dt.now(_UTC)
+        self.assertLessEqual(starts[1], starts[0])
+        self.assertLessEqual(starts[0], now)
+        self.assertLess(now - starts[0], _td(days=1, hours=1))
+        self.assertLess(now - starts[1], _td(days=32))
 
 
 if __name__ == "__main__":
