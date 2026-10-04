@@ -2,7 +2,7 @@
 
 macOS 판과 실행 조건을 같게 맞추는 Windows 이식입니다. 설계와 단계는
 `docs-design/windows-port-plan-20260911.md` 를 따릅니다. 이 폴더의 코드는 `claude_pet.py` 를 **그대로 import** 해
-추정기·자율 이동·업데이트 판단·설정·다국어를 재사용하고, 창·그리기·메뉴·트레이·시딩 게시·업데이트 교체만 Windows 용으로 구현합니다.
+사용량 조회(서버 값)·급증 감지·자율 이동·업데이트 판단·설정·다국어를 재사용하고, 창·그리기·메뉴·트레이·시딩 게시·업데이트 교체만 Windows 용으로 구현합니다.
 `claude_pet.py` 와 macOS 빌드·릴리즈 스크립트는 이 폴더의 코드로 바뀌지 않습니다.
 
 ## 소스로 실행 (개발)
@@ -26,7 +26,7 @@ python claude_pet.py --report               # GUI 없이 사용량 보고 (macOS
 
 - 배포판은 아직 **코드 서명이 없습니다.** 처음 실행할 때 SmartScreen 이 "Windows 의 PC 보호" 창을 띄우면 "추가 정보 → 실행" 을 누르세요.
   서명 절차는 `build_win.py` 에 준비돼 있지만(아래 "서명"), 인증서는 사용자가 직접 얻어야 하고 아직 없습니다.
-- 로그 위치는 `%USERPROFILE%\.claude\projects`, 정확 모드는 `%USERPROFILE%\.claude\.credentials.json` 을 읽습니다(내용을 저장하거나 전송하지 않습니다).
+- 사용량 숫자는 `%USERPROFILE%\.claude\.credentials.json`(Codex 는 `%USERPROFILE%\.codex\auth.json`)으로 서버에 묻습니다. 로그(`%USERPROFILE%\.claude\projects`, Codex 는 `%USERPROFILE%\.codex\sessions`)는 급증 감지에만, 이 컴퓨터 안에서 숫자만 읽습니다(로그 내용은 저장하거나 전송하지 않습니다).
 - 설정 파일은 macOS 와 같은 `%USERPROFILE%\.claude_pet.json`, 펫 폴더는 `%USERPROFILE%\.claude_pet\` 입니다.
 
 
