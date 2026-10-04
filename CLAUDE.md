@@ -835,19 +835,26 @@ Every number on the pill comes from a server, per provider and per data source:
 - **Codex, subscription** (`codex_mode = "sub"`) — `fetch_codex_usage()`, the
   `chatgpt.com/backend-api/wham/usage` endpoint with the token from Codex's own `auth.json`
   (`codex_auth_path()`), read only — refreshing it is the Codex CLI's job, and there is no
-  Codex token auto-recovery. When Codex is shown, not in API mode and has no token,
+  Codex token auto-recovery. When Codex is shown, not in API mode, has no token **and is in
+  use on this machine** — the CLI is found (→ sign in) or, without a CLI, the Codex home
+  (`codex_home_exists()`: `$CODEX_HOME`, else `~/.codex`) exists (→ install) —
   `compute_codex_onboard_state()` puts **Install Codex…** / **Sign in to Codex…**
   (`menu_install_codex` / `menu_login_codex`) at the top of the right-click menu, under the
   Claude Code item: on macOS `start_codex_install()` / `start_codex_login()` open Terminal
   with `npm install -g @openai/codex` / `codex login`, on Windows `_install_codex` /
   `_login_codex` open a new PowerShell console like `_install_claude` / `_login_claude`.
+  With neither a CLI nor a Codex home nothing is offered, so a user who has never used
+  Codex sees no Codex item at all.
 - **Codex, API cost** (`codex_mode = "api"`) — `fetch_codex_cost_today()` /
   `fetch_codex_cost_month()`: `GET https://api.openai.com/v1/organization/costs` with
   `Authorization: Bearer <openai_admin_key>`, summing `data[].results[].amount.value` across
   `has_more` / `next_page` pages. Failures land in `CODEX_API_STATUS["last_error"]` with the
   same vocabulary as `API_STATUS` and are split by the same `api_error_kind()` (401/403 →
-  key rejected, anything else → unreachable). "Today" and "this month" are local midnight
-  and the local 1st, as on the Anthropic side.
+  key rejected, anything else — including running into `CODEX_COST_MAX_PAGES` with pages
+  left, which returns None rather than a truncated sum — → unreachable). "Today" and "this
+  month" start at **UTC** midnight and the **UTC** 1st, for both providers, because the
+  Anthropic and OpenAI cost APIs bucket by UTC day; a local-midnight start would cut a
+  bucket in half.
 
 Both Admin keys (`admin_key`, `openai_admin_key`) are stored in plain text in
 `~/.claude_pet.json`, and the debug log carries status codes and exception class names
@@ -855,9 +862,26 @@ only, never key bytes.
 
 **There is no fallback to the logs.** With no server value the pill shows a status:
 `token_expired` when the server rejected the OAuth token (401/403 — whatever the logs
-hold), onboarding (`onb_install` / `onb_login`) when there is no Claude Code sign-in,
+hold), onboarding (`onb_install` / `onb_login`) when there is no Claude OAuth token,
 `loading` / `scanning` while waiting for the first answer, `no_providers` when both
 providers are hidden. The JSONL logs feed spike detection only (above).
+
+**Onboarding is decided by the token, not by the logs.** `compute_onboard_state(oauth,
+has_token)` returns None in API mode, when there are server rows, or when a Claude OAuth
+token exists — a token without rows is an outage, and telling that user to sign in would be
+false. Otherwise it returns `"login"` when the `claude` CLI is found and `"install"` when it
+is not, **even if recent logs exist** (logs say nothing about whether the numbers can be
+fetched). Both refresh paths pass `has_token=claude_token_present()`, which looks only at
+the already-cached token and the credentials file — never the Keychain API, which could
+prompt on a 30-second timer. The refresh fetches usage first, so a Keychain user's token is
+already cached by then.
+
+**`learn_server_limits()` learns once per server reading.** The refresh runs every 30 s but
+the OAuth and Codex responses are cached for 180 s, so the worker passes
+`claude_fetch=_oauth_cache["t"]` and `codex_fetch=_codex_cache["t"]`; a provider whose key
+equals the one recorded at its last learning is skipped, and the EMA is not re-applied to a
+cached row. `None` (as `--report` passes) always learns. With no server rows at all,
+`--report` prints `r_no_server_rows`.
 
 **The token cache is source-aware and re-validates without prompting.** `_oauth_token_cache`
 records where the token came from (`src`: `file`, `cli`, `native`), the credentials file's
@@ -1013,7 +1037,10 @@ removed on 2026-10-05. A rejected token now reads `token_expired` whatever the l
 
 **The user's choices filter the rows, in the adapter.** `provider_shown(runtime, provider)`
 is `show_claude` / `show_codex` **and** at least one chosen gauge — a provider with no gauge
-ticked is the same as a hidden one. Claude rows are classified by `claude_gauge_class()`
+ticked is the same as a hidden one. Hand-edited values are coerced (`config_bool()`,
+`provider_gauges()`, and `apply_config()` stores the result): `"false"`, `"0"`, `"no"`, `0`
+and `False` mean off, and a `*_gauges` value that is not a list falls back to the default
+rather than hiding the provider. Claude rows are classified by `claude_gauge_class()`
 (from `_label_order`: 0 session, 1 weekly, 9 credit, anything else — 2 for a family row,
 5 for an unrecognised server window — is per-model) and filtered by `filter_claude_rows()`
 against `claude_gauges`; Codex rows (`codex_session` / `codex_weekly`) by
@@ -1055,16 +1082,17 @@ before, including once in v0.24's own draft.
 
 1. **A provider's session label turns red with ▲ — inside the pill itself.** For Claude the
    adapter passes `spike_first=provider_spiking(stats, "claude")`, `roam_summary()` marks
-   the first row, and `_summary_segment_runs()` prefixes that label with `SUMMARY_SPIKE` and
+   the first row (never a credit row), and `_summary_segment_runs()` prefixes that label with `SUMMARY_SPIKE` and
    colours it `"bad"`; Codex gets the same through `codex_summary_segment(..., spiking=
    provider_spiking(stats, "codex"))`. The value beside it is untouched and still emerald.
    Note the asymmetry: a weekly or per-model spike of a provider marks **that provider's
    first (session) label** — and never the other provider's.
 2. **Spike → the pet, and it outranks the server.** `current_mood()` consults
    `spike_info(state["stats"])` — true when a *shown* provider is spiking — and returns
-   `"failed"` *before* it reaches `mood_for(None, rows)`, which derives a mood from the
-   highest server percentage of the shown providers (credits excluded; no server rows →
-   `"idle"`, never a mood from the logs). So a false spike overrides a perfectly good server
+   `"failed"` *before* it reaches `mood_for(None, rows, codex_rows=...)`, which derives a
+   mood from the highest server percentage among the **shown providers' selected gauges**
+   only (each provider's rows filtered by its own gauge choice; credits excluded; no server
+   rows → `"idle"`, never a mood from the logs). So a false spike overrides a perfectly good server
    reading. Four further effects hang off that same signal: `tick_()` forces a repaint for
    as long as a spike is live; the pet is tinted by a pulsing spike-coloured overlay that
    exists on no other path; the **mouse-proximity greeting is suppressed**, since its guard

@@ -1000,12 +1000,8 @@ class PetWindow(QWidget):
             return "failed"
         # 서버 %가 기준이다(Claude·Codex 중 보이는 쪽). 서버 행이 없으면 idle — 로그에서
         # 기분을 만들지 않는다(macOS 판 current_mood 와 같다).
-        rows = []
-        if cp.provider_shown(cp.RUNTIME, "claude"):
-            rows += list(st["oauth"] or [])
-        if cp.provider_shown(cp.RUNTIME, "codex"):
-            rows += list(st.get("codex") or [])
-        return cp.mood_for(None, rows)
+        # 제공자별로 따로 넘긴다 — 각자 자기 게이지 선택으로 걸러진다(cp.mood_for).
+        return cp.mood_for(None, st["oauth"], codex_rows=st.get("codex"))
 
     def _apply_pending(self):
         """새로고침 워커가 남긴 결과를 메인 스레드(tick)에서 반영한다 — 워커는 위젯·상태를 직접 만지지 않는다."""
@@ -1125,8 +1121,11 @@ class PetWindow(QWidget):
                 # 급증을 다시 판정한다 — 파일을 다시 읽지 않는 계산뿐이다. 엔트리는 state 에
                 # 남기지 않는다(macOS 판 워커처럼 꺼내서 쓴다).
                 rows = s.pop("rows", None) or []
+                # 같은 캐시 응답(180초)에 EMA 를 거듭 걸지 않게 응답의 조회 시각을 키로 넘긴다.
                 cp.learn_server_limits(oauth, codex, rows, codex_entries,
-                                       model_kw=s.get("model_kw"))
+                                       model_kw=s.get("model_kw"),
+                                       claude_fetch=cp._oauth_cache.get("t"),
+                                       codex_fetch=cp._codex_cache.get("t"))
                 try:
                     mult = float(cp.RUNTIME.get("spike_mult", 1.0)) or 1.0
                 except (TypeError, ValueError):
@@ -1149,9 +1148,11 @@ class PetWindow(QWidget):
                     values["codex_api_error"] = _ckind == "key"
                     values["codex_api_stale"] = _ckind == "transient"
                 # Codex 를 보이는데 토큰이 없으면 우클릭 메뉴에 설치/로그인(macOS 판과 같은 판단).
+                # Codex 를 쓰는 사람(CLI 또는 Codex 홈이 있음)에게만 낸다.
                 values["codex_onboard"] = cp.compute_codex_onboard_state(
                     cp.provider_shown(cp.RUNTIME, "codex"), cp.RUNTIME.get("codex_mode"),
-                    bool(cp.read_codex_token(cp.codex_auth_path())), bool(find_codex_cli()))
+                    bool(cp.read_codex_token(cp.codex_auth_path())), bool(find_codex_cli()),
+                    cp.codex_home_exists())
                 # 크레딧 금액 문자열. 모드는 **지금** 읽는다(파싱 시점이 아니라) — 파싱은
                 # 180초 캐시 뒤에 있어서, 거기서 굳히면 토글을 바꿔도 최대 3분 동안 옛 모드가
                 # 남는다. 크레딧 행이 없으면 None 이고, 그러면 roam_summary 가 그 원소를
@@ -1167,10 +1168,9 @@ class PetWindow(QWidget):
                 _api_kind = cp.api_error_kind(cp.API_STATUS.get("last_error"))
                 values["api_error"] = _api_kind == "key"
                 values["api_stale"] = _api_kind == "transient"
-                # 두 번째 인자는 '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'다.
-                # 몇 달 전 로그 파일 하나가 남아 있다고 지금 보여 줄 데이터가 있는 것은 아니고,
-                # 그 파일이 온보딩 안내를 영원히 막고 있었다(코어 refresh 워커의 같은 주석).
-                values["onboard"] = cp.compute_onboard_state(oauth, bool(s.get("entries")))
+                # 온보딩 안내는 **토큰**으로 판단한다(macOS 워커와 같다) — 로그가 있어도 토큰이
+                # 없으면 숫자를 볼 길이 없다. 확인은 캐시·자격증명 파일만(cp.claude_token_present).
+                values["onboard"] = cp.compute_onboard_state(oauth, cp.claude_token_present())
                 # 토큰을 살려 두는 자리. 판단은 순수 함수(cp.recovery_tick)가 하고 여기서는
                 # 실행만 한다. 여기서 action 을 보고 values["onboard"] 를 덮어쓰지 **않는다** —
                 # 맥에서 그 두 줄은 도달 불가능한 코드였고, 조건을 느슨하게 풀면 이번엔 반대로

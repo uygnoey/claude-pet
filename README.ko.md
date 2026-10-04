@@ -50,7 +50,8 @@ macOS 네이티브(AppKit) 렌더링 — 창 프레임/배경/잔상 없음.
 
 - Claude Code가 없으면 필 대신 **"Claude Code 미설치"** 안내가 뜨고, **우클릭 → "⬇︎ Claude Code 설치…"** 를 누르면 터미널에서 공식 설치([`claude.ai/install.sh`](https://claude.ai/install.sh)) → 로그인까지 진행합니다.
 - 설치돼 있는데 로그인만 안 된 경우엔 **우클릭 → "🔑 Claude Code 로그인…"** 으로 바로 로그인할 수 있습니다.
-- Codex도 똑같습니다: Codex를 필에 보이는데 로그인이 안 돼 있으면 **우클릭 → "⬇︎ Codex 설치…"**(터미널에서 `npm install -g @openai/codex` 후 `codex login`) 또는 **"🔑 Codex 로그인…"**(`codex login`). Windows에서는 새 PowerShell 콘솔에서 진행합니다.
+- Claude Code 항목은 로그가 아니라 로그인 토큰으로 판단합니다: 토큰이 없으면 최근 로그가 있어도 항목이 뜹니다.
+- Codex도 똑같습니다. 다만 이 컴퓨터에서 Codex를 쓸 때만(`codex` CLI나 `~/.codex` 폴더가 있을 때 — 없으면 아무것도 더하지 않습니다): Codex를 필에 보이는데 로그인이 안 돼 있으면 **우클릭 → "⬇︎ Codex 설치…"**(터미널에서 `npm install -g @openai/codex` 후 `codex login`) 또는 **"🔑 Codex 로그인…"**(`codex login`). Windows에서는 새 PowerShell 콘솔에서 진행합니다.
 - 설치/로그인이 끝나면 재시작 없이 다음 갱신에 자동으로 사용량이 표시됩니다.
 - 참고: **API 모드**(우클릭 → 설정 → Admin API 키, Codex는 OpenAI Admin API 키)는 로그인 없이도 동작합니다.
 

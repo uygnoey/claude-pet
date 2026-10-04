@@ -68,7 +68,7 @@ Spike alerts: local logs are read on the computer only to detect sudden bursts o
 
 The pill gives each provider its own line, marked with its logo. Usage numbers are green (emerald, server values) and API cost uses coral. Labels reflect utilization: white below 50%, yellow from 50%, red from 85%; a usage spike shows a red label and ▲. Do not confuse number colors with utilization thresholds.
 
-Settings has one section for Claude Code and one for Codex, with the same controls: show or hide in the pill, data source (subscription login or API cost), which gauges to show (Claude Code: session, weekly, per-model, credits; Codex: session, weekly), an Admin API key and a monthly budget. When a login is needed, the right-click menu offers Install/Sign in to Claude Code… and Install/Sign in to Codex….
+Settings has one section for Claude Code and one for Codex, with the same controls: show or hide in the pill, data source (subscription login or API cost), which gauges to show (Claude Code: session, weekly, per-model, credits; Codex: session, weekly), an Admin API key and a monthly budget. When a login is needed, the right-click menu offers Install/Sign in to Claude Code… (shown when no Claude Code login token is found, whatever the logs hold) and Install/Sign in to Codex… (shown only when Codex is in use on the computer — the Codex CLI or its ~/.codex folder is present — so nothing is added if Codex is not used).
 
 The website's pills are labeled illustrations using fixed example values. They do not read the visitor's account and are not screenshots of the running application.
 

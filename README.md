@@ -50,7 +50,8 @@ The pet is a HUD for **Claude Code or Codex usage** — the numbers come from ea
 
 - If Claude Code isn't installed, the pet shows **"Claude Code not installed"** instead of the pill. **Right-click → "⬇︎ Install Claude Code…"** runs the official installer ([`claude.ai/install.sh`](https://claude.ai/install.sh)) in Terminal, then signs you in.
 - If it's installed but not logged in, **right-click → "🔑 Sign in to Claude Code…"** starts the login.
-- Codex works the same way: while Codex is shown in the pill but not signed in, **right-click → "⬇︎ Install Codex…"** (`npm install -g @openai/codex`, then `codex login`, in Terminal) or **"🔑 Sign in to Codex…"** (`codex login`). On Windows these open a new PowerShell console.
+- The Claude Code item is decided by the sign-in token, not the logs: no token → the item appears, even if there are recent logs.
+- Codex works the same way, but only if you use Codex on this computer (the `codex` CLI or a `~/.codex` folder exists — otherwise nothing is added): while Codex is shown in the pill but not signed in, **right-click → "⬇︎ Install Codex…"** (`npm install -g @openai/codex`, then `codex login`, in Terminal) or **"🔑 Sign in to Codex…"** (`codex login`). On Windows these open a new PowerShell console.
 - Once done, usage appears on the next refresh — no restart needed.
 - Note: **API mode** (right-click → Settings → Admin API key; for Codex an OpenAI Admin API key) works without signing in.
 

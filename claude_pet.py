@@ -1038,6 +1038,13 @@ def apply_config(cfg):
     for k in _RUNTIME_CONFIG_KEYS:
         if k in cfg:
             RUNTIME[k] = cfg[k]
+    # 손으로 고친 파일의 "false" 같은 값은 진짜 bool 로, 목록이 아닌 게이지는 기본값으로
+    # 정규화해 둔다 — RUNTIME 을 읽는 모든 곳이 같은 뜻을 보게(provider_shown 과 같은 규칙).
+    for p in ("claude", "codex"):
+        if "show_" + p in cfg:
+            RUNTIME["show_" + p] = config_bool(RUNTIME.get("show_" + p), True)
+        if p + "_gauges" in cfg:
+            RUNTIME[p + "_gauges"] = provider_gauges(RUNTIME, p)
     set_lang(RUNTIME.get("lang"))
 
 # ─────────────────────── 다국어 (i18n) ───────────────────────
@@ -1145,6 +1152,7 @@ TR = {
     "menu_install_codex": "⬇︎ Install Codex…",
     "menu_login_codex": "🔑 Sign in to Codex…",
     "r_codex": "Codex (server values)", "r_spike": "Spike now",
+    "r_no_server_rows": "No server values yet — sign in to Claude Code or Codex (or set an Admin API key in API mode).",
     "r_title": "Claude Pet usage report", "r_exact": "Exact mode (server values)",
     "r_reset": "reset",
     "r_last_activity": "Last activity", "r_today_cost": "Today API cost",
@@ -1221,6 +1229,7 @@ TR = {
     "menu_install_codex": "⬇︎ Codex 설치…",
     "menu_login_codex": "🔑 Codex 로그인…",
     "r_codex": "Codex (서버 계산 값)", "r_spike": "지금 급증",
+    "r_no_server_rows": "아직 서버 값이 없어요 — Claude Code 또는 Codex 에 로그인하세요(API 모드면 Admin API 키를 넣으세요).",
     "r_title": "Claude Pet 사용량 리포트", "r_exact": "정확 모드 (서버 계산 값)",
     "r_reset": "리셋",
     "r_last_activity": "마지막 활동", "r_today_cost": "오늘 API 비용",
@@ -1299,6 +1308,7 @@ TR = {
     "menu_install_codex": "⬇︎ Codex をインストール…",
     "menu_login_codex": "🔑 Codex にログイン…",
     "r_codex": "Codex（サーバー値）", "r_spike": "現在の急増",
+    "r_no_server_rows": "サーバー値はまだありません — Claude Code または Codex にログインしてください（API モードでは Admin API キーを設定してください）。",
     "r_title": "Claude Pet 使用量レポート", "r_exact": "正確モード（サーバー値）",
     "r_reset": "リセット",
     "r_last_activity": "最終アクティビティ", "r_today_cost": "本日のAPIコスト",
@@ -1379,6 +1389,7 @@ TR = {
     "menu_install_codex": "⬇︎ Instalar Codex…",
     "menu_login_codex": "🔑 Iniciar sesión en Codex…",
     "r_codex": "Codex (valores del servidor)", "r_spike": "Pico ahora",
+    "r_no_server_rows": "Aún no hay valores del servidor: inicia sesión en Claude Code o Codex (o pon una clave de Admin API en modo API).",
     "r_title": "Informe de uso de Claude Pet", "r_exact": "Modo exacto (valores del servidor)",
     "r_reset": "reinicio",
     "r_last_activity": "Última actividad", "r_today_cost": "Coste de API hoy",
@@ -1863,6 +1874,7 @@ def _detect_model_keyword(wk_entries, all_entries):
 LEARNED_LIMITS = {}
 
 LEARN_ALPHA = 0.3        # 지수이동평균 가중치 — 새 표본에 0.3
+_LEARN_FETCH_SLOT = "_fetch_keys"   # learned 안에서 제공자별 마지막 학습 응답 키를 두는 자리
 LEARN_MIN_PCT = 5.0      # 이보다 작은 사용률에서는 분모가 작아 역산이 폭주한다
 SPIKE_GATE = 2.5         # 직전 활동 속도의 몇 배부터 급증인가
 
@@ -2198,6 +2210,12 @@ def fetch_codex_cost(start_dt):
             return None
         if not page:
             break
+    else:
+        # 상한까지 읽고도 다음 장이 남았다 — 잘린 합을 비용으로 보이지 않는다. 키 문제가
+        # 아니므로 api_error_kind 는 transient(일시적으로 못 가져옴)로 읽는다.
+        CODEX_API_STATUS["last_error"] = "pages"
+        _dbg("codex cost: page cap", CODEX_COST_MAX_PAGES)
+        return None
     CODEX_API_STATUS["last_error"] = None
     return total
 
@@ -2919,21 +2937,35 @@ def _find_claude_cli():
 CLAUDE_INSTALL_URL = "https://claude.ai/install.sh"   # Anthropic 공식(홈 디렉터리 설치)
 
 
-def compute_onboard_state(oauth, stats_have_logs):
+def compute_onboard_state(oauth, has_token):
     """구독 모드에서 온보딩이 필요한지 판정. 반환: None | 'install' | 'login'.
 
     - API 모드: Claude Code 불필요 → None.
-    - 이미 쓸 데이터가 있으면(정확 모드 토큰 or 로그) → None.
+    - 서버 행이 있거나 OAuth 토큰이 있으면 → None. 토큰은 있는데 행이 없으면 장애이지
+      로그인 문제가 아니다 — 로그인하라고 말하면 거짓 안내가 된다.
+    - 로그는 판단에 쓰지 않는다(2026-10-05 2차): 최근 로그가 있어도 토큰이 없으면 숫자를
+      볼 길이 없으니 안내가 필요하다.
     - claude 실행 파일이 없으면 'install', 있으면(로그인만 필요) 'login'.
+    has_token 은 프롬프트가 뜰 수 없는 확인에서 와야 한다(claude_token_present).
     """
     forced = os.environ.get("CLAUDE_PET_FORCE_ONBOARD")   # 시각 테스트용: install|login
     if forced in ("install", "login"):
         return forced
     if RUNTIME.get("mode") == "api":
         return None
-    if oauth or stats_have_logs:
+    if oauth or has_token:
         return None
     return "login" if _find_claude_cli() else "install"
+
+
+def claude_token_present():
+    """Claude OAuth 토큰이 있는가 — **키체인 프롬프트가 뜰 수 없는** 확인만 한다.
+
+    이미 읽어 둔 토큰(캐시, 출처 무관)이나 자격증명 파일. 30초마다 불리는 자리라 키체인 API 는
+    타지 않는다(v0.16 재프롬프트 회귀). 새로고침은 fetch_exact_usage 를 먼저 부르므로 키체인
+    사용자의 토큰은 그때 이미 캐시에 있다.
+    """
+    return bool(_oauth_token_cache.get("tok")) or bool(_token_from_file())
 
 
 def _run_in_terminal(cmd):
@@ -2997,15 +3029,20 @@ def _find_codex_cli():
     return None
 
 
-def compute_codex_onboard_state(show_codex, codex_mode, has_token, cli_present):
+def compute_codex_onboard_state(show_codex, codex_mode, has_token, cli_present,
+                                codex_home_exists):
     """Codex 온보딩 → None | 'install' | 'login'.
 
     Codex 를 필에 안 보이거나, API 모드이거나(로그인 불필요), 이미 토큰이 있으면 None.
-    아니면 CLI 가 있으면 'login', 없으면 'install'.
+    **Codex 를 쓰는 사람에게만** 항목을 낸다(2026-10-05 2차): CLI 가 있으면 'login',
+    CLI 는 없지만 Codex 홈(~/.codex 또는 $CODEX_HOME)이 있으면 'install', 둘 다 없으면 None —
+    Codex 를 써 본 적 없는 사용자의 메뉴에는 아무것도 더하지 않는다.
     """
     if not show_codex or codex_mode == "api" or has_token:
         return None
-    return "login" if cli_present else "install"
+    if cli_present:
+        return "login"
+    return "install" if codex_home_exists else None
 
 
 def start_codex_install():
@@ -3975,6 +4012,11 @@ def codex_auth_path(env=None, home=None):
     return os.path.join(root, "auth.json")
 
 
+def codex_home_exists(env=None, home=None):
+    """Codex 홈 디렉터리(codex_auth_path 가 사는 곳: $CODEX_HOME, 없으면 <home>/.codex)가 있는가."""
+    return os.path.isdir(os.path.dirname(codex_auth_path(env=env, home=home)))
+
+
 def read_codex_auth(path):
     """auth.json 에서 (OAuth 액세스 토큰, 계정 id) 를 읽는다. 쓸 토큰이 없으면 (None, None) —
     예외는 내보내지 않는다.
@@ -4268,9 +4310,11 @@ def parse_codex_entries(since, root=None):
             seen = set()
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:
-                    line = line.strip()
-                    if not line:
+                    # 대부분의 줄은 메시지·도구 호출이다. 해석하기 전에 문자열로 거른다 —
+                    # 결과는 같고(token_count 이벤트는 그 글자를 반드시 품는다) 비용만 준다.
+                    if '"token_count"' not in line:
                         continue
+                    line = line.strip()
                     try:
                         obj = json.loads(line)
                     except ValueError:
@@ -4334,15 +4378,34 @@ def codex_spikes(entries, now, learned=None, mult=None):
 
 
 def learn_server_limits(oauth_rows, codex_rows, entries, codex_entries, learned=None,
-                        model_kw=None):
+                        model_kw=None, claude_fetch=None, codex_fetch=None):
     """서버 행(사용률·리셋 시각)과 같은 창의 로그로 레인별 급증 한도를 학습한다(사양 §3.3).
 
     Claude: 세션 행 → "session"(5시간), 주간 행 → "weekly"(7일), model_kw 패밀리의 모델별 행 →
     "opus"(7일, 그 모델의 엔트리만). Codex: codex_session / codex_weekly 행 → 같은 이름의 레인,
     창 길이는 서버가 준 limit_window_seconds(codex_window_seconds). 분류마다 첫 행만 쓴다.
     리셋 시각이 없는 행은 배우지 않는다 — 창의 시작을 정할 수 없다.
+
+    claude_fetch / codex_fetch: 그 서버 응답을 가리키는 키(캐시된 응답의 조회 시각). 직전
+    학습 때와 같은 키면 그 제공자는 건너뛴다 — 30초 새로고침이 180초 캐시의 같은 행에 EMA 를
+    몇 번이고 다시 걸지 않게(2026-10-05 2차). None 이면 언제나 배운다(--report 같은 1회 호출).
+    키는 learned 안의 _LEARN_FETCH_SLOT 에 제공자별로 남는다(레인 이름과 겹치지 않는다).
     """
     learned = LEARNED_LIMITS if learned is None else learned
+    seen = learned.setdefault(_LEARN_FETCH_SLOT, {})
+
+    def fresh(provider, key):
+        if key is None:
+            return True
+        if provider in seen and seen[provider] == key:
+            return False
+        seen[provider] = key
+        return True
+
+    if not fresh("claude", claude_fetch):
+        oauth_rows = None
+    if not fresh("codex", codex_fetch):
+        codex_rows = None
     done = set()
     for row in oauth_rows or ():
         try:
@@ -6944,14 +7007,22 @@ def worst_pct(rows):
     return max(vals) if vals else None
 
 
-def mood_for(stats, rows=None, runtime=None):
+def mood_for(stats, rows=None, runtime=None, codex_rows=None):
     """펫 기분. 어느 제공자든 로그 급증이면 failed, 아니면 서버 사용률로 — 서버 행이 없으면 idle.
 
+    rows 는 Claude 서버 행, codex_rows 는 Codex 행. **필에 보이는 제공자의 고른 게이지만** 센다
+    (2026-10-05 2차) — 숨긴 90% 세션 행이 펫을 겁먹게 하면 이유가 화면에 없다.
     로그는 사용률을 말하지 않는다(사양 §1). 그래서 서버 행이 없을 때 로그에서 기분을 만들지 않는다.
     """
-    if provider_spiking(stats, "claude", runtime) or provider_spiking(stats, "codex", runtime):
+    rt = RUNTIME if runtime is None else runtime
+    if provider_spiking(stats, "claude", rt) or provider_spiking(stats, "codex", rt):
         return "failed"
-    pct = worst_pct(rows)
+    shown = []
+    if rows and provider_shown(rt, "claude"):
+        shown += filter_claude_rows(list(rows), provider_gauges(rt, "claude")) or []
+    if codex_rows and provider_shown(rt, "codex"):
+        shown += filter_codex_rows(list(codex_rows), provider_gauges(rt, "codex")) or []
+    pct = worst_pct(shown)
     if pct is None:
         return "idle"
     if pct >= 85:
@@ -7776,7 +7847,9 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
             if not _roam_valid_pct(row[1]):
                 continue
             reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
-            out = (row[0], float(row[1]), bool(spike_first) and i == 0, reset_text)
+            # ▲ 는 첫 행에만, 그리고 크레딧 행에는 절대 — 크레딧은 급증과 상관없는 잔액이다.
+            out = (row[0], float(row[1]),
+                   bool(spike_first) and i == 0 and _label_order(row[0]) < 9, reset_text)
             if credit_text and _label_order(row[0]) >= 9:
                 out += (credit_text,)
             rows.append(out)
@@ -7821,12 +7894,33 @@ def roam_summary_codex_cost(has_admin_key, cost_today, cost_month=None, cost_bud
 
 # ─────────── 제공자별 표시·게이지·급증 (사양 §2·§3.3·§4·§5) ───────────
 
+def config_bool(value, default=True):
+    """설정 값 → bool. 손으로 고친 ~/.claude_pet.json 의 "false"/"0"/"no"/"off"/0/False 는 거짓.
+
+    문자열 "false" 는 파이썬에서 참이라, bool() 을 그대로 쓰면 끈 제공자가 켜진다. None 은 기본값.
+    """
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip().lower() not in ("false", "0", "no", "off", "")
+    return bool(value)
+
+
+def provider_gauges(runtime, provider):
+    """이 제공자의 고른 게이지 목록. 목록이 아닌 값(손으로 고친 설정)은 기본값으로 — 숨기지 않는다.
+    빈 목록은 유효하다(= 표시 꺼짐)."""
+    rt = RUNTIME if runtime is None else runtime
+    allowed = CLAUDE_GAUGES if provider == "claude" else CODEX_GAUGES
+    value = rt.get(provider + "_gauges", None)
+    if not isinstance(value, (list, tuple)):
+        return list(allowed)
+    return _gauge_list(value, allowed)
+
+
 def provider_shown(runtime, provider):
     """이 제공자("claude"|"codex")를 필에 보이는가. 게이지를 하나도 고르지 않았으면 꺼짐과 같다."""
     rt = RUNTIME if runtime is None else runtime
-    default = CLAUDE_GAUGES if provider == "claude" else CODEX_GAUGES
-    gauges = rt.get(provider + "_gauges", list(default))
-    return bool(rt.get("show_" + provider, True)) and bool(gauges)
+    return config_bool(rt.get("show_" + provider, True)) and bool(provider_gauges(rt, provider))
 
 
 def claude_gauge_class(label):
@@ -8746,12 +8840,8 @@ def run_gui():
             return "failed"
         # 서버 %가 기준이다(Claude·Codex 중 보이는 쪽). 서버 행이 없으면 idle —
         # 로그에서 기분을 만들지 않는다(사양 §1).
-        rows = []
-        if provider_shown(RUNTIME, "claude"):
-            rows += list(state["oauth"] or [])
-        if provider_shown(RUNTIME, "codex"):
-            rows += list(state.get("codex") or [])
-        return mood_for(None, rows)
+        # 제공자별로 따로 넘긴다 — 각자 자기 게이지 선택으로 걸러진다(mood_for).
+        return mood_for(None, state["oauth"], codex_rows=state.get("codex"))
 
     # ── 필 그리기 헬퍼 (클래스 밖: PyObjC 셀렉터 변환 회피) ──
     class PetView(NSView):
@@ -10421,8 +10511,11 @@ def run_gui():
                     # 급증 한도는 서버 %로부터 배운다(보정 UI 대체). 배운 뒤 같은 패스의
                     # 로그로 급증을 다시 판정한다 — 파일을 다시 읽지 않는 계산뿐이다.
                     rows = s.pop("rows", None) or []
+                    # 같은 캐시 응답(180초)에 EMA 를 거듭 걸지 않게 응답의 조회 시각을 키로 넘긴다.
                     learn_server_limits(oauth, codex, rows, codex_entries,
-                                        model_kw=s.get("model_kw"))
+                                        model_kw=s.get("model_kw"),
+                                        claude_fetch=_oauth_cache.get("t"),
+                                        codex_fetch=_codex_cache.get("t"))
                     try:
                         mult = float(RUNTIME.get("spike_mult", 1.0)) or 1.0
                     except (TypeError, ValueError):
@@ -10443,9 +10536,11 @@ def run_gui():
                         values["codex_api_error"] = _ckind == "key"
                         values["codex_api_stale"] = _ckind == "transient"
                     # Codex 를 보이는데 토큰이 없으면 우클릭 메뉴에 설치/로그인(사양 §7).
+                    # Codex 를 쓰는 사람(CLI 또는 Codex 홈이 있음)에게만 낸다.
                     values["codex_onboard"] = compute_codex_onboard_state(
                         provider_shown(RUNTIME, "codex"), RUNTIME.get("codex_mode"),
-                        bool(read_codex_token(codex_auth_path())), bool(_find_codex_cli()))
+                        bool(read_codex_token(codex_auth_path())), bool(_find_codex_cli()),
+                        codex_home_exists())
                     # 키가 거부된 뒤에도 필이 "loading…" 을 띄우던 자리. 마지막 조회의
                     # **실패 종류**를 보고, 사용자가 실제로 할 수 있는 일이 있는 경우만
                     # 경고로 올린다 — 401/403 은 키를 고치면 되고, 망 장애나 5xx 는
@@ -10463,12 +10558,10 @@ def run_gui():
                     _api_kind = api_error_kind(API_STATUS.get("last_error"))
                     values["api_error"] = _api_kind == "key"
                     values["api_stale"] = _api_kind == "transient"
-                    # Claude Code 데이터가 전혀 없으면 온보딩(설치/로그인) 안내.
-                    # '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'로 본다 —
-                    # 몇 달 전 로그 파일 하나가 남아 있다고 해서 지금 보여 줄 데이터가
-                    # 있는 것은 아니고, 그 파일이 안내를 영원히 막고 있었다.
-                    values["onboard"] = compute_onboard_state(
-                        oauth, bool(s.get("entries")))
+                    # 온보딩(설치/로그인) 안내는 **토큰**으로 판단한다(2026-10-05 2차) — 로그가
+                    # 있어도 토큰이 없으면 숫자를 볼 길이 없다. 토큰 확인은 프롬프트가 뜰 수
+                    # 없는 경로만(캐시·파일) 탄다(claude_token_present).
+                    values["onboard"] = compute_onboard_state(oauth, claude_token_present())
                     # 토큰을 살려 두는 자리. 판단은 순수 함수가 하고 여기서는 실행만 한다.
                     # 여기서 action 을 보고 values["onboard"] 를 덮어쓰지 **않는다**.
                     # 한때 "'onboard_install' 이면 안내를 설치 쪽으로 좁힌다" 는 두 줄이
@@ -10588,6 +10681,8 @@ def print_report():
         rows_out(t("r_exact"), exact)
     if codex:
         rows_out(t("r_codex"), codex, tr_label=True)
+    if not exact and not codex:
+        print(" " + t("r_no_server_rows"))
     codex_entries = []
     if codex and RUNTIME.get("codex_mode") != "api":
         codex_entries = parse_codex_entries(now - timedelta(days=7))

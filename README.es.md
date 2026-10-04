@@ -50,7 +50,8 @@ La mascota es un HUD del **uso de Claude Code o Codex**: los números son el % d
 
 - Si Claude Code no está instalado, la mascota muestra **"Claude Code no instalado"** en lugar de la píldora. **Clic derecho → "⬇︎ Instalar Claude Code…"** ejecuta el instalador oficial ([`claude.ai/install.sh`](https://claude.ai/install.sh)) en Terminal y luego inicia sesión.
 - Si está instalado pero sin sesión, **clic derecho → "🔑 Iniciar sesión en Claude Code…"** inicia el acceso.
-- Codex funciona igual: mientras Codex se muestra en la píldora sin sesión iniciada, **clic derecho → "⬇︎ Instalar Codex…"** (`npm install -g @openai/codex` y luego `codex login`, en Terminal) o **"🔑 Iniciar sesión en Codex…"** (`codex login`). En Windows se abren en una consola nueva de PowerShell.
+- La opción de Claude Code depende del token de inicio de sesión, no de los registros: sin token aparece, aunque haya registros recientes.
+- Codex funciona igual, pero solo si usas Codex en este ordenador (existe el CLI `codex` o la carpeta `~/.codex`; si no, no se añade nada): mientras Codex se muestra en la píldora sin sesión iniciada, **clic derecho → "⬇︎ Instalar Codex…"** (`npm install -g @openai/codex` y luego `codex login`, en Terminal) o **"🔑 Iniciar sesión en Codex…"** (`codex login`). En Windows se abren en una consola nueva de PowerShell.
 - Al terminar, el uso aparece en la siguiente actualización, sin reiniciar.
 - Nota: el **modo API** (clic derecho → Ajustes → clave de Admin API; para Codex, una clave de OpenAI Admin API) funciona sin iniciar sesión.
 

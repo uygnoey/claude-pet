@@ -50,7 +50,8 @@ macOS ネイティブ（AppKit）描画 — ウィンドウ枠・背景・残像
 
 - Claude Code が無い場合はピルの代わりに **「Claude Code 未インストール」** と表示され、**右クリック →「⬇︎ Claude Code をインストール…」** で公式インストーラ（[`claude.ai/install.sh`](https://claude.ai/install.sh)）をターミナルで実行し、続けてログインします。
 - インストール済みでログインだけ必要な場合は **右クリック →「🔑 Claude Code にログイン…」** ですぐログインできます。
-- Codex も同じです: Codex をピルに表示していてログインしていない間は **右クリック →「⬇︎ Codex をインストール…」**（ターミナルで `npm install -g @openai/codex` のあと `codex login`）または **「🔑 Codex にログイン…」**（`codex login`）。Windows では新しい PowerShell コンソールで実行します。
+- Claude Code の項目はログではなくログイントークンで判断します: トークンがなければ、最近のログがあっても項目が出ます。
+- Codex も同じです。ただし、このコンピューターで Codex を使っている場合だけです（`codex` CLI か `~/.codex` フォルダーがあるとき — なければ何も追加しません）: Codex をピルに表示していてログインしていない間は **右クリック →「⬇︎ Codex をインストール…」**（ターミナルで `npm install -g @openai/codex` のあと `codex login`）または **「🔑 Codex にログイン…」**（`codex login`）。Windows では新しい PowerShell コンソールで実行します。
 - 完了すると再起動なしに次の更新で使用量が表示されます。
 - 補足：**API モード**（右クリック → 設定 → Admin API キー、Codex は OpenAI Admin API キー）はログイン無しでも動作します。
 
