@@ -1,6 +1,6 @@
 # Claude Pet
 
-> Claude Pet is a free, open-source (MIT) desktop pet for macOS and Windows that shows Claude Code and Codex usage in one compact pill: Claude Code's session and weekly usage, Codex's limits (today a single weekly limit), and their reset times. Server-reported values and local estimates are shown distinctly.
+> Claude Pet is a free, open-source (MIT) desktop pet for macOS and Windows that shows Claude Code and Codex usage in one compact pill: Claude Code's session and weekly usage, Codex's limits (today a single weekly limit), and their reset times. The numbers are always the values the providers' servers report; there is no local estimate.
 
 Reference: v1.0.1, published 2026-09-30T09:45:29Z (2026-09-30 18:45 KST). Reference updated: 2026-10-02.
 
@@ -9,10 +9,10 @@ Reference: v1.0.1, published 2026-09-30T09:45:29Z (2026-09-30 18:45 KST). Refere
 - What is Claude Pet? A free, open-source (MIT) desktop pet for macOS and Windows that shows Claude Code and Codex usage percentages and reset times in one small pill.
 - How do I check my Claude Code usage limit on the desktop? Install Claude Pet and sign in to Claude Code on the same computer; the pill shows session and weekly usage with reset countdowns, using the percentages Anthropic's server reports.
 - How do I check my Codex usage limit? Claude Pet reads it from OpenAI's server with the existing Codex login and shows the account's limits (today a single weekly limit) and the time until reset.
-- Does it need an API key? No. It uses the existing Claude Code or Codex login. An Anthropic Admin API key is only for the optional organization cost mode.
+- Does it need an API key? No. It uses the existing Claude Code or Codex login. An Anthropic or OpenAI Admin API key is only for the optional organization cost mode of that provider.
 - Which computers? macOS 12+ (Apple Silicon and Intel) and Windows 10/11 x64. No Windows ARM build.
 - Is it free? Yes, free and open source under MIT. Sponsoring is optional.
-- Does it upload prompts or code? No. Usage parsing is local; credentials go only to Anthropic or OpenAI to request usage; update checks contact GitHub.
+- Does it upload prompts or code? No. Local logs are read on the computer only for spike detection; credentials go only to Anthropic or OpenAI to request usage; update checks contact GitHub.
 - Why a Windows security warning? Windows builds are unsigned, so SmartScreen may warn depending on settings. Mac builds are Developer ID signed and Apple-notarized.
 - Is it made by Anthropic or OpenAI? No. It is an independent project by Yeongyu Yang (uygnoey).
 
@@ -26,22 +26,24 @@ Reference: v1.0.1, published 2026-09-30T09:45:29Z (2026-09-30 18:45 KST). Refere
 ## How usage works
 
 - Claude Code: exact mode requests server-computed usage percentages and reset times from Anthropic using the existing Claude Code credential (macOS: Keychain or the Claude Code credentials file; Windows: %USERPROFILE%/.claude/.credentials.json). Available categories (session, weekly, per-model) depend on the account.
-- Claude Code local fallback: when server values are unavailable, usage is estimated from Claude Code logs under ~/.claude and marked with ≈. It does not include web or desktop activity absent from those logs. Optional calibration applies to this estimate, not to server percentages.
-- Codex: usage is read from OpenAI's server using the existing Codex login on this computer, never from local logs. Codex shows the limits its account has — today a single weekly limit — with the time left until it resets. There is nothing to set up, and nothing is added if Codex is not used.
-- The pill marks each provider's line with its logo. Number colors identify the source: green for server usage, amber with ≈ for estimates. Label colors reflect utilization: yellow from 50%, red from 85%. There is no promise of exact remaining token counts.
-- Optional Admin API mode reports Anthropic Console organization costs, separately from subscription limits. Its configured Admin API key is stored in plaintext in ~/.claude_pet.json (under the Windows user profile on Windows).
+- No local estimate: usage numbers always come from the server. When no server value is available (not signed in, token rejected, still loading), the pill shows a status line instead of a number.
+- Codex: usage is read from OpenAI's server using the existing Codex login on this computer. Codex shows the limits its account has — today a single weekly limit — with the time left until it resets. There is nothing to set up, and nothing is added if Codex is not used.
+- Spike alerts: local logs are read on the computer only to detect sudden bursts of usage — Claude Code logs under ~/.claude/projects and Codex session logs under $CODEX_HOME/sessions or ~/.codex/sessions. Only numbers are used; no message bodies, paths or session IDs leave the parser. The spike threshold comes from limits learned automatically from the server's percentages, so there is no calibration and no limit to enter; until a limit has been learned, no spike is reported.
+- The pill marks each provider's line with its logo. Usage numbers are green (server values); API cost is coral. Label colors reflect utilization: yellow from 50%, red from 85%; a spike shows a red label with ▲. There is no promise of exact remaining token counts.
+- Settings has one section for Claude Code and one for Codex, each with show/hide in the pill, data source (subscription or API cost), which gauges to show, an Admin API key and a monthly budget. Optional API cost mode reports organization costs, separately from subscription limits: Anthropic Console costs for Claude Code, OpenAI organization costs (OpenAI Admin API key) for Codex. Configured Admin API keys are stored in plaintext in ~/.claude_pet.json (under the Windows user profile on Windows).
+- The right-click menu offers Install/Sign in to Claude Code… when no Claude Code login token is found (recent logs do not hide it), and Install/Sign in to Codex… only when Codex is in use on the computer (the Codex CLI or its ~/.codex folder is present) but not signed in — so nothing is added if Codex is not used.
 
 ## Companion and updates
 
 - Built-in cat plus bundled dog, fox, scorpion and elephant. Select a pet from the right-click menu.
-- Optional screen roaming, cursor following at a distance and movement between monitors. The pet can be dragged and resized. Double-click to jump and refresh usage; the pet reacts when a Claude Code session reset is detected.
+- Optional screen roaming, cursor following at a distance and movement between monitors. The pet can be dragged and resized. Double-click to jump and refresh usage; the pet jumps when the server reports that a Claude Code or Codex session has reset.
 - Custom compatible pet.json and sprite-sheet folders go under ~/.claude_pet/pets on Mac or %USERPROFILE%/.claude_pet/pets on Windows.
 - Updates, on both macOS and Windows: checks every hour after launch (starting after the first hour), plus "Check for updates…" in the right-click menu, which downloads and installs a newer release in the app.
 - "Start at sign-in" and "Uninstall completely…" are in the right-click menu on both platforms.
 
 ## Privacy and independence
 
-Local usage parsing happens on the computer. The existing Claude Code credential is sent to Anthropic, and the existing Codex credential to OpenAI, only to request account usage. Update checks and downloads contact GitHub. Those paths do not upload prompts, transcripts or source code. This is not an offline-only app.
+Local logs are read on the computer, for spike detection only. The existing Claude Code credential is sent to Anthropic, and the existing Codex credential to OpenAI, only to request account usage. Update checks and downloads contact GitHub. Those paths do not upload prompts, transcripts or source code. This is not an offline-only app.
 
 The website at claude-pet.yeongyu.me is separate from the app: it uses Google Analytics on every page to count visits and how the page is used (clicks, scrolling, demos), and the app never contacts it. See https://claude-pet.yeongyu.me/privacy.html
 
@@ -63,12 +65,12 @@ Claude Pet is open source under the MIT License. It is an independent project by
 
 ## 한국어 요약
 
-Claude Pet은 Mac과 Windows에서 Claude Code와 Codex 사용량을 작은 요약 필로 보여 주는 무료 오픈소스(MIT) 데스크톱 펫입니다. Claude Code는 세션·주간 사용률을, Codex는 계정에 있는 한도(지금은 주간 한도 하나)를 리셋 시간과 함께 보여 줍니다. macOS 12 이상(Apple Silicon·Intel), Windows 10/11 x64를 지원하며, Claude Code 또는 Codex 로그인이 필요합니다. Claude Code는 서버 값을 받을 수 없으면 로컬 로그로 추정하고(≈ 표시), Codex는 로컬 로그 없이 OpenAI 서버에서 읽습니다. 두 플랫폼 모두 앱 안에서 업데이트를 확인하고 설치합니다. Windows 배포본은 서명이 없어 보안 경고가 나타날 수 있습니다.
+Claude Pet은 Mac과 Windows에서 Claude Code와 Codex 사용량을 작은 요약 필로 보여 주는 무료 오픈소스(MIT) 데스크톱 펫입니다. Claude Code는 세션·주간 사용률을, Codex는 계정에 있는 한도(지금은 주간 한도 하나)를 리셋 시간과 함께 보여 줍니다. macOS 12 이상(Apple Silicon·Intel), Windows 10/11 x64를 지원하며, Claude Code 또는 Codex 로그인이 필요합니다. 사용량 숫자는 언제나 Anthropic·OpenAI 서버 값이고, 로컬 로그는 이 컴퓨터에서 급증 감지에만 씁니다. 두 플랫폼 모두 앱 안에서 업데이트를 확인하고 설치합니다. Windows 배포본은 서명이 없어 보안 경고가 나타날 수 있습니다.
 
 ## 日本語の概要
 
-Claude Pet は、macOS と Windows で Claude Code と Codex の使用量を小さなピルひとつで表示する、無料のオープンソース（MIT）デスクトップペットです。macOS 12 以降（Apple Silicon・Intel）と Windows 10/11 x64 に対応し、Claude Code か Codex のログインが必要です。Claude Code はサーバーの値を受け取れないときローカルログから推定し（≈ 表示）、Codex はローカルログを使わず OpenAI のサーバーから読み取ります。
+Claude Pet は、macOS と Windows で Claude Code と Codex の使用量を小さなピルひとつで表示する、無料のオープンソース（MIT）デスクトップペットです。macOS 12 以降（Apple Silicon・Intel）と Windows 10/11 x64 に対応し、Claude Code か Codex のログインが必要です。使用量の数値は常に Anthropic・OpenAI のサーバーの値で、ローカルログはこのコンピューター上で急増の検知にだけ使います。
 
 ## Resumen en español
 
-Claude Pet es una mascota de escritorio gratuita y de código abierto (MIT) para macOS y Windows que muestra el uso de Claude Code y Codex en una pequeña píldora. Funciona en macOS 12 o posterior (Apple Silicon e Intel) y en Windows 10/11 x64, y necesita una sesión iniciada en Claude Code o Codex. Claude Code se estima con registros locales (marcado con ≈) cuando no hay valores del servidor; Codex se lee del servidor de OpenAI sin registros locales.
+Claude Pet es una mascota de escritorio gratuita y de código abierto (MIT) para macOS y Windows que muestra el uso de Claude Code y Codex en una pequeña píldora. Funciona en macOS 12 o posterior (Apple Silicon e Intel) y en Windows 10/11 x64, y necesita una sesión iniciada en Claude Code o Codex. Las cifras de uso siempre son los valores de los servidores de Anthropic y OpenAI; los registros locales solo se leen en este equipo para detectar picos.

@@ -28,6 +28,7 @@ import ast
 import collections
 import copy
 import math
+import os
 import random
 import unittest
 from types import SimpleNamespace
@@ -70,9 +71,11 @@ def pure_api(test, required=None):
         elif isinstance(node, ast.ImportFrom) and node.module in ("math", "random", "collections"):
             imports.append(node)
     nodes = imports + nodes
+    # ``os`` (2026-10-05): RUNTIME's literal reads os.environ; a pure helper the summary
+    # adapter newly reaches may read RUNTIME, and without ``os`` that literal cannot exec.
     scope = {"__name__": "_quiet_companion_pure_test", "math": math,
              "random": random, "collections": collections,
-             "namedtuple": collections.namedtuple}
+             "namedtuple": collections.namedtuple, "os": os}
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(SOURCE), "exec"), scope)
     return scope
 
@@ -435,6 +438,45 @@ def gui_functions(test, names, scope):
     return scope
 
 
+# ── 2026-10-05 (sou-verify, server-only-usage) ──────────────────────────────────────────
+# The summary adapter gains collaborators (per-provider visibility, gauge filtering, per-
+# provider spikes). The harnesses below build ``roam_summary_text`` in a hand-made scope,
+# and a module-level helper the adapter newly calls would be a NameError there — a failure
+# about the harness, not the product. So the harnesses now pull in, through ``pure_api``,
+# every module-level definition the adapter reads that the scope does not stub, and their
+# RUNTIME stubs carry the spec's new defaults. Neither changes what any test asserts.
+ADAPTER_SCOPE_STUBS = frozenset({
+    "state", "RUNTIME", "L", "F_SUMMARY", "F_SUMMARY_SUB", "OAUTH_STATUS", "datetime",
+    "timezone", "spike_info", "fmt_countdown", "_label_order", "_summary_memo", "_time",
+    "t", "_pill_text_budget", "astr", "_stable_w"})
+ADAPTER_RUNTIME_DEFAULTS = {"show_claude": True,
+                            "claude_gauges": ["session", "weekly", "model", "credit"],
+                            "show_codex": True, "codex_mode": "sub",
+                            "codex_gauges": ["session", "weekly"],
+                            "openai_admin_key": "", "codex_budget": 0.0, "spike_mult": 1.0}
+
+
+def adapter_pure_api(test, required):
+    """``pure_api`` plus every module-level name ``roam_summary_text`` reads and the
+    harness scope does not stub."""
+    tree = ast.parse(SOURCE.read_text(encoding="utf-8"), filename=str(SOURCE))
+    module_defs = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            module_defs.add(node.name)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            module_defs |= {t.id for t in targets if isinstance(t, ast.Name)}
+    gui = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run_gui")
+    local_defs = {n.name for n in gui.body if isinstance(n, ast.FunctionDef)}
+    adapter = next(n for n in gui.body
+                   if isinstance(n, ast.FunctionDef) and n.name == "roam_summary_text")
+    loads = {n.id for n in ast.walk(adapter)
+             if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+    extra = (loads & module_defs) - ADAPTER_SCOPE_STUBS - local_defs
+    return pure_api(test, set(required) | extra)
+
+
 def claude_pet_const(name):
     """One module-level constant, read from the source without importing the app.
 
@@ -630,13 +672,12 @@ class CompanionPresentationTests(unittest.TestCase):
                                     ("週間", 63.5, False, None),
                                     ("Fable", 91.0, False, None)]))
 
-    def test_summary_onboarding_and_estimates_preserve_data_meaning(self):
+    def test_summary_onboarding_and_log_snapshots_preserve_data_meaning(self):
+        # 2026-10-05: the log estimate is gone — a snapshot alone yields a status.
         self.assertEqual(self.summary(onboard="install"), ("status", "onb_install"))
         self.assertEqual(self.summary(onboard="login"), ("status", "onb_login"))
         self.assertEqual(self.summary(stats={"session": {"pct": 0.0},
-                                             "weekly": {"pct": 67.5}}),
-                         ("estimate", [("session", 0.0, False, None),
-                                       ("weekly", 67.5, False, None)]))
+                                             "weekly": {"pct": 67.5}})[0], "status")
 
     def test_summary_invalid_values_are_not_reported_as_zero(self):
         for invalid in (None, True, False, -1.0, float("nan"), float("inf"), "32"):
@@ -644,8 +685,8 @@ class CompanionPresentationTests(unittest.TestCase):
                 self.assertEqual(self.summary(mode="api", has_admin_key=True,
                                               cost_today=invalid), ("status", "loading"))
                 self.assertEqual(self.summary(stats={"session": {"pct": invalid},
-                                                     "weekly": {"pct": 23.75}}),
-                                 ("estimate", [("weekly", 23.75, False, None)]))
+                                                     "weekly": {"pct": 23.75}})[0],
+                                 "status")
                 self.assertEqual(self.summary(oauth=[("Session", invalid, None)],
                                               stats={"session": {"pct": 99.0}}),
                                  ("status", "scanning"))
@@ -659,8 +700,7 @@ class CompanionPresentationTests(unittest.TestCase):
     def test_server_label_matching_translation_key_remains_an_exact_label(self):
         self.assertEqual(self.summary(oauth=[("session", 18.25, None)]),
                          ("exact", [("session", 18.25, False, None)]))
-        self.assertEqual(self.summary(stats={"session": {"pct": 18.25}}),
-                         ("estimate", [("session", 18.25, False, None)]))
+        self.assertEqual(self.summary(stats={"session": {"pct": 18.25}})[0], "status")
 
 
 class CompanionCropGeometryTests(unittest.TestCase):
@@ -918,40 +958,40 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         self.assertEqual((f.size.width, f.size.height), (160, 98))
         self.assertEqual(s["state"]["roam_mode"], "full")
 
-    def test_actual_summary_formatter_distinguishes_estimate_from_exact(self):
-        """The GUI adapter's wiring around the pure formatter: every exact row except
-        credits (``_label_order`` 9) is handed on — a server model label that is not a
-        bare family word ("Claude Fable 5", order 5) must survive; reset texts are
-        pre-formatted into the second line; the spike flag lands on the exact session
-        row; the ⚠ suffix appears on an estimate after a token error; the height is
-        two lines when a reset line exists; the API budget reaches the cost segment;
-        and the text is memoised per input and 5-second window.
+    def test_actual_summary_formatter_shows_server_rows_and_never_log_numbers(self):
+        """Rewritten 2026-10-05 (sou-verify, docs-design/server-only-usage-20261005.md).
 
-        Rivals: credits row kept; the round-1 ``> 2`` filter (drops "Claude Fable 5");
-        no reset line at all; spike_first never passed; ⚠ on exact rows; one-line
-        height with a second line present; no memo (every tick re-measures); a memo
-        keyed without the auth error, the cost, the budget or the time window (stale
-        text after a refresh); a memo keyed without the language or the onboarding
-        state (stale labels after a language change, or the onboarding line lingering
-        after onboarding ends — ``t()`` reads the module-level ``L["lang"]``, so the
-        scope below supplies ``L`` the way the application's globals do)."""
+        The old test was ``test_actual_summary_formatter_distinguishes_estimate_from_exact``;
+        the estimate it distinguished (``≈`` values, the trailing ``⚠`` after a token error)
+        is removed by the spec, so those assertions were replaced and everything else the
+        old test pinned is kept: every exact row except the positional overflow is handed
+        on, a non-family model label survives, reset texts go to the second line, the spike
+        lands on the session row, the height follows the line count, the API budget reaches
+        the cost segment, and the text is memoised per input and 5-second window.
+
+        New pins: a snapshot carrying old-shape gauges (99 % / 98 %) never reaches the pill;
+        with no server rows and a rejected token the line is the ``token_expired`` status;
+        no ``⚠`` and no ``≈`` anywhere.
+
+        Rivals: the adapter still rendering the estimate (99/98 or ≈ appear); the ⚠ marker
+        surviving on exact rows; a memo keyed without the auth error, the stats object, the
+        time window, the language or the onboarding state."""
         from datetime import datetime, timezone
-        # v0.26: roam_summary_text now folds through summary_lines and returns
-        # (blocks, text_w, height) instead of (main, sub, w, h). The pure helpers it
-        # reaches have to come along, and the screen-derived budget is stubbed below so
-        # this stays a formatter test rather than a geometry one.
-        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
-                              "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
-                              "SUMMARY_LINE_H", "pill_h"})
+        api = adapter_pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
+                                      "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
+                                      "SUMMARY_LINE_H", "pill_h"})
         now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
-        state = {"oauth": None, "stats": {"session": {"pct": 42}, "weekly": {"pct": 17}},
+        state = {"oauth": [("session", 42, None, None), ("주간", 17, None, None)],
+                 "stats": {"entries": 7, "spikes": {}, "session": {"pct": 99, "reset": now},
+                           "weekly": {"pct": 98, "reset": now}, "now": now},
                  "cost": None, "cost_month": None}
         oauth_status = {"auth_error": False}
         spikes = {"value": None}
         clock = {"now": 1000.0}
         measured = []
-        runtime = {"mode": "sub", "api_budget": None, "admin_key": None}
-        lang_table = {"lang": "ko"}   # the module-level L that t() reads; a memo input too
+        runtime = {"mode": "sub", "api_budget": None, "admin_key": None,
+                   **ADAPTER_RUNTIME_DEFAULTS}
+        lang_table = {"lang": "ko"}
 
         def astr(text, font):
             measured.append(text)
@@ -962,112 +1002,62 @@ class CompanionCompactRegressionTests(unittest.TestCase):
                      OAUTH_STATUS=oauth_status, datetime=datetime, timezone=timezone,
                      spike_info=lambda stats: spikes["value"],
                      fmt_countdown=lambda reset, at: "in 3h" if reset else "-",
-                     # INERT, and left only because removing it is a separate change:
-                     # `_label_order` is consulted from inside `roam_summary`, which is a
-                     # module-level function whose globals are pure_api's namespace — not
-                     # this scope, which is only the globals of the nested functions
-                     # `gui_functions` extracts. The **real** `_label_order` is what runs.
-                     # Do not reason about this test's row selection from this stub; a
-                     # reader who did got a wrong answer once already.
                      _label_order=lambda label: {"session": 0, "주간": 1, "Fable": 2,
                                                  "Credits": 9}.get(label, 5),
                      _summary_memo={"key": None, "value": None},
                      _time=SimpleNamespace(time=lambda: clock["now"]),
                      t=lambda key: {"session": "세션", "weekly": "주간", "reset_prefix": "reset ",
                                     "today": "Today", "this_month": "This month"}.get(key, key),
-                     # A budget far wider than any fixture here: this test is about which
-                     # runs come out and what the memo is keyed on, not about folding.
-                     # Production derives this from the screen (_pill_text_budget).
                      _pill_text_budget=lambda: 10_000.0,
                      astr=astr)
-        # ``summary_lines`` is a module-level function, so it translates through the
-        # module-level ``t`` in ``pure_api``'s namespace — not through the stub in the
-        # scope below, which only reaches the nested functions extracted by
-        # ``gui_functions``. Before v0.26 all the translating happened inside
-        # ``roam_summary_text`` and the scope stub was enough; folding moved it out.
-        # Inject the same stub into that namespace so this stays a test of *which keys*
-        # reach the line rather than of the Korean strings they resolve to.
         api["t"] = scope["t"]
         gui_functions(self, ("roam_summary_text",), scope)
         text = scope["roam_summary_text"]
 
         def lines():
-            """(first-line text, reset-line text, width, height) from the new shape.
-
-            ``roam_summary_text`` returns provider blocks now. Everything below still
-            asks the old two questions — what is on the gauge line and what is on the
-            reset line — so they are recovered here: within a provider the reset line is
-            the trailing line whose runs are all ``sub``.
-            """
             blocks, width, height = text()
             rows = [line for _pid, block in blocks for line in block]
-            # A reset line is one that *opens* with a ``sub`` run. Classifying by "every
-            # run is sub" breaks the moment a marker is appended to it, which is exactly
-            # the bug below — and a helper that silently reclassifies a line is how that
-            # bug would have stayed invisible.
             main = [r for line in rows if not (line and line[0][1] == "sub") for r in line]
             sub = [r for line in rows if line and line[0][1] == "sub" for r in line]
             return ("".join(t for t, _k in main), "".join(t for t, _k in sub), width, height)
 
         def fresh():
-            """Defeat the memo the way a refresh does: a new stats object, a new window."""
             state["stats"] = dict(state["stats"])
             clock["now"] += 5
 
-        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17%", "", 17 + api["SUMMARY_LOGO_W"], api["SUMMARY_H"]))
-        # memo: the same inputs inside the 5-second window measure nothing again and
-        # return the very same object; a flipped auth error, a new stats object, or the
-        # next 5-second window each recompute.
+        def no_log_numbers(line):
+            for needle in ("99", "98", "≈", "⚠"):
+                self.assertNotIn(needle, line, f"log-derived text reached the pill: {line!r}")
+
+        first_line = lines()
+        self.assertEqual(first_line, ("session 42% · 주간 17%", "", 20 + api["SUMMARY_LOGO_W"],
+                                      api["SUMMARY_H"]))
         first = text()
         measured.clear()
         clock["now"] += 4.9
         self.assertIs(text(), first)
         self.assertEqual(measured, [], "a second call in the same window re-measured the text")
         oauth_status["auth_error"] = True
-        # ``text()[0]`` is the provider blocks now, not a flat run list. The ⚠ still
-        # belongs at the end of the Claude segment.
-        #
-        # **It must stay a bare marker run.** The v0.24 contract (CLAUDE.md) is "the old
-        # status line's ⚠ survives as a trailing run appended by the adapter" — a run,
-        # not a gauge row. Appending it as a row instead makes the estimate renderer give
-        # it a value, and the pill reads `… Fable ≈12% · ⚠ ≈0%`. That fabricated 0% is
-        # the exact lie this repository refuses everywhere else ("0% 를 지어내지 않는다"),
-        # and here it is stapled to a warning, where a user reading "0%" would conclude
-        # they had used almost nothing.
-        claude_block = dict(text()[0])["claude"]
-        gauge_lines = [ln for ln in claude_block if not (ln and ln[0][1] == "sub")]
-        reset_lines = [ln for ln in claude_block if ln and ln[0][1] == "sub"]
-        rendered = "".join(t for ln in gauge_lines for t, _k in ln)
-        self.assertNotIn(
-            "0%", rendered,
-            f"the ⚠ is being rendered as a gauge row with an invented percentage: "
-            f"{rendered!r} — it must be a trailing marker run, not a row")
-        # CLAUDE.md: "토큰 만료(401 지속)로 추정치로 내려간 상태는 **첫 줄 끝** ⚠".
-        # It marks the *numbers* as estimates, so it belongs beside them — not on the
-        # dim reset line, where it reads as a comment about the reset time and is drawn
-        # in the sub colour. Appending to the block's last line puts it there whenever a
-        # reset line exists, which is the common case.
-        self.assertEqual(
-            gauge_lines[-1][-1], (" ⚠", "status"),
-            f"the auth-error marker is not at the end of the gauge line: {rendered!r}")
-        for line in reset_lines:
-            self.assertNotIn(
-                "⚠", "".join(t for t, _k in line),
-                "the ⚠ landed on the reset line — it marks the numbers, not the reset time")
+        self.assertEqual(lines()[0], "session 42% · 주간 17%",
+                         "server rows win over a stale auth-error flag")
         self.assertTrue(measured, "an auth-error flip must invalidate the memo")
+        no_log_numbers(lines()[0])
+        # No server rows + rejected token → the token_expired status, never the logs.
+        state["oauth"] = None
+        fresh()
+        self.assertEqual(lines()[0], "token_expired")
+        no_log_numbers(lines()[0])
         measured.clear()
         clock["now"] += 5
         self.assertIsNot(text(), first)
         self.assertTrue(measured, "the next 5-second window must recompute")
-        # The language and the onboarding state are memo inputs too — t() reads
-        # L["lang"], and roam_summary turns the onboarding state into a status line —
-        # so either changing inside the same 5-second window, with the same stats
-        # object, must recompute rather than hand back the memoised text.
         before = text()
         measured.clear()
         lang_table["lang"] = "en"
         self.assertIsNot(text(), before, "a language change inside the window returned the memoised text")
         self.assertTrue(measured, "a language change must invalidate the memo")
+        oauth_status["auth_error"] = False
+        fresh()
         before = text()
         measured.clear()
         state["onboard"] = "install"
@@ -1076,39 +1066,31 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         self.assertTrue(measured, "an onboarding change must invalidate the memo")
         state["onboard"] = None
         measured.clear()
-        self.assertEqual(lines()[0], "세션 ≈42% · 주간 ≈17% ⚠",
-                         "clearing the onboarding state must bring the gauges back")
+        self.assertIn(lines()[0], ("scanning", "loading"),
+                      "without server rows the line is a waiting status, not the logs")
         self.assertTrue(measured, "clearing the onboarding state must invalidate the memo")
-        fresh()
-        state["stats"]["now"] = now
-        state["stats"]["session"] = {"pct": 42, "reset": now}
-        state["stats"]["weekly"] = {"pct": 17, "reset": now}
-        self.assertEqual(lines(), ("세션 ≈42% · 주간 ≈17% ⚠", "reset 세션 in 3h", 19 + api["SUMMARY_LOGO_W"], api["SUMMARY_H2"]))
         state["oauth"] = [("session", 42, None, None), ("주간", 17, None, None),
                           ("Claude Fable 5", 12, None, None), ("Credits", 5, None, None)]
+        fresh()
         self.assertEqual(lines(), ("session 42% · 주간 17% · Claude Fable 5 12%", "", 41 + api["SUMMARY_LOGO_W"], api["SUMMARY_H"]),
-                         "only credits are dropped; a non-family model label is kept")
+                         "a non-family model label is kept; the fourth row is past the gauge cap")
         state["oauth"] = [("session", 42, now, None), ("주간", 17, None, "next Monday")]
+        fresh()
         self.assertEqual(lines()[1], "reset session in 3h · 주간 next Monday")
         self.assertEqual(lines()[3], api["SUMMARY_H2"])
-        spikes["value"] = {"session": True}
-        fresh()
+        spikes["value"] = ("#FF453A", "세션")
+        state["stats"] = dict(state["stats"], spikes={"session": True})
+        clock["now"] += 5
         self.assertEqual(dict(text()[0])["claude"][0][0], ("▲session", "bad"))
-        self.assertNotIn("⚠", lines()[0])
-        # API mode: the budget from RUNTIME reaches the cost segment and colours the month.
+        no_log_numbers(lines()[0])
         runtime.update(mode="api", admin_key="k", api_budget=50)
         state.update(cost=12.375, cost_month=27.5)
         fresh()
-        # Same shape change as above: provider blocks, not a flat (main, sub) pair.
-        # API mode produces one cost line and no reset line, so the Claude block is a
-        # single line and `sub` is empty — asserted below rather than assumed.
         blocks, width, height = text()
         claude_lines = dict(blocks)["claude"]
         main = [r for ln in claude_lines if not (ln and ln[0][1] == "sub") for r in ln]
         sub = [r for ln in claude_lines if ln and ln[0][1] == "sub" for r in ln]
         self.assertEqual("".join(t for t, _k in main), "Today $12.38 · This month $27.50 / $50")
-        # Round 3 swapped the roles: the word "this month" carries the budget share
-        # colour and the amount is plain cost-coloured.
         self.assertEqual(main[3:5], [("This month ", "warn"), ("$27.50", "cost")])
         self.assertEqual(main[0:2], [("Today ", "value"), ("$12.38", "cost")])
         self.assertEqual((sub, height), ([], api["SUMMARY_H"]))
@@ -1135,9 +1117,9 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         tests/test_summary_layout.py 의 EveryLineFitsTests 가 잡는다).
         """
         from datetime import datetime, timezone
-        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
-                              "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
-                              "SUMMARY_LINE_H", "pill_h"})
+        api = adapter_pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
+                                      "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
+                                      "SUMMARY_LINE_H", "pill_h"})
         widths = {}
 
         def astr(text, _font=None):
@@ -1184,7 +1166,8 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         # handing the logo width back, the budget is 18pt short and this splits.
         clock = {"now": 1000.0}
         scope = dict(api, state=state, RUNTIME={"mode": "sub", "api_budget": None,
-                                                "admin_key": None},
+                                                "admin_key": None,
+                                                **ADAPTER_RUNTIME_DEFAULTS},
                      L={"lang": "en"}, F_SUMMARY=None, F_SUMMARY_SUB=None,
                      OAUTH_STATUS={"auth_error": False},
                      datetime=datetime, timezone=timezone,
@@ -1430,7 +1413,7 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         self.assertEqual((draws, logos), ([], []))
 
     def test_fit_contract_uses_measured_longest_prefix_and_tiny_width(self):
-        api = pure_api(self, {"roam_fit_text", "roam_summary_line", "SUMMARY_APPROX"})
+        api = pure_api(self, {"roam_fit_text", "roam_summary_line"})
         fit = api["roam_fit_text"]
         measure = lambda value: sum({"W": 10, "i": 2, "…": 5}.get(c, 6) for c in value)
         self.assertEqual(fit("WiWi", 24, measure), "WiWi")
@@ -1438,8 +1421,6 @@ class CompanionCompactRegressionTests(unittest.TestCase):
         self.assertEqual(fit("WiWi", 5, measure), "…")
         self.assertEqual(fit("WiWi", 4, measure), "")
         self.assertEqual(fit("", 0, measure), "")
-        self.assertEqual(api["roam_summary_line"]("estimate", [("session", 42, False, None)],
-                                                 lambda key: "세션"), "세션 ≈42%")
         self.assertEqual(api["roam_summary_line"]("exact", [("session", 42, False, None)],
                                                  lambda key: "세션"), "session 42%")
 
@@ -1481,13 +1462,14 @@ class CodexOnboardingSuppressionTests(unittest.TestCase):
         hook between two calls on the same harness would silently return stale text.
         """
         from datetime import datetime, timezone
-        api = pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
-                              "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
-                              "SUMMARY_LINE_H", "pill_h"})
+        api = adapter_pure_api(self, {"roam_summary", "roam_summary_runs", "SUMMARY_H",
+                                      "SUMMARY_H2", "summary_lines", "SUMMARY_LOGO_W",
+                                      "SUMMARY_LINE_H", "pill_h"})
         state = {"oauth": None, "stats": {} if stats is None else stats, "cost": None,
                  "cost_month": None, "onboard": None}
         oauth_status = {"auth_error": auth_error}
-        runtime = {"mode": "sub", "api_budget": None, "admin_key": None}
+        runtime = {"mode": "sub", "api_budget": None, "admin_key": None,
+                   **ADAPTER_RUNTIME_DEFAULTS}
         lang_table = {"lang": "ko"}
         clock = {"now": 1000.0}
 
@@ -1500,6 +1482,7 @@ class CodexOnboardingSuppressionTests(unittest.TestCase):
                     "onb_login": "ONBOARD-LOGIN-MARK",
                     "token_expired": "TOKEN-EXPIRED-MARK",
                     "scanning": "SCANNING-MARK",
+                    "loading": "LOADING-MARK",
                     "reset_prefix": "reset "}
         scope = dict(api, state=state, RUNTIME=runtime, L=lang_table, F_SUMMARY=None,
                      F_SUMMARY_SUB=None, OAUTH_STATUS=oauth_status,
@@ -1599,8 +1582,10 @@ class CodexOnboardingSuppressionTests(unittest.TestCase):
         blocks, _width, _height = text()
         pids = dict(blocks)
         self.assertIn(None, pids, "scanning must not be suppressed by a ready Codex row")
-        self.assertIn("SCANNING-MARK", self._rendered(blocks))
-        self.assertEqual(state["summary_status"], "scanning")
+        # 2026-10-05: the waiting state may be "scanning" or "loading" (spec §1).
+        rendered = self._rendered(blocks)
+        self.assertTrue("SCANNING-MARK" in rendered or "LOADING-MARK" in rendered, rendered)
+        self.assertIn(state["summary_status"], ("scanning", "loading"))
         self.assertIn("codex", pids)
 
     def test_token_expired_shows_regardless_of_ready_codex(self):

@@ -2,7 +2,7 @@
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **Español**
 
-Una mascota de escritorio que flota en tu pantalla y vigila tu uso de tokens de Claude, al estilo de Codex Pets.
+Una mascota de escritorio que flota en tu pantalla y vigila tu uso de Claude Code o Codex, al estilo de Codex Pets.
 Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estelas.
 
 > 🧪 v0.24 — la app de macOS está notarizada; la versión de Windows se distribuye como instalador y zip (sin firmar — ver la sección Windows).
@@ -33,25 +33,27 @@ Renderizado nativo en macOS (AppKit): sin marco de ventana, sin fondo, sin estel
 
 ### Permisos (primer arranque)
 
-La mascota solo lee **`~/.claude` (registros de uso) y el token OAuth de tu Llavero**. Nunca toca otras carpetas (Fotos, Descargas, Documentos, …). En el primer arranque solo verás esto:
+La mascota solo lee **`~/.claude` (registros de Claude Code, para las alertas de pico) y el token OAuth de tu Llavero** — y, si usas Codex, `~/.codex` (su archivo de sesión y sus registros, también para las alertas de pico). Nunca toca otras carpetas (Fotos, Descargas, Documentos, …). En el primer arranque solo verás esto:
 
 | Aviso | Qué | Elige |
 |---|---|---|
-| **Llavero** — "Claude Code-credentials" | token OAuth para que el modo Exacto obtenga el % calculado por el servidor | **Permitir siempre** |
-| **"datos de otras apps"** — `~/.claude` | leer los registros de uso | **Permitir** |
+| **Llavero** — "Claude Code-credentials" | token OAuth para obtener el % calculado por el servidor | **Permitir siempre** |
+| **"datos de otras apps"** — `~/.claude` | leer los registros para las alertas de pico (solo números, en este equipo) | **Permitir** |
 
 - El token se lee **una vez por arranque**, y como la app está firmada la decisión se recuerda: no se te volverá a preguntar.
 - **No aparecen avisos de Fotos / Descargas / Música / Escritorio / Documentos / iCloud / volúmenes de red.** (Antes sí, porque la mascota lanzaba la CLI `claude` como proceso hijo y su escaneo del home se atribuía a la app; esa llamada a la CLI ahora está desactivada por defecto.)
   - Para complementar la fila por modelo (Fable) mediante la CLI, usa `CLAUDE_PET_USE_CLI=1`, pero entonces los avisos de carpetas vuelven.
 
-### Se necesita Claude Code
+### Se necesita Claude Code o Codex
 
-La mascota es un HUD del **uso de Claude Code**: los datos de uso (registros y token) provienen del propio Claude Code. Por eso el **modo suscripción requiere tener Claude Code instalado.**
+La mascota es un HUD del **uso de Claude Code o Codex**: los números son el % del servidor que se obtiene con la sesión de cada herramienta, y sus registros locales solo alimentan las alertas de pico. Por eso el **modo suscripción requiere tener Claude Code o Codex instalado y con sesión iniciada.**
 
 - Si Claude Code no está instalado, la mascota muestra **"Claude Code no instalado"** en lugar de la píldora. **Clic derecho → "⬇︎ Instalar Claude Code…"** ejecuta el instalador oficial ([`claude.ai/install.sh`](https://claude.ai/install.sh)) en Terminal y luego inicia sesión.
 - Si está instalado pero sin sesión, **clic derecho → "🔑 Iniciar sesión en Claude Code…"** inicia el acceso.
+- La opción de Claude Code depende del token de inicio de sesión, no de los registros: sin token aparece, aunque haya registros recientes.
+- Codex funciona igual, pero solo si usas Codex en este ordenador (existe el CLI `codex` o la carpeta `~/.codex`; si no, no se añade nada): mientras Codex se muestra en la píldora sin sesión iniciada, **clic derecho → "⬇︎ Instalar Codex…"** (`npm install -g @openai/codex` y luego `codex login`, en Terminal) o **"🔑 Iniciar sesión en Codex…"** (`codex login`). En Windows se abren en una consola nueva de PowerShell.
 - Al terminar, el uso aparece en la siguiente actualización, sin reiniciar.
-- Nota: el **modo API** (clic derecho → Ajustes → clave de Admin API) funciona sin Claude Code.
+- Nota: el **modo API** (clic derecho → Ajustes → clave de Admin API; para Codex, una clave de OpenAI Admin API) funciona sin iniciar sesión.
 
 ### Actualizaciones
 
@@ -68,7 +70,7 @@ Windows 10/11 (64 bits) tiene la misma píldora, paseos, ajustes y mascotas. Con
 
 **Sobre el aviso de SmartScreen.** La compilación para Windows aún no está firmada, así que la primera vez que ejecutes el instalador o `ClaudePet.exe` Windows muestra *«Windows protegió su PC»*. Pulsa **Más información** y luego **Ejecutar de todas formas**. En equipos con la comprobación de aplicaciones de SmartScreen desactivada aparece en su lugar el clásico *«Abrir archivo - Advertencia de seguridad»* (editor desconocido): pulsa **Ejecutar**. Con el instalador cualquiera de los dos avisos aparece una vez; con el zip portátil el diálogo clásico puede repetirse en cada inicio hasta que desmarques *Preguntar siempre antes de abrir este archivo* (o desbloquees el zip en sus Propiedades antes de extraerlo); es el aviso de que el editor es desconocido, no la detección de algo dañino. Si el navegador (Edge) bloquea la descarga por el mismo motivo, elige **Conservar** → **Conservar de todas formas**. La firma de código eliminará el aviso en una versión posterior.
 
-Inicia sesión en Claude Code en Windows primero (`claude`) y luego abre Claude Pet: el modo Exacto lee el archivo de credenciales de Claude Code y la estimación lee los registros en `%USERPROFILE%\.claude`. Tus propias mascotas van en `%USERPROFILE%\.claude_pet\pets\<nombre>\` (clic derecho → Mascotas → Añadir mascota… abre esa carpeta). El icono de la bandeja queda por defecto en el desbordamiento de la barra de tareas (`^`); arrástralo fuera para verlo siempre. Clic derecho → Desinstalar por completo… borra ajustes y registros; el programa se quita desde «Aplicaciones y características».
+Inicia sesión en Claude Code o Codex en Windows primero (`claude` / `codex login`) y luego abre Claude Pet: los números de uso salen del archivo de credenciales en `%USERPROFILE%\.claude` (o `%USERPROFILE%\.codex`), y los registros de ahí solo se leen para las alertas de pico. Tus propias mascotas van en `%USERPROFILE%\.claude_pet\pets\<nombre>\` (clic derecho → Mascotas → Añadir mascota… abre esa carpeta). El icono de la bandeja queda por defecto en el desbordamiento de la barra de tareas (`^`); arrástralo fuera para verlo siempre. Clic derecho → Desinstalar por completo… borra ajustes y registros; el programa se quita desde «Aplicaciones y características».
 
 ## Compilar desde el código (desarrolladores)
 
@@ -101,28 +103,31 @@ python3 claude_pet.py --report   # solo informe en terminal, sin GUI
 - **Pliega la píldora al caminar** y solo se mueve la mascota. Al llegar muestra la píldora de uso un momento aunque la tengas
   plegada, y cuando termina de mirar recupera lo que tenías
 - **Agarrar y arrastrar** — corre en la dirección del arrastre; **doble clic** = salto + **actualización de uso inmediata** (recarga ignorando la caché)
-- **Cuando el consumo de tokens se dispara** — pulso de color de alerta + cara de pánico, y ese medidor se pone rojo con ▲ en la píldora:
-  - 🔴 pico de sesión / 🟣 pico de modelo (Fable/Opus) / 🟠 pico semanal
-- **Cuando detecta un reinicio de sesión** — salta de alegría
+- **Cuando el consumo de tokens se dispara** — pulso de color de alerta + cara de pánico, y la etiqueta de sesión de ese proveedor se pone roja con ▲ en la píldora:
+  - 🔴 pico de sesión (o de Codex) / 🟣 pico de modelo (Fable/Opus) / 🟠 pico semanal
+  - Los picos se leen de los registros locales de Claude Code y Codex. El umbral usa un límite que la mascota **aprende del % del servidor**:
+    no hay nada que configurar; hasta que lo aprende no hay alertas de pico (ni para un proveedor en modo API)
+- **Cuando detecta un reinicio de sesión** (el % de sesión del servidor baja de más del 5 % a menos del 1 %) — salta de alegría
 
 ## Controles
 
 - **Rueda (sobre la mascota)**: cambiar tamaño (0.3×–2.0×, se guarda; por defecto 0.5×)
 - **Clic (botón ⌄)**: mostrar/ocultar la píldora de uso
 - **Arrastrar**: mover (se guarda la posición)
-- **Clic derecho**: menú — Ajustes / Mostrar u ocultar / Pasear por la pantalla (activar/desactivar) / Restablecer tamaño / Mascotas (elegir o añadir) / Desinstalar / Salir / Buscar actualizaciones
+- **Clic derecho**: menú — (Instalar / Iniciar sesión en Claude Code o Codex, cuando haga falta) / Ajustes / Mostrar u ocultar / Pasear por la pantalla (activar/desactivar) / Restablecer tamaño / Mascotas (elegir o añadir) / Desinstalar / Salir / Buscar actualizaciones
 
 ## La píldora de uso
 
 Una píldora pequeña junto a la mascota, en dos líneas:
 
-- **Línea 1 — uso**: `Sesión 42% · Semanal 17% · Fable 12%` — sesión (5h) / total semanal / semanal por modelo. El medidor
-  por modelo **detecta automáticamente** el nivel superior en los registros (fable → mythos → opus). En modo API muestra
+- **Línea 1 — uso**: `Sesión 42% · Semanal 17% · Fable 12%` — sesión (5h) / total semanal / semanal por modelo, tal como los
+  da el servidor. Codex tiene su propio bloque (con su marca) junto al de Claude. Un proveedor en modo API muestra
   el coste: `Hoy $3.21 · Este mes $27.50`.
-- **Línea 2 — reinicios**: `reinicio Sesión en 3h 42m · Semanal en 2d 3h` (con ventana móvil, semanal muestra `-`).
-- **El color del número dice de dónde sale**: esmeralda = modo Exacto (% calculado por el servidor), ámbar = estimación
-  por registros (los valores llevan ≈), coral = coste de API. Si el token de Claude Code ha caducado, la línea estimada
-  termina en ⚠.
+- **Línea 2 — reinicios**: `reinicio Sesión en 3h 42m · Semanal en 2d 3h`.
+- **Los números son siempre del servidor**: esmeralda = % calculado por el servidor, coral = coste de API. La mascota nunca
+  muestra un número estimado a partir de los registros: sin valor del servidor la píldora muestra un estado (p. ej. "Token
+  expirado — ejecuta Claude Code una vez para restaurar el uso", un aviso de inicio de sesión o "Nada que mostrar" si ocultas
+  ambos proveedores).
 - **El color de la etiqueta dice cuánto queda**: blanco, amarillo desde el 50 %, rojo desde el 85 % — y rojo con ▲ mientras
   ese medidor se dispara.
 - El texto usa la tipografía **Pretendard** incluida en la app (SIL Open Font License), así se ve igual en cualquier equipo.
@@ -136,12 +141,12 @@ reiniciar. También se reconoce un zip extraído un nivel de más (`pets/nombre/
 
 ## Ajustes (clic derecho → Ajustes)
 
-- **Fuente de datos**: suscripción (registros de Claude Code) / API (coste de Admin API — hoy y este mes; con un presupuesto mensual la píldora muestra `Este mes $27.50 / $50` y la etiqueta «Este mes» pasa a amarillo/rojo según la parte usada, mientras los importes siguen en coral)
-- **🔧 Calibración (¡lo más importante!)**: los límites de tokens son privados de Anthropic, nadie los conoce.
-  En su lugar, escribe el % que aparece en **Ajustes > Uso** de la app de Claude y guarda — la app despeja
-  `límite = uso actual ÷ %`. Solo se aplican los campos que introduzcas.
-- **Día/hora de reinicio semanal**: si la app dice "se reinicia sáb 20:00", pon sábado/20:00. 7 días rodantes si no se define.
-- Palabra clave de modelo (auto recomendado), sensibilidad de picos, saludo del ratón on/off, clave de Admin API, presupuesto mensual
+- **Claude Code** y **Codex** tienen cada uno su sección, con la misma forma:
+  - **Mostrar en la píldora** sí/no
+  - **Fuente de datos**: suscripción (cuenta con sesión iniciada) / API (coste de Admin API — hoy y este mes; con un presupuesto mensual la píldora muestra `Este mes $27.50 / $50` y la etiqueta «Este mes» pasa a amarillo/rojo según la parte usada, mientras los importes siguen en coral)
+  - **Indicadores** visibles — Claude Code: sesión / semanal / por modelo / crédito; Codex: sesión / semanal
+  - **Clave de Admin API** y **presupuesto mensual** — Codex usa una **clave de OpenAI Admin API**
+- Después, sensibilidad de picos y saludo del ratón on/off. No hay nada que calibrar: los límites de las alertas de pico se aprenden del % del servidor.
 
 - **Pasear por la pantalla**: se activa o desactiva con la casilla del menú de clic derecho (activado por defecto); también cubre seguir al ratón
   y saltar entre monitores. Si en Accesibilidad de macOS está activado **Reducir movimiento**, la mascota no se mueve.
@@ -151,9 +156,9 @@ Todos los ajustes, tamaño y posición se guardan en `~/.claude_pet.json`.
 
 ## Límites (con honestidad)
 
-- Los datos se basan en los registros locales de Claude Code — el uso del chat web/escritorio no se incluye. Por eso puede mostrar menos que el % de la app; recalibra periódicamente para mantener la precisión.
+- Los números son el % del propio servidor, así que coinciden con las pantallas de uso de Claude y de Codex. Las alertas de pico salen de los registros locales, que no incluyen el chat web/escritorio.
 - El coste de Admin API es el de tu organización en Console, independiente del límite de la suscripción.
-- La clave de Admin API se guarda en texto plano en `~/.claude_pet.json`, úsala solo en un equipo personal.
+- Las claves de Admin API (Anthropic y OpenAI) se guardan en texto plano en `~/.claude_pet.json`, úsalas solo en un equipo personal.
 
 ## Licencia
 

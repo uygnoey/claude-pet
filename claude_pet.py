@@ -1000,11 +1000,7 @@ UPDATE_DOWNLOAD_MAX = int(
 
 # 런타임 설정 — 환경변수가 기본값, ~/.claude_pet.json(설정 UI)이 덮어씀
 RUNTIME = {
-    "mode": "sub",   # "sub"=구독(Claude Code 로그) / "api"=Admin API 비용
-    # 한도(토큰) 추정치 — 공식 공개값 아님. Settings > Usage와 비교해 보정.
-    "session_limit": int(os.environ.get("CLAUDE_PET_SESSION_LIMIT", 8_000_000)),
-    "weekly_limit":  int(os.environ.get("CLAUDE_PET_WEEKLY_LIMIT", 60_000_000)),
-    "opus_limit":    int(os.environ.get("CLAUDE_PET_OPUS_LIMIT", 15_000_000)),
+    "mode": "sub",   # Claude: "sub"=구독(로그인 계정의 서버 값) / "api"=Admin API 비용
     "spike_mult": 1.0,          # 급증 민감도 배율 (0.5=민감, 1=보통, 2=둔감)
     "greet": os.environ.get("CLAUDE_PET_FOLLOW", "1") != "0",
     # 조용한 동행: 펫이 가끔 스스로 돌아다니고, 활동이 있으면 다가와 바라본다.
@@ -1012,13 +1008,6 @@ RUNTIME = {
     "roam": os.environ.get("CLAUDE_PET_ROAM", "1") != "0",
     "admin_key": os.environ.get("ANTHROPIC_ADMIN_KEY", ""),
     "api_budget": 0.0,          # API 모드 월 예산($), 0이면 게이지 없음
-    # 모델별 한도 게이지의 모델 키워드. "auto"면 로그에서 상위 티어 자동 감지
-    # (앱의 모델별 한도 대상이 Opus → Fable 처럼 시기마다 바뀌므로 auto 권장)
-    "model_keyword": os.environ.get("CLAUDE_PET_MODEL", "auto"),
-    # 주간 리셋 요일/시각 (앱의 "(토) 오후 8:00에 재설정" 같은 것)
-    # None이면 롤링 7일. 0=월 ... 5=토, 6=일
-    "weekly_reset_day": None,
-    "weekly_reset_hour": 20,
     # 토큰 자동 갱신·복구. 만료가 임박하거나 서버가 토큰을 거부했을 때 Claude Code 를
     # launchd 아래에서 한 번 돌려(우리 자식이 아니다) CLI 가 스스로 갱신하게 둔다.
     # 우리는 절대 갱신하지 않는다 — 회전된 토큰을 되쓸 수 있는 쪽이 CLI 뿐이라서다.
@@ -1026,15 +1015,36 @@ RUNTIME = {
     # 크레딧 행을 금액으로 보일지 %로 보일지. 기본은 금액(사용자 결정 2026-09-20).
     # 금액을 읽을 수 없는 응답에서는 money 여도 %로 떨어진다(credit_row_text 참조).
     "credit_display": "money",      # "money" | "pct"
+    # 제공자별 표시 설정(사용자 결정 2026-10-05: "codex도 동일하게 설정 가능하게").
+    # 게이지를 하나도 고르지 않은 제공자는 표시 꺼짐과 같다(provider_shown).
+    "show_claude": True,
+    "claude_gauges": ["session", "weekly", "model", "credit"],
+    "show_codex": True,
+    "codex_mode": "sub",        # Codex: "sub"=구독(로그인 계정) / "api"=OpenAI Admin API 비용
+    "codex_gauges": ["session", "weekly"],
+    # OpenAI Admin API 키 — Anthropic Admin 키(admin_key)와 같은 처리: ~/.claude_pet.json 에 평문.
+    "openai_admin_key": "",
+    "codex_budget": 0.0,        # Codex API 모드 월 예산($), 0이면 예산 표시 없음
 }
+# 사용량 한도·모델 키워드·주간 리셋 설정은 없어졌다(사용자 결정 2026-10-05: "추정 로그치
+# 적는건 이제 없애자"). 옛 ~/.claude_pet.json 에 그 키가 남아 있어도 읽지 않고, 지우지도 않는다.
+_RUNTIME_CONFIG_KEYS = ("mode", "spike_mult", "greet", "roam", "admin_key", "api_budget",
+                        "auto_recover", "credit_display", "show_claude", "claude_gauges",
+                        "show_codex", "codex_mode", "codex_gauges", "openai_admin_key",
+                        "codex_budget", "lang")
+
 
 def apply_config(cfg):
-    for k in ("mode", "session_limit", "weekly_limit", "opus_limit",
-              "spike_mult", "greet", "roam", "admin_key", "api_budget",
-              "model_keyword", "weekly_reset_day", "weekly_reset_hour",
-              "auto_recover", "credit_display", "lang"):
+    for k in _RUNTIME_CONFIG_KEYS:
         if k in cfg:
             RUNTIME[k] = cfg[k]
+    # 손으로 고친 파일의 "false" 같은 값은 진짜 bool 로, 목록이 아닌 게이지는 기본값으로
+    # 정규화해 둔다 — RUNTIME 을 읽는 모든 곳이 같은 뜻을 보게(provider_shown 과 같은 규칙).
+    for p in ("claude", "codex"):
+        if "show_" + p in cfg:
+            RUNTIME["show_" + p] = config_bool(RUNTIME.get("show_" + p), True)
+        if p + "_gauges" in cfg:
+            RUNTIME[p + "_gauges"] = provider_gauges(RUNTIME, p)
     set_lang(RUNTIME.get("lang"))
 
 # ─────────────────────── 다국어 (i18n) ───────────────────────
@@ -1067,28 +1077,23 @@ def t(key, **kw):
         s = TR["en"].get(key, key)
     return s.format(**kw) if kw else s
 
-WEEKDAYS_FULL = {
-    "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-    "ko": ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"],
-    "ja": ["月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜"],
-    "es": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"],
-}
-
 TR = {
   "en": {
     "session": "Session", "weekly": "Weekly", "credit": "Credit", "model": "Model",
     "reset_done": "reset", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "reset ", "used": "used", "exact_mode_server": "Exact mode (server values)", "today_api": "Today API",
-    "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "⚠ Token expired — run Claude Code once to restore Exact mode",
+    "loading": "loading…", "today": "Today", "this_month": "This month", "token_expired": "Token expired — run Claude Code once to restore usage",
     "need_admin_key": "Right-click → Settings to enter an Admin API key",
     "api_key_rejected": "⚠ Admin API key rejected — check the key in Settings",
     "api_unreachable": "⚠ Usage temporarily unavailable — retrying",
-    "scanning": "Scanning usage…",
+    "scanning": "Waiting for usage…",
     "onb_install": "Claude Code not installed",
     "onb_login": "Claude Code — sign-in needed",
     "menu_install_cc": "⬇︎ Install Claude Code…",
     "menu_login_cc": "🔑 Sign in to Claude Code…",
     "term_installing": "▶ Installing Claude Code…",
+    "term_installing_codex": "▶ Installing Codex…",
+    "term_need_npm": "npm was not found — install Node.js (https://nodejs.org) first, then try again.",
     "term_login": "▶ Signing in — a browser will open, please log in.",
     "term_done": "✅ Done. You can close this window; Claude Pet will show usage shortly.",
     "menu_settings": "Settings…", "menu_toggle": "Show/hide the usage pill",
@@ -1121,65 +1126,53 @@ TR = {
     "unin_devmode": ("Running from source, not an installed app — nothing to "
                      "uninstall. Settings files were removed."),
     "settings_title": "Claude Pet Settings", "s_data_source": "Data source",
-    "s_mode_sub": "Subscription (Claude Code logs)", "s_mode_api": "API (Admin API cost)",
-    "s_model_kw": "Model gauge keyword", "s_auto_detect": "(auto = auto-detect)",
-    "s_weekly_reset": "Weekly reset", "s_rolling7": "Rolling 7 days", "s_hour": "h",
-    "s_calib1": "🔧 Calibrate: enter the % from Claude app > Settings > Usage",
-    "s_calib2": "      and limits are back-solved (only fields you fill)",
-    "s_calib_session": "Current session used (%)", "s_calib_weekly_all": "Weekly all models (%)",
-    "s_calib_weekly_model": "Weekly per-model (%)", "s_limit_session": "Session limit (M tokens)",
-    "s_limit_weekly": "Weekly limit (M tokens)", "s_limit_model": "Model limit (M tokens)",
+    "s_mode_sub": "Subscription", "s_mode_api": "API (Admin API cost)",
     "s_spike_sens": "Spike alert sensitivity", "s_sens_high": "High (alert on small use)",
     "s_sens_normal": "Normal", "s_sens_low": "Low (alert only on heavy use)",
     "s_greet": "Wave when the mouse comes close", "s_admin_key": "Admin API key",
     "s_budget": "API monthly budget ($)", "s_save": "Save", "s_language": "Language",
     "s_pet": "Pet",
-    "s_limit_note1": "※ Leave a field blank to keep the limit currently in effect.",
-    "s_limit_note2": ("     Exact-mode gauges come from the server; no calibration.\n"
-                      "     Spike detection still uses these estimated limits."),
-    "s_limit_note3": "※ The % wins over an absolute limit.",
-    "s_limit_advanced": "▸ Advanced: enter absolute limits",
-    "s_limit_advanced_button": "Advanced…",
-    "s_limit_current": "now: {value}M",
-    "s_g_session": "Session limit", "s_g_weekly": "Weekly limit",
-    "s_g_opus": "Model limit",
     "s_err_title": "Settings were not saved",
-    "s_err_limit": ("{field}: enter a number greater than 0 (in M tokens). "
-                    "Nothing was saved."),
-    "s_err_calib": ("{field}: the calibration % must be greater than 0 and at "
-                    "most 100. Nothing was saved."),
-    "s_err_calib_zero": ("{field}: usage is 0 right now, so a limit cannot be "
-                         "derived from a %. Clear the field or use the limit "
-                         "in M tokens. Nothing was saved."),
-    "s_err_calib_zero_pct": ("{field}: a limit cannot be derived from 0%. If "
-                             "Claude shows 0%, this window has no usage yet — "
-                             "calibrate once some has built up, or clear the "
-                             "field to keep the current limit. Nothing was saved."),
     "s_err_save": "Could not write the settings file. Nothing was changed.",
-    "s_err_calib_used": ("{field}: the current usage figure is unusable, so a "
-                         "limit cannot be derived from a %. Nothing was saved."),
-    "s_err_hour": ("Weekly reset hour: enter a whole number from 0 to 23. "
-                   "Nothing was saved."),
     "s_err_budget": ("API monthly budget: enter a number of 0 or more. "
                      "Nothing was saved."),
+    "s_sec_claude": "Claude Code", "s_sec_codex": "Codex",
+    "s_show_in_pill": "Show in the pill", "s_gauges": "Gauges",
+    "s_gauge_session": "Session", "s_gauge_weekly": "Weekly",
+    "s_gauge_model": "Per model", "s_gauge_credit": "Credit",
+    "s_codex_mode_sub": "Subscription",
+    "s_codex_mode_api": "API (OpenAI Admin API cost)",
+    "s_openai_key": "OpenAI Admin API key", "s_codex_budget": "API monthly budget ($)",
+    "s_err_codex_budget": ("Codex API monthly budget: enter a number of 0 or more. "
+                           "Nothing was saved."),
+    "no_providers": "Nothing to show — turn on Claude Code or Codex in Settings",
+    "codex_need_admin_key": "Codex: right-click → Settings to enter an OpenAI Admin API key",
+    "codex_api_key_rejected": "⚠ Codex: OpenAI Admin API key rejected — check the key in Settings",
+    "codex_api_unreachable": "⚠ Codex usage temporarily unavailable — retrying",
+    "menu_install_codex": "⬇︎ Install Codex…",
+    "menu_login_codex": "🔑 Sign in to Codex…",
+    "r_codex": "Codex (server values)", "r_spike": "Spike now",
+    "r_no_server_rows": "No server values yet — sign in to Claude Code or Codex (or set an Admin API key in API mode).",
     "r_title": "Claude Pet usage report", "r_exact": "Exact mode (server values)",
-    "r_used": "used", "r_left": "left", "r_reset": "reset",
+    "r_reset": "reset",
     "r_last_activity": "Last activity", "r_today_cost": "Today API cost",
   },
   "ko": {
     "session": "세션", "weekly": "주간", "credit": "크레딧", "model": "모델",
     "reset_done": "리셋됨", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "리셋 ", "used": "사용", "exact_mode_server": "정확 모드 (서버 계산 값)", "today_api": "오늘 API",
-    "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "⚠ 토큰 만료 — Claude Code 한번 실행하면 정확 모드 복구",
+    "loading": "조회 중…", "today": "오늘", "this_month": "이번 달", "token_expired": "토큰 만료 — Claude Code 한번 실행하면 사용량 복구",
     "need_admin_key": "우클릭 → 설정에서 Admin API 키를 입력하세요",
     "api_key_rejected": "⚠ Admin API 키가 거부됨 — 설정에서 키를 확인하세요",
     "api_unreachable": "⚠ 사용량을 잠시 가져올 수 없음 — 다시 시도하는 중",
-    "scanning": "사용량 스캔 중…",
+    "scanning": "사용량을 기다리는 중…",
     "onb_install": "Claude Code 미설치",
     "onb_login": "Claude Code 로그인 필요",
     "menu_install_cc": "⬇︎ Claude Code 설치…",
     "menu_login_cc": "🔑 Claude Code 로그인…",
     "term_installing": "▶ Claude Code를 설치합니다…",
+    "term_installing_codex": "▶ Codex를 설치합니다…",
+    "term_need_npm": "npm 을 찾지 못했습니다 — Node.js(https://nodejs.org)를 먼저 설치한 뒤 다시 시도하세요.",
     "term_login": "▶ 로그인합니다 — 브라우저가 열리면 로그인하세요.",
     "term_done": "✅ 완료됐습니다. 이 창은 닫아도 되며, 곧 Claude Pet에 사용량이 표시됩니다.",
     "menu_settings": "설정…", "menu_toggle": "사용량 필 접기/펴기",
@@ -1212,61 +1205,51 @@ TR = {
     "upd_install_failed": "업데이트를 설치하지 못했습니다. 잠시 후 다시 시도하세요.",
     "upd_busy": "이미 업데이트를 확인하는 중입니다.",
     "settings_title": "Claude Pet 설정", "s_data_source": "데이터 소스",
-    "s_mode_sub": "구독 (Claude Code 로그)", "s_mode_api": "API (Admin API 비용)",
-    "s_model_kw": "모델 게이지 키워드", "s_auto_detect": "(auto=자동감지)",
-    "s_weekly_reset": "주간 리셋", "s_rolling7": "롤링 7일", "s_hour": "시",
-    "s_calib1": "🔧 보정: Claude 앱 설정 > 사용량의 %를 입력하면",
-    "s_calib2": "      한도를 자동으로 계산해요 (입력한 것만 반영)",
-    "s_calib_session": "현재 세션 사용됨 (%)", "s_calib_weekly_all": "주간 모든 모델 (%)",
-    "s_calib_weekly_model": "주간 모델별 (%)", "s_limit_session": "세션 한도 (백만 토큰)",
-    "s_limit_weekly": "주간 한도 (백만 토큰)", "s_limit_model": "모델 한도 (백만 토큰)",
+    "s_mode_sub": "구독 (로그인 계정)", "s_mode_api": "API (Admin API 비용)",
     "s_spike_sens": "급증 알림 민감도", "s_sens_high": "민감 (조금만 써도 경보)",
     "s_sens_normal": "보통", "s_sens_low": "둔감 (많이 써야 경보)",
     "s_greet": "마우스가 가까이 오면 인사하기", "s_admin_key": "Admin API 키",
     "s_budget": "API 월 예산 ($)", "s_save": "저장", "s_language": "언어",
     "s_pet": "펫",
-    "s_limit_note1": "※ 비워 두면 지금 적용 중인 한도를 그대로 씁니다.",
-    "s_limit_note2": ("     정확 모드 게이지는 서버 값이라 보정이 필요 없습니다.\n"
-                      "     급증 감지는 이 추정 한도를 그대로 사용합니다."),
-    "s_limit_note3": "※ %가 절대 한도보다 우선합니다.",
-    "s_limit_advanced": "▸ 고급: 절대 한도 직접 입력",
-    "s_limit_advanced_button": "고급…",
-    "s_limit_current": "현재: {value}M",
-    "s_g_session": "세션 한도", "s_g_weekly": "주간 한도",
-    "s_g_opus": "모델 한도",
     "s_err_title": "설정을 저장하지 못했습니다",
-    "s_err_limit": "{field}: 0보다 큰 숫자(M 토큰)를 입력하세요. 저장하지 않았습니다.",
-    "s_err_calib": "{field}: 보정 %는 0 초과 100 이하만 됩니다. 저장하지 않았습니다.",
-    "s_err_calib_zero": ("{field}: 지금 사용량이 0이라 %로 한도를 역산할 수 "
-                         "없습니다. 칸을 비우거나 M 토큰 한도로 입력하세요. "
-                         "저장하지 않았습니다."),
-    "s_err_calib_zero_pct": ("{field}: 0%로는 한도를 계산할 수 없습니다. Claude "
-                             "앱에 0%로 보인다면 이번 창의 사용량이 아직 없다는 "
-                             "뜻이니, 조금 쓰신 뒤에 보정하거나 칸을 비워 지금 "
-                             "한도를 그대로 두세요. 저장하지 않았습니다."),
     "s_err_save": "설정 파일을 쓰지 못했습니다. 아무것도 바뀌지 않았습니다.",
-    "s_err_calib_used": ("{field}: 현재 사용량 값이 이상해서 %로 한도를 역산할 수 "
-                         "없습니다. 저장하지 않았습니다."),
-    "s_err_hour": "주간 리셋 시각: 0~23 사이 정수를 입력하세요. 저장하지 않았습니다.",
     "s_err_budget": "API 월 예산: 0 이상 숫자를 입력하세요. 저장하지 않았습니다.",
+    "s_sec_claude": "Claude Code", "s_sec_codex": "Codex",
+    "s_show_in_pill": "필에 표시", "s_gauges": "보일 게이지",
+    "s_gauge_session": "세션", "s_gauge_weekly": "주간",
+    "s_gauge_model": "모델별", "s_gauge_credit": "크레딧",
+    "s_codex_mode_sub": "구독 (로그인 계정)",
+    "s_codex_mode_api": "API (OpenAI Admin API 비용)",
+    "s_openai_key": "OpenAI Admin API 키", "s_codex_budget": "API 월 예산 ($)",
+    "s_err_codex_budget": "Codex API 월 예산: 0 이상 숫자를 입력하세요. 저장하지 않았습니다.",
+    "no_providers": "표시할 제공자가 없어요 — 설정에서 Claude Code 나 Codex 를 켜세요",
+    "codex_need_admin_key": "Codex: 우클릭 → 설정에서 OpenAI Admin API 키를 입력하세요",
+    "codex_api_key_rejected": "⚠ Codex: OpenAI Admin API 키가 거부됨 — 설정에서 키를 확인하세요",
+    "codex_api_unreachable": "⚠ Codex 사용량을 잠시 가져올 수 없음 — 다시 시도하는 중",
+    "menu_install_codex": "⬇︎ Codex 설치…",
+    "menu_login_codex": "🔑 Codex 로그인…",
+    "r_codex": "Codex (서버 계산 값)", "r_spike": "지금 급증",
+    "r_no_server_rows": "아직 서버 값이 없어요 — Claude Code 또는 Codex 에 로그인하세요(API 모드면 Admin API 키를 넣으세요).",
     "r_title": "Claude Pet 사용량 리포트", "r_exact": "정확 모드 (서버 계산 값)",
-    "r_used": "사용", "r_left": "남음", "r_reset": "리셋",
+    "r_reset": "리셋",
     "r_last_activity": "마지막 활동", "r_today_cost": "오늘 API 비용",
   },
   "ja": {
     "session": "セッション", "weekly": "週間", "credit": "クレジット", "model": "モデル",
     "reset_done": "リセット済み", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "リセット ", "used": "使用", "exact_mode_server": "正確モード（サーバー値）", "today_api": "本日API",
-    "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "⚠ トークン期限切れ — Claude Code を一度実行すると正確モード復帰",
+    "loading": "取得中…", "today": "今日", "this_month": "今月", "token_expired": "トークン期限切れ — Claude Code を一度実行すると使用量が復帰",
     "need_admin_key": "右クリック → 設定で Admin API キーを入力してください",
     "api_key_rejected": "⚠ Admin API キーが拒否されました — 設定でキーを確認してください",
     "api_unreachable": "⚠ 使用量を一時的に取得できません — 再試行中",
-    "scanning": "使用量をスキャン中…",
+    "scanning": "使用量を待っています…",
     "onb_install": "Claude Code 未インストール",
     "onb_login": "Claude Code ログインが必要",
     "menu_install_cc": "⬇︎ Claude Code をインストール…",
     "menu_login_cc": "🔑 Claude Code にログイン…",
     "term_installing": "▶ Claude Code をインストールします…",
+    "term_installing_codex": "▶ Codex をインストールします…",
+    "term_need_npm": "npm が見つかりません — 先に Node.js (https://nodejs.org) をインストールしてから、もう一度お試しください。",
     "term_login": "▶ ログインします — ブラウザが開いたらログインしてください。",
     "term_done": "✅ 完了しました。このウィンドウは閉じて構いません。まもなく使用量が表示されます。",
     "menu_settings": "設定…", "menu_toggle": "使用量ピルの表示/非表示",
@@ -1299,66 +1282,53 @@ TR = {
     "upd_install_failed": "アップデートをインストールできませんでした。しばらくしてからもう一度お試しください。",
     "upd_busy": "すでにアップデートを確認中です。",
     "settings_title": "Claude Pet 設定", "s_data_source": "データソース",
-    "s_mode_sub": "サブスク (Claude Code ログ)", "s_mode_api": "API (Admin API コスト)",
-    "s_model_kw": "モデルゲージのキーワード", "s_auto_detect": "(auto=自動検出)",
-    "s_weekly_reset": "週間リセット", "s_rolling7": "7日ローリング", "s_hour": "時",
-    "s_calib1": "🔧 補正: Claude アプリ 設定 > 使用状況 の % を入力すると",
-    "s_calib2": "      上限を自動計算します（入力した項目のみ）",
-    "s_calib_session": "現在のセッション使用 (%)", "s_calib_weekly_all": "週間 全モデル (%)",
-    "s_calib_weekly_model": "週間 モデル別 (%)", "s_limit_session": "セッション上限 (百万トークン)",
-    "s_limit_weekly": "週間上限 (百万トークン)", "s_limit_model": "モデル上限 (百万トークン)",
+    "s_mode_sub": "サブスク (ログイン中のアカウント)", "s_mode_api": "API (Admin API コスト)",
     "s_spike_sens": "急増アラート感度", "s_sens_high": "高 (少しの使用でも警告)",
     "s_sens_normal": "普通", "s_sens_low": "低 (大量使用時のみ警告)",
     "s_greet": "マウスが近づいたら手を振る", "s_admin_key": "Admin API キー",
     "s_budget": "API 月次予算 ($)", "s_save": "保存", "s_language": "言語",
     "s_pet": "ペット",
-    "s_limit_note1": "※ 空欄にすると、現在適用中の上限をそのまま使います。",
-    "s_limit_note2": ("     正確モードのゲージはサーバー値なので補正は不要です。\n"
-                      "     急増検知はこの推定上限をそのまま使います。"),
-    "s_limit_note3": "※ % が絶対上限より優先されます。",
-    "s_limit_advanced": "▸ 詳細: 絶対上限を直接入力",
-    "s_limit_advanced_button": "詳細…",
-    "s_limit_current": "現在: {value}M",
-    "s_g_session": "セッション上限", "s_g_weekly": "週間上限",
-    "s_g_opus": "モデル上限",
     "s_err_title": "設定を保存できませんでした",
-    "s_err_limit": ("{field}: 0 より大きい数値（百万トークン）を入力してください。"
-                    "保存していません。"),
-    "s_err_calib": ("{field}: 補正の % は 0 より大きく 100 以下にしてください。"
-                    "保存していません。"),
-    "s_err_calib_zero": ("{field}: 現在の使用量が 0 のため % から上限を逆算でき"
-                         "ません。欄を空にするか、百万トークンで上限を入力して"
-                         "ください。保存していません。"),
-    "s_err_calib_zero_pct": ("{field}: 0% からは上限を計算できません。Claude アプリ"
-                             "で 0% と表示されている場合、この期間の使用量がまだ"
-                             "ないという意味です。少し使ってから補正するか、欄を"
-                             "空にして今の上限をそのままにしてください。保存して"
-                             "いません。"),
     "s_err_save": "設定ファイルを書き込めませんでした。何も変更していません。",
-    "s_err_calib_used": ("{field}: 現在の使用量の値が不正なため % から上限を逆算"
-                         "できません。保存していません。"),
-    "s_err_hour": ("週間リセット時刻: 0〜23 の整数を入力してください。"
-                   "保存していません。"),
     "s_err_budget": ("API 月次予算: 0 以上の数値を入力してください。"
                      "保存していません。"),
+    "s_sec_claude": "Claude Code", "s_sec_codex": "Codex",
+    "s_show_in_pill": "ピルに表示", "s_gauges": "表示するゲージ",
+    "s_gauge_session": "セッション", "s_gauge_weekly": "週間",
+    "s_gauge_model": "モデル別", "s_gauge_credit": "クレジット",
+    "s_codex_mode_sub": "サブスク (ログイン中のアカウント)",
+    "s_codex_mode_api": "API (OpenAI Admin API コスト)",
+    "s_openai_key": "OpenAI Admin API キー", "s_codex_budget": "API 月次予算 ($)",
+    "s_err_codex_budget": ("Codex API 月次予算: 0 以上の数値を入力してください。"
+                           "保存していません。"),
+    "no_providers": "表示するプロバイダがありません — 設定で Claude Code か Codex をオンにしてください",
+    "codex_need_admin_key": "Codex: 右クリック → 設定で OpenAI Admin API キーを入力してください",
+    "codex_api_key_rejected": "⚠ Codex: OpenAI Admin API キーが拒否されました — 設定でキーを確認してください",
+    "codex_api_unreachable": "⚠ Codex の使用量を一時的に取得できません — 再試行中",
+    "menu_install_codex": "⬇︎ Codex をインストール…",
+    "menu_login_codex": "🔑 Codex にログイン…",
+    "r_codex": "Codex（サーバー値）", "r_spike": "現在の急増",
+    "r_no_server_rows": "サーバー値はまだありません — Claude Code または Codex にログインしてください（API モードでは Admin API キーを設定してください）。",
     "r_title": "Claude Pet 使用量レポート", "r_exact": "正確モード（サーバー値）",
-    "r_used": "使用", "r_left": "残り", "r_reset": "リセット",
+    "r_reset": "リセット",
     "r_last_activity": "最終アクティビティ", "r_today_cost": "本日のAPIコスト",
   },
   "es": {
     "session": "Sesión", "weekly": "Semanal", "credit": "Crédito", "model": "Modelo",
     "reset_done": "reiniciado", "cd_days": "{d}d {h}h", "cd_hm": "{h}h {m}m",
     "cd_m": "{m}m", "reset_prefix": "reinicio ", "used": "usado", "exact_mode_server": "Modo exacto (valores del servidor)", "today_api": "API hoy",
-    "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "⚠ Token expirado — ejecuta Claude Code una vez para restaurar el modo Exacto",
+    "loading": "cargando…", "today": "Hoy", "this_month": "Este mes", "token_expired": "Token expirado — ejecuta Claude Code una vez para restaurar el uso",
     "need_admin_key": "Clic derecho → Ajustes para introducir una clave de Admin API",
     "api_key_rejected": "⚠ Clave de Admin API rechazada — revísala en Ajustes",
     "api_unreachable": "⚠ Uso no disponible temporalmente — reintentando",
-    "scanning": "Escaneando uso…",
+    "scanning": "Esperando el uso…",
     "onb_install": "Claude Code no instalado",
     "onb_login": "Claude Code: inicia sesión",
     "menu_install_cc": "⬇︎ Instalar Claude Code…",
     "menu_login_cc": "🔑 Iniciar sesión en Claude Code…",
     "term_installing": "▶ Instalando Claude Code…",
+    "term_installing_codex": "▶ Instalando Codex…",
+    "term_need_npm": "No se encontró npm — instala primero Node.js (https://nodejs.org) y vuelve a intentarlo.",
     "term_login": "▶ Iniciando sesión — se abrirá el navegador, inicia sesión.",
     "term_done": "✅ Listo. Puedes cerrar esta ventana; Claude Pet mostrará el uso en breve.",
     "menu_settings": "Ajustes…", "menu_toggle": "Mostrar/ocultar la píldora",
@@ -1391,51 +1361,37 @@ TR = {
     "upd_install_failed": "No se pudo instalar la actualización. Inténtalo más tarde.",
     "upd_busy": "Ya se está comprobando si hay actualizaciones.",
     "settings_title": "Ajustes de Claude Pet", "s_data_source": "Fuente de datos",
-    "s_mode_sub": "Suscripción (registros de Claude Code)", "s_mode_api": "API (coste de Admin API)",
-    "s_model_kw": "Palabra clave del medidor de modelo", "s_auto_detect": "(auto = detección automática)",
-    "s_weekly_reset": "Reinicio semanal", "s_rolling7": "7 días rodantes", "s_hour": "h",
-    "s_calib1": "🔧 Calibrar: introduce el % de Ajustes > Uso de la app de Claude",
-    "s_calib2": "      y los límites se despejan (solo los campos que rellenes)",
-    "s_calib_session": "Sesión actual usada (%)", "s_calib_weekly_all": "Semanal todos los modelos (%)",
-    "s_calib_weekly_model": "Semanal por modelo (%)", "s_limit_session": "Límite de sesión (M tokens)",
-    "s_limit_weekly": "Límite semanal (M tokens)", "s_limit_model": "Límite de modelo (M tokens)",
-    "s_spike_sens": "Sensibilidad de alerta de pico", "s_sens_high": "Alta (alerta con poco uso)",
+    "s_mode_sub": "Suscripción", "s_mode_api": "API (coste de Admin API)",
+    "s_spike_sens": "Sensibilidad de picos", "s_sens_high": "Alta (alerta con poco uso)",
     "s_sens_normal": "Normal", "s_sens_low": "Baja (alerta solo con uso alto)",
     "s_greet": "Saludar cuando el ratón se acerca", "s_admin_key": "Clave de Admin API",
-    "s_budget": "Presupuesto mensual de API ($)", "s_save": "Guardar", "s_language": "Idioma",
+    "s_budget": "Presupuesto API ($)", "s_save": "Guardar", "s_language": "Idioma",
     "s_pet": "Mascota",
-    "s_limit_note1": "※ Deja un campo vacío para conservar el límite vigente.",
-    "s_limit_note2": ("     Modo exacto: medidores del servidor, sin calibrar.\n"
-                      "     La detección de picos sí usa estos límites estimados."),
-    "s_limit_note3": "※ El % manda sobre el límite absoluto.",
-    "s_limit_advanced": "▸ Avanzado: introducir límites absolutos",
-    "s_limit_advanced_button": "Avanzado…",
-    "s_limit_current": "ahora: {value}M",
-    "s_g_session": "Límite de sesión", "s_g_weekly": "Límite semanal",
-    "s_g_opus": "Límite de modelo",
     "s_err_title": "No se guardó la configuración",
-    "s_err_limit": ("{field}: introduce un número mayor que 0 (en M tokens). "
-                    "No se guardó nada."),
-    "s_err_calib": ("{field}: el % de calibración debe ser mayor que 0 y como "
-                    "máximo 100. No se guardó nada."),
-    "s_err_calib_zero": ("{field}: el uso actual es 0, así que no se puede "
-                         "deducir el límite a partir de un %. Deja el campo "
-                         "vacío o usa el límite en M tokens. No se guardó nada."),
-    "s_err_calib_zero_pct": ("{field}: no se puede deducir un límite a partir de "
-                             "0%. Si Claude muestra 0%, esta ventana aún no tiene "
-                             "uso: calibra cuando se haya acumulado algo, o deja "
-                             "el campo vacío para conservar el límite actual. "
-                             "No se guardó nada."),
     "s_err_save": ("No se pudo escribir el archivo de configuración. No se "
                    "cambió nada."),
-    "s_err_calib_used": ("{field}: la cifra de uso actual no es válida, así que "
-                         "no se puede deducir el límite de un %. No se guardó nada."),
-    "s_err_hour": ("Hora de reinicio semanal: introduce un entero de 0 a 23. "
-                   "No se guardó nada."),
     "s_err_budget": ("Presupuesto mensual de API: introduce un número mayor o "
                      "igual que 0. No se guardó nada."),
+    "s_sec_claude": "Claude Code", "s_sec_codex": "Codex",
+    "s_show_in_pill": "Mostrar en la píldora", "s_gauges": "Indicadores",
+    "s_gauge_session": "Sesión", "s_gauge_weekly": "Semanal",
+    "s_gauge_model": "Por modelo", "s_gauge_credit": "Crédito",
+    "s_codex_mode_sub": "Suscripción",
+    "s_codex_mode_api": "API (coste OpenAI Admin)",
+    "s_openai_key": "Clave Admin de OpenAI",
+    "s_codex_budget": "Presupuesto API ($)",
+    "s_err_codex_budget": ("Presupuesto mensual de API de Codex: introduce un número "
+                           "mayor o igual que 0. No se guardó nada."),
+    "no_providers": "Nada que mostrar — activa Claude Code o Codex en Ajustes",
+    "codex_need_admin_key": "Codex: clic derecho → Ajustes para introducir una clave de OpenAI Admin API",
+    "codex_api_key_rejected": "⚠ Codex: clave de OpenAI Admin API rechazada — revísala en Ajustes",
+    "codex_api_unreachable": "⚠ Uso de Codex no disponible por ahora — reintentando",
+    "menu_install_codex": "⬇︎ Instalar Codex…",
+    "menu_login_codex": "🔑 Iniciar sesión en Codex…",
+    "r_codex": "Codex (valores del servidor)", "r_spike": "Pico ahora",
+    "r_no_server_rows": "Aún no hay valores del servidor: inicia sesión en Claude Code o Codex (o pon una clave de Admin API en modo API).",
     "r_title": "Informe de uso de Claude Pet", "r_exact": "Modo exacto (valores del servidor)",
-    "r_used": "usado", "r_left": "resta", "r_reset": "reinicio",
+    "r_reset": "reinicio",
     "r_last_activity": "Última actividad", "r_today_cost": "Coste de API hoy",
   },
 }
@@ -1477,7 +1433,9 @@ DEFAULT_CFG = (400, True, 15000)
 # 실제 임계치 = 기본값 × RUNTIME["spike_mult"] (설정 UI의 민감도)
 # 세션 1%는 활발한 정상 사용의 5분 burn과 거의 붙어 있어 오탐이 잦았다 →
 # 2%로 올려 안전마진 확보. (base=활동 버킷 평균으로 2.5배 게이트도 정상화)
-SPIKE_BASE = {"session": 2.0, "weekly": 0.5, "opus": 2.0}
+SPIKE_BASE = {"session": 2.0, "weekly": 0.5, "opus": 2.0,
+              # Codex 레인 — Claude 의 같은 창(세션·주간)과 같은 값(사양 §3.2)
+              "codex_session": 2.0, "codex_weekly": 0.5}
 
 CONFIG_PATH = os.path.expanduser("~/.claude_pet.json")
 
@@ -1536,11 +1494,10 @@ def save_config(cfg, expect_stamp=_UNCHECKED):
 
 # 설정 창이 '소유'하는 키 — 저장할 때 이 키들만 디스크에 얹는다.
 # x/y(드래그)·scale(크기)은 여기 없다: 그 경로들이 각자 자기 키만 쓴다.
-SETTINGS_OWNED_KEYS = ("pet", "lang", "mode", "model_keyword",
-                       "weekly_reset_day", "weekly_reset_hour",
-                       "session_limit", "weekly_limit", "opus_limit",
-                       "spike_mult", "greet", "admin_key", "api_budget",
-                       "auto_recover", "credit_display")
+SETTINGS_OWNED_KEYS = ("pet", "lang", "mode", "admin_key", "api_budget",
+                       "spike_mult", "greet", "auto_recover", "credit_display",
+                       "show_claude", "claude_gauges", "show_codex", "codex_mode",
+                       "codex_gauges", "openai_admin_key", "codex_budget")
 
 
 def _config_lock_path():
@@ -1609,45 +1566,16 @@ def merge_config_updates(updates):
 
 
 # ─────────────── 설정값 검증 (설정 창 저장 전) ───────────────
-# 게이지 키 → 설정 키. 설정 창의 "직접 입력(M 토큰)"과 "보정(%)" 둘 다 이 순서.
-GAUGE_LIMIT_KEYS = (("session", "session_limit"),
-                    ("weekly", "weekly_limit"),
-                    ("opus", "opus_limit"))
-
-# 한도(토큰)를 M 단위로 표시할 때의 소수 자릿수. 6자리면 1토큰 단위까지 표현되어
-# 손대지 않은 필드가 저장 후에도 정확히 같은 토큰 수로 되돌아온다(반올림 손실 없음).
-LIMIT_M_DECIMALS = 6
-
-
-def fmt_limit_m(tokens):
-    """토큰 수 → 설정 창에 넣을 M 단위 문자열(최대 6자리, 뒤 0 제거)."""
-    try:
-        q = (Decimal(int(tokens)) / Decimal(10) ** 6).quantize(
-            Decimal(1).scaleb(-LIMIT_M_DECIMALS))
-    except Exception:
-        return "0"
-    s = format(q, "f")
-    if "." in s:
-        s = s.rstrip("0").rstrip(".")
-    return s or "0"
-
-
 # 받아들이는 숫자 표기: 부호 + 숫자 + (소수점 숫자). 지수(1e999999999)도,
 # 자릿수 구분/오타로 섞인 기호(8,5 · 1%2)도 받지 않는다. 예전처럼 ','·'%'를
-# 그냥 빼 버리면 "8,5"가 85로, "1%2"가 12로 조용히 둔갑해 한도가 엉뚱해졌다.
+# 그냥 빼 버리면 "8,5"가 85로, "1%2"가 12로 조용히 둔갑했다.
 _NUM_RE = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)$")
 _MAX_NUM_DIGITS = 18            # 상식 밖 자릿수는 입력 실수로 본다
 
 
-def _to_decimal(raw, allow_percent=False):
-    """설정 창 입력 → Decimal. 허용 표기가 아니면 None.
-
-    allow_percent 는 보정(%) 칸에서만 켠다. M 토큰 칸에 '8%' 를 적었다면 칸을
-    잘못 본 것이므로 8 로 받아 주면 안 된다 — 되묻는 편이 낫다.
-    """
+def _to_decimal(raw):
+    """설정 창 입력 → Decimal. 허용 표기가 아니면 None."""
     txt = str(raw).strip()
-    if allow_percent and txt.endswith("%"):   # 보정 칸엔 '%'까지 적는 사람이 많다
-        txt = txt[:-1].strip()
     if not txt or not _NUM_RE.match(txt):
         return None
     if sum(ch.isdigit() for ch in txt) > _MAX_NUM_DIGITS:
@@ -1661,185 +1589,72 @@ def _to_decimal(raw, allow_percent=False):
     return v
 
 
-def _finite_decimal(value):
-    """추정기가 준 수치 → 유한한 Decimal. 아니면 None (예외를 내지 않는다)."""
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        d = Decimal(value) if isinstance(value, (int, Decimal)) else Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError, ArithmeticError):
-        return None
-    return d if d.is_finite() else None
-
-
-def _calibration_percent_error(raw):
-    """보정 % 원문 → Decimal, 또는 오류 메시지 **키**(문자열).
-
-    반환형으로 둘을 구분하는 이유는 이 검사가 두 곳에서 쓰이기 때문이다:
-    사용량을 구하기 '전'(plan_settings_save)과 역산 직전(prepare_settings_config).
-    사용량 조회는 남의 로그를 읽는 일이라 실패할 수 있으므로, 사용자가 친 값이
-    이미 틀렸다면 그 전에 돌려보내야 한다 — 안 그러면 '내 입력이 틀렸다' 대신
-    '앱이 사용량을 못 읽었다'는 엉뚱한 메시지가 나간다.
-
-    0 은 범위 오류와 따로 다룬다. 0 은 오타가 아니라 사용자가 Claude 앱에서
-    실제로 본 값일 수 있고, 그때 필요한 안내는 '0~100 을 입력하라'가 아니라
-    '아직 역산할 사용량이 없다'이다.
-    """
-    pct = _to_decimal(raw, allow_percent=True)
-    if pct is None:
-        return "s_err_calib"
-    if pct == 0:
-        return "s_err_calib_zero_pct"
-    if pct < 0 or pct > 100:
-        return "s_err_calib"
-    return pct
-
-
-def prepare_settings_config(base_cfg, direct_by_gauge, calibration_by_gauge,
-                            usage_stats):
-    """설정 창의 한도 입력을 검증해 (새 설정 dict, 오류 메시지) 를 만든다.
-
-    **입력은 게이지마다 독립이고, 셋 다 선택 사항이다.** 일반 사용자는 토큰
-    숫자를 알 수 없다 — Claude 앱에 보이는 것은 %뿐이다. 그래서 한 칸도 채우지
-    않고 저장할 수 있어야 하고, 그때는 기존 한도가 그대로 남아야 한다.
-
-    게이지별 해결 순서:
-    · 보정(%)이 채워졌으면 → 사용량으로 역산한 값이 그 게이지의 한도가 된다.
-    · %가 비고 직접 입력(M 토큰)이 채워졌으면 → 그 값을 쓴다(종전 검증 그대로).
-    · 둘 다 비었으면 → **base_cfg 의 기존 값을 그대로 둔다.** base_cfg 에 그 키가
-      없으면 만들지도 않는다 — 안 건드린 게이지 때문에 없던 override 가 새로
-      생기면, 사용자는 손댄 적 없는 값이 고정돼 버린 것을 알 길이 없다.
-
-    '비었다'와 '틀렸다'는 다르다. 비면 건너뛰지만, 값이 들어왔는데 이상하면
-    저장 전체를 거부한다(부분 적용 금지 — 거부 시 아무것도 적용하지 않은 복사본).
-    입력으로 받은 base_cfg 는 절대 건드리지 않는다.
-    """
-    candidate = dict(base_cfg)
-    limits = {}
-    for gkey, ckey in GAUGE_LIMIT_KEYS:
-        raw = (direct_by_gauge or {}).get(gkey, "")
-        # 빈 칸 판정은 손대지 않은 원문으로만 한다(아래 % 쪽과 같은 이유).
-        if not str(raw).strip():
-            continue                                   # 비워 두면 기존 한도 유지
-        v = _to_decimal(raw)
-        if v is None or v <= 0:
-            return dict(base_cfg), t("s_err_limit", field=t("s_g_" + gkey))
-        tokens = int((v * (Decimal(10) ** 6)).to_integral_value(rounding="ROUND_HALF_UP"))
-        if tokens <= 0:
-            return dict(base_cfg), t("s_err_limit", field=t("s_g_" + gkey))
-        limits[ckey] = tokens
-
-    for gkey, ckey in GAUGE_LIMIT_KEYS:
-        raw = (calibration_by_gauge or {}).get(gkey, "")
-        # '비었는가'는 손대지 않은 원문으로만 판단한다. 여기서 '%'를 먼저 빼고
-        # 보면 '%' 나 '% %' 같은 입력이 빈 칸으로 둔갑해, 사용자는 값을 넣었는데
-        # 앱은 "안 건드림"으로 처리하고 오류도 내지 않는다(가장 나쁜 모양).
-        # 문자열이 무엇인지 정하기 전에 글자를 지우면 안 된다.
-        if not str(raw).strip():
-            continue                                   # 비워 두면 보정 안 함
-        pct = _calibration_percent_error(raw)
-        if isinstance(pct, str):
-            return dict(base_cfg), t(pct, field=t("s_g_" + gkey))
-        # used 는 사용자가 친 값이 아니라 추정기가 준 값이다. 그래도 nan/inf/문자가
-        # 섞여 들어오면 Decimal 변환에서 예외가 터져 저장 경로가 통째로 죽는다 —
-        # 사용자 입장에선 '내 입력이 거절됐다'가 아니라 '앱이 고장났다'로 보인다.
-        # 계산에 넣기 '전에' 유한한 수인지 본다(변환 후 검사는 도달하지 못한다).
-        used = _finite_decimal(((usage_stats or {}).get(gkey) or {}).get("used"))
-        if used is None:
-            return dict(base_cfg), t("s_err_calib_used", field=t("s_g_" + gkey))
-        if used <= 0:
-            return dict(base_cfg), t("s_err_calib_zero", field=t("s_g_" + gkey))
-        tokens = int((used * 100 / pct).to_integral_value(
-            rounding="ROUND_HALF_UP"))                 # 보정이 직접 입력을 덮는다
-        # 사용량이 1토큰도 안 되는데 100%라고 하면 한도가 0으로 떨어진다.
-        # 0 한도는 게이지를 0으로 나누게 만드는 값이라 저장 자체를 거부한다.
-        if tokens <= 0:
-            return dict(base_cfg), t("s_err_calib_zero", field=t("s_g_" + gkey))
-        limits[ckey] = tokens
-
-    candidate.update(limits)
-    return candidate, None
-
-
-def prepare_settings_numbers(hour_raw, budget_raw):
-    """주간 리셋 시각·API 예산 검증 → (값 dict, 오류 메시지).
-
-    예전에는 숫자가 아니면 조용히 기본값(20 / 0)으로 떨어뜨리고 시각은 0~23 으로
-    잘라 냈다. 사용자는 저장했다고 믿는데 값은 다른 것이 들어가 있었다.
-    이제 이상하면 저장 전체를 거부한다(값 dict 는 비어서 돌아온다).
-    """
-    h = _to_decimal(hour_raw)
-    if h is None or h != h.to_integral_value() or h < 0 or h > 23:
-        return {}, t("s_err_hour")
-    b = _to_decimal(budget_raw)
+def _budget_value(raw):
+    """예산 칸 → 0 이상의 float, 아니면 None. 이상한 값을 0 으로 떨어뜨리지 않는다 —
+    사용자는 저장했다고 믿는데 다른 값이 들어가 있는 것이 제일 나쁜 모양이다."""
+    b = _to_decimal(raw)
     if b is None or b < 0:
-        return {}, t("s_err_budget")
-    return {"weekly_reset_hour": int(h), "api_budget": float(b)}, None
+        return None
+    return float(b)
+
+
+# 게이지 분류 — 설정의 체크박스와 필의 필터가 같은 이름을 쓴다(claude_gauge_class 참조).
+CLAUDE_GAUGES = ("session", "weekly", "model", "credit")
+CODEX_GAUGES = ("session", "weekly")
+
+
+def _gauge_list(value, allowed):
+    """폼의 게이지 선택 → allowed 순서의 리스트. 모르는 이름은 버린다(빈 리스트도 유효)."""
+    chosen = set(value) if isinstance(value, (list, tuple, set)) else set()
+    return [g for g in allowed if g in chosen]
 
 
 # ─────────── 설정 저장 트랜잭션 (AppKit 없이 검증 가능) ───────────
 # 폼에서 읽은 '문자열/기본형'만으로 계획을 세우고, 그 계획이 통째로 성공했을
 # 때만 반영한다. 창(위젯)에 붙어 있으면 전체 원자성·상태 갱신·창 수명주기를
 # 시험할 수가 없어서, 검증과 반영을 이렇게 떼어 놓는다.
-# 폼 키: pet, lang, mode, model_keyword, weekly_reset_day, weekly_reset_hour,
-#        api_budget, spike_mult, greet, admin_key,
-#        <gauge>_limit_m (M 토큰 직접 입력), <gauge>_pct (보정 %)
-_SETTINGS_SNAPSHOT_KEYS = ("mode", "model_keyword", "weekly_reset_day",
-                           "weekly_reset_hour", "spike_mult")
-
-
-def plan_settings_save(base_cfg, form, usage_stats=None, stats_for=None):
+# 폼 키: pet, lang, mode, admin_key, api_budget, spike_mult, greet,
+#        show_claude, claude_gauges, show_codex, codex_mode, codex_gauges,
+#        openai_admin_key, codex_budget
+def plan_settings_save(base_cfg, form):
     """폼 → (plan, error). 전부 통과해야 plan 이 나온다(부분 적용은 존재 불가).
 
     plan = {"updates": {설정 창이 소유한 키만}, "pet": 선택된 펫 id 또는 None}
     error 가 있으면 plan 은 None 이고, 호출자는 아무것도 건드리지 않은 채
     창을 열어 둔다. 예외는 던지지 않는다 — 거절은 반환값이다.
-    usage_stats 를 직접 주면 그걸 쓰고, stats_for 를 주면 검증된 draft 로
-    호출해 사용량을 구한다(보정 %는 새 키워드/리셋 기준으로 역산해야 하므로).
+
+    로그는 읽지 않는다. 사용량 숫자는 언제나 서버 값이라 역산할 한도가 없다(사양 §1).
+    옛 한도·모델·주간 리셋 키는 소유하지 않으므로 updates 에 실리지 않고, 디스크에
+    남아 있던 값은 merge_config_updates 가 그대로 둔다.
     """
     form = form or {}
-    numbers, err = prepare_settings_numbers(form.get("weekly_reset_hour", ""),
-                                            form.get("api_budget", ""))
-    if err:
-        return None, err
+    api_budget = _budget_value(form.get("api_budget", ""))
+    if api_budget is None:
+        return None, t("s_err_budget")
+    codex_budget = _budget_value(form.get("codex_budget", ""))
+    if codex_budget is None:
+        return None, t("s_err_codex_budget")
     # 설정 창이 소유한 키만 가져온다 — 통째로 쓰면 드래그(x/y)·크기(scale)가
     # 그 사이 디스크에 쓴 값을 시작 스냅샷으로 되돌린다.
     draft = {k: base_cfg[k] for k in SETTINGS_OWNED_KEYS if k in base_cfg}
-    for key in ("lang", "mode", "model_keyword", "weekly_reset_day",
-                "spike_mult", "greet", "admin_key"):
+    for key in ("lang", "spike_mult", "admin_key", "openai_admin_key"):
         if key in form:
             draft[key] = form[key]
+    for key in ("mode", "codex_mode"):
+        if key in form:
+            draft[key] = "api" if form[key] == "api" else "sub"
+    for key in ("greet", "show_claude", "show_codex"):
+        if key in form:
+            draft[key] = bool(form[key])
+    if "claude_gauges" in form:
+        draft["claude_gauges"] = _gauge_list(form["claude_gauges"], CLAUDE_GAUGES)
+    if "codex_gauges" in form:
+        draft["codex_gauges"] = _gauge_list(form["codex_gauges"], CODEX_GAUGES)
     if form.get("pet"):
         draft["pet"] = form["pet"]
-    draft.update(numbers)
-    direct = {g: form.get(g + "_limit_m", "") for g, _ in GAUGE_LIMIT_KEYS}
-    calib = {g: form.get(g + "_pct", "") for g, _ in GAUGE_LIMIT_KEYS}
-    # 사용량은 보정(%)을 역산할 때만 필요하다. 한 칸도 안 채웠으면 아예 구하지
-    # 않는다 — 굳이 구하면, 우리가 쓰지도 않을 값을 만들려다 로그 한 줄이 이상해서
-    # 저장 전체가 실패할 수 있다. 그 로그는 Claude Code 가 쓰는 남의 파일이다.
-    # (try/except 로 감싸는 것으로는 부족하다: 필요도 없는 의존이 그대로 남는다)
-    filled = [g for g, _ in GAUGE_LIMIT_KEYS if str(calib.get(g, "")).strip()]
-    # 사용량을 구하기 '전에' 사용자가 친 %부터 본다. 0% 나 범위 밖 값은 사용량이
-    # 무엇이든 역산이 불가능하므로, 남의 로그를 읽어 볼 이유가 없다 — 읽었다가
-    # 실패하면 사용자는 자기 입력이 아니라 앱이 고장난 것으로 읽는다.
-    for gkey in filled:
-        checked = _calibration_percent_error(calib.get(gkey, ""))
-        if isinstance(checked, str):
-            return None, t(checked, field=t("s_g_" + gkey))
-    if filled and stats_for is not None:
-        try:
-            usage_stats = stats_for({k: draft.get(k)
-                                     for k in _SETTINGS_SNAPSHOT_KEYS})
-        except Exception:
-            # 사용량을 못 구했으면(로그가 깨졌다든지) 예외를 밖으로 던지지 않는다.
-            # 이 함수는 거절을 '반환값'으로 주는 함수이고, 예외는 호출자에게
-            # '앱이 고장났다'로 보인다 — 사용자가 친 %는 멀쩡했는데도.
-            return None, t("s_err_calib_used", field=t("s_g_" + filled[0]))
-    candidate, err = prepare_settings_config(draft, direct, calib,
-                                             usage_stats or {})
-    if err:
-        return None, err
-    return {"updates": candidate, "pet": form.get("pet") or None}, None
+    draft["api_budget"] = api_budget
+    draft["codex_budget"] = codex_budget
+    return {"updates": draft, "pet": form.get("pet") or None}, None
 
 
 def apply_settings_plan(plan, cfg, apply_fn=None, set_pet_fn=None, prev_pet=None):
@@ -1906,7 +1721,7 @@ def _weigh_usage(usage):
     """usage → (total, noncache) 비용 가중 토큰. 못 쓰는 줄이면 None.
 
     실제 한도는 비용 기준으로 차감되는 것으로 보이므로 API 단가 비율로 가중
-    (입력1/출력5/캐시읽기0.1) → 사용 패턴(캐시 비중)이 바뀌어도 % 보정이 유지됨.
+    (입력1/출력5/캐시읽기0.1) → 사용 패턴(캐시 비중)이 바뀌어도 학습한 급증 한도가 유지됨.
     캐시 쓰기는 TTL별 단가가 달라(5m 1.25 / 1h 2.0) usage["cache_creation"]
     세부 값으로 나눠 가중하고, 없으면 구버전 로그로 보고 평면 필드×1.25.
 
@@ -2031,31 +1846,12 @@ def parse_usage_entries(since: datetime):
     return entries
 
 
-def _weekly_window_start(runtime=None):
-    """설정된 주간 리셋 요일/시각 기준 이번 주 시작(UTC). 미설정이면 None(롤링)."""
-    rt = RUNTIME if runtime is None else runtime
-    wday = rt.get("weekly_reset_day")
-    if wday is None:
-        return None
-    try:
-        hh = int(rt.get("weekly_reset_hour", 20))
-        nl = datetime.now().astimezone()
-        back = (nl.weekday() - int(wday)) % 7
-        ls = (nl - timedelta(days=back)).replace(hour=hh, minute=0,
-                                                 second=0, microsecond=0)
-        if ls > nl:
-            ls -= timedelta(days=7)
-        return ls.astimezone(timezone.utc)
-    except Exception:
-        return None
-
-
 # 상위 티어 모델 패밀리, 최신 우선 (모델별 주간 한도가 걸리는 대상)
 PREMIUM_FAMILIES = ["fable", "mythos", "opus"]
 
 def _detect_model_keyword(wk_entries, all_entries):
-    """모델 게이지 대상 자동 감지 — 앱과 같은 기준:
-    이번 주간 창에서 사용된 가장 최신 상위 티어 (없으면 전체 로그에서)."""
+    """모델별 급증 레인의 대상 자동 감지 — 서버의 모델별 행이 없을 때만 쓴다.
+    주어진 창에서 사용된 가장 최신 상위 티어 (없으면 전체 로그에서)."""
     for pool in (wk_entries, all_entries):
         for fam in PREMIUM_FAMILIES:          # 최신 우선
             if any(fam in e[2] and e[1] > 0 for e in pool):
@@ -2063,107 +1859,202 @@ def _detect_model_keyword(wk_entries, all_entries):
     return "opus"
 
 
-def compute_usage(runtime=None):
-    """사용량 스냅샷. runtime 을 주면 RUNTIME 대신 그 설정으로 계산한다.
+# ─────────────── 급증 감지 (로그는 이것에만 쓴다) ───────────────
+# 사용자 결정 2026-10-05: "추정 로그치 적는건 이제 없애자 … 로그로 급증감지만 살려놔".
+# 필의 숫자는 언제나 서버 값이고, 로그는 "평소보다 갑자기 많이" 쓰는지만 본다.
+#
+# 급증의 바닥값(limit × base_pct × mult / 100)에 쓰는 limit 은 사람이 넣지 않는다.
+# 서버가 준 사용률과 그 창 안의 로그 가중 합으로 역산해 메모리에만 둔다(learn_lane).
+# **학습값이 없는 레인은 급증을 판정하지 않는다** — 근거 없는 기본 한도로 오경보를 내느니
+# 알림이 없는 쪽이 낫다(예전의 8M/60M/15M 은 공식값이 아닌 추정치였다).
+#
+# 레인: session / weekly / opus(Claude 모델별 — 키 이름은 역사적 이름이다), codex_session /
+# codex_weekly. 이 dict 는 RUNTIME 이 아니고 저장되지도 않는다 — RUNTIME 에 넣으면 설정
+# 저장이 그것을 디스크로 옮길 수 있고, 그러면 없어진 한도 키가 되살아난다.
+LEARNED_LIMITS = {}
 
-    (설정 창에서 '저장하면 이 한도로 % 가 얼마가 되는지'를 RUNTIME 을 건드리지
-     않고 미리 계산해야 하므로 스냅샷 인자를 받는다.)
+LEARN_ALPHA = 0.3        # 지수이동평균 가중치 — 새 표본에 0.3
+_LEARN_FETCH_SLOT = "_fetch_keys"   # learned 안에서 제공자별 마지막 학습 응답 키를 두는 자리
+LEARN_MIN_PCT = 5.0      # 이보다 작은 사용률에서는 분모가 작아 역산이 폭주한다
+SPIKE_GATE = 2.5         # 직전 활동 속도의 몇 배부터 급증인가
+
+# 창 길이(초). Claude 는 세션 5시간·주간 7일·모델별 7일. Codex 는 서버가 준 창 길이를 쓰고,
+# 그 값을 모를 때만 이 값으로 떨어진다(codex_window_seconds).
+CLAUDE_LANE_WINDOWS = {"session": SESSION_HOURS * 3600, "weekly": 7 * 86400,
+                       "opus": 7 * 86400}
+CODEX_LANE_WINDOWS = {"codex_session": SESSION_HOURS * 3600, "codex_weekly": 7 * 86400}
+
+
+def _finite_nonneg(value):
+    """수 하나 → 유한한 0 이상 float, 아니면 None(bool·문자열·nan·inf·음수)."""
+    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        v = float(value)
+    except (OverflowError, ValueError):
+        return None
+    if not math.isfinite(v) or v < 0:
+        return None
+    return v
+
+
+def is_spike(burn, base, limit, base_pct, mult=1.0):
+    """최근 5분 소비(burn)가 급증인가.
+
+    floor = limit × base_pct × mult / 100. burn 이 floor 이상이고 직전 활동 속도(base)의
+    2.5배 이상(base 가 작으면 floor/5 를 하한으로)일 때만 급증이다.
+    limit 이 없거나 0 이하이면 판정하지 않는다(False) — 학습 전에는 알림이 없다.
+    """
+    lim = _finite_nonneg(limit)
+    if not lim:
+        return False
+    floor = lim * base_pct * (mult or 1.0) / 100
+    return burn >= floor and burn >= SPIKE_GATE * max(base, floor / 5)
+
+
+def learn_limit(prev, pct, total, alpha=LEARN_ALPHA):
+    """서버 사용률 pct(0–100)와 그 창의 로그 가중 합 total → 새 한도. 배울 게 없으면 prev.
+
+    limit = total / (pct/100), 직전 값이 있으면 prev + α × (표본 − prev).
+    pct < 5 이거나 total 이 0 이면 배우지 않는다 — 0 한도는 모든 burn 을 급증으로 만든다.
+    """
+    p = _finite_nonneg(pct)
+    tot = _finite_nonneg(total)
+    if p is None or tot is None or p < LEARN_MIN_PCT or tot <= 0:
+        return prev
+    sample = tot / (p / 100.0)
+    if not math.isfinite(sample) or sample <= 0:
+        return prev
+    base = _finite_nonneg(prev)
+    if not base:
+        return sample
+    return base + alpha * (sample - base)
+
+
+def window_total(entries, reset, window_seconds, model_kw=None):
+    """리셋 시각 reset 과 창 길이로 정한 창(reset − window 이후)의 로그 **총** 가중 합.
+
+    서버 %는 비용 전체 기준으로 보이므로 noncache 가 아니라 total(엔트리의 두 번째 값)을
+    쓴다. model_kw 를 주면 모델 이름에 그 키워드가 든 엔트리만 센다(모델별 레인).
+    """
+    start = reset - timedelta(seconds=window_seconds)
+    return sum(e[1] for e in entries
+               if e[0] >= start and (model_kw is None or model_kw in e[2]))
+
+
+def learn_lane(learned, lane, pct, reset, window_seconds, entries, model_kw=None):
+    """한 레인의 한도를 learned[lane] 에 학습한다(제자리 갱신). 새 값 또는 None.
+
+    배울 게 없으면(리셋 시각을 모름·창 길이를 모름·p < 5·T = 0) 키를 만들지 않는다 —
+    키가 없다는 사실이 '학습 전에는 급증 없음'을 떠받친다.
+    """
+    if not isinstance(reset, datetime) or not window_seconds:
+        return learned.get(lane)
+    value = learn_limit(learned.get(lane), pct,
+                        window_total(entries or (), reset, window_seconds, model_kw))
+    if value is None:
+        return None
+    learned[lane] = value
+    return value
+
+
+def model_keyword_from_rows(rows):
+    """서버 모델별 행(_label_order 2 또는 5)의 라벨에서 모델 패밀리를 정한다. 없으면 None.
+
+    라벨이 패밀리 이름 그대로("Fable")이거나 그것을 품은 문장("Claude Opus 5 weekly")이어도
+    읽힌다. 패밀리를 찾지 못한 모델 행은 건너뛴다.
+    """
+    for row in rows or ():
+        try:
+            label = str(row[0])
+        except (TypeError, IndexError):
+            continue
+        if _label_order(label) not in (2, 5):
+            continue
+        low = label.lower()
+        for fam in PREMIUM_FAMILIES + ["sonnet", "haiku"]:
+            if fam in low:
+                return fam
+    return None
+
+
+def _burn_windows(entries, now, model_kw=None):
+    """(직전 5분 burn, 그 앞 25분의 활동 버킷 평균). 둘 다 noncache(캐시 읽기 제외).
+
+    직전 25분을 5분 버킷 5개로 나눠, 활동이 있던 버킷만 평균한다. 유휴 구간(0)을
+    평균에 넣으면 base 가 실제 활동 속도보다 낮게 잡혀 2.5배 게이트가 무력화된다.
+    """
+    five_ago = now - timedelta(minutes=5)
+    thirty_ago = now - timedelta(minutes=30)
+    burn = 0.0
+    buckets = [0.0] * 5
+    for e in entries:
+        if model_kw is not None and model_kw not in e[2]:
+            continue
+        if e[0] >= five_ago:
+            burn += e[3]
+        elif e[0] >= thirty_ago:
+            idx = int((e[0] - thirty_ago).total_seconds() // 300)
+            if 0 <= idx < 5:
+                buckets[idx] += e[3]
+    active = [b for b in buckets if b > 0]
+    return burn, (sum(active) / len(active) if active else 0.0)
+
+
+def claude_spikes(entries, now, model_kw, learned=None, mult=1.0):
+    """Claude 급증 → {"session", "weekly", "opus"}: bool. 학습값이 없는 레인은 False.
+
+    세션·주간은 모든 엔트리, 모델별(opus — 역사적 키 이름)은 model_kw 가 든 엔트리의 burn.
+    """
+    learned = LEARNED_LIMITS if learned is None else learned
+    burn_all, base_all = _burn_windows(entries, now)
+    burn_opus, base_opus = _burn_windows(entries, now, model_kw)
+    return {
+        "session": is_spike(burn_all, base_all, learned.get("session"),
+                            SPIKE_BASE["session"], mult),
+        "weekly":  is_spike(burn_all, base_all, learned.get("weekly"),
+                            SPIKE_BASE["weekly"], mult),
+        "opus":    is_spike(burn_opus, base_opus, learned.get("opus"),
+                            SPIKE_BASE["opus"], mult),
+    }
+
+
+def compute_usage(runtime=None, model_keyword=None):
+    """급증 감지용 로그 스냅샷. **사용량 게이지는 내지 않는다** — 숫자는 서버 값이다.
+
+    model_keyword: 모델별 레인의 대상(서버의 모델별 행에서 정한 것, model_keyword_from_rows).
+    없으면 로그에서 자동 감지한다. runtime 은 spike_mult 만 읽는다.
+    급증 판정은 LEARNED_LIMITS 의 학습값으로만 한다 — 학습 전 레인은 언제나 False.
     """
     rt = RUNTIME if runtime is None else runtime
     now = datetime.now(timezone.utc)
     entries = parse_usage_entries(now - timedelta(days=7))
-
-    # 스냅샷을 받았을 때만 넘긴다 — 기본 경로는 예전과 똑같이 인자 없이 호출.
-    week_start = (_weekly_window_start() if runtime is None
-                  else _weekly_window_start(rt))
-    wk_entries = [e for e in entries
-                  if week_start is None or e[0] >= week_start]
-    kw = str(rt.get("model_keyword", "auto")).lower().strip()
-    if kw in ("auto", ""):
-        kw = _detect_model_keyword(wk_entries, entries)
-    weekly = sum(e[1] for e in wk_entries)
-    weekly_opus = sum(e[1] for e in wk_entries if kw in e[2])
-
-    # 세션 블록: 앱과 같은 방식으로 5시간 단위 타일링.
-    # 블록이 끝난 뒤 첫 활동 시각(정시 스냅)에 새 블록이 시작됨.
-    # (연속 사용 시에도 5시간마다 정확히 리셋되어 앱 %와 어긋나지 않음)
-    session_tokens, session_reset, last_activity = 0, None, None
-    if entries:
-        last_activity = entries[-1][0]
-        block_start = block_end = None
-        for e in entries:
-            if block_end is None or e[0] >= block_end:
-                block_start = e[0].replace(minute=0, second=0, microsecond=0)
-                block_end = block_start + timedelta(hours=SESSION_HOURS)
-        if now < block_end:  # 현재 블록이 아직 유효
-            session_reset = block_end
-            session_tokens = sum(e[1] for e in entries
-                                 if block_start <= e[0] < block_end)
-
-    # 주간 리셋: 설정된 요일/시각이 있으면 그 기준.
-    # 롤링 7일 모드는 창이 매 순간 밀리므로 단일 리셋 시각이 없다 → None
-    weekly_reset = (week_start + timedelta(days=7)
-                    if week_start is not None else None)
+    kw = str(model_keyword or "").lower().strip()
+    if not kw:
+        kw = _detect_model_keyword(entries, entries)
 
     # 소비 급증 감지 — "평소보다 갑자기 많이" 쓸 때만.
     # 캐시 읽기 토큰은 제외(항상 커서 오탐 유발)하고,
     # 최근 5분 소비가 (a) 한도 대비 임계치 이상 AND (b) 직전 활동 속도의 2.5배 이상
-    five_ago = now - timedelta(minutes=5)
-    thirty_ago = now - timedelta(minutes=30)
-    burn_all = sum(e[3] for e in entries if e[0] >= five_ago)
-    burn_opus = sum(e[3] for e in entries if e[0] >= five_ago and kw in e[2])
-
-    def active_base(model_kw=None):
-        """직전 25분을 5분 버킷 5개로 나눠, 활동이 있던 버킷만 평균.
-        유휴 구간(0)을 평균에 넣으면 base가 실제 활동 속도보다 낮게 잡혀
-        2.5배 게이트가 무력화되므로(정상 사용도 급증 오탐) 활동 버킷만 센다."""
-        buckets = [0.0] * 5
-        for e in entries:
-            if not (thirty_ago <= e[0] < five_ago):
-                continue
-            if model_kw is not None and model_kw not in e[2]:
-                continue
-            idx = int((e[0] - thirty_ago).total_seconds() // 300)
-            if 0 <= idx < 5:
-                buckets[idx] += e[3]
-        active = [b for b in buckets if b > 0]
-        return sum(active) / len(active) if active else 0.0
-
-    base_all = active_base()
-    base_opus = active_base(kw)
-    mult = float(rt.get("spike_mult", 1.0)) or 1.0
-
-    def is_spike(burn, base, limit, base_pct):
-        floor = limit * base_pct * mult / 100
-        return burn >= floor and burn >= 2.5 * max(base, floor / 5)
-
-    spikes = {
-        "session": is_spike(burn_all, base_all,
-                            rt["session_limit"], SPIKE_BASE["session"]),
-        "weekly":  is_spike(burn_all, base_all,
-                            rt["weekly_limit"], SPIKE_BASE["weekly"]),
-        "opus":    is_spike(burn_opus, base_opus,
-                            rt["opus_limit"], SPIKE_BASE["opus"]),
-    }
-
-    def gauge(used, limit, reset):
-        pct = min(100.0, used / limit * 100) if limit else 0.0
-        return {"used": used, "limit": limit, "left": max(0, limit - used),
-                "pct": pct, "reset": reset}
-
+    burn_all = _burn_windows(entries, now)[0]
+    burn_opus = _burn_windows(entries, now, kw)[0]
+    try:
+        mult = float(rt.get("spike_mult", 1.0)) or 1.0
+    except (TypeError, ValueError):
+        mult = 1.0
+    spikes = claude_spikes(entries, now, kw, mult=mult)
     return {
-        "session": gauge(session_tokens, rt["session_limit"], session_reset),
-        "weekly":  gauge(weekly, rt["weekly_limit"], weekly_reset),
-        "opus":    gauge(weekly_opus, rt["opus_limit"], weekly_reset),
         "burn_5m": burn_all,
         "burn_5m_opus": burn_opus,
         "spikes": spikes,
         "model_kw": kw,
-        "last_activity": last_activity,
+        "last_activity": entries[-1][0] if entries else None,
         # 창 안에서 실제로 집계된 항목 수. 0 은 '쓰지 않았다'가 아니라 '읽을 게 없다'는
-        # 뜻이고, 게이지 0% 와는 다른 사실이다 — 필이 0% 를 지어내지 않으려면 이 둘을
-        # 구분할 근거가 필요하다(roam_summary 참조).
+        # 뜻이다(온보딩 판정이 쓴다 — compute_onboard_state).
         "entries": len(entries),
+        # 엔트리 자체. 새로고침 워커가 한도를 학습할 때 같은 패스의 로그를 다시 읽지 않고
+        # 쓴다(learn_server_limits). 필·리포트는 이것을 숫자로 보여 주지 않는다.
+        "rows": entries,
         "now": now,
     }
 
@@ -2265,15 +2156,90 @@ def fetch_api_cost_month():
     now = datetime.now(timezone.utc)
     return fetch_api_cost(now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
 
+
+# ─────────────── Codex API 비용 (OpenAI Admin API, 선택) ───────────────
+# Anthropic 쪽(fetch_api_cost / API_STATUS)과 대칭이다. 실패 종류의 어휘도 같아서
+# api_error_kind 를 그대로 쓴다("http:<code>" | "net" | "parse", 성공하면 None).
+# 키는 RUNTIME["openai_admin_key"] — ~/.claude_pet.json 에 평문으로 저장된다(Admin 키와 같은 처리).
+# **키 값은 상태에도 _dbg 에도 남기지 않는다**(CLAUDE.md Privacy).
+CODEX_API_STATUS = {"last_error": None}
+CODEX_COST_URL = "https://api.openai.com/v1/organization/costs"
+CODEX_COST_MAX_PAGES = 12      # 페이지 처리의 안전 상한 — 31일 버킷이면 보통 한 장이다
+
+
+def fetch_codex_cost(start_dt):
+    """start_dt(UTC)부터 지금까지 OpenAI 조직 비용(USD). 키가 없거나 조회가 실패하면 None.
+
+    응답은 data[].results[].amount.value 를 모두 더한다. has_more 이면 next_page 를
+    page= 로 넘겨 다음 장을 읽는다. 키가 없는 것은 실패가 아니다(안내 대상) — 상태를
+    건드리지 않는다. 전송 실패와 본문 해석 실패는 따로 분류한다(fetch_api_cost 와 같은 이유).
+    """
+    key = RUNTIME.get("openai_admin_key", "")
+    if not key:
+        return None
+    base = {"start_time": str(int(start_dt.timestamp())), "bucket_width": "1d", "limit": "31"}
+    headers = {"Authorization": "Bearer " + key, "Accept": "application/json"}
+    total, page = 0.0, None
+    for _ in range(CODEX_COST_MAX_PAGES):
+        query = dict(base)
+        if page:
+            query["page"] = page
+        req = urllib.request.Request(CODEX_COST_URL + "?" + urllib.parse.urlencode(query),
+                                     headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                raw = r.read()
+        except urllib.error.HTTPError as e:
+            CODEX_API_STATUS["last_error"] = "http:%s" % e.code
+            _dbg("codex cost: http", e.code)
+            return None
+        except Exception as e:
+            CODEX_API_STATUS["last_error"] = "net"
+            _dbg("codex cost: net", type(e).__name__)
+            return None
+        try:
+            data = json.loads(raw.decode("utf-8"))
+            for bucket in data.get("data") or []:
+                for item in bucket.get("results") or []:
+                    amt = item.get("amount")
+                    total += float(amt.get("value", 0)) if isinstance(amt, dict) else float(amt or 0)
+            page = data.get("next_page") if data.get("has_more") else None
+        except Exception as e:
+            CODEX_API_STATUS["last_error"] = "parse"
+            _dbg("codex cost: parse", type(e).__name__)
+            return None
+        if not page:
+            break
+    else:
+        # 상한까지 읽고도 다음 장이 남았다 — 잘린 합을 비용으로 보이지 않는다. 키 문제가
+        # 아니므로 api_error_kind 는 transient(일시적으로 못 가져옴)로 읽는다.
+        CODEX_API_STATUS["last_error"] = "pages"
+        _dbg("codex cost: page cap", CODEX_COST_MAX_PAGES)
+        return None
+    CODEX_API_STATUS["last_error"] = None
+    return total
+
+
+# '오늘'과 '이번 달'의 정의는 Anthropic 쪽(fetch_api_cost_today/month)과 같다 — 두 제공자의
+# 비용이 같은 기준으로 나란히 보이게.
+def fetch_codex_cost_today():
+    now = datetime.now(timezone.utc)
+    return fetch_codex_cost(now.replace(hour=0, minute=0, second=0, microsecond=0))
+
+
+def fetch_codex_cost_month():
+    now = datetime.now(timezone.utc)
+    return fetch_codex_cost(now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
+
 # ─────────────── OAuth 사용량 API (정확 모드) ───────────────
 # Claude Code의 /usage 명령이 쓰는 것과 같은 엔드포인트.
-# 성공하면 서버가 계산한 정확한 %를 그대로 표시 → 보정 불필요.
-# 실패(토큰 없음/429 등)하면 로컬 로그 추정으로 폴백.
+# 성공하면 서버가 계산한 정확한 %를 그대로 표시한다. 실패(토큰 없음/429 등)하면
+# 숫자 대신 상태 문구를 보인다 — 로그 추정으로 내려가지 않는다(2026-10-05).
 
 OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
 # 실패한 조회는 이만큼만 캐시한다(성공과 429는 OAUTH_CACHE_SEC 그대로). 일시적 네트워크
-# 장애나 5xx 뒤에 3분 내내 추정 모드에 머물지 않기 위함. 429만은 예외 — 위 캐시가
+# 장애나 5xx 뒤에 3분 내내 숫자 없는 상태에 머물지 않기 위함. 429만은 예외 — 위 캐시가
 # 존재하는 이유가 바로 과호출이라, 429 뒤에 더 빨리 다시 두드리면 안 된다.
 OAUTH_FAIL_RETRY_SEC = 60
 OAUTH_TOKEN_RETRY = 120   # 토큰 못 읽었을 때 재시도 간격(초)
@@ -2971,21 +2937,35 @@ def _find_claude_cli():
 CLAUDE_INSTALL_URL = "https://claude.ai/install.sh"   # Anthropic 공식(홈 디렉터리 설치)
 
 
-def compute_onboard_state(oauth, stats_have_logs):
+def compute_onboard_state(oauth, has_token):
     """구독 모드에서 온보딩이 필요한지 판정. 반환: None | 'install' | 'login'.
 
     - API 모드: Claude Code 불필요 → None.
-    - 이미 쓸 데이터가 있으면(정확 모드 토큰 or 로그) → None.
+    - 서버 행이 있거나 OAuth 토큰이 있으면 → None. 토큰은 있는데 행이 없으면 장애이지
+      로그인 문제가 아니다 — 로그인하라고 말하면 거짓 안내가 된다.
+    - 로그는 판단에 쓰지 않는다(2026-10-05 2차): 최근 로그가 있어도 토큰이 없으면 숫자를
+      볼 길이 없으니 안내가 필요하다.
     - claude 실행 파일이 없으면 'install', 있으면(로그인만 필요) 'login'.
+    has_token 은 프롬프트가 뜰 수 없는 확인에서 와야 한다(claude_token_present).
     """
     forced = os.environ.get("CLAUDE_PET_FORCE_ONBOARD")   # 시각 테스트용: install|login
     if forced in ("install", "login"):
         return forced
     if RUNTIME.get("mode") == "api":
         return None
-    if oauth or stats_have_logs:
+    if oauth or has_token:
         return None
     return "login" if _find_claude_cli() else "install"
+
+
+def claude_token_present():
+    """Claude OAuth 토큰이 있는가 — **키체인 프롬프트가 뜰 수 없는** 확인만 한다.
+
+    이미 읽어 둔 토큰(캐시, 출처 무관)이나 자격증명 파일. 30초마다 불리는 자리라 키체인 API 는
+    타지 않는다(v0.16 재프롬프트 회귀). 새로고침은 fetch_exact_usage 를 먼저 부르므로 키체인
+    사용자의 토큰은 그때 이미 캐시에 있다.
+    """
+    return bool(_oauth_token_cache.get("tok")) or bool(_token_from_file())
 
 
 def _run_in_terminal(cmd):
@@ -3026,6 +3006,70 @@ def start_claude_login():
     cmd = (
         f"echo {q(t('term_login'))}\n"
         f"{q(binp)} auth login\n"
+        "echo\n"
+        f"echo {q(t('term_done'))}\n"
+    )
+    _run_in_terminal(cmd)
+
+
+# ─────────────── Codex 온보딩 (우클릭 메뉴) ───────────────
+# Claude 쪽(compute_onboard_state / start_claude_*)과 대칭이다. **Codex 토큰을 우리가 갱신하지는
+# 않는다** — Codex CLI 가 스스로 갱신하고, 우리가 auth.json 을 쓰면 사용자의 로그인을 망가뜨릴 수
+# 있다(읽기 전용 원칙). 우리가 하는 일은 설치·로그인을 Terminal 에서 열어 주는 것까지다.
+CODEX_NPM_PACKAGE = "@openai/codex"   # OpenAI 공식 npm 패키지
+
+
+def _find_codex_cli():
+    # Finder 로 띄운 앱은 PATH 가 최소라 shutil.which 가 npm 전역 설치를 못 찾을 수 있다.
+    for p in (shutil.which("codex"), "/opt/homebrew/bin/codex", "/usr/local/bin/codex",
+              os.path.expanduser("~/.npm-global/bin/codex"),
+              os.path.expanduser("~/.local/bin/codex")):
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+def compute_codex_onboard_state(show_codex, codex_mode, has_token, cli_present,
+                                codex_home_exists):
+    """Codex 온보딩 → None | 'install' | 'login'.
+
+    Codex 를 필에 안 보이거나, API 모드이거나(로그인 불필요), 이미 토큰이 있으면 None.
+    **Codex 를 쓰는 사람에게만** 항목을 낸다(2026-10-05 2차): CLI 가 있으면 'login',
+    CLI 는 없지만 Codex 홈(~/.codex 또는 $CODEX_HOME)이 있으면 'install', 둘 다 없으면 None —
+    Codex 를 써 본 적 없는 사용자의 메뉴에는 아무것도 더하지 않는다.
+    """
+    if not show_codex or codex_mode == "api" or has_token:
+        return None
+    if cli_present:
+        return "login"
+    return "install" if codex_home_exists else None
+
+
+def start_codex_install():
+    """Codex 설치(npm) → 이어서 로그인까지 Terminal 에서 진행. start_claude_install 과 같은 방식."""
+    q = lambda x: json.dumps(x, ensure_ascii=False)  # bash 안전 인용(한글 유지)
+    cmd = (
+        f"echo {q(t('term_installing_codex'))}\n"
+        f"command -v npm >/dev/null 2>&1 || echo {q(t('term_need_npm'))}\n"
+        f"npm install -g {CODEX_NPM_PACKAGE}\n"
+        "echo\n"
+        f"echo {q(t('term_login'))}\n"
+        "codex login\n"
+        "echo\n"
+        f"echo {q(t('term_done'))}\n"
+    )
+    _run_in_terminal(cmd)
+
+
+def start_codex_login():
+    """설치돼 있으나 로그인만 필요한 경우. 찾은 CLI 의 폴더를 PATH 앞에 두고 `codex login`."""
+    binp = _find_codex_cli()
+    q = lambda x: json.dumps(x, ensure_ascii=False)
+    path_line = f'export PATH={q(os.path.dirname(binp))}:"$PATH"\n' if binp else ""
+    cmd = (
+        f"echo {q(t('term_login'))}\n"
+        f"{path_line}"
+        "codex login\n"
         "echo\n"
         f"echo {q(t('term_done'))}\n"
     )
@@ -3895,7 +3939,8 @@ def summary_click_action(*, status_key, in_pill, click_count, moved):
         return None
     return {"onb_login": "login", "onb_install": "install",
             "token_expired": "recover",
-            "api_key_rejected": "settings", "need_admin_key": "settings"}.get(status_key)
+            "api_key_rejected": "settings", "need_admin_key": "settings",
+            "no_providers": "settings"}.get(status_key)
 
 
 def fetch_exact_usage():
@@ -3965,6 +4010,11 @@ def codex_auth_path(env=None, home=None):
     if not root:
         root = os.path.join(os.path.expanduser("~") if home is None else home, ".codex")
     return os.path.join(root, "auth.json")
+
+
+def codex_home_exists(env=None, home=None):
+    """Codex 홈 디렉터리(codex_auth_path 가 사는 곳: $CODEX_HOME, 없으면 <home>/.codex)가 있는가."""
+    return os.path.isdir(os.path.dirname(codex_auth_path(env=env, home=home)))
 
 
 def read_codex_auth(path):
@@ -4080,7 +4130,7 @@ def _codex_lane(seconds):
     return None
 
 
-def parse_codex_usage(payload, now=None):
+def parse_codex_usage(payload, now=None, windows=None):
     """wham/usage 응답 → [(label, pct, reset_dt, reset_text)] 또는 None.
 
     label 은 TR 키다 — 옮기는 것은 렌더 쪽(roam_summary_codex)의 일이라, 언어를 바꿔도
@@ -4103,6 +4153,9 @@ def parse_codex_usage(payload, now=None):
 
     쓸 행이 하나도 없으면 빈 목록이 아니라 None 을 준다 — 호출자가 '행 없음'과 '0% 행'을
     헷갈릴 자리를 만들지 않는다.
+
+    windows 에 dict 를 주면 레인별 창 길이(초)를 거기 적는다. 행 모양(4-튜플)을 바꾸지 않고
+    급증 한도 학습(learn_server_limits)에 창 길이를 넘기는 통로다.
     """
     limits = payload.get("rate_limit") if isinstance(payload, dict) else None
     if not isinstance(limits, dict):
@@ -4127,12 +4180,16 @@ def parse_codex_usage(payload, now=None):
         if pct is None:
             continue
         reset = _codex_reset_dt(window.get("reset_at"))
+        if windows is not None:
+            windows[label] = seconds
         rows.append((label, pct, reset, fmt_countdown(reset, now) if reset else None))
     rows.sort(key=lambda r: order.get(r[0], len(order)))
     return rows or None
 
 
 _codex_cache = {"t": 0.0, "rows": None}
+# 마지막 응답의 레인별 창 길이(초) — parse_codex_usage 가 적고 codex_window_seconds 가 읽는다.
+CODEX_WINDOWS = {}
 
 
 def fetch_codex_usage():
@@ -4176,7 +4233,7 @@ def fetch_codex_usage():
         _dbg("codex fetch: net", type(e).__name__)
     else:
         try:
-            rows = parse_codex_usage(json.loads(raw.decode("utf-8")))
+            rows = parse_codex_usage(json.loads(raw.decode("utf-8")), windows=CODEX_WINDOWS)
         except Exception as e:
             err = "parse"
             _dbg("codex fetch: parse", type(e).__name__)
@@ -4185,6 +4242,200 @@ def fetch_codex_usage():
     _codex_cache["rows"] = rows
     _dbg("codex fetch: rows", len(rows or ()))
     return rows
+
+
+def codex_window_seconds(lane):
+    """Codex 레인의 창 길이(초). 서버가 준 값이 있으면 그것, 없으면 관측 기준값."""
+    return CODEX_WINDOWS.get(lane) or CODEX_LANE_WINDOWS.get(lane)
+
+
+# ─────────────── Codex 세션 로그 (급증 감지 전용) ───────────────
+# 사용자 결정 2026-10-05: "그럼 코덱스도 로그로 급증감지가 되어야겠지". Codex CLI 가 이
+# 컴퓨터에 남기는 세션 로그를 **읽기만** 하고, 숫자만 꺼낸다(본문·경로·세션 id 는 어디에도
+# 남기지 않는다 — CLAUDE.md Privacy). 필의 Codex 숫자는 여전히 서버 값이다.
+#
+# 한 줄의 모양(Codex CLI 가 쓰는 것):
+#   {"type": "event_msg", "timestamp": ISO,
+#    "payload": {"type": "token_count",
+#                "info": {"last_token_usage": {...}, "total_token_usage": {...}}}}
+# info 가 null 인 줄은 건너뛴다.
+
+def codex_sessions_root(env=None, home=None):
+    """Codex 세션 로그 루트. codex_auth_path 와 같은 루트 규칙(CODEX_HOME, 없으면 홈의 .codex)."""
+    return os.path.join(os.path.dirname(codex_auth_path(env=env, home=home)), "sessions")
+
+
+def _weigh_codex_usage(usage):
+    """last_token_usage → (total, noncache), 못 쓰는 줄이면 None.
+
+    Claude 와 같은 비율: (input − cached)×1(음수면 0) + cached×0.1 + cache_write×1.25 +
+    output×5. reasoning_output_tokens 는 **더하지 않는다** — output 에 이미 포함된 값으로
+    보이지만 그것은 관측이지 보장이 아니므로, 이중 계산을 피하는 보수적 선택이다.
+    noncache = total − cached×0.1. 칸 하나라도 수가 아니면(문자열·bool·nan·inf·음수)
+    그 줄 전체를 버린다(_weigh_usage 와 같은 원칙).
+    """
+    if not isinstance(usage, dict):
+        return None
+    vals = [_usage_number(usage, k) for k in ("input_tokens", "cached_input_tokens",
+                                              "cache_write_input_tokens", "output_tokens")]
+    if None in vals:
+        return None
+    inp, cached, cw, out = vals
+    noncache = max(0, inp - cached) * 1.0 + cw * 1.25 + out * 5.0
+    total = noncache + cached * 0.1
+    if not math.isfinite(total):
+        return None
+    return total, noncache
+
+
+def parse_codex_entries(since, root=None):
+    """since 이후 Codex 토큰 이벤트 → [(timestamp, total, "codex", noncache)], 시각 순.
+
+    중복: 같은 파일 안에서 total_token_usage.total_tokens 가 같은 이벤트는 한 번만 센다
+    (Codex 는 같은 token_count 를 두 번 쓰는 일이 있다). 파일이 다르면 다른 세션이다.
+    시각 필터를 **먼저** 적용하고 그다음 중복 집합을 본다 — 창 밖 이벤트가 키를 선점하면
+    창 안의 같은 이벤트가 사라진다(JSONL 불변식 3과 같은 이유). 못 쓰는 줄도 키를 잡기
+    전에 버린다. 파일 mtime 은 프리필터일 뿐이고 레코드 시각이 진짜 기준이다(불변식 6).
+    """
+    root = codex_sessions_root() if root is None else root
+    entries = []
+    files = skipped = 0
+    if not os.path.isdir(root):
+        return entries
+    for path in glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True):
+        try:
+            if datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc) < since:
+                continue
+            files += 1
+            seen = set()
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    # 대부분의 줄은 메시지·도구 호출이다. 해석하기 전에 문자열로 거른다 —
+                    # 결과는 같고(token_count 이벤트는 그 글자를 반드시 품는다) 비용만 준다.
+                    if '"token_count"' not in line:
+                        continue
+                    line = line.strip()
+                    try:
+                        obj = json.loads(line)
+                    except ValueError:
+                        skipped += 1
+                        continue
+                    if not isinstance(obj, dict) or obj.get("type") != "event_msg":
+                        continue
+                    payload = obj.get("payload")
+                    if not isinstance(payload, dict) or payload.get("type") != "token_count":
+                        continue
+                    info = payload.get("info")
+                    if not isinstance(info, dict):
+                        continue                  # info: null — 아직 셀 것이 없다
+                    ts_raw = obj.get("timestamp")
+                    if not isinstance(ts_raw, str) or not ts_raw:
+                        continue
+                    try:
+                        ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+                    except ValueError:
+                        continue
+                    if ts.tzinfo is None or ts < since:
+                        continue
+                    weighed = _weigh_codex_usage(info.get("last_token_usage"))
+                    if weighed is None:
+                        skipped += 1
+                        continue
+                    total, noncache = weighed
+                    if total <= 0:
+                        continue
+                    tot = info.get("total_token_usage")
+                    key = tot.get("total_tokens") if isinstance(tot, dict) else None
+                    if isinstance(key, bool) or not isinstance(key, (int, float)):
+                        key = None                # 키가 없으면 중복 판단 불가 → 그대로 집계
+                    if key is not None:
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                    entries.append((ts, total, "codex", noncache))
+        except OSError:
+            continue
+    entries.sort(key=lambda e: e[0])
+    _dbg("codex logs: files", files, "rows", len(entries), "skipped", skipped)
+    return entries
+
+
+def codex_spikes(entries, now, learned=None, mult=None):
+    """Codex 급증 → {"codex_session": bool, "codex_weekly": bool}.
+
+    Claude 와 같은 창(직전 5분 burn, 그 앞 25분 활동 버킷 평균)과 같은 규칙(is_spike).
+    burn 은 noncache. 학습값이 없는 레인은 언제나 False 다.
+    """
+    learned = LEARNED_LIMITS if learned is None else learned
+    if mult is None:
+        try:
+            mult = float(RUNTIME.get("spike_mult", 1.0)) or 1.0
+        except (TypeError, ValueError):
+            mult = 1.0
+    burn, base = _burn_windows(entries or (), now)
+    return {lane: is_spike(burn, base, learned.get(lane), SPIKE_BASE[lane], mult)
+            for lane in ("codex_session", "codex_weekly")}
+
+
+def learn_server_limits(oauth_rows, codex_rows, entries, codex_entries, learned=None,
+                        model_kw=None, claude_fetch=None, codex_fetch=None):
+    """서버 행(사용률·리셋 시각)과 같은 창의 로그로 레인별 급증 한도를 학습한다(사양 §3.3).
+
+    Claude: 세션 행 → "session"(5시간), 주간 행 → "weekly"(7일), model_kw 패밀리의 모델별 행 →
+    "opus"(7일, 그 모델의 엔트리만). Codex: codex_session / codex_weekly 행 → 같은 이름의 레인,
+    창 길이는 서버가 준 limit_window_seconds(codex_window_seconds). 분류마다 첫 행만 쓴다.
+    리셋 시각이 없는 행은 배우지 않는다 — 창의 시작을 정할 수 없다.
+
+    claude_fetch / codex_fetch: 그 서버 응답을 가리키는 키(캐시된 응답의 조회 시각). 직전
+    학습 때와 같은 키면 그 제공자는 건너뛴다 — 30초 새로고침이 180초 캐시의 같은 행에 EMA 를
+    몇 번이고 다시 걸지 않게(2026-10-05 2차). None 이면 언제나 배운다(--report 같은 1회 호출).
+    키는 learned 안의 _LEARN_FETCH_SLOT 에 제공자별로 남는다(레인 이름과 겹치지 않는다).
+    """
+    learned = LEARNED_LIMITS if learned is None else learned
+    seen = learned.setdefault(_LEARN_FETCH_SLOT, {})
+
+    def fresh(provider, key):
+        if key is None:
+            return True
+        if provider in seen and seen[provider] == key:
+            return False
+        seen[provider] = key
+        return True
+
+    if not fresh("claude", claude_fetch):
+        oauth_rows = None
+    if not fresh("codex", codex_fetch):
+        codex_rows = None
+    done = set()
+    for row in oauth_rows or ():
+        try:
+            label, pct, reset = row[0], row[1], row[2]
+        except (TypeError, IndexError):
+            continue
+        cls = claude_gauge_class(str(label))
+        if cls == "model":
+            low = str(label).lower()
+            if not model_kw or model_kw not in low:
+                continue
+            lane, kw = "opus", model_kw
+        elif cls in ("session", "weekly"):
+            lane, kw = cls, None
+        else:
+            continue
+        if lane in done:
+            continue
+        done.add(lane)
+        learn_lane(learned, lane, pct, reset, CLAUDE_LANE_WINDOWS[lane], entries, kw)
+    for row in codex_rows or ():
+        try:
+            lane, pct, reset = row[0], row[1], row[2]
+        except (TypeError, IndexError):
+            continue
+        if lane not in CODEX_LANE_WINDOWS or lane in done:
+            continue
+        done.add(lane)
+        learn_lane(learned, lane, pct, reset, codex_window_seconds(lane), codex_entries)
+    return learned
 
 
 # ─────────────── 자동 업데이트 (GitHub 릴리즈) ───────────────
@@ -6749,12 +7000,31 @@ def fmt_countdown(reset, now):
     return t("cd_hm", h=h, m=m) if h else t("cd_m", m=m)
 
 
-def worst_pct(stats):
-    return max(stats["session"]["pct"], stats["weekly"]["pct"], stats["opus"]["pct"])
+def worst_pct(rows):
+    """서버 행 중 가장 높은 사용률. 크레딧은 게이지가 아니라 뺀다. 행이 없으면 None."""
+    vals = [float(r[1]) for r in rows or ()
+            if len(r) > 1 and _roam_valid_pct(r[1]) and _label_order(str(r[0])) < 9]
+    return max(vals) if vals else None
 
 
-def mood_for(stats):
-    pct = worst_pct(stats)
+def mood_for(stats, rows=None, runtime=None, codex_rows=None):
+    """펫 기분. 어느 제공자든 로그 급증이면 failed, 아니면 서버 사용률로 — 서버 행이 없으면 idle.
+
+    rows 는 Claude 서버 행, codex_rows 는 Codex 행. **필에 보이는 제공자의 고른 게이지만** 센다
+    (2026-10-05 2차) — 숨긴 90% 세션 행이 펫을 겁먹게 하면 이유가 화면에 없다.
+    로그는 사용률을 말하지 않는다(사양 §1). 그래서 서버 행이 없을 때 로그에서 기분을 만들지 않는다.
+    """
+    rt = RUNTIME if runtime is None else runtime
+    if provider_spiking(stats, "claude", rt) or provider_spiking(stats, "codex", rt):
+        return "failed"
+    shown = []
+    if rows and provider_shown(rt, "claude"):
+        shown += filter_claude_rows(list(rows), provider_gauges(rt, "claude")) or []
+    if codex_rows and provider_shown(rt, "codex"):
+        shown += filter_codex_rows(list(codex_rows), provider_gauges(rt, "codex")) or []
+    pct = worst_pct(shown)
+    if pct is None:
+        return "idle"
     if pct >= 85:
         return "failed"
     if pct >= 50:
@@ -7519,26 +7789,26 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
                  api_error=False, api_stale=False, credit_text=None):
     """요약 필 내용(Claude 구간) → (kind, payload). 데이터가 없으면 0% 를 지어내지 않고 상태 키를 준다.
 
+    **숫자는 언제나 서버 값이다**(사용자 결정 2026-10-05: "추정 로그치 적는건 이제 없애자").
+    서버 행이 없으면 stats 에 무엇이 들어 있든 상태 키만 준다 — 로그는 급증 감지에만 쓴다.
+
     ("status", key)      key 는 TR 의 기존 키: need_admin_key / loading / onb_install / onb_login /
                          scanning / token_expired / api_key_rejected / api_unreachable
     ("cost", (today, month, budget))   API 모드의 오늘·이달 비용과 월 예산. month/budget 은 없으면 None
-    ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 호출자는 크레딧 등 게이지가 아닌 행을
-                         빼고 넘긴다(어댑터 roam_summary_text 참조).
-    ("estimate", rows)   로그 추정: 세션·주간·모델 게이지 중 유효 행.
+    ("exact", rows)      정확 모드: 앞 3행(세션·주간·모델) 중 유효 행. 크레딧 행은 이 한도 밖이다.
     rows 의 원소는 (label, pct, spiking, reset_text) 이고, 크레딧 행만 다섯 번째로 표시 문자열을
     더 싣는다(credit_text). 렌더러는 다섯 번째가 있으면 %를 만들지 않고 그 문자열을 그대로 쓴다.
     credit_text 는 **어댑터가 만들어 넘긴다** — RUNTIME["credit_display"] 를 여기서 읽으면 이 함수가
     불순해지고, 순수성은 이 함수의 기존 계약이다(시각을 계산하지 않는 것과 같은 이유다).
-      label      exact 는 서버 라벨 원문(원문이 "session" 이어도 번역 키가 아니다), estimate 는 "session"/"weekly"
-                 (TR 키 — 어댑터가 t() 로 옮긴다) 또는 모델 라벨 원문(예: "Fable").
-      spiking    이 게이지의 급증 여부. estimate 는 stats["spikes"][gauge], exact 는 첫 행(세션)만 spike_first.
-      reset_text 리셋 시각 문구(호출자가 fmt_countdown 으로 만든 문자열) 또는 None. exact 행은 row[2] 를 그대로
-                 쓰고, estimate 는 reset_texts[gauge] 를 쓴다 — 이 함수는 시각을 계산하지 않는다(순수).
-    정확 모드 행이 있는데 유효 행이 하나도 없으면 추정으로 내려가지 않고 상태를 준다.
+      label      서버 라벨 원문(원문이 "session" 이어도 번역 키가 아니다).
+      spiking    첫 행(세션)만 spike_first — 이 제공자의 로그 급증(provider_spiking).
+      reset_text 리셋 시각 문구(호출자가 fmt_countdown 으로 만든 문자열) 또는 None. row[2] 를 그대로
+                 쓴다 — 이 함수는 시각을 계산하지 않는다(순수). reset_texts 는 옛 호출부 호환용이고 읽지 않는다.
+    정확 모드 행이 있는데 유효 행이 하나도 없으면 상태(scanning)를 준다.
 
-    auth_error 는 '서버가 토큰을 거부했다'는 사실(OAUTH_STATUS["auth_error"])이고, 어댑터가 넘긴다 —
-    이 함수는 순수하게 남는다. 창 안에 항목이 하나도 없는데(stats["entries"] == 0) 토큰까지 거부됐다면
-    게이지 0% 는 사실이 아니라 무지다. 그때만 token_expired 를 주고, 그 판정은 온보딩 안내보다 앞선다
+    auth_error 는 '서버가 토큰을 거부했다'는 사실(OAUTH_STATUS["auth_error"])이고, 어댑터가 넘긴다.
+    서버 행이 없고 토큰이 거부됐다면 로그가 있든 없든 token_expired 다 — 보여 줄 숫자는 서버에만
+    있고, 사용자가 할 일(토큰 되살리기)은 로그 유무와 상관없다. 이 판정은 온보딩 안내보다 앞선다
     (로그인은 이미 했고 토큰만 되살리면 되는 상태라, 'Claude Code 로그인 필요'보다 구체적이다).
 
     api_error 는 '마지막 비용 조회에서 키가 거부됐다'는 사실이고, auth_error 와 같은 자리에서
@@ -7558,9 +7828,8 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
             if api_error:
                 return ("status", "api_key_rejected")
             return ("status", "api_unreachable" if api_stale else "loading")
-        month = float(cost_month) if _roam_valid_pct(cost_month) else None
-        budget = float(cost_budget) if _roam_valid_pct(cost_budget) and cost_budget > 0 else None
-        return ("cost", (float(cost_today), month, budget))
+        return _cost_segment(True, cost_today, cost_month, cost_budget, False, False,
+                             ("need_admin_key", "api_key_rejected", "api_unreachable"))
     if oauth:
         rows = []
         for i, row in enumerate(list(oauth)):
@@ -7578,43 +7847,182 @@ def roam_summary(mode, oauth, stats, onboard, cost_today, has_admin_key, cost_mo
             if not _roam_valid_pct(row[1]):
                 continue
             reset_text = row[2] if len(row) > 2 and isinstance(row[2], str) and row[2] else None
-            out = (row[0], float(row[1]), bool(spike_first) and i == 0, reset_text)
+            # ▲ 는 첫 행에만, 그리고 크레딧 행에는 절대 — 크레딧은 급증과 상관없는 잔액이다.
+            out = (row[0], float(row[1]),
+                   bool(spike_first) and i == 0 and _label_order(row[0]) < 9, reset_text)
             if credit_text and _label_order(row[0]) >= 9:
                 out += (credit_text,)
             rows.append(out)
         return ("exact", rows) if rows else ("status", "scanning")
-    # 창 안에 집계된 항목이 0개면 추정 게이지의 0% 는 '안 썼다'가 아니라 '모른다'다.
-    # entries 키가 아예 없는 스냅샷은 그 사실을 말해 주지 않는 옛 모양이므로 0 으로 치지
-    # 않는다 — 여기서 `not stats.get("entries")` 를 쓰면 키 없는 스냅샷과 stats=None 까지
-    # '데이터 없음'으로 끌려들어와, 아직 첫 계산이 끝나지 않은 기동 직후에 만료를 외친다.
-    no_data = isinstance(stats, dict) and stats.get("entries") == 0
-    if auth_error and no_data:
+    if auth_error:
         return ("status", "token_expired")
     if onboard in ("install", "login"):
         return ("status", "onb_" + onboard)
-    if stats and not no_data:
-        rows = []
-        spikes = stats.get("spikes") if isinstance(stats.get("spikes"), dict) else {}
-        resets = reset_texts if isinstance(reset_texts, dict) else {}
-        model_label = str(stats.get("model_kw") or "opus").capitalize()
-        for gauge, label in (("session", "session"), ("weekly", "weekly"), ("opus", model_label)):
-            pct = ((stats.get(gauge) or {}).get("pct")
-                   if isinstance(stats.get(gauge), dict) else None)
-            if _roam_valid_pct(pct):
-                rows.append((label, float(pct), bool(spikes.get(gauge)), resets.get(gauge) or None))
-        if rows:
-            return ("estimate", rows)
+    # 서버 응답을 기다리는 중 — 로그가 있어도 숫자는 만들지 않는다.
     return ("status", "scanning")
 
 
-SUMMARY_APPROX = "≈"          # 로그 추정치 앞의 표식. 서버 값(exact)에는 붙이지 않는다
+def _cost_segment(has_admin_key, cost_today, cost_month, cost_budget, api_error, api_stale,
+                  keys):
+    """API 비용 구간 — Codex(roam_summary_codex_cost)가 쓰고, Claude(roam_summary)는 숫자 쪽만 쓴다
+    (Claude 의 상태 판정은 roam_summary 안에 그대로 적혀 있다 — v0.26 노트 계약이 그 소스를 읽는다).
+
+    keys = (키 없음, 키 거부, 일시 실패) 상태 키. 순서 규칙은 roam_summary 의 독스트링 그대로.
+    """
+    need_key, rejected, unreachable = keys
+    if not has_admin_key:
+        return ("status", need_key)
+    if not _roam_valid_pct(cost_today):
+        if api_error:
+            return ("status", rejected)
+        return ("status", unreachable if api_stale else "loading")
+    month = float(cost_month) if _roam_valid_pct(cost_month) else None
+    budget = float(cost_budget) if _roam_valid_pct(cost_budget) and cost_budget > 0 else None
+    return ("cost", (float(cost_today), month, budget))
+
+
+def roam_summary_codex_cost(has_admin_key, cost_today, cost_month=None, cost_budget=None,
+                            api_error=False, api_stale=False):
+    """Codex API 모드 구간 — Claude 의 cost 구간과 같은 모양, 상태 키만 Codex 것(사양 §5).
+
+    Claude 키(need_admin_key …)를 그대로 쓰면 Codex 사용자에게 Anthropic 키를 고치라고 말하게 된다.
+    """
+    return _cost_segment(has_admin_key, cost_today, cost_month, cost_budget, api_error,
+                         api_stale, ("codex_need_admin_key", "codex_api_key_rejected",
+                                     "codex_api_unreachable"))
+
+
+# ─────────── 제공자별 표시·게이지·급증 (사양 §2·§3.3·§4·§5) ───────────
+
+def config_bool(value, default=True):
+    """설정 값 → bool. 손으로 고친 ~/.claude_pet.json 의 "false"/"0"/"no"/"off"/0/False 는 거짓.
+
+    문자열 "false" 는 파이썬에서 참이라, bool() 을 그대로 쓰면 끈 제공자가 켜진다. None 은 기본값.
+    """
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip().lower() not in ("false", "0", "no", "off", "")
+    return bool(value)
+
+
+def provider_gauges(runtime, provider):
+    """이 제공자의 고른 게이지 목록. 목록이 아닌 값(손으로 고친 설정)은 기본값으로 — 숨기지 않는다.
+    빈 목록은 유효하다(= 표시 꺼짐)."""
+    rt = RUNTIME if runtime is None else runtime
+    allowed = CLAUDE_GAUGES if provider == "claude" else CODEX_GAUGES
+    value = rt.get(provider + "_gauges", None)
+    if not isinstance(value, (list, tuple)):
+        return list(allowed)
+    return _gauge_list(value, allowed)
+
+
+def provider_shown(runtime, provider):
+    """이 제공자("claude"|"codex")를 필에 보이는가. 게이지를 하나도 고르지 않았으면 꺼짐과 같다."""
+    rt = RUNTIME if runtime is None else runtime
+    return config_bool(rt.get("show_" + provider, True)) and bool(provider_gauges(rt, provider))
+
+
+def claude_gauge_class(label):
+    """Claude 서버 행의 분류 → "session" | "weekly" | "model" | "credit".
+
+    _label_order 로 가른다: 0 세션, 1 주간, 9 크레딧, 나머지(2 모델군 행, 5 이름 모를 서버 창)는
+    모델별. 이름 모를 창을 버리지 않는 이유는 roam_summary 가 그 행을 살리는 것과 같다.
+    """
+    order = _label_order(label)
+    return {0: "session", 1: "weekly", 9: "credit"}.get(order, "model")
+
+
+def filter_claude_rows(rows, gauges):
+    """고른 분류의 서버 행만, 순서 그대로. rows 가 None 이면 None(행 없음과 빈 선택을 섞지 않는다)."""
+    if rows is None:
+        return None
+    chosen = set(gauges or ())
+    return [r for r in rows if claude_gauge_class(r[0]) in chosen]
+
+
+_CODEX_GAUGE_OF = {"codex_session": "session", "codex_weekly": "weekly"}
+
+
+def filter_codex_rows(rows, gauges):
+    """Codex 행(라벨 codex_session/codex_weekly)을 고른 게이지로 거른다. None 은 None."""
+    if rows is None:
+        return None
+    chosen = set(gauges or ())
+    return [r for r in rows if _CODEX_GAUGE_OF.get(r[0]) in chosen]
+
+
+_PROVIDER_LANES = {"claude": ("session", "weekly", "opus"),
+                   "codex": ("codex_session", "codex_weekly")}
+_PROVIDER_MODE_KEY = {"claude": "mode", "codex": "codex_mode"}
+
+
+def provider_spiking(stats, provider, runtime=None):
+    """이 제공자의 로그 급증이 지금 있는가. 그 제공자의 API 모드에서는 판정하지 않는다.
+
+    API 모드는 **제공자별**이다 — Claude 를 API 모드로 쓴다고 Codex 의 급증까지 끄지 않는다.
+    """
+    rt = RUNTIME if runtime is None else runtime
+    if not isinstance(stats, dict) or rt.get(_PROVIDER_MODE_KEY[provider]) == "api":
+        return False
+    spikes = stats.get("spikes")
+    if not isinstance(spikes, dict):
+        return False
+    return any(bool(spikes.get(lane)) for lane in _PROVIDER_LANES[provider])
+
+
+def _session_row_pct(rows, is_session):
+    for row in rows or ():
+        try:
+            label, pct = row[0], row[1]
+        except (TypeError, IndexError):
+            continue
+        if is_session(label):
+            return pct if _roam_valid_pct(pct) else None
+    return None
+
+
+def session_reset_jump(prev_claude, claude, prev_codex, codex):
+    """세션 리셋 점프 — 직전 새로고침의 서버 세션 사용률이 5 초과이고 이번이 1 미만.
+
+    Claude 는 _label_order 0 인 행, Codex 는 codex_session 행. 둘은 독립으로 판정하고 하나라도
+    넘으면 True(점프는 한 번). 로그 %는 쓰지 않는다(사양 §4).
+    """
+    pairs = ((prev_claude, claude, lambda lb: _label_order(str(lb)) == 0),
+             (prev_codex, codex, lambda lb: lb == "codex_session"))
+    for before, after, is_session in pairs:
+        a = _session_row_pct(before, is_session)
+        b = _session_row_pct(after, is_session)
+        if a is not None and b is not None and a > 5 and b < 1:
+            return True
+    return False
+
+
+def codex_summary_segment(runtime, rows, spiking=False, cost_today=None, cost_month=None,
+                          api_error=False, api_stale=False):
+    """Codex 구간 하나(표시 설정·게이지 선택·API 모드 반영). 보일 게 없으면 None.
+
+    어댑터의 codex_summary 훅이 부른다. 구독 모드는 서버 행을 고른 게이지로 거른 뒤
+    roam_summary_codex 로, API 모드는 roam_summary_codex_cost 로 간다.
+    """
+    rt = RUNTIME if runtime is None else runtime
+    if not provider_shown(rt, "codex"):
+        return None
+    if rt.get("codex_mode") == "api":
+        return roam_summary_codex_cost(bool(rt.get("openai_admin_key")), cost_today,
+                                       cost_month, rt.get("codex_budget"),
+                                       api_error=api_error, api_stale=api_stale)
+    rows = filter_codex_rows(rows if isinstance(rows, list) else None,
+                             rt.get("codex_gauges", list(CODEX_GAUGES)))
+    return roam_summary_codex(rows, spiking=spiking) if rows else None
+
+
 # 요약 필 글자색 — 사용자 결정 2026-09-12(같은 날 "텍스트랑 수치랑 색을 반대로" 로 확정). **수치**가 출처를
-# 말한다: 정확 모드 에메랄드, 로그 추정 앰버, API 비용 코랄. **라벨**(세션·주간·모델, 오늘·이달)은 흰색이 기본이고
-# 잔여량에 따라 경고색(50% 이상)·위험색(85% 이상)으로, 급증이면 ▲와 함께 위험색으로 바뀐다.
-# 둘째 줄(리셋 시각)은 보조 글자색. 상태 문구는 기본 글자색.
+# 말한다: 서버 값 에메랄드, API 비용 코랄(로그 추정치의 앰버는 2026-10-05 에 추정과 함께 없어졌다).
+# **라벨**(세션·주간·모델, 오늘·이달)은 흰색이 기본이고 잔여량에 따라 경고색(50% 이상)·위험색(85% 이상)으로,
+# 급증이면 ▲와 함께 위험색으로 바뀐다. 둘째 줄(리셋 시각)은 보조 글자색. 상태 문구는 기본 글자색.
 SUMMARY_COLORS = {
-    "exact": "#50C878",       # emerald — 정확 모드 수치
-    "estimate": "#FFB300",    # amber — 로그 추정 수치
+    "exact": "#50C878",       # emerald — 서버 값
     "cost": "#FF7F50",        # coral — API 비용 금액
     "value": TXT_MAIN,        # 라벨 기본(흰색)
     "warn": COL_WARN,         # 라벨: 50% 이상
@@ -7633,15 +8041,10 @@ def summary_value_kind(pct, spiking=False):
     return "warn" if pct >= 50 else "value"
 
 
-def _summary_label(kind, label, tr):
-    return tr(label) if kind == "estimate" and label in ("session", "weekly") else label
-
-
 def roam_summary_line(kind, payload, tr):
     """roam_summary 결과(구간 하나) → 요약 필 첫 줄의 평문(색 없음). tr 은 번역 콜러블(어댑터는 t).
 
     exact    라벨 원문 그대로, 표식 없음:      "Session 42% · Weekly 17% · Fable 12%"
-    estimate session/weekly 는 tr, 모델 라벨은 원문, 값 앞에 ≈:  "세션 ≈42% · 주간 ≈17% · Fable ≈12%"
     급증 행은 라벨 앞에 ▲(SUMMARY_SPIKE).
     cost     tr("today") 와 달러 두 자리, 이달이 있으면 이어서, 예산이 있으면 " / $예산":   "오늘 $1.23 · 이달 $27.50 / $50"
     status   tr(key)
@@ -7663,9 +8066,8 @@ def _summary_segment_runs(kind, payload, tr, reset_prefix=True):
     거기서 정해 넘긴다 — 만들어 놓고 글자를 잘라 내지 않는다. 안내어는 로케일마다 다르고(en "reset ",
     ko "리셋 "), 사용자 데이터에 같은 글자가 들어 있을 수도 있어서 문자열 비교로 지우는 것은 틀린다.
     """
-    if kind in ("exact", "estimate"):
+    if kind == "exact":
         main, sub, last_reset = [], [], None
-        approx = SUMMARY_APPROX if kind == "estimate" else ""
         for row in payload:
             label, pct, spiking, reset_text = row[:4]
             # 다섯 번째 원소는 '이 행은 %가 아니라 이 문자열로 찍어라'는 뜻이다. 크레딧
@@ -7676,10 +8078,10 @@ def _summary_segment_runs(kind, payload, tr, reset_prefix=True):
             value_text = row[4] if len(row) > 4 else None
             if main:
                 main.append((SUMMARY_SEP, "status"))
-            shown = _summary_label(kind, label, tr)
-            # 라벨 = 잔여량 색(급증이면 ▲ + 위험색), 수치 = 출처 색(exact/estimate)
+            shown = label
+            # 라벨 = 잔여량 색(급증이면 ▲ + 위험색), 수치 = 출처 색(서버 값)
             main.append(((SUMMARY_SPIKE if spiking else "") + shown, summary_value_kind(pct, spiking)))
-            main.append((f" {approx}{value_text}" if value_text else f" {approx}{pct:.0f}%", kind))
+            main.append((f" {value_text}" if value_text else f" {pct:.0f}%", kind))
             if reset_text and reset_text != last_reset:
                 if sub:
                     sub.append((SUMMARY_SEP, "sub"))
@@ -7729,15 +8131,15 @@ def roam_summary_runs(segments, tr):
     return main, sub
 
 
-def roam_summary_codex(payload):
+def roam_summary_codex(payload, spiking=False):
     """Codex 사용량 → 요약 필 구간 하나 (kind, payload), 읽을 게 없으면 None.
 
     payload 는 wham/usage 응답 원문(dict)이거나 parse_codex_usage 가 이미 낸 행 목록이다.
     그리기 코드는 손대지 않는다 — 기존 ("exact", rows) 구간 모양 그대로 뒤에 붙고,
     roam_summary_runs 가 구분자를 넣어 Claude 구간 옆에 이어 준다. 값이 서버가 계산한
     퍼센트라 kind 도 exact(에메랄드)다: 우리 추정치가 아니라는 사실이 색으로 드러난다.
-    급증 표식은 붙이지 않는다 — 급증 판정은 Claude 로그 추정기의 것이고, 남의 제공자
-    행에 그 신호를 옮겨 달 근거가 없다.
+    spiking 은 Codex 자신의 로그 급증(provider_spiking(stats, "codex"))이다. Claude 와 같은
+    규칙으로 첫 행(세션)의 라벨에만 ▲ 를 단다 — 다른 제공자의 급증을 옮겨 달지는 않는다.
     읽을 게 없으면 None 이다. 0% 행을 만들어 "거의 안 썼다"로 읽히게 하지 않는다.
     """
     rows = payload if isinstance(payload, list) else parse_codex_usage(payload)
@@ -7745,11 +8147,11 @@ def roam_summary_codex(payload):
         return None
     now_utc = datetime.now(timezone.utc)
     out = []
-    for row in rows:
+    for i, row in enumerate(rows):
         label, pct, reset_dt, reset_text = (list(row) + [None, None])[:4]
         # 남은 시간은 여기서 다시 센다 — 캐시된 행의 문구는 최대 180초까지 묵은 값이다.
         shown = fmt_countdown(reset_dt, now_utc) if reset_dt is not None else (reset_text or None)
-        out.append((t(label), float(pct), False, shown))
+        out.append((t(label), float(pct), bool(spiking) and i == 0, shown))
     return ("exact", out)
 
 
@@ -7827,7 +8229,7 @@ def _summary_gauge_count(segments):
     """이 구간 묶음이 내는 게이지 행 수. 상태 구간은 게이지가 아니라 0."""
     total = 0
     for kind, payload in segments:
-        if kind in ("exact", "estimate"):
+        if kind == "exact":
             try:
                 total += len(payload)
             except TypeError:
@@ -7838,14 +8240,14 @@ def _summary_gauge_count(segments):
 def _summary_only_gauge_label(segments):
     """게이지 행이 하나뿐일 때 그 행이 화면에 쓰는 라벨. 아니면 None.
 
-    _summary_segment_runs 가 라벨을 옮기는 방식(estimate 는 tr, 나머지는 원문)을 그대로
-    따라간다 — 여기서 다르게 만들면 리셋에서 떼어 낼 접두사가 안 맞는다.
+    _summary_segment_runs 가 라벨을 쓰는 방식(서버 라벨 원문)을 그대로 따라간다 — 여기서
+    다르게 만들면 리셋에서 떼어 낼 접두사가 안 맞는다.
     """
     for kind, payload in segments:
-        if kind in ("exact", "estimate"):
+        if kind == "exact":
             try:
                 if len(payload) == 1:
-                    return _summary_label(kind, payload[0][0], t)
+                    return payload[0][0]
             except (TypeError, IndexError):
                 return None
     return None
@@ -8348,6 +8750,12 @@ def run_gui():
              # 구독 모드인데 Claude Code 데이터가 전혀 없을 때: None|'install'|'login'.
              # refresh 워커가 매 주기 갱신한다(아래 compute_onboard_state).
              "onboard": None,
+             # Codex 를 필에 보이는데 토큰이 없을 때: None|'install'|'login'
+             # (compute_codex_onboard_state). 우클릭 메뉴가 읽는다.
+             "codex_onboard": None,
+             # Codex API 모드의 오늘·이달 비용과 마지막 조회 실패 종류(키 거부/일시 실패).
+             "codex_cost": None, "codex_cost_month": None,
+             "codex_api_error": False, "codex_api_stale": False,
              # 토큰 자동 갱신·복구 상태(recovery_tick). 재시작하면 새로 만들어지므로
              # 포기한 사이클도 다음 실행에서 한 번 더 시도한다.
              "recovery": new_recovery_state(),
@@ -8367,9 +8775,13 @@ def run_gui():
              # 새로고침 세대 번호(begin_refresh_generation/commit_refresh_result).
              "refresh_generation": 0}
     # 다른 제공자(Codex) 요약 구간 훅 — roam_summary_text 가 부른다. summary_click 과 같은
-    # 이유로 훅이고, state 를 손으로 만드는 시험에는 이 키가 없다. Codex 행이 없으면 None 을
-    # 돌려주고, 그러면 구간이 붙지 않는다.
-    state["codex_summary"] = lambda: roam_summary_codex(state.get("codex"))
+    # 이유로 훅이고, state 를 손으로 만드는 시험에는 이 키가 없다. 표시 설정·게이지 선택·
+    # API 모드·Codex 자신의 급증은 여기서 반영한다(codex_summary_segment). 보일 게 없으면
+    # None 을 돌려주고, 그러면 구간이 붙지 않는다.
+    state["codex_summary"] = lambda: codex_summary_segment(
+        RUNTIME, state.get("codex"), provider_spiking(state.get("stats"), "codex"),
+        state.get("codex_cost"), state.get("codex_cost_month"),
+        bool(state.get("codex_api_error")), bool(state.get("codex_api_stale")))
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
     def _run_update_check():
@@ -8402,15 +8814,22 @@ def run_gui():
             state["frame"] = 0
 
     def spike_info(stats):
-        if not stats or RUNTIME["mode"] == "api":
+        """지금 보이는 제공자 중 하나라도 로그 급증이면 (색, 이름), 아니면 None.
+
+        API 모드는 제공자별이다(provider_spiking). 필에 안 보이는 제공자의 급증은 펫을
+        흔들지 않는다 — ▲ 가 붙을 줄이 화면에 없으니 이유를 알 수 없는 경보가 된다.
+        """
+        if not stats:
             return None
         sp = stats.get("spikes") or {}
-        if sp.get("session"):
-            return ("#FF453A", t("session"))
-        if sp.get("opus"):
-            return ("#BF5AF2", "Opus")
-        if sp.get("weekly"):
+        if provider_shown(RUNTIME, "claude") and provider_spiking(stats, "claude"):
+            if sp.get("session"):
+                return ("#FF453A", t("session"))
+            if sp.get("opus"):
+                return ("#BF5AF2", str(stats.get("model_kw") or "opus").capitalize())
             return ("#FF9F0A", t("weekly"))
+        if provider_shown(RUNTIME, "codex") and provider_spiking(stats, "codex"):
+            return ("#FF453A", "Codex")
         return None
 
     def current_mood():
@@ -8419,10 +8838,10 @@ def run_gui():
         stats = state["stats"]
         if stats and spike_info(stats):
             return "failed"
-        if state["oauth"]:   # 정확 모드: 서버 %가 기준
-            pct = max((row[1] for row in state["oauth"]), default=0)
-            return "failed" if pct >= 85 else ("waiting" if pct >= 50 else "idle")
-        return mood_for(stats) if stats else "idle"
+        # 서버 %가 기준이다(Claude·Codex 중 보이는 쪽). 서버 행이 없으면 idle —
+        # 로그에서 기분을 만들지 않는다(사양 §1).
+        # 제공자별로 따로 넘긴다 — 각자 자기 게이지 선택으로 걸러진다(mood_for).
+        return mood_for(None, state["oauth"], codex_rows=state.get("codex"))
 
     # ── 필 그리기 헬퍼 (클래스 밖: PyObjC 셀렉터 변환 회피) ──
     class PetView(NSView):
@@ -8728,6 +9147,19 @@ def run_gui():
                 top.setTarget_(handler)
                 menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
                 menu.insertItem_atIndex_(top, 0)
+            # Codex 도 Claude 와 같은 모양(사양 §7). 먼저 넣어서 Claude 항목 **아래**에 놓인다 —
+            # 둘 다 맨 위(0)에 끼워 넣으므로 나중에 넣은 쪽이 위로 간다. Pets 서브메뉴 인덱스는
+            # 이미 위에서 끼워 넣었으니 영향이 없다.
+            cob = state.get("codex_onboard")
+            if cob:
+                title, action = ((t("menu_install_codex"), "installCodex:")
+                                 if cob == "install"
+                                 else (t("menu_login_codex"), "loginCodex:"))
+                top = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    title, action, "")
+                top.setTarget_(handler)
+                menu.insertItem_atIndex_(NSMenuItem.separatorItem(), 0)
+                menu.insertItem_atIndex_(top, 0)
             ob = state.get("onboard")
             if ob:   # Claude Code 없으면 최상단에 설치/로그인 항목
                 title, action = ((t("menu_install_cc"), "installClaude:")
@@ -8972,57 +9404,69 @@ def run_gui():
     _summary_memo = {"key": None, "value": None}
 
     def roam_summary_text():
-        """요약 필 내용 → (첫 줄 run 들, 둘째 줄 run 들, 폭, 높이). exact 라벨은 원문, estimate 는 t() + ≈.
+        """요약 필 내용 → (제공자별 줄 묶음, 폭, 높이). 숫자는 언제나 서버 값이다(라벨 원문).
 
         말줄임은 하지 않는다 — 실제 필 폭을 아는 draw_summary_pill 이 같은 폰트로 맞춘다. 여기서 잰 폭은
-        roam_frame 의 text_w 가 되고(roam_pill_rect 가 PILL_W 로 캡), 높이는 둘째 줄이 있으면 SUMMARY_H2.
-        정확 모드 행은 **거르지 않고 그대로** 넘긴다 — 어느 행을 쓸지는 roam_summary 가 정한다(게이지는 앞
-        3행, 크레딧은 그 한도 밖). 예전에는 여기서 크레딧(_label_order 9)을 버렸고, 그래서 크레딧을 켜고 쓰는
-        사용자는 파싱까지 끝난 자기 사용량을 필에서 전혀 볼 수 없었다. 리셋 시각은 여기서 fmt_countdown 으로 문자열로 만든다
-        (roam_summary 는 시각을 계산하지 않는다). 토큰 만료(401 지속)로 추정치로 내려간 상태는 첫 줄 끝 ⚠.
+        roam_frame 의 text_w 가 되고, 높이는 줄 수를 따른다. 어느 행을 쓸지는 roam_summary 가 정한다
+        (게이지는 앞 3행, 크레딧은 그 한도 밖). 여기서 하는 거르기는 **사용자가 고른 것**뿐이다:
+        제공자 표시(show_claude/show_codex)와 게이지 선택(claude_gauges, filter_claude_rows). Codex 쪽의
+        같은 거르기는 codex_summary 훅(codex_summary_segment)이 한다. 리셋 시각은 여기서 fmt_countdown 으로
+        문자열로 만든다(roam_summary 는 시각을 계산하지 않는다). 서버 행이 없으면 로그가 무엇을 말하든 상태
+        문구다 — 추정치와 그 ⚠ 표식은 2026-10-05 에 없어졌다.
         매 tick(20 Hz) 불리므로 같은 입력·같은 5초 창 안에서는 메모한 값을 돌려준다(글자 폭 측정 비용).
         """
         stats = state["stats"]
         oauth = state["oauth"]
+        show_claude = provider_shown(RUNTIME, "claude")
+        show_codex = provider_shown(RUNTIME, "codex")
         key = (RUNTIME["mode"], L["lang"], state.get("onboard"), id(stats), id(oauth), state["cost"],
                state["cost_month"], RUNTIME.get("api_budget"), bool(OAUTH_STATUS.get("auth_error")),
                bool(state.get("api_error")), bool(state.get("api_stale")),
-               state.get("credit_text"), id(state.get("codex")), int(_time.time() / 5))
+               state.get("credit_text"), id(state.get("codex")),
+               show_claude, tuple(RUNTIME.get("claude_gauges") or ()), show_codex,
+               RUNTIME.get("codex_mode"), tuple(RUNTIME.get("codex_gauges") or ()),
+               bool(RUNTIME.get("openai_admin_key")), RUNTIME.get("codex_budget"),
+               state.get("codex_cost"), state.get("codex_cost_month"),
+               bool(state.get("codex_api_error")), bool(state.get("codex_api_stale")),
+               int(_time.time() / 5))
         if _summary_memo["key"] == key:
             return _summary_memo["value"]
+        # 사용자가 고른 게이지만. 거른 뒤 하나도 안 남으면 Claude 줄은 없다 — 빈 목록을
+        # roam_summary 에 넘기면 '서버 행 없음'으로 읽혀 엉뚱한 상태 문구가 뜬다.
+        claude_rows_gone = False
         if oauth:
+            picked = filter_claude_rows(oauth, RUNTIME.get("claude_gauges") or [])
+            claude_rows_gone = not picked
             now_utc = datetime.now(timezone.utc)
             rows = []
-            for label, pct, rdt, rtxt in oauth:
+            for label, pct, rdt, rtxt in picked:
                 reset_s = fmt_countdown(rdt, now_utc) if rdt is not None else (rtxt or None)
                 rows.append((label, pct, reset_s))
             oauth = rows
-        resets = None
-        if stats and isinstance(stats.get("now"), datetime):
-            resets = {g: fmt_countdown((stats.get(g) or {}).get("reset"), stats["now"])
-                      for g in ("session", "weekly", "opus") if isinstance(stats.get(g), dict)}
         segment = roam_summary(RUNTIME["mode"], oauth, stats, state.get("onboard"), state["cost"],
                                bool(RUNTIME.get("admin_key")), state["cost_month"],
-                               reset_texts=resets, spike_first=bool(spike_info(stats)),
+                               spike_first=provider_spiking(stats, "claude", RUNTIME),
                                cost_budget=float(RUNTIME.get("api_budget") or 0),
                                auth_error=bool(OAUTH_STATUS.get("auth_error")),
                                api_error=bool(state.get("api_error")),
                                api_stale=bool(state.get("api_stale")),
                                credit_text=state.get("credit_text"))
+        if not show_claude or (claude_rows_gone and RUNTIME["mode"] != "api"):
+            segment = None
         # 다른 제공자는 구간을 뒤에 덧붙이기만 한다 — 그리기·폭 계산은 run 단위라 손댈 곳이 없다.
         # 모듈 함수를 이름으로 부르지 않고 state 훅으로 받는다(roam_release 와 같은 이유):
         # 창 없는 시험은 손으로 만든 state 로 이 함수를 돌리고, 훅이 그냥 없으면 그 시험의
         # 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 구간 자체가 없다 — 0% 를 지어내지 않는다.
         codex_hook = state.get("codex_summary")
         codex_seg = codex_hook() if codex_hook else None
-        segments = [segment] + [s for s in (codex_seg,) if s]
         # Codex 만 쓰는 사용자에게 "Claude Code 미설치/로그인 필요"를 계속 들이밀지 않는다 —
         # Codex 행이 실제로 뜬다면(= 그 제공자를 켜서 쓰고 있다는 뜻) 온보딩 안내는 그 사람에게
         # 할 일이 없는 문구다(설치 버튼을 눌러도 되는 건 여전하지만, 강요할 이유가 없다).
         # 토큰 만료·조회 중 같은 다른 status 는 그대로 둔다 — 저건 "Claude Code 를 쓰다가
         # 지금 문제"라는 뜻이라 Codex 유무와 무관하게 알려야 한다.
         claude_onboarding_suppressed = (
-            segment[0] == "status" and segment[1] in ("onb_install", "onb_login")
+            segment is not None
+            and segment[0] == "status" and segment[1] in ("onb_install", "onb_login")
             and bool(codex_seg) and codex_seg[0] != "status"
         )
         # 지금 떠 있는 상태 키를 남긴다 — mouseUp_ 이 클릭의 뜻을 고를 때 쓴다.
@@ -9030,7 +9474,7 @@ def run_gui():
         # 위에서 억눌러 화면에 보이지 않는 상태를 클릭 의미로 남겨 두면, 안 보이는 문구를
         # 누른 것으로 처리하는 유령 클릭이 생긴다.
         state["summary_status"] = (
-            None if claude_onboarding_suppressed
+            None if claude_onboarding_suppressed or segment is None
             else (segment[1] if segment[0] == "status" else None)
         )
         # 제공자별 줄 묶음. **여기서 접히고, 그린 뒤에 다시 자르는 곳은 없다.**
@@ -9052,14 +9496,27 @@ def run_gui():
         # 필요해진다 — 그때는 이 한 줄이 갈라져야 한다.)
         fetched = isinstance(state.get("stats"), dict)
         kinds = {}
-        for pid, seg in zip(("claude", "codex"), segments):
-            if seg and seg[0] != "status":
+        for pid, seg in (("claude", segment), ("codex", codex_seg)):
+            if not seg:
+                continue                    # 꺼졌거나 보일 게 없는 제공자 — 블록이 없다
+            # Codex 의 API 모드 상태(codex_need_admin_key 등)는 그 제공자의 할 일이라 Codex
+            # 블록으로 보인다. 그 밖의 Codex 상태(조회 중 등)는 블록을 만들지 않는다.
+            codex_own = pid == "codex" and seg[0] == "status" and str(seg[1]).startswith("codex_")
+            if seg[0] != "status" or codex_own:
                 kinds[pid] = ("ready", seg)
             elif not fetched:
                 kinds[pid] = ("loading", ("status", "loading"))
             else:
                 kinds[pid] = ("absent", seg)
-        if kinds and all(k == "loading" for k, _s in kinds.values()):
+        if not kinds:
+            # 보일 제공자가 없다. 둘 다 꺼 두었으면 그렇다고 말하고(설정으로 가는 클릭),
+            # 켜 둔 쪽이 아직 아무것도 못 냈으면 기다리는 중이다.
+            key_ = "no_providers" if not (show_claude or show_codex) else (
+                "scanning" if fetched else "loading")
+            groups = [(None, [("status", key_)])]
+            if key_ == "no_providers":
+                state["summary_status"] = key_
+        elif all(k == "loading" for k, _s in kinds.values()):
             # 공통 로딩 — 어느 제공자의 줄도 아니므로 마크가 붙으면 안 된다.
             groups = [(None, [("status", "loading")])]
         else:
@@ -9071,7 +9528,7 @@ def run_gui():
                 elif kind == "loading":
                     groups.append((pid, [seg]))
                 elif seg is not None and pid == "claude" and not claude_onboarding_suppressed:
-                    # Claude 의 status(온보딩·토큰 만료·스캔 중)는 버리지 않는다. 다만
+                    # Claude 의 status(온보딩·토큰 만료·대기 중)는 버리지 않는다. 다만
                     # 제공자 블록이 아니라 전역 줄이다 — 마크 없이 필 전체 폭을 쓴다.
                     # (Codex 가 실제로 뜬 상태의 온보딩 안내는 위에서 이미 걸러졌다.)
                     groups.insert(0, (None, [seg]))
@@ -9100,25 +9557,6 @@ def run_gui():
         # 커서 리셋 줄이 일찍 접힌다 — 접는 자와 그리는 글꼴이 어긋나던 결함이다.
         measure_sub = lambda v: astr(v, F_SUMMARY_SUB).size().width
         blocks = summary_lines(groups, measure, budget, measure_sub)
-        # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
-        # run 하나로 붙인다. 두 가지를 동시에 틀리기 쉬운 자리다:
-        #
-        #   · 게이지 **행**으로 만들면 라벨+수치 쌍이 되어 있지도 않은 0% 를 지어낸다.
-        #     "⚠ ≈0%" 를 본 사용자는 거의 안 썼다고 읽는다 — 이 저장소가 어디서나 거부하는
-        #     그 거짓말이 하필 경고에 붙는다.
-        #   · 그냥 **마지막 줄**(lines[-1])에 붙이면 리셋 줄이 있을 때 — 흔한 경우다 —
-        #     흐린 sub 색으로 리셋 시각 옆에 그려져 "리셋 시각에 대한 주석"처럼 읽힌다.
-        #     마커가 말하는 것은 **수치가 추정치라는 것**이지 리셋에 대한 것이 아니다.
-        #     CLAUDE.md 도 "첫 줄 끝"이라고 쓴다.
-        #
-        # 그래서 게이지 줄이 몇 줄인지 같은 예산으로 다시 접어 세고, 그 마지막 줄에 붙인다.
-        if segment[0] == "estimate" and OAUTH_STATUS.get("auth_error"):
-            gauge_runs = roam_summary_runs([segment], t)[0]
-            n_gauge = len(_summary_fold_runs(gauge_runs, budget - SUMMARY_LOGO_W, measure))
-            for pid, lines in blocks:
-                if pid in ("claude", None) and lines:
-                    lines[min(max(n_gauge, 1), len(lines)) - 1].append((" ⚠", "status"))
-                    break
         # 폭도 **그 줄을 그리는 글꼴로** 잰다. 판정은 그리기 쪽과 같은 규칙(줄 전체가 sub).
         text_w = 0.0
         for _pid, lines in blocks:
@@ -9479,25 +9917,22 @@ def run_gui():
             return
         # 높이 예산: 1366x768 이 최소 지원 화면이고, 메뉴 바(25)와 Dock 을 빼면
         # 세로로 쓸 수 있는 것은 약 673 이다. 타이틀 바까지 더해도 안전하도록
-        # 내용 높이는 **656 을 넘기지 않는다.**
-        #   656(원래) − 88(옛 절대 한도 3줄, 별도 창으로 이전) + 44(note2 다줄화)
-        #   = 612. 고급 창을 여는 버튼은 note3 와 같은 줄에 얹어 0 을 쓴다.
-        # 세 칸을 이 창에 숨겨 두는 방식은 732 가 되어 저장 버튼이 잘렸다.
-        PWID, PHT = 420, 612   # 한도 안내(다줄 note2) 포함, 절대 한도는 별도 창
+        # 내용 높이는 **656 을 넘기지 않는다.** 제공자 두 구역(Claude Code·Codex)이
+        # 같은 모양으로 들어가고, 보정·한도·고급 창은 2026-10-05 에 없어졌다.
+        PWID, PHT = 420, 568   # 맨 아래 체크(인사)가 y=72 — 저장 버튼(12..42) 위
         panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(0, 0, PWID, PHT),
             NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
             NSBackingStoreBuffered, False)
         panel.setTitle_(t("settings_title"))
-        # NSPanel 기본값(hidesOnDeactivate=YES)이면 다른 앱으로 전환하는 순간
-        # 창이 사라진다. 이 창은 "Claude 앱 설정 > 사용량의 %를 보고 입력하라"고
-        # 안내하는데, 그러려면 반드시 앱을 전환해야 한다. 게다가 LSUIElement 라
-        # Dock 아이콘이 없어 사라지면 펫을 우클릭하는 것 말고는 되돌릴 길이 없다.
+        # NSPanel 기본값(hidesOnDeactivate=YES)이면 다른 앱으로 전환하는 순간 창이
+        # 사라진다(키를 복사하러 브라우저로 가는 것만으로). 게다가 LSUIElement 라 Dock
+        # 아이콘이 없어 사라지면 펫을 우클릭하는 것 말고는 되돌릴 길이 없다.
         panel.setHidesOnDeactivate_(False)
-        # 자식 창과 같은 이유(아래 open_advanced_limits 참조): 창의 수명을
-        # Cocoa 의 '닫으면 release' 에 맡기지 않고 우리가 명시적으로 관리한다.
+        # 창의 수명을 Cocoa 의 '닫으면 release' 에 맡기지 않고 우리가 명시적으로 관리한다 —
+        # ui 가 창을 붙잡고 있으므로, 닫힌 뒤 해제된 객체를 가리키는 참조가 남으면 안 된다.
         panel.setReleasedWhenClosed_(False)
-        panel.setDelegate_(handler)   # X → windowWillClose_ → 자식 먼저 정리
+        panel.setDelegate_(handler)   # X → windowWillClose_ → close_main_panel
         panel.center()
         cv = panel.contentView()
 
@@ -9508,20 +9943,6 @@ def run_gui():
             l.setDrawsBackground_(False)
             l.setEditable_(False)
             l.setSelectable_(False)
-            if h > 20:
-                # 여러 줄 라벨. NSTextField 는 기본이 한 줄이라, 문자열에 \n 을
-                # 넣어도 그것만으로는 줄이 나뉘지 않고 잘린다 — 셋 다 켜야 한다:
-                #   usesSingleLineMode=False  한 줄 강제 해제
-                #   cell.wraps=True           줄바꿈 허용
-                #   lineBreakMode=0           NSLineBreakByWordWrapping
-                # 마지막 줄을 '…' 로 줄이는 동작도 끈다. 실패를 삼키지 않는 것이
-                # 중요하다: 조용히 넘어가면 '설정한 것처럼 보이는데 잘리는' 상태가
-                # 되고, 그건 지금 고치고 있는 바로 그 버그다.
-                l.setUsesSingleLineMode_(False)
-                c = l.cell()
-                c.setWraps_(True)
-                c.setLineBreakMode_(0)
-                c.setTruncatesLastVisibleLine_(False)
             cv.addSubview_(l)
             return l
 
@@ -9532,129 +9953,94 @@ def run_gui():
             cv.addSubview_(f)
             return f
 
+        def check(title, x, y, w, on):
+            b = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, w, 22))
+            b.setButtonType_(3)  # 체크박스
+            b.setTitle_(title)
+            b.setState_(1 if on else 0)
+            cv.addSubview_(b)
+            return b
+
+        def popup(x, y, w, titles, index):
+            pop = NSPopUpButton.alloc().initWithFrame_pullsDown_(
+                NSMakeRect(x, y - 3, w, 26), False)
+            pop.addItemsWithTitles_(titles)
+            pop.selectItemAtIndex_(index)
+            cv.addSubview_(pop)
+            return pop
+
+        def section(title, show_key, y):
+            """구역 제목(굵게)과 같은 줄 오른쪽의 '필에 표시' 체크."""
+            head = label(title, 20, y, 150)
+            head.setFont_(NSFont.boldSystemFontOfSize_(13))
+            return check(t("s_show_in_pill"), 180, y, 220, RUNTIME.get(show_key, True))
+
         y = PHT - 40
         label(t("s_pet"), 20, y)
         pet_list_s = discover_pets()
         pet_ids = [p["id"] for p in pet_list_s]
-        pet_pop = NSPopUpButton.alloc().initWithFrame_pullsDown_(
-            NSMakeRect(180, y - 3, 220, 26), False)
-        pet_pop.addItemsWithTitles_([p["name"] for p in pet_list_s])
         cur_pet = cfg.get("pet") or (pet_ids[0] if pet_ids else None)
-        if cur_pet in pet_ids:
-            pet_pop.selectItemAtIndex_(pet_ids.index(cur_pet))
-        cv.addSubview_(pet_pop)
+        pet_pop = popup(180, y, 220, [p["name"] for p in pet_list_s],
+                        pet_ids.index(cur_pet) if cur_pet in pet_ids else 0)
 
         y -= 34
         label(t("s_language"), 20, y)
-        lang_pop = NSPopUpButton.alloc().initWithFrame_pullsDown_(
-            NSMakeRect(180, y - 3, 160, 26), False)
-        lang_pop.addItemsWithTitles_([LANG_NAMES[c] for c in SUPPORTED_LANGS])
-        lang_pop.selectItemAtIndex_(SUPPORTED_LANGS.index(L["lang"]))
-        cv.addSubview_(lang_pop)
+        lang_pop = popup(180, y, 160, [LANG_NAMES[c] for c in SUPPORTED_LANGS],
+                         SUPPORTED_LANGS.index(L["lang"]))
 
-        y -= 34
+        gauge_title = {"session": t("s_gauge_session"), "weekly": t("s_gauge_weekly"),
+                       "model": t("s_gauge_model"), "credit": t("s_gauge_credit")}
+
+        # ── Claude Code 구역 ──
+        y -= 42
+        show_claude = section(t("s_sec_claude"), "show_claude", y)
+        y -= 30
         label(t("s_data_source"), 20, y)
-        mode = NSPopUpButton.alloc().initWithFrame_pullsDown_(
-            NSMakeRect(180, y - 3, 220, 26), False)
-        mode.addItemsWithTitles_([t("s_mode_sub"), t("s_mode_api")])
-        mode.selectItemAtIndex_(1 if RUNTIME["mode"] == "api" else 0)
-        cv.addSubview_(mode)
-
-        y -= 34
-        label(t("s_model_kw"), 20, y)
-        f_kw = field(180, y - 2, 100, RUNTIME.get("model_keyword", "auto"))
-        label(t("s_auto_detect"), 288, y, 120)
-
-        y -= 34
-        label(t("s_weekly_reset"), 20, y)
-        wreset = NSPopUpButton.alloc().initWithFrame_pullsDown_(
-            NSMakeRect(180, y - 3, 130, 26), False)
-        wreset.addItemsWithTitles_([t("s_rolling7")] + WEEKDAYS_FULL[L["lang"]])
-        wd = RUNTIME.get("weekly_reset_day")
-        wreset.selectItemAtIndex_(0 if wd is None else int(wd) + 1)
-        cv.addSubview_(wreset)
-        f_wh = field(318, y - 2, 40, int(RUNTIME.get("weekly_reset_hour", 20)))
-        label(t("s_hour"), 362, y, 30)
-
-        # ── 보정: Claude 앱의 % 입력 → 한도 자동 역산 ──
-        y -= 40
-        label(t("s_calib1"), 20, y, 380)
-        y -= 20
-        label(t("s_calib2"), 20, y, 380)
-        y -= 28
-        label(t("s_calib_session"), 20, y)
-        f_cs = field(180, y - 2, 60, "")
+        mode = popup(180, y, 220, [t("s_mode_sub"), t("s_mode_api")],
+                     1 if RUNTIME["mode"] == "api" else 0)
         y -= 30
-        label(t("s_calib_weekly_all"), 20, y)
-        f_cw = field(180, y - 2, 60, "")
-        y -= 30
-        label(t("s_calib_weekly_model"), 20, y)
-        f_cm = field(180, y - 2, 60, "")
-
-        # 한도 안내 세 줄 —
-        #  (1) 비워 두면 지금 적용 중인 한도가 그대로 유지된다.
-        #  (2) 정확 모드에서는 게이지 %가 서버 값이라 보정이 필요 없지만,
-        #      **급증 감지는 어느 모드에서든 이 추정 한도를 쓴다.** 예전 문구는
-        #      "이 한도는 로그 추정 모드 전용"이었는데 그건 사실이 아니다 —
-        #      is_spike() 가 RUNTIME["session_limit"] 로 판단하므로, 정확 모드
-        #      사용자도 한도가 틀리면 급증 알림이 틀린다.
-        #  (3) 같은 항목에 %와 한도를 모두 넣으면 %가 이긴다.
-        # (2)(3) 은 조용히 일어나면 "저장했는데 안 바뀐다"로 보이므로 명시한다.
-        #
-        # note2 는 어느 언어에서도 한 줄에 들어가지 않는다. 380x20 한 줄에 두면
-        # 뒤쪽('급증 감지는 추정 한도를 쓴다')이 잘려 나가는데, 하필 그 잘리는
-        # 부분이 이 안내의 핵심이다. 그래서 문자열에 명시적 \n 을 넣는다.
-        #
-        # 다만 \n 만으로는 부족하다. 명시적 줄바꿈으로 나뉜 '각 줄'도 380px 를
-        # 넘으면 다시 wrap 되므로, 2줄 프레임에 3줄이 들어가면 결국 잘린다.
-        # 폰트 실측 없이 줄당 폭을 장담할 수 없어(여기서 GUI 를 띄울 수 없다)
-        # **3줄 높이(52)로 잡아 한 줄이 한 번 더 접혀도 흡수되게** 한다.
-        # 넘치는 쪽이 아니라 남는 쪽으로 틀리는 편이 낫다.
-        #
-        # 아래 y 간격은 각 라벨의 실제 높이(20/52/20)보다 크게 잡아 서로 겹치지
-        # 않게 한다 — 예전에는 20 높이 라벨을 18 간격으로 쌓아 2px 씩 겹쳤다.
-        y -= 30
-        label(t("s_limit_note1"), 20, y, 380)          # [y, y+20]
-        y -= 56
-        label(t("s_limit_note2"), 20, y, 380, h=52)    # [y, y+52], 위와 4px 간격
-        y -= 24
-        label(t("s_limit_note3"), 20, y, 240)          # [y, y+20], 위와 4px 간격
-
-        # 절대 토큰 한도는 '고급'이라 **별도 창**으로 뺀다. 세 칸을 이 창에 자리만
-        # 비워 두고 숨기는 방식도 해 봤는데, 그러면 내용 높이가 732 가 되어
-        # 1366x768 화면(메뉴 바·Dock 제외 약 673)에서 저장 버튼과 타이틀이 잘린다.
-        # 여는 버튼은 note3 와 **같은 줄** 오른쪽에 얹어 세로를 한 줄도 쓰지 않는다.
-        adv_btn = NSButton.alloc().initWithFrame_(NSMakeRect(268, y - 3, 132, 24))
-        # 버튼은 짧은 키를 쓴다. 긴 s_limit_advanced 는 자식 창 '제목'으로 남는다 —
-        # 제목 표시줄은 폭이 넉넉하지만 132px 버튼은 그렇지 않다.
-        adv_btn.setTitle_(t("s_limit_advanced_button"))
-        adv_btn.setBezelStyle_(1)      # 위 save_btn 과 같은 상수
-        adv_btn.setTarget_(handler)
-        adv_btn.setAction_("openAdvancedLimits:")
-        cv.addSubview_(adv_btn)
-
-        y -= 36
-        label(t("s_spike_sens"), 20, y)
-        sens = NSPopUpButton.alloc().initWithFrame_pullsDown_(
-            NSMakeRect(180, y - 3, 220, 26), False)
-        sens.addItemsWithTitles_([t("s_sens_high"), t("s_sens_normal"), t("s_sens_low")])
-        m = RUNTIME.get("spike_mult", 1.0)
-        sens.selectItemAtIndex_(0 if m < 0.9 else (2 if m > 1.5 else 1))
-        cv.addSubview_(sens)
-
-        y -= 32
-        greet = NSButton.alloc().initWithFrame_(NSMakeRect(20, y, 340, 22))
-        greet.setButtonType_(3)  # 체크박스
-        greet.setTitle_(t("s_greet"))
-        greet.setState_(1 if RUNTIME.get("greet") else 0)
-        cv.addSubview_(greet)
-
-        y -= 34
+        label(t("s_gauges"), 20, y)
+        chosen = set(RUNTIME.get("claude_gauges") or [])
+        claude_g = {}
+        for n, g in enumerate(CLAUDE_GAUGES):
+            # 2열 × 2행 — 네 이름이 어느 로케일에서도 120pt 안에 들어간다
+            gx, gy = 180 + (n % 2) * 120, y - (n // 2) * 24
+            claude_g[g] = check(gauge_title[g], gx, gy, 116, g in chosen)
+        y -= 54
         label(t("s_admin_key"), 20, y)
         f_key = field(180, y - 2, 220, RUNTIME.get("admin_key", ""), secure=True)
         y -= 30
         label(t("s_budget"), 20, y)
         f_bud = field(180, y - 2, 90, RUNTIME.get("api_budget") or 0)
+
+        # ── Codex 구역 (같은 모양) ──
+        y -= 42
+        show_codex = section(t("s_sec_codex"), "show_codex", y)
+        y -= 30
+        label(t("s_data_source"), 20, y)
+        codex_mode = popup(180, y, 220, [t("s_codex_mode_sub"), t("s_codex_mode_api")],
+                           1 if RUNTIME.get("codex_mode") == "api" else 0)
+        y -= 30
+        label(t("s_gauges"), 20, y)
+        chosen = set(RUNTIME.get("codex_gauges") or [])
+        codex_g = {}
+        for n, g in enumerate(CODEX_GAUGES):
+            codex_g[g] = check(gauge_title[g], 180 + n * 120, y, 116, g in chosen)
+        y -= 30
+        label(t("s_openai_key"), 20, y)
+        f_okey = field(180, y - 2, 220, RUNTIME.get("openai_admin_key", ""), secure=True)
+        y -= 30
+        label(t("s_codex_budget"), 20, y)
+        f_cbud = field(180, y - 2, 90, RUNTIME.get("codex_budget") or 0)
+
+        # ── 공통 ──
+        y -= 42
+        label(t("s_spike_sens"), 20, y)
+        m = RUNTIME.get("spike_mult", 1.0)
+        sens = popup(180, y, 220, [t("s_sens_high"), t("s_sens_normal"), t("s_sens_low")],
+                     0 if m < 0.9 else (2 if m > 1.5 else 1))
+        y -= 32
+        greet = check(t("s_greet"), 20, y, 380, RUNTIME.get("greet"))
 
         vl = label(f"ClaudePet v{APP_VERSION}", 20, 18, 200)
         vl.setTextColor_(NSColor.secondaryLabelColor())
@@ -9667,150 +10053,22 @@ def run_gui():
         save_btn.setAction_("saveSettings:")
         cv.addSubview_(save_btn)
 
-        # ses/wk/op(절대 한도)는 여기 없다 — 별도 '고급' 창이 생길 때 비로소
-        # ui 에 들어온다. 그래서 그 창을 한 번도 열지 않았으면 adv_value() 가
-        # "" 를 돌려주고, 그건 계약상 '기존 한도 유지'와 정확히 같은 값이다.
-        ui.update({"panel": panel, "mode": mode,
-                   "sens": sens, "greet": greet,
-                   "key": f_key, "bud": f_bud, "kw": f_kw,
-                   "wreset": wreset, "whour": f_wh, "lang": lang_pop,
-                   "cs": f_cs, "cw": f_cw, "cm": f_cm,
+        ui.update({"panel": panel, "mode": mode, "sens": sens, "greet": greet,
+                   "key": f_key, "bud": f_bud, "lang": lang_pop,
+                   "show_claude": show_claude, "claude_g": claude_g,
+                   "show_codex": show_codex, "codex_mode": codex_mode, "codex_g": codex_g,
+                   "okey": f_okey, "cbud": f_cbud,
                    "pet": pet_pop, "pet_ids": pet_ids})
         panel.makeKeyAndOrderFront_(None)
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
 
-    # ── 고급: 절대 한도 창 ──
-    ADV_FIELD_KEYS = ("ses", "wk", "op")
-
-    def adv_value(key):
-        """고급 창의 입력값. **창이 없으면 빈 문자열.**
-
-        이 한 줄이 계약 전체를 떠받친다. 고급 창을 한 번도 열지 않은 사용자는
-        '빈 칸'을 낸 것과 정확히 같아지고, 빈 칸은 prepare_settings_config 에서
-        '기존 한도 유지'다. 창의 존재 여부가 저장 결과에 새 분기를 만들지 않는다.
-        위젯을 미리 잡아 두지 않고 매번 ui 에서 조회하는 이유도 같다 — 창이 죽은
-        뒤 참조만 살아남아 유령 값을 읽는 일이 없어야 한다.
-        """
-        w = ui.get(key)
-        return w.stringValue() if w else ""
-
-    def close_advanced():
-        """고급 창을 떼어 내리고 참조를 지운다. 창과 참조는 반드시 같이 죽는다.
-
-        세 경로에서 불린다: 저장, 본 창 닫힘, 그리고 **고급 창 자체의 X**.
-        마지막 것이 처음 구현에서 빠져 있었다 — addChildWindow_ 는 부모→자식
-        방향만 묶어 주므로, 자식의 X 는 이 함수를 지나지 않았다. 그러면 닫힌
-        창을 가리키는 참조가 남고 adv_value() 가 그 stringValue() 를 읽어
-        저장에 반영한다. 조회 방식만으로는 유령 값을 막지 못한다 — 지워 주는
-        쪽이 있어야 비로소 막힌다.
-
-        재진입 방지: 지금은 orderOut_ 이라 close 알림이 다시 오지 않지만,
-        누군가 close() 로 바꾸면 delegate → 여기 → close() → delegate 가 된다.
-        그 변경이 조용히 무한 재귀가 되지 않도록 깃발로 막아 둔다.
-        """
-        if ui.get("adv_closing"):
-            return
-        ui["adv_closing"] = True
-        try:
-            p = ui.get("adv_panel")
-            if p:
-                parent = ui.get("panel")
-                if parent:
-                    parent.removeChildWindow_(p)
-                p.setDelegate_(None)
-                p.orderOut_(None)
-            ui["adv_panel"] = None
-            for k in ADV_FIELD_KEYS:
-                ui[k] = None
-        finally:
-            ui["adv_closing"] = False
-
     def close_main_panel():
-        """본 창을 닫는 유일한 경로. 자식을 **먼저** 정리한다.
-
-        순서가 뒤집히면 그 사이 자식이 부모 없이 화면에 남는다. 이 앱은
-        LSUIElement 라 Dock 아이콘이 없어, 그렇게 남은 창은 사용자가 되돌릴
-        방법이 사실상 없다.
-        """
-        close_advanced()
+        """설정 창을 닫는 유일한 경로(저장 성공, X 버튼). 창과 참조는 같이 죽는다."""
         p = ui.get("panel")
         if p:
             p.setDelegate_(None)
             p.orderOut_(None)
         ui["panel"] = None        # 다음에 열 때 새 언어로 재구성
-
-    def open_advanced_limits():
-        if ui.get("adv_panel"):
-            ui["adv_panel"].makeKeyAndOrderFront_(None)
-            return
-        parent = ui.get("panel")
-        if not parent:
-            return                      # 본 창이 없으면 열지 않는다(고아 방지)
-        # 폭 500 은 세 칸(라벨·입력·현재값)이 어느 locale 에서도 잘리지 않는
-        # 최소치다. 380 일 때는 "Weekly limit (M tokens)" 같은 행 라벨과
-        # "now: 98.765432M" 같은 현재값이 함께 잘렸다. 이 창은 본 창과 달리
-        # 세로 예산(612/656)과 무관하므로 가로로 넉넉히 준다.
-        AW, AH = 500, 190
-        ap = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(0, 0, AW, AH),
-            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
-            NSBackingStoreBuffered, False)
-        ap.setTitle_(t("s_limit_advanced"))     # 제목은 긴 키를 그대로 쓴다
-        # 본 창과 같은 이유로 필요하다: 사용자는 %를 확인하러 Claude 앱으로
-        # 전환하는데, 기본값이면 그 순간 창이 사라진다.
-        ap.setHidesOnDeactivate_(False)
-        # X 를 눌러도 객체가 해제되지 않게 한다. initWithContentRect: 로 만든
-        # 창은 기본이 '닫으면 release' 다. windowWillClose_ 자체는 release 보다
-        # **먼저** 오므로 그 안에서 해제된 객체를 만질 일은 없지만, 문제는 그
-        # 뒤다 — ui 딕셔너리와 정리 흐름이 창을 명시적으로 붙잡고 있는 파이썬
-        # 쪽 수명과 Cocoa 쪽 수명이 어긋나면, 이미 해제된 객체를 가리키는
-        # 래퍼가 남는다. 수명을 우리가 명시적으로 관리하려고 끈다.
-        ap.setReleasedWhenClosed_(False)
-        ap.setDelegate_(handler)                # X → windowWillClose_ → 정리
-        acv = ap.contentView()
-
-        def alabel(text, x, yy, w=150, h=20):
-            l = NSTextField.alloc().initWithFrame_(NSMakeRect(x, yy, w, h))
-            l.setStringValue_(text)
-            l.setBezeled_(False)
-            l.setDrawsBackground_(False)
-            l.setEditable_(False)
-            l.setSelectable_(False)
-            acv.addSubview_(l)
-            return l
-
-        def afield(x, yy, w):
-            f = NSTextField.alloc().initWithFrame_(NSMakeRect(x, yy, w, 22))
-            f.setStringValue_("")       # 항상 빈 칸 = 지금 한도 유지
-            acv.addSubview_(f)
-            return f
-
-        yy = AH - 34
-        alabel(t("s_limit_note1"), 16, yy, AW - 32)
-        yy -= 30
-        made = []
-        for key_l, tokens in (("s_limit_session", RUNTIME["session_limit"]),
-                              ("s_limit_weekly", RUNTIME["weekly_limit"]),
-                              ("s_limit_model", RUNTIME["opus_limit"])):
-            # 좌우 여백 16 대칭, 열 사이는 겹치지 않게 띄운다:
-            #   라벨 16..186 | 입력 190..290 | 현재값 300..484 | 우여백 16
-            alabel(t(key_l), 16, yy, 170)
-            made.append(afield(190, yy - 2, 100))
-            # 현재 값은 읽기 전용 라벨로만 보여 준다. 칸에 미리 채우면 '빈 칸이면
-            # 안 건드린다'가 창을 열었는지에 따라 달라지는 조건부 성질이 된다.
-            # 폭 184 는 "now: 98.765432M" 처럼 6자리까지 쓴 값이 들어가는 크기다.
-            alabel(t("s_limit_current", value=fmt_limit_m(tokens)),
-                   300, yy, 184)
-            yy -= 30
-
-        for k, w in zip(ADV_FIELD_KEYS, made):
-            ui[k] = w
-        ui["adv_panel"] = ap
-        # 부모에 매달아 수명을 묶는다 — 본 창을 내리면 이 창도 함께 내려간다.
-        parent.addChildWindow_ordered_(ap, 1)     # NSWindowAbove
-        f = parent.frame()
-        ap.setFrameOrigin_(NSMakePoint(f.origin.x + 30, f.origin.y + 40))
-        ap.makeKeyAndOrderFront_(None)
 
     def settings_error(msg):
         """저장 실패 안내. 패널은 열어 둔 채, 설정/RUNTIME/state 는 그대로 둔다."""
@@ -9822,10 +10080,8 @@ def run_gui():
     def save_settings():
         """설정 저장. 검증 → 파일 기록이 모두 성공한 뒤에야 실제로 반영한다.
 
-        예전에는 입력을 곧바로 cfg/RUNTIME 에 밀어 넣고 저장했다. 값 하나가
-        이상해도 조용히 무시되거나(=저장했는데 안 바뀜) 반쯤 적용됐다.
-        이제는 후보(candidate)를 따로 만들어 검증하고, 저장까지 성공해야
-        cfg/RUNTIME/state 를 건드린다. 실패하면 창은 그대로 열려 있다.
+        후보(candidate)를 따로 만들어 검증하고, 저장까지 성공해야 cfg/RUNTIME/state 를
+        건드린다. 실패하면 창은 그대로 열려 있다. 로그는 읽지 않는다 — 역산할 한도가 없다.
         """
         # 위젯에서 '값'만 뽑아 낸다. 검증과 반영은 AppKit 을 모르는
         # plan_settings_save / apply_settings_plan 이 한다 — 그래야 전체
@@ -9833,37 +10089,23 @@ def run_gui():
         pet_ids = ui.get("pet_ids") or []
         sel_pet = pet_ids[ui["pet"].indexOfSelectedItem()] if pet_ids else None
         prev_pet = cfg.get("pet") or (pet_ids[0] if pet_ids else None)
-        widx = ui["wreset"].indexOfSelectedItem()
         form = {
             "pet": sel_pet,
             "lang": SUPPORTED_LANGS[ui["lang"].indexOfSelectedItem()],
             "mode": "api" if ui["mode"].indexOfSelectedItem() == 1 else "sub",
-            "model_keyword": (str(ui["kw"].stringValue()).strip().lower()
-                              or "auto"),
-            "weekly_reset_day": None if widx == 0 else widx - 1,
-            "weekly_reset_hour": ui["whour"].stringValue(),
             "api_budget": ui["bud"].stringValue(),
             "spike_mult": [0.5, 1.0, 2.0][ui["sens"].indexOfSelectedItem()],
             "greet": bool(ui["greet"].state()),
             "admin_key": str(ui["key"].stringValue()).strip(),
-            # 고급 창을 안 열었으면 "" → 기존 한도 유지(창 존재가 분기를 만들지 않음)
-            "session_limit_m": adv_value("ses"),
-            "weekly_limit_m": adv_value("wk"),
-            "opus_limit_m": adv_value("op"),
-            "session_pct": ui["cs"].stringValue(),
-            "weekly_pct": ui["cw"].stringValue(),
-            "opus_pct": ui["cm"].stringValue(),
+            "show_claude": bool(ui["show_claude"].state()),
+            "claude_gauges": [g for g, b in ui["claude_g"].items() if b.state()],
+            "show_codex": bool(ui["show_codex"].state()),
+            "codex_mode": "api" if ui["codex_mode"].indexOfSelectedItem() == 1 else "sub",
+            "codex_gauges": [g for g, b in ui["codex_g"].items() if b.state()],
+            "openai_admin_key": str(ui["okey"].stringValue()).strip(),
+            "codex_budget": ui["cbud"].stringValue(),
         }
-
-        # 보정(%) 역산에 쓸 사용량은 새 키워드/주간 리셋 기준이어야 한다.
-        # RUNTIME 을 미리 바꾸는 대신 스냅샷으로 계산한다(실패해도 RUNTIME 은 그대로).
-        def stats_for(snapshot):
-            snap = dict(RUNTIME)
-            snap.update({k: v for k, v in snapshot.items() if v is not None
-                         or k == "weekly_reset_day"})
-            return compute_usage(runtime=snap)
-
-        plan, err = plan_settings_save(cfg, form, stats_for=stats_for)
+        plan, err = plan_settings_save(cfg, form)
         if err:
             settings_error(err)     # 창은 열어 둔 채, 아무것도 바뀌지 않았다
             return
@@ -9874,18 +10116,11 @@ def run_gui():
             return
 
         # ── 여기부터가 "성공" — 창을 정리하고 화면에 반영한다 ──
-        # 적용한 %는 비운다 — 창을 X로 닫으면 패널이 재사용되는데, 남아 있던
-        # %가 다음 저장 때 다시 적용돼 한도가 엉뚱하게 덮어써졌다.
-        for fld in ("cs", "cw", "cm"):
-            ui[fld].setStringValue_("")
-        # 보정 결과가 반영된 사용량을 여기서(=반환 전에) state 에 넣는다.
-        # 백그라운드 새로고침만 믿으면 "저장했는데 % 가 그대로"로 보였다.
-        # 세대를 올려, 저장 전에 시작된 새로고침이 뒤늦게 덮어쓰지 못하게 한다.
+        # 세대를 올려, 저장 전에(옛 설정으로) 시작된 새로고침이 뒤늦게 덮어쓰지 못하게 한다.
+        # 예: Codex 를 API 모드로 바꿨는데 옛 패스가 비용 없이 끝나 '조회 중'이 눌러앉는 일.
         gen = begin_refresh_generation(state)
-        commit_refresh_result(state, gen, {"stats": compute_usage()})
-        state["repaint"] = True
+        commit_refresh_result(state, gen, {"repaint": True})
         _oauth_cache["t"] = 0.0   # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
-        # 저장 성공 경로도 같은 정리 함수를 쓴다 — 자식 먼저, 그다음 본 창.
         close_main_panel()
         ticker.refresh_(None)
         view.setNeedsDisplay_(True)
@@ -9994,6 +10229,13 @@ def run_gui():
         def loginClaude_(self, sender):
             start_claude_login()
 
+        def installCodex_(self, sender):
+            # Terminal 에서 npm 설치 + codex login. 끝나면 다음 refresh 가 토큰을 감지한다.
+            start_codex_install()
+
+        def loginCodex_(self, sender):
+            start_codex_login()
+
         def uninstallApp_(self, sender):
             app = app_bundle_path()
             items = list(uninstall_targets())
@@ -10075,22 +10317,11 @@ def run_gui():
         def saveSettings_(self, sender):
             save_settings()
 
-        def openAdvancedLimits_(self, sender):
-            # 절대 한도(고급) 창을 연다. 이미 열려 있으면 앞으로 가져오기만 한다.
-            open_advanced_limits()
-
         def windowWillClose_(self, notification):
-            """창의 X 로 닫힐 때. 어느 창인지는 알림의 object() 로 가른다.
-
-            버튼을 거치지 않는 유일한 닫힘 경로라, 여기가 없으면 참조만 살아남아
-            닫힌 창의 값이 저장에 실려 들어간다(고급 창), 또는 자식이 부모 없이
-            남는다(본 창).
-            """
-            w = notification.object()
-            if w is ui.get("adv_panel"):
-                close_advanced()        # 자식만 정리 — 본 창은 그대로 열려 있다
-            elif w is ui.get("panel"):
-                close_main_panel()      # 자식 먼저, 그다음 본 창
+            """설정 창의 X 로 닫힐 때. 버튼을 거치지 않는 유일한 닫힘 경로라, 여기가 없으면
+            닫힌 창을 가리키는 참조가 ui 에 남는다."""
+            if notification.object() is ui.get("panel"):
+                close_main_panel()
 
     # ── 토큰 자동 갱신·복구 ──
     def _recovery_step(force=False):
@@ -10247,7 +10478,6 @@ def run_gui():
             # 새로고침 워커가 값을 갱신했으면 반드시 다시 그린다. 이게 없으면
             # 쉬는 동안(resting) 위 분기들이 dirty를 세우지 않아, 새 사용량이
             # 들어와도 최대 rest 시간(idle 기준 25초)까지 화면이 멈춰 있었다.
-            # 보정(%) 입력이 "저장해도 반영 안 됨"으로 보이던 원인.
             if state["repaint"]:
                 state["repaint"] = False
                 dirty = True
@@ -10265,15 +10495,52 @@ def run_gui():
 
             def work():
                 try:
-                    s = compute_usage()
                     oauth = fetch_exact_usage()            # 정확 모드 (180s 캐시)
-                    values = {"stats": s, "oauth": oauth,
-                              # Codex 자격증명이 없으면 파일 한 번 못 열고 끝난다 — 망을
-                              # 타지 않으므로 Codex 를 안 쓰는 사용자에게 드는 비용은 없다.
-                              "codex": fetch_codex_usage(),
+                    # Codex 자격증명이 없으면 파일 한 번 못 열고 끝난다 — 망을
+                    # 타지 않으므로 Codex 를 안 쓰는 사용자에게 드는 비용은 없다.
+                    codex = fetch_codex_usage()
+                    # 로그는 급증 감지에만 쓴다. 모델별 레인의 대상은 서버의 모델별 행이 정한다.
+                    s = compute_usage(model_keyword=model_keyword_from_rows(oauth))
+                    now_utc = s["now"]
+                    codex_entries = []
+                    codex_logs = (provider_shown(RUNTIME, "codex")
+                                  and RUNTIME.get("codex_mode") != "api")
+                    if codex_logs and (codex or LEARNED_LIMITS.get("codex_session")
+                                       or LEARNED_LIMITS.get("codex_weekly")):
+                        codex_entries = parse_codex_entries(now_utc - timedelta(days=7))
+                    # 급증 한도는 서버 %로부터 배운다(보정 UI 대체). 배운 뒤 같은 패스의
+                    # 로그로 급증을 다시 판정한다 — 파일을 다시 읽지 않는 계산뿐이다.
+                    rows = s.pop("rows", None) or []
+                    # 같은 캐시 응답(180초)에 EMA 를 거듭 걸지 않게 응답의 조회 시각을 키로 넘긴다.
+                    learn_server_limits(oauth, codex, rows, codex_entries,
+                                        model_kw=s.get("model_kw"),
+                                        claude_fetch=_oauth_cache.get("t"),
+                                        codex_fetch=_codex_cache.get("t"))
+                    try:
+                        mult = float(RUNTIME.get("spike_mult", 1.0)) or 1.0
+                    except (TypeError, ValueError):
+                        mult = 1.0
+                    spikes = dict(claude_spikes(rows, now_utc, s.get("model_kw"), mult=mult))
+                    spikes.update(codex_spikes(codex_entries, now_utc, mult=mult))
+                    s["spikes"] = spikes
+                    values = {"stats": s, "oauth": oauth, "codex": codex,
                               "cost": fetch_api_cost_today()}
                     if RUNTIME["mode"] == "api":
                         values["cost_month"] = fetch_api_cost_month()
+                    # Codex API 모드: OpenAI 조직 비용. 실패 종류는 Claude 쪽과 같은 규칙으로
+                    # 키 거부(사용자가 할 일 있음)와 일시 실패를 가른다(api_error_kind).
+                    if RUNTIME.get("codex_mode") == "api" and provider_shown(RUNTIME, "codex"):
+                        values["codex_cost"] = fetch_codex_cost_today()
+                        values["codex_cost_month"] = fetch_codex_cost_month()
+                        _ckind = api_error_kind(CODEX_API_STATUS.get("last_error"))
+                        values["codex_api_error"] = _ckind == "key"
+                        values["codex_api_stale"] = _ckind == "transient"
+                    # Codex 를 보이는데 토큰이 없으면 우클릭 메뉴에 설치/로그인(사양 §7).
+                    # Codex 를 쓰는 사람(CLI 또는 Codex 홈이 있음)에게만 낸다.
+                    values["codex_onboard"] = compute_codex_onboard_state(
+                        provider_shown(RUNTIME, "codex"), RUNTIME.get("codex_mode"),
+                        bool(read_codex_token(codex_auth_path())), bool(_find_codex_cli()),
+                        codex_home_exists())
                     # 키가 거부된 뒤에도 필이 "loading…" 을 띄우던 자리. 마지막 조회의
                     # **실패 종류**를 보고, 사용자가 실제로 할 수 있는 일이 있는 경우만
                     # 경고로 올린다 — 401/403 은 키를 고치면 되고, 망 장애나 5xx 는
@@ -10291,12 +10558,10 @@ def run_gui():
                     _api_kind = api_error_kind(API_STATUS.get("last_error"))
                     values["api_error"] = _api_kind == "key"
                     values["api_stale"] = _api_kind == "transient"
-                    # Claude Code 데이터가 전혀 없으면 온보딩(설치/로그인) 안내.
-                    # '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'로 본다 —
-                    # 몇 달 전 로그 파일 하나가 남아 있다고 해서 지금 보여 줄 데이터가
-                    # 있는 것은 아니고, 그 파일이 안내를 영원히 막고 있었다.
-                    values["onboard"] = compute_onboard_state(
-                        oauth, bool(s.get("entries")))
+                    # 온보딩(설치/로그인) 안내는 **토큰**으로 판단한다(2026-10-05 2차) — 로그가
+                    # 있어도 토큰이 없으면 숫자를 볼 길이 없다. 토큰 확인은 프롬프트가 뜰 수
+                    # 없는 경로만(캐시·파일) 탄다(claude_token_present).
+                    values["onboard"] = compute_onboard_state(oauth, claude_token_present())
                     # 토큰을 살려 두는 자리. 판단은 순수 함수가 하고 여기서는 실행만 한다.
                     # 여기서 action 을 보고 values["onboard"] 를 덮어쓰지 **않는다**.
                     # 한때 "'onboard_install' 이면 안내를 설치 쪽으로 좁힌다" 는 두 줄이
@@ -10304,16 +10569,16 @@ def run_gui():
                     # _find_claude_cli() 가 거짓이어야 하고, 바로 윗줄의
                     # compute_onboard_state 는 같은 함수를 같은 패스에서 불러 그때 이미
                     # 'install'(또는 None)을 내놓는다. 좁힐 'login' 이 존재할 수가 없다.
-                    # 되살리지 말 것 — 그 조건을 느슨하게 풀면 이번엔 반대로, 보여 줄
-                    # 수치가 있는 사용자의 필을 '미설치' 문구로 덮게 된다(roam_summary 는
-                    # 온보딩을 추정 게이지보다 먼저 본다).
+                    # 되살리지 말 것 — 그 조건을 느슨하게 풀면 이번엔 반대로, Claude Code 를
+                    # 쓰고 있는 사용자의 필을 '미설치' 문구로 덮게 된다.
                     # claude 를 못 찾는 사용자에게 실제로 길을 열어 주는 자리는 자동
                     # 경로가 아니라 사용자가 직접 누른 경로다 — _summary_click_work 참조.
                     _recovery_step()
-                    prev = state["stats"]
+                    prev_oauth, prev_codex = state["oauth"], state.get("codex")
                     if not commit_refresh_result(state, gen, values):
                         return                             # 더 새 요청이 있다 → 버림
-                    if prev and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
+                    # 세션 리셋 점프 — 서버 세션 행이 >5% 에서 <1% 로(제공자별, 사양 §4).
+                    if session_reset_jump(prev_oauth, oauth, prev_codex, codex):
                         set_override("jumping")
                     # 주기적 새 버전 확인 — 마지막 확인(또는 앱 시작)에서 UPDATE_CHECK_SEC 가 지났을 때만.
                     # 30초 새로고침에 얹혀 있으므로 실제 확인은 주기가 찬 뒤 첫 새로고침에서 일어난다.
@@ -10394,28 +10659,54 @@ def run_gui():
 # ─────────────────────── CLI 리포트 ───────────────────────
 
 def print_report():
+    """CLI 리포트 — 서버 값(Claude·Codex 행, API 모드면 비용)과 급증 상태만 찍는다.
+
+    로그에서 낸 사용률은 없다(사양 §1). 급증은 이 한 번의 실행에서 서버 행으로 한도를 배운 뒤
+    판정한다 — 학습할 서버 행이 없으면 급증도 없다.
+    """
+    now = datetime.now(timezone.utc)
     exact = fetch_exact_usage()
-    if exact:
-        print("─" * 60)
-        print(" " + t("r_exact"))
-        for label, pct, rdt, rtxt in exact:
-            reset = fmt_countdown(rdt, datetime.now(timezone.utc)) if rdt else (rtxt or "-")
-            print(f" {label:<6} {pct:5.1f}%  · {t('r_reset')} {reset}")
-    s = compute_usage()
-    def line(name, g):
-        print(f" {name:<6} {g['pct']:5.1f}%  {t('r_used')} {fmt_tokens(g['used'])} / {fmt_tokens(g['limit'])}"
-              f"  · {t('r_left')} {fmt_tokens(g['left'])}  · {t('r_reset')} {fmt_countdown(g['reset'], s['now'])}")
+    codex = fetch_codex_usage()
+    s = compute_usage(model_keyword=model_keyword_from_rows(exact))
     print("─" * 60)
     print(f" {t('r_title')}  ·  v{APP_VERSION}")
     print("─" * 60)
-    line(t("session"), s["session"])
-    line(t("weekly"), s["weekly"])
-    line("Opus", s["opus"])
-    if s["last_activity"]:
+    def rows_out(title, rows, tr_label=False):
+        print(" " + title)
+        for label, pct, rdt, rtxt in rows:
+            reset = fmt_countdown(rdt, now) if rdt else (rtxt or "-")
+            shown = t(label) if tr_label else label
+            print(f" {shown:<6} {pct:5.1f}%  · {t('r_reset')} {reset}")
+    if exact:
+        rows_out(t("r_exact"), exact)
+    if codex:
+        rows_out(t("r_codex"), codex, tr_label=True)
+    if not exact and not codex:
+        print(" " + t("r_no_server_rows"))
+    codex_entries = []
+    if codex and RUNTIME.get("codex_mode") != "api":
+        codex_entries = parse_codex_entries(now - timedelta(days=7))
+    entries = s.get("rows") or []
+    learn_server_limits(exact, codex, entries, codex_entries, model_kw=s.get("model_kw"))
+    try:
+        mult = float(RUNTIME.get("spike_mult", 1.0)) or 1.0
+    except (TypeError, ValueError):
+        mult = 1.0
+    spikes = dict(claude_spikes(entries, now, s.get("model_kw"), mult=mult))
+    spikes.update(codex_spikes(codex_entries, now, mult=mult))
+    snap = {"spikes": spikes}
+    spiking = [name for name, pid in (("Claude", "claude"), ("Codex", "codex"))
+               if provider_spiking(snap, pid)]
+    print(f" {t('r_spike')}: {', '.join(spiking) or '-'}")
+    if s.get("last_activity"):
         print(f" {t('r_last_activity')}: {s['last_activity'].astimezone():%Y-%m-%d %H:%M}")
-    cost = fetch_api_cost_today()
+    cost = fetch_api_cost_today() if RUNTIME.get("mode") == "api" else None
     if cost is not None:
         print(f" {t('r_today_cost')}: ${cost:.2f}")
+    if RUNTIME.get("codex_mode") == "api":
+        ccost = fetch_codex_cost_today()
+        if ccost is not None:
+            print(f" Codex · {t('r_today_cost')}: ${ccost:.2f}")
     print("─" * 60)
 
 

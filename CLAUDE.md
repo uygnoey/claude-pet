@@ -1,7 +1,7 @@
 # CLAUDE.md — ClaudePet facts
 
 This file holds facts about **this** repository: paths, symbols, commands, constants,
-and the domain invariants of the usage estimator.
+and the domain invariants of the log parsers behind spike detection.
 
 The process rules that govern how agents work here — roles, Developer–Verifier
 separation, red-before-green, evidence standards, the merge checklist, the release gate,
@@ -24,15 +24,19 @@ never whether a number comes out right.
 
 ## What this is
 
-ClaudePet is a macOS desktop pet that displays your Claude Code token usage. It is an
+ClaudePet is a macOS desktop pet that displays your Claude Code and Codex usage — always
+the percentages the providers' own servers report, or the API cost in API mode. It is an
 `LSUIElement` app (no Dock icon, no menu bar item — it draws a borderless always-on-top
 window with an animated sprite and a compact one- or two-line usage summary pill), written in Python against PyObjC
 (AppKit/Foundation), and shipped as a self-contained, Developer ID-signed and
 Apple-notarized `.app` bundle built with py2app.
 
 **`claude_pet.py` is essentially the whole app** — a single module holding config,
-i18n (en/ko/ja/es), log parsing, the usage estimator, OAuth/keychain token reading, the
-Admin API client, the AppKit UI, the settings panel, the updater, and the uninstaller.
+i18n (en/ko/ja/es), log parsing for spike detection (Claude Code and Codex), the learned
+spike limits, OAuth/keychain token reading, the Codex usage reader, the Admin API clients
+(Anthropic and OpenAI), the AppKit UI, the settings panel, the updater, and the uninstaller.
+The Windows port (`windows/claude_pet_win.py`, PySide6) imports this module and calls
+the same core functions; it implements only the window, drawing, menu and settings dialog.
 There is no package structure to navigate. Use `grep -n` on symbol names; line numbers
 in any document (including this one) drift as the file changes, so treat every line
 number as approximate and locate code by symbol. For the same reason this file quotes no
@@ -46,7 +50,9 @@ invites the reader to reason from it.
 | Path | What it is |
 | --- | --- |
 | `claude_pet.py` | The application. Everything below the UI layer lives here too. |
-| `tests/test_log_estimate.py` | Unit tests for the log estimator (`parse_usage_entries`, `compute_usage`). |
+| `tests/test_log_estimate.py` | Unit tests for the Claude Code log parser that spike detection stands on (`parse_usage_entries`, `_weigh_usage`, `compute_usage`'s spike snapshot). The name is historical: nothing it covers produces a displayed number any more. |
+| `tests/test_codex_usage.py` | Codex usage rows, the Codex session-log parser (`parse_codex_entries`), `codex_spikes`, and the OpenAI cost client (`fetch_codex_cost`). It is in the Windows CI job's list, so it runs on real Windows too. |
+| `tests/test_server_only_usage.py` | Gates for the server-only change: no estimate anywhere, learned spike limits (`learn_limit`, `learn_lane`, `learn_server_limits`), per-provider spikes and API mode, the server-value reset jump, gauge filters, the two-section settings plan, the Codex menu items. |
 | `tests/test_settings_and_install.py` | Counterexample tests for the settings transaction, the bundled-pet seed, and the updater. Most are written to fail against a specific wrong implementation — read the test before changing the code it pins. |
 | `tests/test_updater.py` | Updater contract tests: asset selection, the update preflight, the zip-member scan, and the generated replacement shell script. Tests that need the real macOS tools skip **loudly** (stderr + `skipTest`) so a missing prerequisite cannot read as coverage. |
 | `tests/test_updater_adversarial.py` | Adversarial gates for the updater transaction, deliberately sharing no fixtures with `test_updater.py`. Its header lists the plausible wrong implementations each fixture rules out. |
@@ -331,25 +337,29 @@ guard too.
 
 ## Testing policy: synthetic fixtures only
 
-**Tests must never read the real `~/.claude` corpus.** `tests/test_log_estimate.py`
+**Tests must never read the real `~/.claude` or `~/.codex` corpus.** `tests/test_log_estimate.py`
 builds every fixture by hand, writes it into a `tempfile.TemporaryDirectory()`, and
 points `claude_pet.LOG_DIRS` at that directory for the duration of the test (restoring
-it via `addCleanup`).
+it via `addCleanup`). The Codex parser is tested the same way: `parse_codex_entries()`
+takes `root=`, and `codex_sessions_root()` / `codex_auth_path()` take `env=` / `home=`, so
+a test passes a temporary directory and never consults `$CODEX_HOME` or the real home.
 
 The reason is not tidiness. A suite that reads live logs **passes or fails according to
 how much agent traffic the developer happened to generate that day.** The same code
 would go green on a quiet morning and red after a busy afternoon, and neither result
 would be about the code. It is also the exact situation
 [AGENTS.md §5](AGENTS.md#never-measure-a-corpus-your-own-session-is-writing) rules out —
-an agent running this suite is itself writing to `~/.claude` while it runs.
+an agent running this suite is itself writing to `~/.claude` while it runs (and a Codex
+agent to `~/.codex/sessions`).
 
 Any new test that needs a log shape adds a record to the `usage_record()` helper's
 parameters. If a hypothesis genuinely requires the real corpus, that is an
 investigation, not a test: do it in a scratch script, report it under the evidence
 standard, and keep it out of `tests/`.
 
-**[NEVER]** point `LOG_DIRS` at a real `~/.claude` path from a test, and never copy real
-transcript content into a fixture (see Privacy below).
+**[NEVER]** point `LOG_DIRS` at a real `~/.claude` path, or `parse_codex_entries()` at a real
+`~/.codex/sessions`, from a test, and never copy real transcript content into a fixture
+(see Privacy below).
 
 ---
 
@@ -357,12 +367,18 @@ transcript content into a fixture (see Privacy below).
 
 Claude Code writes newline-delimited JSON transcripts under the directories in
 `LOG_DIRS` (`~/.claude/projects`, `~/.config/claude/projects`), discovered recursively
-by `_iter_log_files()`. The estimator's correctness rests entirely on the following
-properties of those files. Each one has been the cause of a real miscount.
+by `_iter_log_files()`. Nothing parsed from them is displayed any more — the pill's numbers
+are server values — but **spike detection and the learned spike limits rest entirely on the
+following properties of those files** (see [Spike detection](#spike-detection--logs-only-limits-learned-from-the-server)).
+Each one has been the cause of a real miscount, and a miscount now shows up as a phantom or
+missing spike alert rather than as a wrong percentage.
 
 These are **correctness facts, not permission rules** — they carry no `[NEVER]`/`[ASK]`
 tag (see [AGENTS.md §0](AGENTS.md#0-how-to-read-the-prohibitions)). "Wrong" here means
 the number comes out incorrect, which no authorization can fix.
+
+Invariants 1–6 are Claude Code's. Codex's session logs have a different shape and their
+own four, numbered C1–C4 after them.
 
 **1. Rows sharing `(message.id, requestId)` are streaming snapshots of ONE request.**
 Claude Code writes a line per content block, so the same request appears several times,
@@ -469,6 +485,40 @@ whose mtime predates `since` purely to avoid opening them. It is an optimization
 correctness boundary — **the per-record timestamp check is the real gate.** A file
 touched recently can hold ancient records, so never treat "the file is recent" as
 evidence that its records are in the window.
+
+### Codex session logs
+
+The Codex CLI writes `$CODEX_HOME/sessions/**/*.jsonl`, or `~/.codex/sessions/**/*.jsonl`
+when `CODEX_HOME` is unset — `codex_sessions_root()`, the same root rule as
+`codex_auth_path()`, on Windows too (`%CODEX_HOME%` or the profile's `.codex`).
+`parse_codex_entries(since, root=None)` reads only lines of the shape
+`{"type": "event_msg", "timestamp": ISO, "payload": {"type": "token_count", "info": {"last_token_usage": {...}, "total_token_usage": {...}}}}`
+and returns `(timestamp, total, "codex", noncache)` tuples — the same shape as Claude's
+entries, so `_burn_windows()` / `is_spike()` / `window_total()` serve both.
+
+**C1. `info: null` is skipped.** Codex writes `token_count` events before anything has been
+counted; such a line carries no usage and is not a zero-usage row.
+
+**C2. Deduplicate on `total_token_usage.total_tokens`, within one file.** Codex sometimes
+writes the same `token_count` event twice. Two events in **the same file** with the same
+cumulative `total_tokens` are one event; the same value in a **different file** is a
+different session and counts. An event without a usable `total_tokens` cannot be judged a
+duplicate and is counted. The dedup set is per file — a global set would delete a second
+session's first event whenever two sessions happened to reach the same running total.
+
+**C3. Filter by record timestamp before consulting the dedup set** — the same reason as
+invariant 3: an out-of-window event that claimed the key would delete the in-window one.
+A line that cannot be weighed is likewise dropped *before* it can claim a key. The file
+mtime is a prefilter only, as in invariant 6.
+
+**C4. `reasoning_output_tokens` is not added.** The weight is taken from `last_token_usage`
+at Claude's rates — `max(0, input_tokens − cached_input_tokens)` ×1, `cached_input_tokens`
+×0.1, `cache_write_input_tokens` ×1.25, `output_tokens` ×5 — and `noncache` is that total
+minus the cached term. Reasoning tokens appear to be included in `output_tokens`; that is
+an **observation, not a guarantee**, so leaving them out is the conservative choice: adding
+them would double-count if the observation holds, and the cost of being wrong the other way
+is only a slightly higher learned limit. Any value that is not a finite non-negative number
+drops the whole line, as in `_weigh_usage()`.
 
 ---
 
@@ -664,8 +714,10 @@ helpers `(None, False)` and nothing there consults the real service at all.
 
 ## Cost weighting
 
-`_weigh_usage(usage)` converts a usage object into a **cost-weighted** number, using
-weights proportional to API list pricing:
+`_weigh_usage(usage)` converts a Claude Code usage object into a **cost-weighted** number,
+using weights proportional to API list pricing. (`_weigh_codex_usage()` applies the same
+rates to Codex's `last_token_usage` — invariant C4.) Nothing weighted here is displayed;
+the weighted numbers feed spike detection and the learned spike limits only.
 
 | Token kind | Weight |
 | --- | --- |
@@ -700,100 +752,136 @@ including them produced false spike alerts.
 **The weighted total is a cost-weighted quantity, not a raw token count.** Do not
 display it as "tokens used", do not compare it against a raw token figure from another
 tool, and do not "simplify" it back to a sum of token counts. Weighting is what keeps a
-user's calibrated `%` stable when their cache-hit ratio changes; an unweighted total
-would drift with usage pattern even at constant real cost.
+learned spike limit stable when the user's cache-hit ratio changes: the limit is
+`weighted total ÷ server %`, and the server's percentage tracks cost, so an unweighted total
+would make the learned limit — and therefore the spike floor — drift with usage pattern even
+at constant real cost.
 
 ---
 
-## Windows: what each gauge measures
+## Spike detection — logs only, limits learned from the server
 
-`compute_usage()` produces three gauges — **session**, **weekly**, and **opus**
-(per-model) — over three different windows. They are easy to confuse, and a change to
-one usually is not a change to the others.
+**The app shows no log-derived number.** Since 2026-10-05 ("추정 로그치 적는건 이제 없애자!!
+기능도 없애고") every percentage on the pill is a server value, and with no server value the
+pill shows a status instead. `compute_usage()` no longer produces gauges: it returns a spike
+snapshot — `burn_5m`, `burn_5m_opus`, `spikes`, `model_kw`, `last_activity`, `entries` (a
+count), `rows` (the parsed entries, which the refresh worker pops after learning) and `now`.
+Do not reintroduce session/weekly/per-model percentages, limits, resets or a "≈" line from
+it. The 5-hour tiled session blocks, the configured-weekday weekly window
+(`_weekly_window_start`) and the model-keyword setting went with the gauges.
 
-Everything starts from one parse: `compute_usage()` calls
-`parse_usage_entries(now - 7 days)`, so **no gauge can ever see anything older than 7
-days**. That 7-day bound is the outer limit for all three, including the session gauge.
+What the logs still do is say "you are suddenly using much more than a moment ago", for
+**both providers**:
 
-### Session window — 5-hour tiled blocks
+- **Claude Code** — `parse_usage_entries(now − 7 days)` (the JSONL invariants above), lanes
+  `session`, `weekly` and `opus` (`claude_spikes()`). `opus` is the historical key of the
+  per-model lane: its entries are those whose lowercased model string contains `model_kw`,
+  which comes from the server's per-model row label (`model_keyword_from_rows()`), and only
+  when there is none from `_detect_model_keyword()` over `PREMIUM_FAMILIES = ["fable",
+  "mythos", "opus"]`, newest first, falling back to `"opus"`.
+- **Codex** — `parse_codex_entries(now − 7 days)` (invariants C1–C4), lanes `codex_session`
+  and `codex_weekly` (`codex_spikes()`). The refresh worker reads these files only while
+  Codex is shown and not in API mode, and only once there are Codex server rows or a learned
+  Codex limit — a user who does not use Codex costs nothing.
 
-`SESSION_HOURS = 5`. Sessions are not "the last 5 hours"; they are **fixed 5-hour blocks
-tiled forward from activity**:
+### Spike windows
 
-- Walking the entries in time order, a new block opens at the first entry at or after the
-  current block's end. Its start is that entry's timestamp **snapped down to the hour**
-  (`replace(minute=0, second=0, microsecond=0)`), and it runs 5 hours from there.
-- The session gauge reports the **current** block only: if `now` is past the last block's
-  end, `session_tokens` is `0` and `session_reset` is `None`. Otherwise it sums entries
-  in `[block_start, block_end)` and `session_reset` is `block_end`.
+Every lane uses the same two windows over its entries (`_burn_windows()`): the **last 5
+minutes** of `noncache` (cache reads excluded — they are large and constant enough to cause
+false alerts) against a baseline built from the **preceding 25 minutes**, split into five
+5-minute buckets. Only buckets with activity are averaged — including idle zeros would drag
+the baseline below real activity and make the 2.5× gate fire during ordinary use.
+`is_spike(burn, base, limit, base_pct, mult)` fires when `burn ≥ limit × base_pct × mult /
+100` **and** `burn ≥ SPIKE_GATE (2.5) × max(base, floor / 5)`. `SPIKE_BASE` is 2.0 % for the
+session lanes and the per-model lane, 0.5 % for the weekly lanes; `mult` is the
+sensitivity setting (`spike_mult`: 0.5 / 1 / 2).
 
-The hour snap and the tiling both exist to match how Claude's own UI blocks sessions —
-continuous use resets exactly every 5 hours rather than sliding, so the estimated
-percentage does not drift away from the app's.
+### Learned limits
 
-### Weekly window — configured weekday, or rolling 7 days
+The `limit` in that floor is **learned, never typed**. `learn_server_limits()` runs on every
+refresh (and in `--report`) and, for each lane whose server row carries a reset time `R`,
+computes `T = window_total(entries, R, W)` — the **total** weighted usage (not `noncache`:
+the server's percentage looks cost-based) since `R − W` — and learns
+`limit = T ÷ (p / 100)` through `learn_limit()`, smoothed against the previous value by an
+exponential moving average (`LEARN_ALPHA = 0.3`). `W` is 5 h / 7 d / 7 d for Claude
+session / weekly / per-model (`CLAUDE_LANE_WINDOWS`), and for Codex the server's
+`limit_window_seconds` (`codex_window_seconds()`, falling back to `CODEX_LANE_WINDOWS`).
 
-`_weekly_window_start()` returns the start of the current weekly window, or `None`.
+- **Nothing is learned below `LEARN_MIN_PCT = 5` %, or from `T = 0`** — a tiny denominator
+  makes the quotient explode, and a zero limit would make every burn a spike.
+- **A lane with no learned limit never spikes** (`is_spike` returns False for a missing
+  limit). The old default limits (8M / 60M / 15M) were unsourced guesses and are gone; no
+  alert beats a wrong alert. `learn_lane()` creates no key when there is nothing to learn,
+  and that absence is what carries the rule.
+- `LEARNED_LIMITS` lives **in memory only**, outside `RUNTIME`, and is never saved — putting
+  it in `RUNTIME` would let a settings save write it to disk and resurrect the removed limit
+  keys. A restart starts unlearned, so spikes are off until the first refresh with a server
+  row at ≥ 5 %.
+- **API mode switches a provider's spikes off, per provider** (`provider_spiking()` checks
+  `mode` for Claude and `codex_mode` for Codex). Claude in API mode does not silence Codex.
 
-- **Configured mode.** If the user has set a weekly reset weekday
-  (`RUNTIME["weekly_reset_day"]`, `0`=Mon … `6`=Sun, paired with `weekly_reset_hour`,
-  default `20`), it returns that boundary converted to UTC, entries before it are
-  excluded, and `compute_usage()` sets `weekly_reset = week_start + 7 days`.
-- **Rolling mode.** If `weekly_reset_day` is `None` — the default — there is no boundary:
-  every entry from the 7-day parse is counted, and `compute_usage()` sets
-  `weekly_reset = None`.
+## Where the numbers come from
 
-**In rolling mode there is no single reset timestamp, and both the weekly gauge and the
-per-model gauge render `-`.** The two share the same `weekly_reset` value, so this is
-never one-sided. A rolling window slides continuously — every entry ages out on its own
-schedule — so no instant exists at which it resets. The old behaviour showed
-`first entry + 7 days`, which is merely when the *oldest currently-known* entry expires:
-a number that moves whenever the oldest entry changes, and that never matched Claude's
-own UI. On the pill's reset line the adapter formats each reset with `fmt_countdown()`, which maps
-a falsy reset to the literal string `"-"` — so a rolling weekly window reads `주간 -` there.
+Every number on the pill comes from a server, per provider and per data source:
 
-If a user wants a real reset time, they set a weekly reset weekday in settings. Do not
-reintroduce a synthesized one.
+- **Claude Code, subscription** (`mode = "sub"`) — `fetch_exact_usage()`, backed by the
+  OAuth token. The server returns percentages it computed itself, and they are shown
+  verbatim. `_read_oauth_token()` tries three sources in a deliberate order — credentials
+  **file**, then the `security` **CLI**, then the **native** Keychain API — because only the
+  last one can raise a Keychain prompt, and a background `LSUIElement` app that cannot show
+  UI dies silently on it (`-25308`). Do not reorder these.
+- **Claude Code, API cost** (`mode = "api"`) — `fetch_api_cost_today()` /
+  `fetch_api_cost_month()` against the Anthropic Admin API with `admin_key`.
+- **Codex, subscription** (`codex_mode = "sub"`) — `fetch_codex_usage()`, the
+  `chatgpt.com/backend-api/wham/usage` endpoint with the token from Codex's own `auth.json`
+  (`codex_auth_path()`), read only — refreshing it is the Codex CLI's job, and there is no
+  Codex token auto-recovery. When Codex is shown, not in API mode, has no token **and is in
+  use on this machine** — the CLI is found (→ sign in) or, without a CLI, the Codex home
+  (`codex_home_exists()`: `$CODEX_HOME`, else `~/.codex`) exists (→ install) —
+  `compute_codex_onboard_state()` puts **Install Codex…** / **Sign in to Codex…**
+  (`menu_install_codex` / `menu_login_codex`) at the top of the right-click menu, under the
+  Claude Code item: on macOS `start_codex_install()` / `start_codex_login()` open Terminal
+  with `npm install -g @openai/codex` / `codex login`, on Windows `_install_codex` /
+  `_login_codex` open a new PowerShell console like `_install_claude` / `_login_claude`.
+  With neither a CLI nor a Codex home nothing is offered, so a user who has never used
+  Codex sees no Codex item at all.
+- **Codex, API cost** (`codex_mode = "api"`) — `fetch_codex_cost_today()` /
+  `fetch_codex_cost_month()`: `GET https://api.openai.com/v1/organization/costs` with
+  `Authorization: Bearer <openai_admin_key>`, summing `data[].results[].amount.value` across
+  `has_more` / `next_page` pages. Failures land in `CODEX_API_STATUS["last_error"]` with the
+  same vocabulary as `API_STATUS` and are split by the same `api_error_kind()` (401/403 →
+  key rejected, anything else — including running into `CODEX_COST_MAX_PAGES` with pages
+  left, which returns None rather than a truncated sum — → unreachable). "Today" and "this
+  month" start at **UTC** midnight and the **UTC** 1st, for both providers, because the
+  Anthropic and OpenAI cost APIs bucket by UTC day; a local-midnight start would cut a
+  bucket in half.
 
-### Per-model (opus) window — the weekly window, filtered
+Both Admin keys (`admin_key`, `openai_admin_key`) are stored in plain text in
+`~/.claude_pet.json`, and the debug log carries status codes and exception class names
+only, never key bytes.
 
-The opus gauge uses **the same window and the same reset as the weekly gauge**; the only
-difference is that its sum is restricted to entries whose lowercased model string
-contains the model keyword. It is not a separate time window, so any change to weekly
-windowing changes this gauge too.
+**There is no fallback to the logs.** With no server value the pill shows a status:
+`token_expired` when the server rejected the OAuth token (401/403 — whatever the logs
+hold), onboarding (`onb_install` / `onb_login`) when there is no Claude OAuth token,
+`loading` / `scanning` while waiting for the first answer, `no_providers` when both
+providers are hidden. The JSONL logs feed spike detection only (above).
 
-The keyword is `RUNTIME["model_keyword"]`, default `"auto"`. Under `auto`,
-`_detect_model_keyword()` picks the newest premium family present, searching
-`PREMIUM_FAMILIES = ["fable", "mythos", "opus"]` in that order — first within the current
-weekly window, then across the full 7 days, falling back to `"opus"`. The name "opus" is
-therefore a historical label for the gauge's dict key, **not** a guarantee that Opus is
-what it measures; the tier Anthropic applies a per-model weekly limit to has changed
-before and is expected to change again.
+**Onboarding is decided by the token, not by the logs.** `compute_onboard_state(oauth,
+has_token)` returns None in API mode, when there are server rows, or when a Claude OAuth
+token exists — a token without rows is an outage, and telling that user to sign in would be
+false. Otherwise it returns `"login"` when the `claude` CLI is found and `"install"` when it
+is not, **even if recent logs exist** (logs say nothing about whether the numbers can be
+fetched). Both refresh paths pass `has_token=claude_token_present()`, which looks only at
+the already-cached token and the credentials file — never the Keychain API, which could
+prompt on a 30-second timer. The refresh fetches usage first, so a Keychain user's token is
+already cached by then.
 
-### Spike detection windows
-
-Spike detection uses two shorter windows over the same entries: the **last 5 minutes**
-(`burn_5m`, `burn_5m_opus`) compared against a baseline built from the **preceding 25
-minutes**, split into five 5-minute buckets. Only buckets with activity are averaged —
-including idle zeros would drag the baseline below real activity and make the 2.5×
-gate fire during ordinary use. Both use `noncache` (cache reads excluded).
-
----
-
-## exact vs estimate
-
-There are two sources of usage, and they coexist at runtime:
-
-- **exact** — `fetch_exact_usage()`, backed by the OAuth token. The server returns
-  percentages it computed itself. **This is the oracle.** When it is available it is
-  what the gauges show, and no calibration is needed. `_read_oauth_token()` tries three
-  sources in a deliberate order — credentials **file**, then the `security` **CLI**,
-  then the **native** Keychain API — because only the last one can raise a Keychain
-  prompt, and a background `LSUIElement` app that cannot show UI dies silently on it
-  (`-25308`). Do not reorder these.
-- **estimate** — `compute_usage()`, derived from the JSONL logs and the weights above.
-  It is the fallback for when the token is unavailable, unreadable, or the user has not
-  logged in.
+**`learn_server_limits()` learns once per server reading.** The refresh runs every 30 s but
+the OAuth and Codex responses are cached for 180 s, so the worker passes
+`claude_fetch=_oauth_cache["t"]` and `codex_fetch=_codex_cache["t"]`; a provider whose key
+equals the one recorded at its last learning is skipped, and the EMA is not re-applied to a
+cached row. `None` (as `--report` passes) always learns. With no server rows at all,
+`--report` prints `r_no_server_rows`.
 
 **The token cache is source-aware and re-validates without prompting.** `_oauth_token_cache`
 records where the token came from (`src`: `file`, `cli`, `native`), the credentials file's
@@ -820,7 +908,7 @@ never token bytes.
 ### The `claude -p /usage` CLI fallback is opt-in and OFF by default
 
 `_fetch_cli_usage()` returns `None` immediately unless `CLAUDE_PET_USE_CLI=1` is set in
-the environment. **It does not run for ordinary users**, so do not describe exact mode as
+the environment. **It does not run for ordinary users**, so do not describe the Claude subscription data source as
 "OAuth, falling back to the CLI" without that qualifier.
 
 The reason is in its docstring: the `claude` CLI launches the whole Claude Code Node app
@@ -905,19 +993,21 @@ usual source of wrong statements about this app:
 | Timer | Interval | What it does |
 | --- | --- | --- |
 | `tick:` | `TICK = 0.05` (20 Hz) | **Renders only.** `tick_()` reads `state["stats"]`, picks a mood, advances the animation frame. It never calls `compute_usage()`. |
-| `refresh:` | `REFRESH_SEC = 30` | Spawns a daemon thread whose `work()` calls `compute_usage()`, then `fetch_exact_usage()`, then the cost calls, and finally sets `state["repaint"]`. |
+| `refresh:` | `REFRESH_SEC = 30` | Spawns a daemon thread whose `work()` calls `fetch_exact_usage()` and `fetch_codex_usage()`, then `compute_usage()` (the Claude spike snapshot) and, when Codex is shown, `parse_codex_entries()`; then `learn_server_limits()`, `claude_spikes()` / `codex_spikes()`, the cost calls for whichever provider is in API mode, `compute_codex_onboard_state()`, and finally sets `state["repaint"]`. |
 
-So: **the estimate is recomputed once per 30 seconds on a background thread; the 20 Hz
-tick only renders the last computed value.** `compute_usage()` also runs on three
-one-off paths — a priming `refresh_(None)` at startup, a manual refresh on double-click,
-and a call inside the settings-save handler that back-solves limits from a typed `%`.
+So: **server values and the spike snapshot are refreshed once per 30 seconds on a background
+thread; the 20 Hz tick only renders the last result.** The refresh also runs on two one-off
+paths — a priming `refresh_(None)` at startup and a manual refresh on double-click — and a
+settings save starts one. Saving settings itself reads no logs (there is no limit to
+back-solve any more). The Windows port's `PetWindow.refresh()` runs the same sequence on a
+`QTimer` and hands the result to the GUI thread through `_apply_pending()`.
 
 When this document or a changelog says "the previous tick" — for instance in the
-session-reset greeting below — it means **the previous 30-second refresh**, not the
+session-reset jump below — it means **the previous 30-second refresh**, not the
 previous animation frame. The distinction matters: across 16 ms nothing changes, while
 across 30 s a session boundary can pass.
 
-### The pill is one summary line, and where the estimate still reaches in exact mode
+### The pill is one summary line per provider, and where the logs still reach it
 
 Since v0.24 the pet carries **one** pill, drawn by `draw_summary_pill()` from
 `roam_summary()` / `roam_summary_runs()`: a first line such as `세션 42% · 주간 17% ·
@@ -931,33 +1021,46 @@ display on the roaming summary ("그거로 통일하자", 2026-09-12). `full` an
 `SUMMARY_H` tall with one line and `SUMMARY_H2` with two; `pill_h()` is the two-line strip
 the logical window reserves.
 
-What the line contains is decided by `roam_summary()`, a pure function that returns one
-`(kind, payload)` segment:
+What a provider's line contains is decided by pure functions: `roam_summary()` for Claude
+Code and `codex_summary_segment()` (→ `roam_summary_codex()` / `roam_summary_codex_cost()`)
+for Codex. Each returns one `(kind, payload)` segment or nothing:
 
 | kind | when | line |
 | --- | --- | --- |
-| `exact` | `state["oauth"]` has rows | the first three **gauge** rows (session, weekly, per-model — the adapter drops credits via `_label_order`), server labels verbatim |
-| `estimate` | no server rows, logs present | session, weekly, and the model gauge from `compute_usage()`, each value prefixed with `SUMMARY_APPROX` (`≈`) |
-| `cost` | API mode with an Admin key | today's cost, then this month's when known |
-| `status` | otherwise | one translated status key (scanning, onboarding, missing key, loading) |
+| `exact` | server rows exist for that provider | the chosen gauge rows, server labels verbatim, values in emerald |
+| `cost` | that provider is in API mode with its Admin key and a cost | today's cost, then this month's when known (`/ $budget` when a budget is set) |
+| `status` | otherwise | one translated status key — `token_expired`, `onb_install` / `onb_login`, `scanning` / `loading`, `need_admin_key` / `api_key_rejected` / `api_unreachable`, and for Codex `codex_need_admin_key` / `codex_api_key_rejected` / `codex_api_unreachable` |
+
+**There is no `estimate` kind.** `SUMMARY_APPROX` (`≈`), `SUMMARY_COLORS["estimate"]`
+(amber) and the trailing `⚠` the adapter used to append after a token rejection were all
+removed on 2026-10-05. A rejected token now reads `token_expired` whatever the logs hold.
+
+**The user's choices filter the rows, in the adapter.** `provider_shown(runtime, provider)`
+is `show_claude` / `show_codex` **and** at least one chosen gauge — a provider with no gauge
+ticked is the same as a hidden one. Hand-edited values are coerced (`config_bool()`,
+`provider_gauges()`, and `apply_config()` stores the result): `"false"`, `"0"`, `"no"`, `0`
+and `False` mean off, and a `*_gauges` value that is not a list falls back to the default
+rather than hiding the provider. Claude rows are classified by `claude_gauge_class()`
+(from `_label_order`: 0 session, 1 weekly, 9 credit, anything else — 2 for a family row,
+5 for an unrecognised server window — is per-model) and filtered by `filter_claude_rows()`
+against `claude_gauges`; Codex rows (`codex_session` / `codex_weekly`) by
+`filter_codex_rows()` against `codex_gauges`. Rows not chosen are hidden, and so are their
+resets. `roam_summary()` still takes only the first `SUMMARY_GAUGE_ROWS` gauge rows by
+position, while a credit row passes outside that cap (with `credit_text` in money mode).
+Both providers hidden gives the single status `no_providers`, whose click opens Settings.
 
 **Colour carries two things, on two different runs.** The *value* run says where the
-number came from: `SUMMARY_COLORS["exact"]` is emerald, `["estimate"]` amber, and API cost
+number came from: `SUMMARY_COLORS["exact"]` is emerald (server percentages) and API cost
 amounts are coral. The *label* run (session/weekly/model, today/this month) is white
-(`"value"`) and turns `"warn"` at 50 % and `"bad"` at 85 % — `summary_value_kind()`, the
-same thresholds the old bars used — or `"bad"` outright when that gauge is spiking, in which
-case the label is also prefixed with `SUMMARY_SPIKE` (`▲`). (The user first asked for the
-opposite assignment and then swapped it the same day: "텍스트랑 수치랑 색을 반대로 하자".) Note the asymmetry in exact mode: the adapter passes
-`spike_first=bool(spike_info(stats))`, so a weekly or per-model *estimator* spike marks the exact
-**session** label. The second line is `"sub"` (the dim text colour). In API mode the line is
-`오늘 $x · 이번 달 $y / $budget` with the words "이번 달" coloured by this month's share of the budget.
-The old status line's `⚠` survives as a trailing run appended by the adapter when the
-estimate is showing because the OAuth token was rejected (`OAUTH_STATUS["auth_error"]`).
-`roam_summary()` stays pure: the adapter pre-formats reset times with `fmt_countdown()` and
-passes them in (`reset_texts`, and `row[2]` for exact rows), passes `spike_first` for the exact
-session row, and keeps every server row except credits (`_label_order() >= 9`) so a model row
-whose label is not a bare family word still shows. The adapter, `roam_summary_text()`, memoises
-its result per input and 5-second window because it runs on every 20 Hz tick while the pill is
+(`"value"`) and turns `"warn"` at 50 % and `"bad"` at 85 % — `summary_value_kind()` — or
+`"bad"` outright when that provider is spiking, in which case the label is also prefixed
+with `SUMMARY_SPIKE` (`▲`). (The user first asked for the opposite assignment and then
+swapped it the same day: "텍스트랑 수치랑 색을 반대로 하자".) The second line is `"sub"` (the
+dim text colour). In API mode the line is `오늘 $x · 이번 달 $y / $budget` with the words
+"이번 달" coloured by this month's share of the budget. `roam_summary()` stays pure: the
+adapter pre-formats reset times with `fmt_countdown()` and passes them in (`row[2]`), and
+passes `spike_first` and `credit_text`. The adapter, `roam_summary_text()`, memoises its
+result per input and 5-second window because it runs on every 20 Hz tick while the pill is
 visible.
 
 **Runs are the extension point.** `roam_summary_runs(segments, t)` turns a list of
@@ -972,173 +1075,125 @@ it with CoreText. If neither works the summary falls back to the system monospac
 The Windows port on the `windows` branch is meant to load the same file through Qt so the two
 platforms draw identical glyphs; nothing in this tree depends on that.
 
-**Where the estimate still reaches in exact mode.** The numbers are server-derived, but three
-visible paths are not. Re-derive this list from the source before relying on it — it has
-been wrong before, including once in v0.24's own draft, which dropped path 1 while the
-bars went away.
+**Where the logs still reach the screen.** The numbers are server values, but three visible
+paths are driven by the log-based spike signal (and, for path 3, by nothing from the logs
+at all). Re-derive this list from the source before relying on it — it has been wrong
+before, including once in v0.24's own draft.
 
-1. **The exact session label turns red with ▲ — inside the pill itself.** The adapter
-   passes `spike_first=bool(spike_info(stats))`, `roam_summary()` marks the exact session
-   row as spiking, and `_summary_segment_runs()` prefixes that label with `SUMMARY_SPIKE`
-   and colours it `"bad"`. The value beside it is untouched and still emerald. This is the
-   old red-session-bar path in its new clothes, and it keeps the old asymmetry: a weekly or
-   per-model *estimator* spike marks the exact **session** label.
+1. **A provider's session label turns red with ▲ — inside the pill itself.** For Claude the
+   adapter passes `spike_first=provider_spiking(stats, "claude")`, `roam_summary()` marks
+   the first row (never a credit row), and `_summary_segment_runs()` prefixes that label with `SUMMARY_SPIKE` and
+   colours it `"bad"`; Codex gets the same through `codex_summary_segment(..., spiking=
+   provider_spiking(stats, "codex"))`. The value beside it is untouched and still emerald.
+   Note the asymmetry: a weekly or per-model spike of a provider marks **that provider's
+   first (session) label** — and never the other provider's.
 2. **Spike → the pet, and it outranks the server.** `current_mood()` consults
-   `spike_info(state["stats"])` and returns `"failed"` *before* it reaches the exact-mode
-   branch that derives a mood from the server percentage, so a false spike from the
-   estimator overrides a perfectly good server reading. Four further effects hang off
-   that same signal: `tick_()` forces a repaint for as long as a spike is live; the pet is
-   tinted by a pulsing spike-coloured overlay that exists on no other path; the
-   **mouse-proximity greeting is suppressed**, since its guard includes
-   `not spike_info(state["stats"])`; and `roam_tick()` folds a live spike into `busy`, so
-   the pet neither sets out on a walk nor keeps its arrival latch while a spike shows.
-3. **The session-reset greeting.** The refresh worker compares the previous refresh's
-   `session["pct"]` against the current one and plays the jump animation when it crosses
-   from above 5 to below 1. Both values come from `compute_usage()`; the OAuth rows are
-   never consulted here, and the comparison carries no mode guard.
+   `spike_info(state["stats"])` — true when a *shown* provider is spiking — and returns
+   `"failed"` *before* it reaches `mood_for(None, rows, codex_rows=...)`, which derives a
+   mood from the highest server percentage among the **shown providers' selected gauges**
+   only (each provider's rows filtered by its own gauge choice; credits excluded; no server
+   rows → `"idle"`, never a mood from the logs). So a false spike overrides a perfectly good server
+   reading. Four further effects hang off that same signal: `tick_()` forces a repaint for
+   as long as a spike is live; the pet is tinted by a pulsing spike-coloured overlay that
+   exists on no other path; the **mouse-proximity greeting is suppressed**, since its guard
+   includes `not spike_info(state["stats"])`; and `roam_tick()` folds a live spike into
+   `busy`, so the pet neither sets out on a walk nor keeps its arrival latch while a spike
+   shows. A spike of a hidden provider moves none of this — there would be no ▲ on screen
+   to explain it.
+3. **The session-reset jump uses server values.** `session_reset_jump(prev_claude, claude,
+   prev_codex, codex)` compares the previous refresh's server session row with this one —
+   Claude's `_label_order` 0 row and Codex's `codex_session` row, each on its own — and the
+   pet jumps once when either crosses from above 5 % to below 1 %. No log percentage is
+   involved, and it has no mode guard: it fires in API mode too whenever server rows exist.
 
-**The exception — API mode.** Paths 1 and 2 are suppressed there by one mechanism:
-`spike_info()` returns `None` outright when `RUNTIME["mode"] == "api"`, so `spike_first` is
-False (and the API line has no session row anyway), mood falls through to the exact
-branch, the overlay never draws, the greeting is no longer suppressed. Path 3 has no guard
-and still fires in API mode.
+**API mode is per provider.** `provider_spiking()` returns False for Claude when `mode ==
+"api"` and for Codex when `codex_mode == "api"`, so paths 1 and 2 go quiet for that
+provider only. Path 3 is unaffected.
 
-The practical consequence: a parsing or weighting regression shows up as an alarmed,
-tinted pet and a pet celebrating a session reset that did not happen — never as wrong
-numbers on a logged-in user's pill, whose values are server-derived and drawn emerald.
+The practical consequence: a parsing, weighting or learning regression shows up as an
+alarmed, tinted pet, or as an alert that never comes — never as wrong numbers on the pill,
+whose values are server-derived and drawn emerald.
 
 ---
 
 ## Danger zone
 
-Two things make estimator changes higher-risk than they look.
+Two things make changes to spike detection and to the settings panel higher-risk than they
+look.
 
-**1. The limit constants are guesses.** In the `RUNTIME` dict near the top of
-`claude_pet.py` (locate it by the `RUNTIME = {` line, not by line number):
+**1. The learned limits are only meaningful relative to the parser that produced them.**
+There are no limit constants any more. The old `session_limit` / `weekly_limit` /
+`opus_limit` defaults (8M / 60M / 15M) were never officially published, and they are gone
+together with their `CLAUDE_PET_*_LIMIT` / `CLAUDE_PET_MODEL` environment variables; the code
+reads none of them. Each lane's limit is `weighted log total ÷ server %` for the same window
+(`learn_server_limits()`, see [Learned limits](#learned-limits)). That makes the limit, and
+with it the spike floor, a function of everything the JSONL invariants and the cost weights
+govern:
 
-```python
-"session_limit": int(os.environ.get("CLAUDE_PET_SESSION_LIMIT",  8_000_000)),
-"weekly_limit":  int(os.environ.get("CLAUDE_PET_WEEKLY_LIMIT",  60_000_000)),
-"opus_limit":    int(os.environ.get("CLAUDE_PET_OPUS_LIMIT",    15_000_000)),
-```
+- Any change to parsing, deduplication, weighting or the window arithmetic moves `T`, so the
+  learned limit moves with it and every alert threshold shifts. Because nothing is
+  persisted, it re-learns within a refresh or two. A systematic bias, though — a parser
+  that double-counts, say — is learned *into* the limit: the floor scales with it while the
+  burn it is compared against may not, so a broken parser can produce alerts that look
+  plausible and still be wrong. Test the parser, not the alerts.
+- The learning is an inference, not a fact. It assumes the server's percentage tracks the
+  same cost-weighted quantity, over the same window, that the local logs record. Where that
+  is false, the learned limit is too small or too large and alerts come early or late:
+  usage from another machine that these logs never saw, a server window that does not start
+  at `R − W`, a Codex window length the server did not report. The `p ≥ 5` and `T > 0`
+  gates and the EMA bound the damage; they do not remove it. Do not present a learned limit
+  as "your limit" anywhere in the UI.
+- A provider whose server rows never carry a reset time, or never reach 5 %, never gets a
+  limit and so never spikes. That is the intended failure mode — no alert beats a wrong
+  alert — and it must not be "fixed" by putting a default limit back.
 
-The inline comment says it outright: these are **estimates, not officially published
-values** (한도 추정치 — 공식 공개값 아님). Do not treat them as ground truth, do not
-"correct" them from an unsourced number, and do not build a claim on top of them.
+**2. The settings panel is a fixed-height view with hand-placed coordinates.** It has two
+provider sections of the same shape — `s_sec_claude` and `s_sec_codex`, each with
+`s_show_in_pill` (`show_claude` / `show_codex`), a data-source popup (`mode` /
+`codex_mode`), gauge checkboxes (`claude_gauges` over `CLAUDE_GAUGES` in a 2 × 2 grid,
+`codex_gauges` over `CODEX_GAUGES`), the Admin key (`admin_key` / `openai_admin_key`) and
+the monthly budget (`api_budget` / `codex_budget`). Spike sensitivity and the greeting come
+next, then Save and the version label. The Windows `SettingsDialog` copies the same
+coordinates (Qt flips y), the same keys and the same `PHT`.
 
-**2. The `% 보정` (calibration) path back-solves an absolute limit from estimator
-output.** The settings panel lets a user type the percentage shown in Claude's own
-Settings → Usage. The app then computes `limit = current_estimated_usage ÷ (pct / 100)`
-and stores that as the user's limit.
+**The content height is 568 and must stay ≤ 656.** The minimum supported screen is
+1366×768, which leaves roughly 673 points once the menu bar and Dock are removed. An
+earlier version reserved space for hidden fields and reached 732, pushing Save and the
+title bar off a 768-tall screen. Every widget is placed by hand, so adding a row means
+recomputing every widget below it.
 
-**Every limit input is optional, and blank means "keep".** `prepare_settings_config()`
-resolves each of the three gauges independently: a filled `%` back-solves that gauge, an
-empty `%` with a filled M-token field uses that number, and **both blank leaves
-`base_cfg`'s existing key untouched — and creates no key if `base_cfg` has none.** The
-last clause matters: inventing a persisted override for a gauge the user never touched
-would pin a value they cannot see they set. Ordinary users cannot know their token
-limits — Claude's own UI shows only percentages — so requiring the M-token fields (as
-this code once did) made the panel unsaveable for exactly the people it was for.
+The following are gone, with their TR keys: the calibration fields, the absolute-limit
+fields, the advanced-limits window (`open_advanced_limits()` and Windows
+`AdvancedLimitsDialog`), the weekly reset weekday and hour, and the model-keyword field.
+**The old keys are neither read nor deleted.** `session_limit`, `weekly_limit`,
+`opus_limit`, `model_keyword`, `weekly_reset_day` and `weekly_reset_hour` are not in
+`SETTINGS_OWNED_KEYS` or `_RUNTIME_CONFIG_KEYS`. So `apply_config()` never loads them, and
+`merge_config_updates()` leaves them on disk untouched — a user's file is not rewritten
+behind their back.
 
-**"Blank" and "wrong" are different, and only blank is a skip.** A value that is present
-but unusable still rejects the *whole* save, unchanged from before; blankness is decided
-on the untouched raw string, before any character is stripped.
+**The save is still one transaction.** It runs `plan_settings_save(base_cfg, form)` →
+`apply_settings_plan()` → `merge_config_updates()`, and it reads no logs (there is nothing
+to back-solve). A budget that is not a non-negative number rejects the *whole* save, with
+`s_err_budget` for Claude and `s_err_codex_budget` for Codex. Gauge lists are normalised to
+the allowed names in canonical order. An empty list is valid and means that provider is
+hidden (`provider_shown()`). Hiding both providers is allowed, and the pill then reads
+`no_providers`.
 
-**Two zero cases, two messages.** `0%` typed by the user (`s_err_calib_zero_pct`) is not
-the same as an estimated usage of zero (`s_err_calib_zero`). A user seeing `0%` in Claude
-is being told this window has no usage yet, so the actionable advice is "calibrate later
-or leave it blank" — not "enter a number between 0 and 100". `_calibration_percent_error()`
-runs **before** the usage scan for this reason: a scan reads Claude Code's own logs and
-can fail, and a failure there would report "could not read usage" for what is really a
-rejected input.
-
-**Absolute limits stay reachable but live in a separate window.** The three M-token fields
-are built by `open_advanced_limits()` in an `NSPanel` of their own, opened from a
-button sharing note3's row in the main panel. They start blank and show the current value
-in a read-only label beside them; they are never pre-filled, because pre-filling would make
-"blank means keep" depend on whether the window had been opened, and a conditional
-invariant is worth less than an unconditional one.
-
-**That window is short, not narrow, and the distinction is load-bearing.** It is 500 × 190
-— *wider* than the 420-wide main panel. Only the main panel is fighting for vertical space
-on a 768-tall screen; the child window is bound by neither that budget nor 656, so it can
-take the width its three columns need. Each row is laid out `16..186` label, `190..290`
-input, `300..484` current-value label, leaving symmetric 16 pt margins. An earlier 380-wide
-version truncated both the row labels and the `now: …M` values in every locale, so do not
-"tidy" this back toward the main panel's width.
-
-**The main panel's content height is 612 and must stay ≤ 656.** The minimum supported
-screen is 1366×768, which leaves roughly 673 points once the menu bar and Dock are removed.
-An earlier attempt kept the three fields in the main panel and merely hid them with
-`setHidden_`, reserving their space; that reached 732 and pushed the Save button and title
-bar off a 768-tall screen. Reserving space is not free, and this panel is a fixed-height
-view with hand-placed coordinates, so genuinely collapsing it would mean recomputing every
-widget below.
-
-**A missing window and a blank field are the same input.** `adv_value(key)` returns `""`
-when `ui` has no widget for that key, so never opening the advanced window is byte-identical
-to leaving its fields blank — no extra branch exists anywhere in the save path, and the
-frozen `plan_settings_save` / `prepare_settings_config` contract is untouched. It looks the
-widget up on every read rather than capturing it, so a dead window cannot leave a live
-reference behind feeding ghost values into a save.
-
-**Lifetime is bound in both directions, and one direction is easy to miss.**
-`parent.addChildWindow_ordered_` binds **parent → child** only: ordering the main panel out
-takes the child with it. It does **nothing** for the child's own close button. The first
-implementation had only that half, so clicking the advanced window's X left
-`ui["adv_panel"]` and the three field refs pointing at a closed window — and `adv_value()`
-would read `stringValue()` off it and apply it to the next Save. **Looking the widget up
-on every read does not prevent ghost values by itself; something has to clear the ref.**
-
-So both panels set `setDelegate_(handler)`, and `Handler.windowWillClose_` splits on
-`notification.object()`: the child routes to `close_advanced()`, the main panel to
-`close_main_panel()`. Every teardown path — Save, the main X, the child X — goes through
-those two functions and nowhere else.
-
-- `close_advanced()` runs `removeChildWindow_`, clears the delegate, orders out, and nils
-  `ui["adv_panel"]` plus the three field refs. Reopening therefore always builds a fresh
-  blank child, never revives a closed one — which is what keeps "blank means keep" from
-  depending on a window's history.
-- `close_main_panel()` tears the child down **first**, then the main panel. Reversed, the
-  child can sit on screen without its parent, and this app is `LSUIElement` with no Dock
-  icon, so the user has no way back to it. `open_advanced_limits()` refuses to build
-  anything when there is no main panel for the same reason.
-- Both panels set `setReleasedWhenClosed_(False)`. A window created with
-  `initWithContentRect:` is released on close by default. This is **not** about the
-  delegate receiving a freed object — `windowWillClose:` is delivered *before* the release,
-  so the callback itself is safe. It is about everything after: `ui` and the cleanup
-  functions hold explicit references, and letting Cocoa decide the window's lifetime on
-  close would leave those pointing at a deallocated object. Turning it off keeps object
-  lifetime under the explicit control of the Python teardown flow.
-- `close_advanced()` carries a re-entrancy flag. `orderOut_` posts no close notification
-  today, so nothing recurses — but a later change to `close()` would make delegate →
-  cleanup → close → delegate loop silently, and the flag is what stops that from being
-  discovered at runtime.
-
-**The button and the window title use different strings.** `s_limit_advanced_button`
-(≤ 20 chars) labels the 132 pt button in the main panel; the longer `s_limit_advanced` is
-the child window's title, where the title bar has room. `s_limit_note3` is capped at
-40 chars because it shares its row with that button — it states only that the `%` wins
-over an absolute limit. All three keys exist in en/ko/ja/es.
-
-**Calibration is not useless in exact mode.** The gauge percentages come from the server
-there, but `spike_info()`/`is_spike()` weigh burn against `RUNTIME["session_limit"]`, so a
-badly calibrated limit still produces phantom or missing spike alerts. `s_limit_note2`
-says both halves; do not shorten it to "exact mode ignores these limits".
-
-The consequence: **the stored limit is only meaningful relative to the estimator that
-produced it.** Any change to parsing, deduplication, weighting, or windowing shifts
-`current_estimated_usage`, which invalidates every limit a user has already calibrated —
-their gauges silently move, with no error and no prompt, and their previously accurate
-reading becomes wrong. Estimator changes are therefore user-visible even when the code
-change looks internal. Say so in the release notes, and treat "calibrated users must
-recalibrate" as part of the change's cost.
+Teardown has one path: `close_main_panel()`. Save and the X both route there, through
+`Handler.windowWillClose_` on macOS and `SettingsDialog.closeEvent` on Windows. The panel
+sets `setReleasedWhenClosed_(False)` so that `ui`'s explicit references never point at an
+object Cocoa freed on close. It sets `setHidesOnDeactivate_(False)` because an
+`LSUIElement` app has no Dock icon to bring a vanished panel back.
 
 ---
 
 ## Privacy
 
-The app reads users' Claude Code transcripts. It must never expose their contents.
+The app reads users' Claude Code transcripts and, for Codex users, the Codex CLI's session
+logs (`codex_sessions_root()` — `$CODEX_HOME/sessions` or `~/.codex/sessions`), both
+locally and only for spike detection. It must never expose their contents. The Codex
+parser takes numbers only: timestamps and the token counts of `token_count` events. It
+also reads Codex's `auth.json` for the usage token, read only and never written.
 
 **[NEVER] print, log, or write out message bodies, project paths, or session IDs** — not
 to stdout, not to the debug log (`~/claudepet_debug.log`, enabled by
@@ -1146,8 +1201,9 @@ to stdout, not to the debug log (`~/claudepet_debug.log`, enabled by
 test fixture derived from real data. There is no authorization path for this and no
 debugging need that justifies it; log counts and shapes instead.
 
-The only things that may leave the parser are the aggregates it is built to produce:
-timestamps, weighted totals, and the lowercased model string. Note that log **file
+The only things that may leave either parser are the aggregates it is built to produce:
+timestamps, weighted totals, and the lowercased model string (the constant `"codex"` for
+Codex). `parse_codex_entries()`'s debug line carries file, row and skip counts only. Note that log **file
 paths encode project directory names**, so a path is identifying information — an
 exception message that interpolates a path is a leak. When debugging, log counts and
 shapes ("42 rows, 3 files"), never contents.

@@ -1208,13 +1208,15 @@ class FeaturesReachTheScreenTests(_QtCase):
             "reach roam_summary separately from api_error — collapsing them tells "
             "a user with a network problem to go fix their key." % text)
 
-    def test_token_expiry_marks_the_estimate_it_degraded_to(self):
-        """The ⚠ tail, and it belongs on a gauge line, not on the reset line.
+    def test_token_expiry_shows_the_status_not_the_logs(self):
+        """Rewritten 2026-10-05 (sou-verify, docs-design/server-only-usage-20261005.md §1).
 
-        Two ways to get this wrong, both of which happened on macOS: making the
-        marker its own gauge row invents a ``≈0%`` that reads as "barely used",
-        and appending it to ``lines[-1]`` puts it in the dim reset colour where
-        it reads as a note about the reset time rather than about the numbers.
+        The old gate (``test_token_expiry_marks_the_estimate_it_degraded_to``) pinned the
+        ⚠ tail on an estimate line. The estimate and the ⚠ are removed by the user's
+        decision; a rejected token now reads ``token_expired`` whatever the logs hold.
+        The fixture keeps old-shape gauges (42/17/12 %) so a port that still renders them
+        has something to render. Rivals: the estimate line with ``≈`` (today); the ⚠ on
+        any line; the numbers 42/17 appearing without server rows.
         """
         cp.OAUTH_STATUS["auth_error"] = True
         stats = {
@@ -1228,24 +1230,10 @@ class FeaturesReachTheScreenTests(_QtCase):
         w.state["codex"] = None
         w.state["codex_summary"] = lambda: None
         blocks, _tw, _th = _settle(w)
-        rows = _lines(blocks)
-        marked = [(pid, line) for pid, line in rows if "⚠" in _line_text(line)]
-        self.assertTrue(
-            marked, "the token-expiry marker never reached the pill; lines were %r"
-            % [_line_text(l) for _p, l in rows])
-        pid, line = marked[0]
-        self.assertEqual(pid, "claude", "the marker landed on the wrong provider")
-        kinds = {kind for _text, kind in line}
-        self.assertNotEqual(
-            kinds, {"sub"},
-            "the marker is on a line whose every run is 'sub' — that is the reset "
-            "line, where it is drawn dim beside a countdown and reads as a comment "
-            "on the reset time. It marks the numbers, so it belongs on the last "
-            "gauge line.")
-        self.assertNotIn(
-            "⚠ ≈", _line_text(line),
-            "the marker was rendered as its own gauge row, which invents a "
-            "percentage that no measurement produced.")
+        text = " ".join(_line_text(l) for _p, l in _lines(blocks))
+        self.assertIn(cp.t("token_expired"), text)
+        for needle in ("⚠", "≈", "42%", "17%"):
+            self.assertNotIn(needle, text, "log-derived text reached the pill: %r" % text)
 
     def test_auto_recovery_is_reachable_and_off_switch_is_honoured(self):
         """The recovery tick is driven from the port, and RUNTIME['auto_recover'] gates it.

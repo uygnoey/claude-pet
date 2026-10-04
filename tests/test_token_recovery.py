@@ -2165,20 +2165,20 @@ class AutoRecoverMenuTests(unittest.TestCase):
 class RoamSummaryRegressionTests(unittest.TestCase):
     """복구가 붙어도 PR #9 의 필 계약은 그대로다."""
 
-    def test_token_expired_still_requires_both_no_data_and_auth_error(self):
-        """**NOT A GATE** — 회귀 가드다. 이 파일에서 유일하게 작성 시점에 초록이었고,
-        그래야 맞다. PR #9 이 이미 건 계약(entries==0 AND auth_error)을 복구 기능이
-        무너뜨리지 않는지만 본다.
+    def test_token_expired_follows_auth_error_whatever_the_logs_hold(self):
+        """Rewritten 2026-10-05 (sou-verify, server-only-usage §1). The old guard pinned
+        "entries==0 AND auth_error" and, for entries=5, an estimate segment. The spec now
+        says 401/403 → ``token_expired`` "로그 유무와 무관하게", and there is no estimate to
+        fall back to. Both fixtures must therefore read ``token_expired``; a rival that
+        keeps the entries condition returns a non-status segment for entries=5.
         """
-        stats = {"entries": 0, "session": {"pct": 0.0}, "weekly": {"pct": 0.0},
-                 "opus": {"pct": 0.0}, "spikes": {}, "model_kw": "fable"}
+        stats = {"entries": 0, "spikes": {}, "model_kw": "fable"}
         seg = claude_pet.roam_summary("sub", None, stats, None, 0, False, None,
                                       auth_error=True)
         self.assertEqual(seg, ("status", "token_expired"))
         seg = claude_pet.roam_summary("sub", None, dict(stats, entries=5), None, 0,
                                       False, None, auth_error=True)
-        self.assertNotEqual(seg[0], "status")
-
+        self.assertEqual(seg, ("status", "token_expired"))
 
 if __name__ == "__main__":
     unittest.main()

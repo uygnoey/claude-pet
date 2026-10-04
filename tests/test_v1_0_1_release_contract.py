@@ -1032,8 +1032,8 @@ class PublishedV024NotesContractTests(unittest.TestCase):
     what CLAUDE.md step 2 says: exactly three top-level bullets, no nesting, at most 450
     normalized characters, 1-2 Korean sentences per bullet, and none of the forbidden
     token classes.  Every checkable claim in it stays tied to the source: the threshold
-    percentages to ``summary_value_kind``, the marker glyphs to ``SUMMARY_SPIKE`` /
-    ``SUMMARY_APPROX`` / the ⚠ suffix, the font to ``SUMMARY_FONT_FILE`` and the bundled
+    percentages to ``summary_value_kind``, the spike glyph to ``SUMMARY_SPIKE`` (``≈`` and
+    the ⚠ suffix were withdrawn on 2026-10-05 — see the test), the font to ``SUMMARY_FONT_FILE`` and the bundled
     files, the nested layout to ``discover_pets``, the toggle wording to
     ``TR["ko"]["menu_toggle"]``, and the colour roles to ``draw_summary_pill``'s docstring
     — so neither side can drift alone.
@@ -1078,11 +1078,15 @@ class PublishedV024NotesContractTests(unittest.TestCase):
         self.assertEqual(quoted, compared,
                          f"notes quote {sorted(quoted)}% but summary_value_kind compares against {sorted(compared)}")
         spike = _one_literal_string(APP_SOURCE, "SUMMARY_SPIKE")
-        approx = _one_literal_string(APP_SOURCE, "SUMMARY_APPROX")
-        for glyph in (spike, approx, "⚠"):
-            self.assertIn(glyph, self.body, f"the note no longer mentions the {glyph!r} marker the pill draws")
-        gui_strings = _strings([_module_def(APP_SOURCE, "run_gui")])
-        self.assertTrue(any("⚠" in s for s in gui_strings), "run_gui no longer draws the ⚠ suffix the note promises")
+        self.assertIn(spike, self.body, f"the note no longer mentions the {spike!r} marker the pill draws")
+        # 2026-10-05 (sou-verify): the ``≈`` estimate marker and the ⚠ suffix were removed
+        # by the user's decision "추정 로그치 적는건 이제 없애자!! 기능도 없애고"
+        # (docs-design/server-only-usage-20261005.md §1). The v0.24 section is published
+        # and frozen, so it still names them; the source no longer backs those two
+        # promises, deliberately, and the next release's notes have to say so. The
+        # source-side checks for them were removed here; the spike check stays.
+        for glyph in ("≈", "⚠"):
+            self.assertIn(glyph, self.body, "the frozen v0.24 section changed")
 
     def test_v024_font_claim_is_backed_by_the_bundled_files_and_both_packagers(self):
         """"Pretendard (OFL)를 앱에 내장": the constant, the two files under fonts/, the

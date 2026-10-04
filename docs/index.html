@@ -109,7 +109,7 @@
             },
             "featureList": [
               "Claude Code and Codex usage in one compact pill, with reset times",
-              "Server-reported usage, with a clearly marked local estimate for Claude Code",
+              "Server-reported usage only, with local spike alerts for Claude Code and Codex",
               "Desktop roaming and cursor following",
               "Built-in cat and bundled dog, fox, scorpion and elephant",
               "Session and weekly usage percentages with reset countdowns",
@@ -222,7 +222,7 @@
                 "name": "Where does the usage come from?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "For both Claude Code and Codex, it comes from the server, using the login on this computer. When Claude Code’s server values can’t be fetched, it is estimated from local logs, and estimates are marked with ≈. Codex doesn’t use local logs."
+                  "text": "For both Claude Code and Codex, it comes from the server, using the login on this computer. Numbers are never estimated from logs; local logs are read only to catch sudden spikes."
                 }
               },
               {
@@ -246,7 +246,7 @@
                 "name": "Does it upload my prompts or code?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. Local logs are read only on your computer. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded."
+                  "text": "No. Local logs are read only on your computer, to catch usage spikes. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded."
                 }
               },
               {
@@ -384,7 +384,7 @@ p{margin:0;text-wrap:pretty}
 .pill .row{display:flex;align-items:center;gap:6px}
 .pill .mark{width:1.25em;height:1.25em;flex:none}
 .pill .sub{color:var(--pill-sub);font-weight:500;font-size:.86em}
-.pill .v{color:var(--exact)} .pill .v.est{color:var(--estimate)}
+.pill .v{color:var(--exact)}
 .pill .lab{transition:color .25s}
 .pill .lab.warn{color:var(--warn)} .pill .lab.bad{color:var(--bad)}
 .pill .sep{color:var(--pill-sub)}
@@ -454,9 +454,6 @@ p{margin:0;text-wrap:pretty}
 .ctl{display:grid;gap:10px;width:100%;max-width:400px}
 .ctl label{font-size:14px;color:var(--muted)}
 input[type=range]{width:100%;accent-color:var(--link)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg button{border:0;background:transparent;color:var(--ink);padding:9px 14px;font:600 13px/1 var(--font-body);cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--cta);color:var(--cta-ink)}
 .softbtn{border:1px solid var(--line);background:var(--cta2);color:var(--cta2-ink);border-radius:10px;padding:9px 14px;font:600 13px/1 var(--font-body);cursor:pointer}
 .row-gap{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 
@@ -606,7 +603,7 @@ footer small span{display:block}
   border:1px solid var(--line);color:var(--ink);background:transparent;cursor:pointer}
 .langsel::after{content:"";position:absolute;right:11px;top:50%;width:5px;height:5px;margin-top:-4px;border-right:1.5px solid var(--muted);
   border-bottom:1.5px solid var(--muted);transform:rotate(45deg);pointer-events:none}
-.chip.exact{color:var(--exact)} .chip.est{color:var(--estimate)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)}
+.chip.exact{color:var(--exact)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)}
 /* Japanese: faces with kana (loaded on demand), and lines may break between characters */
 :root:lang(ja){
   --font-display:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
@@ -694,7 +691,7 @@ footer small span{display:block}
           <p class="kicker" data-i18n="prov.kicker">Either one, in the same place</p>
           <h2 id="h-prov" data-i18n="prov.h">Claude Code.<br>Codex, too.</h2>
           <p data-i18n="prov.p1">Use just Claude Code, just Codex, or both. Usage for whichever you’re signed in to on this computer appears side by side in the same pill, told apart by its logo.</p>
-          <p data-i18n="prov.p2">Codex usage is read from the OpenAI API, not from local logs, so only the limits your account actually has are shown. Codex usually has a single weekly limit right now, so one line carries both the usage and the time left until it resets. There’s nothing to set up.</p>
+          <p data-i18n="prov.p2">Codex usage is read from the OpenAI API, so only the limits your account actually has are shown. Codex usually has a single weekly limit right now, so one line carries both the usage and the time left until it resets. There’s nothing to set up.</p>
         </div>
         <div class="variants">
           <figure><figcaption data-i18n="prov.claudeOnly">Claude Code only</figcaption><div class="pill mid"><div class="row"><svg class="mark" aria-hidden="true"><use href="#m-claude"/></svg><span class="lab" data-i18n="pill.session">Session</span> <span class="v num">42%</span><span class="sep"> · </span><span class="lab" data-i18n="pill.weekly">Weekly</span> <span class="v num">17%</span></div><div class="row sub" data-i18n="pill.resetLine">reset Session 3h 43m<span class="sep"> · </span>Weekly 2d 4h</div></div></figure>
@@ -714,7 +711,6 @@ footer small span{display:block}
           <p data-i18n="usage.p">Claude Code’s session and weekly usage, Codex’s weekly usage (Codex has a single weekly limit today), and their reset times fit in one small summary pill. Which items appear depends on your account.</p>
           <div class="legend">
             <span><span class="chip exact">42%</span><span data-i18n="usage.lg1">Usage from the server — for both Claude Code and Codex</span></span>
-            <span><span class="chip est">≈42%</span><span data-i18n="usage.lg2">A local estimate, for when Claude Code’s server values can’t be fetched</span></span>
             <span data-i18n="usage.lg3">Labels turn yellow from <span class="chip warn">50%</span> and red from <span class="chip bad">85%</span></span>
           </div>
         </div>
@@ -730,13 +726,10 @@ footer small span{display:block}
             <label for="uRangeX"><span data-i18n="usage.sliderX">Codex weekly</span> — <span class="num" id="uOutX">38%</span></label>
             <input id="uRangeX" type="range" min="0" max="100" value="38">
             <div class="row-gap">
-              <div class="seg" role="group" aria-label="Source of the Claude Code numbers" data-i18n-attr="aria-label:usage.srcAria">
-                <button type="button" id="mExact" aria-pressed="true" data-i18n="usage.exact">Server usage</button><button type="button" id="mEst" aria-pressed="false" data-i18n="usage.est">Local estimate</button>
-              </div>
               <button type="button" class="softbtn" id="spikeBtn" data-i18n="usage.spike">Simulate a spike</button>
             </div>
           </div>
-          <p class="example" data-i18n="usage.note">Example screen · Colors and the 50%/85% thresholds match the app · Local estimates and spike alerts exist only for Claude Code</p>
+          <p class="example" data-i18n="usage.note">Example screen · Colors and the 50%/85% thresholds match the app · Spike alerts work for both Claude Code and Codex</p>
         </div>
       </div>
     </section>
@@ -747,7 +740,7 @@ footer small span{display:block}
         <div class="copy">
           <p class="kicker" data-i18n="reset.kicker">Small moments, together</p>
           <h2 id="h-reset" data-i18n="reset.h">When it resets,<br>it hops.</h2>
-          <p data-i18n="reset.p">When a Claude Code session reset is detected, the pet reacts. Double-click the pet and it jumps while refreshing your usage.</p>
+          <p data-i18n="reset.p">When the server shows a Claude Code or Codex session has reset, the pet reacts. Double-click the pet and it jumps while refreshing your usage.</p>
         </div>
         <div class="stack">
           <div class="countdown" id="cd">0:05</div>
@@ -817,10 +810,10 @@ footer small span{display:block}
         </div>
         <div class="faq">
           <details><summary data-i18n="faq.q1">What do I need to sign in to?</summary><p data-i18n="faq.a1">Being signed in to either Claude Code or Codex is enough. If you use both, both are shown.</p></details>
-          <details><summary data-i18n="faq.q2">Where does the usage come from?</summary><p data-i18n="faq.a2">For both Claude Code and Codex, it comes from the server, using the login on this computer. When Claude Code’s server values can’t be fetched, it is estimated from local logs, and estimates are marked with ≈. Codex doesn’t use local logs.</p></details>
+          <details><summary data-i18n="faq.q2">Where does the usage come from?</summary><p data-i18n="faq.a2">For both Claude Code and Codex, it comes from the server, using the login on this computer. Numbers are never estimated from logs; local logs are read only to catch sudden spikes.</p></details>
           <details><summary data-i18n="faq.q3">Is it free?</summary><p data-i18n="faq.a3">It’s free to download and open source. You don’t need to sponsor to use the app.</p></details>
           <details><summary data-i18n="faq.q4">Which computers does it run on?</summary><p data-i18n="faq.a4">macOS 12 or later on Apple Silicon and Intel Macs, and Windows 10 or 11 on x64. There is no separate Windows ARM build.</p></details>
-          <details><summary data-i18n="faq.q5">Does it upload my prompts or code?</summary><p data-i18n="faq.a5">No. Local logs are read only on your computer. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded.</p></details>
+          <details><summary data-i18n="faq.q5">Does it upload my prompts or code?</summary><p data-i18n="faq.a5">No. Local logs are read only on your computer, to catch usage spikes. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded.</p></details>
           <details><summary data-i18n="faq.q6">Why does Windows show a security warning?</summary><p data-i18n="faq.a6">The Windows builds are not code-signed, so SmartScreen or another security warning may appear, depending on your system settings and policies. The Mac builds are Developer ID signed and notarized by Apple.</p></details>
           <details><summary data-i18n="faq.q7">How does it update?</summary><p data-i18n="faq.a7">On both macOS and Windows, the app checks for a new release every hour after launch, and “Check for updates…” in the right-click menu downloads and installs it inside the app.</p></details>
           <details><summary data-i18n="faq.q8">Can I add my own pet?</summary><p data-i18n="faq.a8">Yes. Put a compatible pet.json and sprite-sheet folder in ~/.claude_pet/pets on a Mac, or %USERPROFILE%\.claude_pet\pets on Windows, and it appears in the right-click menu.</p></details>
@@ -918,7 +911,7 @@ footer small span{display:block}
     "prov.kicker": "Either one, in the same place",
     "prov.h": "Claude Code.<br>Codex, too.",
     "prov.p1": "Use just Claude Code, just Codex, or both. Usage for whichever you’re signed in to on this computer appears side by side in the same pill, told apart by its logo.",
-    "prov.p2": "Codex usage is read from the OpenAI API, not from local logs, so only the limits your account actually has are shown. Codex usually has a single weekly limit right now, so one line carries both the usage and the time left until it resets. There’s nothing to set up.",
+    "prov.p2": "Codex usage is read from the OpenAI API, so only the limits your account actually has are shown. Codex usually has a single weekly limit right now, so one line carries both the usage and the time left until it resets. There’s nothing to set up.",
     "prov.claudeOnly": "Claude Code only",
     "prov.codexOnly": "Codex only",
     "prov.both": "Both",
@@ -927,19 +920,15 @@ footer small span{display:block}
     "usage.h": "Less checking.<br>More making.",
     "usage.p": "Claude Code’s session and weekly usage, Codex’s weekly usage (Codex has a single weekly limit today), and their reset times fit in one small summary pill. Which items appear depends on your account.",
     "usage.lg1": "Usage from the server — for both Claude Code and Codex",
-    "usage.lg2": "A local estimate, for when Claude Code’s server values can’t be fetched",
     "usage.lg3": "Labels turn yellow from <span class=\"chip warn\">50%</span> and red from <span class=\"chip bad\">85%</span>",
     "usage.sliderC": "Claude Code session",
     "usage.sliderX": "Codex weekly",
-    "usage.srcAria": "Source of the Claude Code numbers",
-    "usage.exact": "Server usage",
-    "usage.est": "Local estimate",
     "usage.spike": "Simulate a spike",
-    "usage.note": "Example screen · Colors and the 50%/85% thresholds match the app · Local estimates and spike alerts exist only for Claude Code",
+    "usage.note": "Example screen · Colors and the 50%/85% thresholds match the app · Spike alerts work for both Claude Code and Codex",
     "reset.title": "Session reset",
     "reset.kicker": "Small moments, together",
     "reset.h": "When it resets,<br>it hops.",
-    "reset.p": "When a Claude Code session reset is detected, the pet reacts. Double-click the pet and it jumps while refreshing your usage.",
+    "reset.p": "When the server shows a Claude Code or Codex session has reset, the pet reacts. Double-click the pet and it jumps while refreshing your usage.",
     "reset.in": "reset in {n}s",
     "reset.done": "Just reset",
     "reset.note": "Example screen · The reset is shortened to 5 seconds",
@@ -993,13 +982,13 @@ footer small span{display:block}
     "faq.q1": "What do I need to sign in to?",
     "faq.a1": "Being signed in to either Claude Code or Codex is enough. If you use both, both are shown.",
     "faq.q2": "Where does the usage come from?",
-    "faq.a2": "For both Claude Code and Codex, it comes from the server, using the login on this computer. When Claude Code’s server values can’t be fetched, it is estimated from local logs, and estimates are marked with ≈. Codex doesn’t use local logs.",
+    "faq.a2": "For both Claude Code and Codex, it comes from the server, using the login on this computer. Numbers are never estimated from logs; local logs are read only to catch sudden spikes.",
     "faq.q3": "Is it free?",
     "faq.a3": "It’s free to download and open source. You don’t need to sponsor to use the app.",
     "faq.q4": "Which computers does it run on?",
     "faq.a4": "macOS 12 or later on Apple Silicon and Intel Macs, and Windows 10 or 11 on x64. There is no separate Windows ARM build.",
     "faq.q5": "Does it upload my prompts or code?",
-    "faq.a5": "No. Local logs are read only on your computer. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded.",
+    "faq.a5": "No. Local logs are read only on your computer, to catch usage spikes. Your existing Claude Code or Codex login is sent only to Anthropic or OpenAI to ask for your usage, and update checks contact GitHub. Prompts, transcripts and source code are never uploaded.",
     "faq.q6": "Why does Windows show a security warning?",
     "faq.a6": "The Windows builds are not code-signed, so SmartScreen or another security warning may appear, depending on your system settings and policies. The Mac builds are Developer ID signed and notarized by Apple.",
     "faq.q7": "How does it update?",
@@ -1044,11 +1033,11 @@ footer small span{display:block}
     ],
     "lines.usage": [
         "<em>Green numbers</em> are usage from the server. For Claude Code and Codex alike.",
-        "If Claude Code’s value can’t come from the server, I estimate it from logs and add <strong>≈</strong>.",
+        "I never guess numbers from logs. I only read them to catch a sudden spike.",
         "Push the Claude Code slider up to 85%. I’ll be <u>startled</u>!"
     ],
     "lines.reset": [
-        "When your Claude Code session resets, I’ll hop to let you know.",
+        "When your Claude Code or Codex session resets, I’ll hop to let you know.",
         "Double-click me to refresh right away."
     ],
     "lines.pets": [
@@ -1089,8 +1078,6 @@ footer small span{display:block}
     "fox.warn": "From 50%, the label turns yellow.",
     "fox.codexBad": "Codex’s label turns red from <u>85%</u>, too.",
     "fox.codexWarn": "Codex turns yellow from 50%, too.",
-    "fox.est": "When Claude Code is worked out from logs, I add <strong>≈</strong> and show it in yellow. Codex only shows server values.",
-    "fox.exact": "Server usage is shown in <em>green</em>.",
     "fox.spike": [
         "Your Claude Code usage just <u>shot up</u>!",
         "When that happens, I tell you with ▲ and a red glow."
@@ -1141,7 +1128,7 @@ footer small span{display:block}
     "prov.kicker": "어느 쪽이든 같은 자리에서",
     "prov.h": "Claude Code도,<br>Codex도.",
     "prov.p1": "Claude Code만 써도, Codex만 써도, 둘 다 써도 돼요. 이 컴퓨터에서 로그인한 쪽의 사용량을 같은 필에 나란히 보여 주고, 로고로 구분해요.",
-    "prov.p2": "Codex 사용량은 로컬 로그가 아니라 OpenAI API에서 읽어, 계정에 실제로 있는 한도만 보여 줘요. 지금 Codex는 보통 주간 한도 하나라, 한 줄에 사용률과 리셋까지 남은 시간을 함께 붙여요. 따로 설정할 것은 없어요.",
+    "prov.p2": "Codex 사용량은 OpenAI API에서 읽어, 계정에 실제로 있는 한도만 보여 줘요. 지금 Codex는 보통 주간 한도 하나라, 한 줄에 사용률과 리셋까지 남은 시간을 함께 붙여요. 따로 설정할 것은 없어요.",
     "prov.claudeOnly": "Claude Code만",
     "prov.codexOnly": "Codex만",
     "prov.both": "둘 다",
@@ -1150,19 +1137,15 @@ footer small span{display:block}
     "usage.h": "확인은 가볍게.<br>작업은 계속.",
     "usage.p": "Claude Code의 세션·주간 사용률과 Codex의 주간 사용률(지금 Codex는 주간 한도 하나예요), 그리고 리셋 시간을 작은 요약 필 하나에 담았어요. 표시되는 항목은 계정에 따라 달라요.",
     "usage.lg1": "서버에서 받은 사용률 — Claude Code와 Codex 모두",
-    "usage.lg2": "Claude Code 서버 값을 받을 수 없을 때의 로컬 추정치",
     "usage.lg3": "<span class=\"chip warn\">50%</span>부터 라벨이 노랗게, <span class=\"chip bad\">85%</span>부터 빨갛게",
     "usage.sliderC": "Claude Code 세션",
     "usage.sliderX": "Codex 주간",
-    "usage.srcAria": "Claude Code 수치 출처",
-    "usage.exact": "서버 사용률",
-    "usage.est": "로컬 추정",
     "usage.spike": "급증 흉내 내기",
-    "usage.note": "예시 화면 · 색과 50%/85% 기준은 앱과 같아요 · 로컬 추정과 급증 표시는 Claude Code에만 있어요",
+    "usage.note": "예시 화면 · 색과 50%/85% 기준은 앱과 같아요 · 급증 표시는 Claude Code와 Codex 모두에 있어요",
     "reset.title": "세션 리셋",
     "reset.kicker": "작은 순간도 함께",
     "reset.h": "리셋되면<br>폴짝.",
-    "reset.p": "Claude Code 세션 리셋을 감지하면 펫이 반응해요. 펫을 더블클릭하면 점프하며 사용량을 새로고침해요.",
+    "reset.p": "서버 값에서 Claude Code 또는 Codex 세션 리셋을 확인하면 펫이 반응해요. 펫을 더블클릭하면 점프하며 사용량을 새로고침해요.",
     "reset.in": "리셋까지 {n}초",
     "reset.done": "방금 리셋됐어요",
     "reset.note": "예시 화면 · 리셋을 5초로 줄였어요",
@@ -1216,13 +1199,13 @@ footer small span{display:block}
     "faq.q1": "무엇에 로그인해야 하나요?",
     "faq.a1": "Claude Code나 Codex 중 하나에 로그인돼 있으면 돼요. 둘 다 쓰면 둘 다 보여요.",
     "faq.q2": "사용량은 어디서 가져오나요?",
-    "faq.a2": "Claude Code와 Codex 모두 이 컴퓨터의 로그인으로 서버에서 받아 와요. Claude Code는 서버 값을 받을 수 없을 때 로컬 로그로 추정하고, 추정치에는 ≈를 붙여 구분해요. Codex는 로컬 로그를 쓰지 않아요.",
+    "faq.a2": "Claude Code와 Codex 모두 이 컴퓨터의 로그인으로 서버에서 받아 와요. 로그로 숫자를 추정하지 않고, 로컬 로그는 급증을 알아채는 데만 써요.",
     "faq.q3": "무료인가요?",
     "faq.a3": "무료로 다운로드할 수 있고 오픈소스예요. 앱을 사용하기 위해 후원할 필요는 없어요.",
     "faq.q4": "어떤 컴퓨터에서 돌아가나요?",
     "faq.a4": "Apple Silicon과 Intel Mac의 macOS 12 이상, 그리고 x64 Windows 10·11에서 돌아가요. Windows ARM용 빌드는 따로 없어요.",
     "faq.q5": "제 프롬프트나 코드를 업로드하나요?",
-    "faq.a5": "아니요. 로컬 로그는 이 컴퓨터 안에서만 읽어요. 기존 Claude Code·Codex 로그인은 사용량을 묻기 위해서만 Anthropic·OpenAI로 보내고, 업데이트 확인은 GitHub에 접속해요. 프롬프트, 대화 기록, 소스 코드는 업로드하지 않아요.",
+    "faq.a5": "아니요. 로컬 로그는 급증 감지를 위해 이 컴퓨터 안에서만 읽어요. 기존 Claude Code·Codex 로그인은 사용량을 묻기 위해서만 Anthropic·OpenAI로 보내고, 업데이트 확인은 GitHub에 접속해요. 프롬프트, 대화 기록, 소스 코드는 업로드하지 않아요.",
     "faq.q6": "Windows에서 보안 경고가 왜 뜨나요?",
     "faq.a6": "Windows 배포본은 코드 서명이 없어서 시스템 설정과 정책에 따라 SmartScreen 같은 보안 경고가 나타날 수 있어요. Mac 배포본은 서명과 Apple 공증을 거쳤어요.",
     "faq.q7": "업데이트는 어떻게 하나요?",
@@ -1267,11 +1250,11 @@ footer small span{display:block}
     ],
     "lines.usage": [
         "<em>초록 숫자</em>는 서버가 알려 준 사용률이야. Claude Code도, Codex도.",
-        "Claude Code 값을 서버에서 못 받으면 로그로 추정해서 <strong>≈</strong>를 붙여.",
+        "로그로 숫자를 짐작하지는 않아. 갑자기 치솟는 것만 알아채.",
         "Claude Code 슬라이더를 85%까지 올려 봐. 나 <u>놀랄걸</u>!"
     ],
     "lines.reset": [
-        "Claude Code 세션이 리셋되면 폴짝 뛰어서 알려 줄게.",
+        "Claude Code나 Codex 세션이 리셋되면 폴짝 뛰어서 알려 줄게.",
         "나를 더블클릭하면 바로 새로고침해."
     ],
     "lines.pets": [
@@ -1312,8 +1295,6 @@ footer small span{display:block}
     "fox.warn": "50%부터는 라벨이 노랗게 바뀌어.",
     "fox.codexBad": "Codex도 <u>85%</u>부터 라벨이 빨개져.",
     "fox.codexWarn": "Codex도 50%부터 노랗게 바뀌어.",
-    "fox.est": "Claude Code를 로그로 계산하면 <strong>≈</strong>를 붙이고 노랗게 보여 줘. Codex는 서버 값만 보여 줘.",
-    "fox.exact": "서버 사용률은 <em>초록</em>으로 보여 줘.",
     "fox.spike": [
         "방금 Claude Code 사용량이 <u>확 늘었어</u>!",
         "그럴 땐 ▲ 표시와 빨간빛으로 알려 줘."
@@ -1364,7 +1345,7 @@ footer small span{display:block}
     "prov.kicker": "どちらでも、同じ場所で",
     "prov.h": "Claude Code も、<br>Codex も。",
     "prov.p1": "Claude Code だけでも、Codex だけでも、両方でも使えます。このパソコンでログインしている方の使用量を同じ表示に並べ、ロゴで区別します。",
-    "prov.p2": "Codex の使用量はローカルログではなく OpenAI API から読み取り、アカウントに実際にある上限だけを表示します。現在の Codex はふつう週間上限がひとつなので、使用率とリセットまでの残り時間を1行にまとめて表示します。設定は不要です。",
+    "prov.p2": "Codex の使用量は OpenAI API から読み取り、アカウントに実際にある上限だけを表示します。現在の Codex はふつう週間上限がひとつなので、使用率とリセットまでの残り時間を1行にまとめて表示します。設定は不要です。",
     "prov.claudeOnly": "Claude Code のみ",
     "prov.codexOnly": "Codex のみ",
     "prov.both": "両方",
@@ -1373,19 +1354,15 @@ footer small span{display:block}
     "usage.h": "確認は手短に。<br>創作を続けよう。",
     "usage.p": "Claude Code のセッション・週間の使用率と Codex の週間の使用率（現在の Codex は週間上限ひとつです）、そしてリセット時刻を、小さなサマリー表示ひとつにまとめました。表示される項目はアカウントによって異なります。",
     "usage.lg1": "サーバーから受け取った使用率 — Claude Code と Codex の両方",
-    "usage.lg2": "Claude Code のサーバー値を受け取れないときのローカル推定値",
     "usage.lg3": "<span class=\"chip warn\">50%</span>からラベルが黄色に、<span class=\"chip bad\">85%</span>から赤に",
     "usage.sliderC": "Claude Code セッション",
     "usage.sliderX": "Codex 週間",
-    "usage.srcAria": "Claude Code の数値の出どころ",
-    "usage.exact": "サーバーの使用率",
-    "usage.est": "ローカル推定",
     "usage.spike": "急増をまねする",
-    "usage.note": "表示例 · 色と 50%/85% の基準はアプリと同じです · ローカル推定と急増表示は Claude Code だけにあります",
+    "usage.note": "表示例 · 色と 50%/85% の基準はアプリと同じです · 急増表示は Claude Code と Codex の両方にあります",
     "reset.title": "セッションのリセット",
     "reset.kicker": "小さな瞬間も、一緒に",
     "reset.h": "リセットされたら<br>ぴょん。",
-    "reset.p": "Claude Code のセッションのリセットを検出すると、ペットが反応します。ペットをダブルクリックすると、ジャンプしながら使用量を更新します。",
+    "reset.p": "サーバーの値で Claude Code か Codex のセッションのリセットを確認すると、ペットが反応します。ペットをダブルクリックすると、ジャンプしながら使用量を更新します。",
     "reset.in": "リセットまで{n}秒",
     "reset.done": "リセットされました",
     "reset.note": "表示例 · リセットを5秒に縮めています",
@@ -1439,13 +1416,13 @@ footer small span{display:block}
     "faq.q1": "何にログインすればいいですか？",
     "faq.a1": "Claude Code か Codex のどちらかにログインしていれば大丈夫です。両方使っていれば、両方表示されます。",
     "faq.q2": "使用量はどこから取得しますか？",
-    "faq.a2": "Claude Code も Codex も、このパソコンのログインを使ってサーバーから取得します。Claude Code はサーバーの値を受け取れないときにローカルログから推定し、推定値には ≈ を付けて区別します。Codex はローカルログを使いません。",
+    "faq.a2": "Claude Code も Codex も、このパソコンのログインを使ってサーバーから取得します。ログから数値を推定することはなく、ローカルログは急増に気づくためだけに読み取ります。",
     "faq.q3": "無料ですか？",
     "faq.a3": "無料でダウンロードでき、オープンソースです。アプリを使うために支援する必要はありません。",
     "faq.q4": "どのパソコンで動きますか？",
     "faq.a4": "Apple Silicon と Intel の Mac では macOS 12 以降、x64 の Windows 10・11 で動きます。Windows ARM 向けの個別ビルドはありません。",
     "faq.q5": "プロンプトやコードをアップロードしますか？",
-    "faq.a5": "いいえ。ローカルログはこのパソコンの中でだけ読み取ります。既存の Claude Code・Codex のログインは使用量を問い合わせるためだけに Anthropic・OpenAI へ送られ、アップデート確認は GitHub に接続します。プロンプト、会話履歴、ソースコードはアップロードしません。",
+    "faq.a5": "いいえ。ローカルログは急増の検知のために、このパソコンの中でだけ読み取ります。既存の Claude Code・Codex のログインは使用量を問い合わせるためだけに Anthropic・OpenAI へ送られ、アップデート確認は GitHub に接続します。プロンプト、会話履歴、ソースコードはアップロードしません。",
     "faq.q6": "Windows でセキュリティ警告が出るのはなぜですか？",
     "faq.a6": "Windows 版はコード署名がないため、システムの設定やポリシーによっては SmartScreen などのセキュリティ警告が表示されることがあります。Mac 版は署名済みで Apple の公証を受けています。",
     "faq.q7": "アップデートはどうなりますか？",
@@ -1490,11 +1467,11 @@ footer small span{display:block}
     ],
     "lines.usage": [
         "<em>緑の数字</em>はサーバーが教えてくれた使用率です。Claude Code も Codex も。",
-        "Claude Code の値をサーバーから受け取れないときは、ログから推定して <strong>≈</strong> を付けます。",
+        "ログから数字を推測することはありません。急に増えたときに気づくためだけに読みます。",
         "Claude Code のスライダーを 85% まで上げてみて。<u>びっくり</u>しちゃいますよ！"
     ],
     "lines.reset": [
-        "Claude Code のセッションがリセットされたら、ぴょんと跳ねて知らせますね。",
+        "Claude Code か Codex のセッションがリセットされたら、ぴょんと跳ねて知らせますね。",
         "わたしをダブルクリックすると、すぐに更新します。"
     ],
     "lines.pets": [
@@ -1535,8 +1512,6 @@ footer small span{display:block}
     "fox.warn": "50% からはラベルが黄色に変わります。",
     "fox.codexBad": "Codex も <u>85%</u> からラベルが赤くなります。",
     "fox.codexWarn": "Codex も 50% から黄色に変わります。",
-    "fox.est": "Claude Code をログから計算したときは <strong>≈</strong> を付けて黄色で表示します。Codex はサーバーの値だけを表示します。",
-    "fox.exact": "サーバーの使用率は<em>緑</em>で表示します。",
     "fox.spike": [
         "いま Claude Code の使用量が<u>急に増えました</u>！",
         "そんなときは ▲ と赤い光で知らせます。"
@@ -1587,7 +1562,7 @@ footer small span{display:block}
     "prov.kicker": "Cualquiera de los dos, en el mismo lugar",
     "prov.h": "Claude Code.<br>Y también Codex.",
     "prov.p1": "Usa solo Claude Code, solo Codex o los dos. El uso de aquel en el que tengas la sesión iniciada en este equipo aparece lado a lado en la misma píldora, identificado por su logotipo.",
-    "prov.p2": "El uso de Codex se lee desde la API de OpenAI, no desde registros locales, así que solo se muestran los límites que tu cuenta tiene realmente. Hoy Codex suele tener un único límite semanal, así que una sola línea muestra el uso y el tiempo que falta para el reinicio. No hay nada que configurar.",
+    "prov.p2": "El uso de Codex se lee desde la API de OpenAI, así que solo se muestran los límites que tu cuenta tiene realmente. Hoy Codex suele tener un único límite semanal, así que una sola línea muestra el uso y el tiempo que falta para el reinicio. No hay nada que configurar.",
     "prov.claudeOnly": "Solo Claude Code",
     "prov.codexOnly": "Solo Codex",
     "prov.both": "Los dos",
@@ -1596,19 +1571,15 @@ footer small span{display:block}
     "usage.h": "Menos consultas.<br>Más creación.",
     "usage.p": "El uso de sesión y semanal de Claude Code, el uso semanal de Codex (hoy Codex tiene un único límite semanal) y sus reinicios caben en una pequeña píldora de resumen. Lo que aparece depende de tu cuenta.",
     "usage.lg1": "Uso recibido del servidor — en Claude Code y en Codex",
-    "usage.lg2": "Estimación local, para cuando no se pueden obtener los valores del servidor de Claude Code",
     "usage.lg3": "Las etiquetas se vuelven amarillas desde el <span class=\"chip warn\">50%</span> y rojas desde el <span class=\"chip bad\">85%</span>",
     "usage.sliderC": "Sesión de Claude Code",
     "usage.sliderX": "Codex semanal",
-    "usage.srcAria": "Origen de las cifras de Claude Code",
-    "usage.exact": "Uso del servidor",
-    "usage.est": "Estimación local",
     "usage.spike": "Simular un pico",
-    "usage.note": "Pantalla de ejemplo · Los colores y los umbrales del 50%/85% son los de la app · La estimación local y el aviso de picos solo existen en Claude Code",
+    "usage.note": "Pantalla de ejemplo · Los colores y los umbrales del 50%/85% son los de la app · El aviso de picos funciona en Claude Code y en Codex",
     "reset.title": "Reinicio de sesión",
     "reset.kicker": "Pequeños momentos compartidos",
     "reset.h": "Si se reinicia,<br>da un saltito.",
-    "reset.p": "Cuando detecta un reinicio de sesión de Claude Code, la mascota reacciona. Haz doble clic en ella y saltará mientras actualiza el uso.",
+    "reset.p": "Cuando el servidor indica que una sesión de Claude Code o Codex se reinició, la mascota reacciona. Haz doble clic en ella y saltará mientras actualiza el uso.",
     "reset.in": "reinicio en {n} s",
     "reset.done": "Se acaba de reiniciar",
     "reset.note": "Pantalla de ejemplo · El reinicio se acortó a 5 segundos",
@@ -1662,13 +1633,13 @@ footer small span{display:block}
     "faq.q1": "¿En qué tengo que iniciar sesión?",
     "faq.a1": "Basta con tener la sesión iniciada en Claude Code o en Codex. Si usas los dos, se muestran los dos.",
     "faq.q2": "¿De dónde sale el uso?",
-    "faq.a2": "Tanto en Claude Code como en Codex se obtiene del servidor con la sesión iniciada en este equipo. Si no se pueden obtener los valores del servidor de Claude Code, se estima con los registros locales y la estimación se marca con ≈. Codex no usa registros locales.",
+    "faq.a2": "Tanto en Claude Code como en Codex se obtiene del servidor con la sesión iniciada en este equipo. Las cifras nunca se estiman con registros; los registros locales solo se leen para detectar picos repentinos.",
     "faq.q3": "¿Es gratis?",
     "faq.a3": "Se descarga gratis y es de código abierto. No hace falta patrocinar para usar la app.",
     "faq.q4": "¿En qué equipos funciona?",
     "faq.a4": "En macOS 12 o posterior, en Mac con Apple Silicon e Intel, y en Windows 10 u 11 de x64. No hay una versión aparte para Windows ARM.",
     "faq.q5": "¿Sube mis prompts o mi código?",
-    "faq.a5": "No. Los registros locales solo se leen en tu equipo. Tu sesión de Claude Code o Codex solo se envía a Anthropic u OpenAI para pedir tu uso, y la comprobación de actualizaciones se conecta a GitHub. Nunca se suben prompts, conversaciones ni código fuente.",
+    "faq.a5": "No. Los registros locales solo se leen en tu equipo, para detectar picos de uso. Tu sesión de Claude Code o Codex solo se envía a Anthropic u OpenAI para pedir tu uso, y la comprobación de actualizaciones se conecta a GitHub. Nunca se suben prompts, conversaciones ni código fuente.",
     "faq.q6": "¿Por qué Windows muestra una advertencia de seguridad?",
     "faq.a6": "Las versiones de Windows no tienen firma de código, así que puede aparecer SmartScreen u otra advertencia según la configuración y las políticas del sistema. Las versiones de Mac están firmadas con Developer ID y notarizadas por Apple.",
     "faq.q7": "¿Cómo se actualiza?",
@@ -1713,11 +1684,11 @@ footer small span{display:block}
     ],
     "lines.usage": [
         "Los <em>números verdes</em> son el uso que da el servidor. En Claude Code y en Codex.",
-        "Si el valor de Claude Code no llega del servidor, lo estimo con los registros y le pongo <strong>≈</strong>.",
+        "Nunca adivino cifras con los registros. Solo los leo para notar un pico repentino.",
         "Sube el control de Claude Code hasta el 85%. ¡Me vas a <u>asustar</u>!"
     ],
     "lines.reset": [
-        "Cuando tu sesión de Claude Code se reinicie, daré un saltito para avisarte.",
+        "Cuando tu sesión de Claude Code o Codex se reinicie, daré un saltito para avisarte.",
         "Haz doble clic en mí para actualizar al momento."
     ],
     "lines.pets": [
@@ -1758,8 +1729,6 @@ footer small span{display:block}
     "fox.warn": "Desde el 50%, la etiqueta se vuelve amarilla.",
     "fox.codexBad": "La etiqueta de Codex también se pone roja desde el <u>85%</u>.",
     "fox.codexWarn": "Codex también se vuelve amarillo desde el 50%.",
-    "fox.est": "Cuando Claude Code se calcula con los registros, le pongo <strong>≈</strong> y lo muestro en amarillo. Codex solo muestra valores del servidor.",
-    "fox.exact": "El uso del servidor se muestra en <em>verde</em>.",
     "fox.spike": [
         "¡El uso de Claude Code acaba de <u>dispararse</u>!",
         "Cuando pasa eso, te aviso con ▲ y un brillo rojo."
@@ -2164,17 +2133,16 @@ footer small span{display:block}
     {rootMargin:"0px 0px 60px 0px", threshold:0});
   document.querySelectorAll(".win").forEach(w => revealIO.observe(w));
 
-  // ── usage console: value colour by source, label colour at 50/85, the fox's mood follows ──
+  // ── usage console: label colour at 50/85, the fox's mood follows ──
   const uRangeC = $("uRangeC"), uRangeX = $("uRangeX"), uValC = $("uValC"), uWeekC = $("uWeekC"), uValX = $("uValX"),
-        uLabC = $("uLabC"), uLabX = $("uLabX"), uOutC = $("uOutC"), uOutX = $("uOutX"), mExact = $("mExact"), mEst = $("mEst");
-  let est = false, spikeUntil = 0, bandC = "ok", bandX = "ok";
+        uLabC = $("uLabC"), uLabX = $("uLabX"), uOutC = $("uOutC"), uOutX = $("uOutX");
+  let spikeUntil = 0, bandC = "ok", bandX = "ok";
   const bandOf = v => v >= 85 ? "bad" : v >= 50 ? "warn" : "ok";
   const paintLab = (el, band) => { el.classList.toggle("warn", band === "warn"); el.classList.toggle("bad", band === "bad"); };
   function paintUsage(){
-    const vC = +uRangeC.value, vX = +uRangeX.value, spiking = performance.now() < spikeUntil, pre = est ? "≈" : "";
+    const vC = +uRangeC.value, vX = +uRangeX.value, spiking = performance.now() < spikeUntil;
     uOutC.textContent = vC + "%"; uOutX.textContent = vX + "%";
-    uValC.textContent = pre + vC + "%"; uWeekC.textContent = pre + "17%"; uValX.textContent = vX + "%";
-    uValC.classList.toggle("est", est); uWeekC.classList.toggle("est", est);
+    uValC.textContent = vC + "%"; uWeekC.textContent = "17%"; uValX.textContent = vX + "%";
     uLabC.textContent = (spiking ? "▲" : "") + t("pill.session");
     paintLab(uLabC, spiking ? "bad" : bandOf(vC)); paintLab(uLabX, bandOf(vX));
     // the pet's mood follows Claude Code, as in the app
@@ -2191,9 +2159,6 @@ footer small span{display:block}
       else if (nx === "warn") fox.say([t("fox.codexWarn")]); }
   }
   uRangeC.addEventListener("input", paintUsage); uRangeX.addEventListener("input", paintUsage);
-  const setMode = e => { est = e; mExact.setAttribute("aria-pressed", String(!e)); mEst.setAttribute("aria-pressed", String(e)); paintUsage();
-    guide("fox").say([t(e ? "fox.est" : "fox.exact")]); };
-  mExact.addEventListener("click", () => setMode(false)); mEst.addEventListener("click", () => setMode(true));
   $("spikeBtn").addEventListener("click", () => {
     spikeUntil = performance.now() + 6000; paintUsage();
     come(guide("fox"), "usage", () => L("fox.spike"));
@@ -2419,7 +2384,6 @@ footer small span{display:block}
     if (el.classList.contains("dot")){ const action = el.classList.contains("r") ? "close" : el.classList.contains("y") ? "fold" : "unfold";
       GA.send("demo_interact", {target: "window_control", action, section_id: where}); return; }
     if (el.classList.contains("pet")) return; // pet_interact below tells a poke from a drag
-    if (id === "mExact" || id === "mEst"){ GA.send("demo_interact", {target: "usage_source", action: id === "mEst" ? "estimate" : "server", section_id: where}); return; }
     if (id === "spikeBtn"){ GA.send("demo_interact", {target: "spike", action: "simulate", section_id: where}); return; }
     if (id === "gather"){ GA.send("demo_interact", {target: "gather", action: "click", section_id: where}); return; }
     if (id === "themeBtn"){ setTimeout(() => { GA.send("theme_change", {to: isDark() ? "dark" : "light"}); GA.props(); }, 0); return; }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ClaudePet for Windows — 2단계 (PySide6).
 
-macOS 판 `claude_pet.py` 를 **그대로 import** 해 사용량 추정기·정확 모드·설정 파일·다국어·필 형상 상수·
+macOS 판 `claude_pet.py` 를 **그대로 import** 해 서버 사용량 조회(Claude·Codex)·로그 급증 감지와 학습 한도·설정 파일·다국어·필 형상 상수·
 자율 이동 상태기계(Roamer/RoamDisplay)·요약 필 내용·crop 기하(roam_frame)를 재사용하고, 이 파일은
 Windows 에서 필요한 것만 구현한다:
 
@@ -57,7 +57,7 @@ import sys
 import threading
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -163,16 +163,22 @@ def load_pet_frames(pet_dir):
 
 # ─────────────────────────── 스파이크 / 시스템 설정 ───────────────────────────
 def spike_info(stats):
-    """macOS 판 run_gui.spike_info 와 같은 규칙."""
-    if not stats or cp.RUNTIME["mode"] == "api":
+    """macOS 판 run_gui.spike_info 와 같은 규칙 — 지금 보이는 제공자 중 하나라도 로그 급증이면 (색, 이름).
+
+    API 모드는 제공자별이다(cp.provider_spiking). 필에 안 보이는 제공자의 급증은 펫을 흔들지 않는다 —
+    ▲ 가 붙을 줄이 화면에 없으니 이유를 알 수 없는 경보가 된다.
+    """
+    if not stats:
         return None
     sp = stats.get("spikes") or {}
-    if sp.get("session"):
-        return (cp.COL_BAD, cp.t("session"))
-    if sp.get("weekly"):
-        return (cp.COL_BAD, cp.t("weekly"))
-    if sp.get("opus"):
-        return (cp.COL_BAD, str(stats.get("model_kw", "opus")).capitalize())
+    if cp.provider_shown(cp.RUNTIME, "claude") and cp.provider_spiking(stats, "claude"):
+        if sp.get("session"):
+            return ("#FF453A", cp.t("session"))
+        if sp.get("opus"):
+            return ("#BF5AF2", str(stats.get("model_kw") or "opus").capitalize())
+        return ("#FF9F0A", cp.t("weekly"))
+    if cp.provider_shown(cp.RUNTIME, "codex") and cp.provider_spiking(stats, "codex"):
+        return ("#FF453A", "Codex")
     return None
 
 
@@ -394,6 +400,23 @@ def powershell_exe():
     return os.path.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
 
 
+def find_codex_cli():
+    """Codex CLI 경로 또는 None — macOS 판 cp._find_codex_cli 의 Windows 판.
+
+    npm 전역 설치는 %APPDATA%\\npm 에 codex.cmd(와 codex.ps1, 확장자 없는 sh 스크립트)를 만든다.
+    확장자 없는 파일은 Windows 에서 실행할 수 없으므로 .cmd/.exe 를 먼저 찾고, 앱이 그 폴더가
+    PATH 에 들어가기 전에 시작됐을 수 있어 그 폴더를 직접도 본다. 그 밖은 코어의 탐색에 맡긴다.
+    """
+    cands = [shutil.which("codex.cmd"), shutil.which("codex.exe")]
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        cands.append(os.path.join(appdata, "npm", "codex.cmd"))
+    for p in cands:
+        if p and os.path.isfile(p):
+            return p
+    return cp._find_codex_cli()
+
+
 def popen_detached(argv, inherit=None, cwd=None):
     """부모와 분리해 띄운다(새 프로세스 그룹, 창 없음). inherit 에 핸들을 주면 그 핸들만 자식에 물려준다 (macOS 판 pass_fds)."""
     kw = {}
@@ -437,6 +460,12 @@ class PetWindow(QWidget):
                       # codex: Codex(OpenAI) 사용량 행 또는 None. None 이면 구간 자체를 안 붙인다 —
                       # Codex 를 안 쓰는 사용자에게 0% 행을 보여 주지 않기 위해서다.
                       "codex": None,
+                      # Codex 를 필에 보이는데 토큰이 없을 때: None|'install'|'login'
+                      # (cp.compute_codex_onboard_state). 우클릭 메뉴가 읽는다.
+                      "codex_onboard": None,
+                      # Codex API 모드의 오늘·이달 비용과 마지막 조회 실패 종류(키 거부/일시 실패).
+                      "codex_cost": None, "codex_cost_month": None,
+                      "codex_api_error": False, "codex_api_stale": False,
                       # 요약 필 레이아웃. summary_lines_n 은 어댑터가 남기고 pill_band() 가 읽는다
                       # (높이가 줄 수를 따라가게 하는 유일한 경로). pill_w 는 _apply_pill_width 가
                       # 기록하고 geom() 이 읽는다 — 폭이 내용을 따라가게 하는 유일한 경로.
@@ -445,8 +474,14 @@ class PetWindow(QWidget):
                       "recovery": cp.new_recovery_state()}
         # Codex 구간은 훅으로 받는다(macOS 판 state["codex_summary"] 와 같은 모양) — 어댑터가
         # 모듈 함수를 이름으로 부르지 않게 해서, 창 없는 시험이 손으로 만든 state 로 어댑터를
-        # 돌릴 때 훅이 없으면 그 시험의 범위가 그대로 유지되게 한다.
-        self.state["codex_summary"] = lambda: cp.roam_summary_codex(self.state.get("codex"))
+        # 돌릴 때 훅이 없으면 그 시험의 범위가 그대로 유지되게 한다. 표시 설정·게이지 선택·
+        # API 모드·Codex 자신의 급증은 코어(cp.codex_summary_segment)가 반영한다. 보일 게 없으면
+        # None 이고, 그러면 구간이 붙지 않는다.
+        self.state["codex_summary"] = lambda: cp.codex_summary_segment(
+            cp.RUNTIME, self.state.get("codex"),
+            cp.provider_spiking(self.state.get("stats"), "codex"),
+            self.state.get("codex_cost"), self.state.get("codex_cost_month"),
+            bool(self.state.get("codex_api_error")), bool(self.state.get("codex_api_stale")))
         self.sticky = {"on": False}
         self._down = None
         self._moved = False
@@ -653,65 +688,77 @@ class PetWindow(QWidget):
         (코어 summary_lines docstring). 잘라 내는 쪽은 언제나 맨 뒤 구간이었고, 맨 뒤는 언제나
         새로 붙인 제공자였다.
 
-        정확 모드 행은 **거르지 않고 그대로** 넘긴다 — 어느 행을 쓸지는 cp.roam_summary 가
-        정한다. 예전에는 여기서 크레딧(_label_order 9)을 버렸고, 그래서 크레딧을 켜고 쓰는
-        사용자는 파싱까지 끝난 자기 사용량을 필에서 전혀 볼 수 없었다.
+        여기서 하는 거르기는 **사용자가 고른 것**뿐이다: 제공자 표시(show_claude/show_codex)와
+        게이지 선택(claude_gauges, cp.filter_claude_rows). Codex 쪽의 같은 거르기는 codex_summary 훅
+        (cp.codex_summary_segment)이 한다. 어느 행을 쓸지(게이지 앞 3행, 크레딧은 그 한도 밖)는
+        cp.roam_summary 가 정한다. 숫자는 언제나 서버 값이다 — 서버 행이 없으면 로그가 무엇을
+        말하든 상태 문구이고, 추정치와 그 ⚠ 표식은 2026-10-05 에 없어졌다(macOS 판과 같다).
 
         매 tick(20 Hz) 불리므로 같은 입력·같은 5초 창 안에서는 메모한 값을 돌려준다.
         """
         st = self.state
         stats = st["stats"]
         oauth = st["oauth"]
-        key = (cp.RUNTIME["mode"], cp.L["lang"], st.get("onboard"), id(stats), id(oauth),
-               st["cost"], st["cost_month"], cp.RUNTIME.get("api_budget"),
+        R = cp.RUNTIME
+        show_claude = cp.provider_shown(R, "claude")
+        show_codex = cp.provider_shown(R, "codex")
+        key = (R["mode"], cp.L["lang"], st.get("onboard"), id(stats), id(oauth),
+               st["cost"], st["cost_month"], R.get("api_budget"),
                bool(cp.OAUTH_STATUS.get("auth_error")), bool(st.get("api_error")),
                bool(st.get("api_stale")), st.get("credit_text"), id(st.get("codex")),
+               show_claude, tuple(R.get("claude_gauges") or ()), show_codex,
+               R.get("codex_mode"), tuple(R.get("codex_gauges") or ()),
+               bool(R.get("openai_admin_key")), R.get("codex_budget"),
+               st.get("codex_cost"), st.get("codex_cost_month"),
+               bool(st.get("codex_api_error")), bool(st.get("codex_api_stale")),
                int(time.time() / 5))
         memo = getattr(self, "_summary_memo", None)
         if memo and memo[0] == key:
             return memo[1]
+        # 사용자가 고른 게이지만. 거른 뒤 하나도 안 남으면 Claude 줄은 없다 — 빈 목록을
+        # roam_summary 에 넘기면 '서버 행 없음'으로 읽혀 엉뚱한 상태 문구가 뜬다.
+        claude_rows_gone = False
         if oauth:
+            picked = cp.filter_claude_rows(oauth, R.get("claude_gauges") or [])
+            claude_rows_gone = not picked
             now_utc = datetime.now(timezone.utc)
             rows = []
-            for label, pct, rdt, rtxt in oauth:
+            for label, pct, rdt, rtxt in picked:
                 reset_s = cp.fmt_countdown(rdt, now_utc) if rdt is not None else (rtxt or None)
                 rows.append((label, pct, reset_s))
             oauth = rows
-        resets = None
-        if stats and isinstance(stats.get("now"), datetime):
-            resets = {g: cp.fmt_countdown((stats.get(g) or {}).get("reset"), stats["now"])
-                      for g in ("session", "weekly", "opus") if isinstance(stats.get(g), dict)}
-        segment = cp.roam_summary(cp.RUNTIME["mode"], oauth, stats, st.get("onboard"), st["cost"],
-                                  bool(cp.RUNTIME.get("admin_key")), st["cost_month"],
-                                  reset_texts=resets, spike_first=bool(spike_info(stats)),
-                                  cost_budget=float(cp.RUNTIME.get("api_budget") or 0),
+        segment = cp.roam_summary(R["mode"], oauth, stats, st.get("onboard"), st["cost"],
+                                  bool(R.get("admin_key")), st["cost_month"],
+                                  spike_first=cp.provider_spiking(stats, "claude", R),
+                                  cost_budget=float(R.get("api_budget") or 0),
                                   auth_error=bool(cp.OAUTH_STATUS.get("auth_error")),
                                   api_error=bool(st.get("api_error")),
                                   api_stale=bool(st.get("api_stale")),
                                   credit_text=st.get("credit_text"))
+        if not show_claude or (claude_rows_gone and R["mode"] != "api"):
+            segment = None
         # 다른 제공자는 구간을 뒤에 덧붙이기만 한다 — 그리기·폭 계산은 run 단위라 손댈 곳이 없다.
         # 모듈 함수를 이름으로 부르지 않고 state 훅으로 받는다(roam_release·autostart_read 와
         # 같은 이유): 창 없는 시험은 손으로 만든 state 로 이 함수를 돌리고, 훅이 그냥 없으면
-        # 그 시험의 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 **구간 자체가 없고**,
-        # 그러면 아래 zip 에서 codex 가 kinds 에 들어가지도 않는다 — 0% 도, 빈 '조회 중'
-        # 줄도 지어내지 않는다.
+        # 그 시험의 범위가 그대로 유지된다. 훅이 없거나 읽을 게 없으면 **구간 자체가 없다** —
+        # 0% 도, 빈 '조회 중' 줄도 지어내지 않는다.
         codex_hook = st.get("codex_summary")
         codex_seg = codex_hook() if codex_hook else None
-        segments = [segment] + [s for s in (codex_seg,) if s]
         # Codex 만 쓰는 사용자에게 "Claude Code 미설치/로그인 필요"를 계속 들이밀지 않는다 —
         # Codex 행이 실제로 뜬다면(= 그 제공자를 켜서 쓰고 있다는 뜻) 온보딩 안내는 그 사람에게
         # 할 일이 없는 문구다. 토큰 만료·조회 중 같은 다른 status 는 그대로 둔다 — 저건
         # "Claude Code 를 쓰다가 지금 문제"라는 뜻이라 Codex 유무와 무관하게 알려야 한다.
         # (코어 roam_summary_text 와 같은 조건 — 두 플랫폼이 같은 규칙을 쓴다.)
         claude_onboarding_suppressed = (
-            segment[0] == "status" and segment[1] in ("onb_install", "onb_login")
+            segment is not None
+            and segment[0] == "status" and segment[1] in ("onb_install", "onb_login")
             and bool(codex_seg) and codex_seg[0] != "status"
         )
         # 지금 떠 있는 상태 키 — 필 클릭의 뜻을 고를 때 쓴다. 상태 문구가 아니면 None 이라
         # 숫자가 떠 있는 필의 클릭은 아무 뜻도 갖지 않는다. 위에서 억눌러 화면에 보이지 않는
         # 상태를 클릭 의미로 남겨 두면, 안 보이는 문구를 누른 것으로 처리하는 유령 클릭이 생긴다.
         st["summary_status"] = (
-            None if claude_onboarding_suppressed
+            None if claude_onboarding_suppressed or segment is None
             else (segment[1] if segment[0] == "status" else None)
         )
         measure = lambda v: self._text_w(v, self.F_SUMMARY)
@@ -733,18 +780,31 @@ class PetWindow(QWidget):
         # 같은 순간이다. (두 조회가 나중에 서로 독립이 되면 제공자별 신호가 필요해진다.)
         fetched = isinstance(st.get("stats"), dict)
         kinds = {}
-        for pid, seg in zip(("claude", "codex"), segments):
-            if seg and seg[0] != "status":
+        for pid, seg in (("claude", segment), ("codex", codex_seg)):
+            if not seg:
+                continue                    # 꺼졌거나 보일 게 없는 제공자 — 블록이 없다
+            # Codex 의 API 모드 상태(codex_need_admin_key 등)는 그 제공자의 할 일이라 Codex
+            # 블록으로 보인다. 그 밖의 Codex 상태(조회 중 등)는 블록을 만들지 않는다.
+            codex_own = pid == "codex" and seg[0] == "status" and str(seg[1]).startswith("codex_")
+            if seg[0] != "status" or codex_own:
                 kinds[pid] = ("ready", seg)
-            elif not fetched and (seg is None or seg[1] == "loading"):
-                # '받는중'은 **일반 loading 상태일 때만**이다. api_key_rejected·온보딩·
+            elif not fetched and seg[1] in ("loading", "scanning"):
+                # '받는중'은 **일반 대기 상태(loading/scanning)일 때만**이다. api_key_rejected·온보딩·
                 # 토큰 만료 같은 구체적인 상태는 이미 '진짜 답'이므로 '조회 중'으로 덮으면
                 # 사용자가 자기가 할 수 있는 일이 있다는 것을 영원히 모른다 — 키가 거부된
                 # 뒤에도 필이 "조회 중…"을 띄우던 것이 정확히 그 증상이다.
                 kinds[pid] = ("loading", ("status", "loading"))
             else:
                 kinds[pid] = ("absent", seg)
-        if kinds and all(k == "loading" for k, _s in kinds.values()):
+        if not kinds:
+            # 보일 제공자가 없다. 둘 다 꺼 두었으면 그렇다고 말하고(설정으로 가는 클릭),
+            # 켜 둔 쪽이 아직 아무것도 못 냈으면 기다리는 중이다.
+            key_ = "no_providers" if not (show_claude or show_codex) else (
+                "scanning" if fetched else "loading")
+            groups = [(None, [("status", key_)])]
+            if key_ == "no_providers":
+                st["summary_status"] = key_
+        elif all(k == "loading" for k, _s in kinds.values()):
             # 공통 로딩 — 어느 제공자의 줄도 아니므로 마크가 붙으면 안 된다.
             groups = [(None, [("status", "loading")])]
         else:
@@ -754,7 +814,7 @@ class PetWindow(QWidget):
                 if kind in ("ready", "loading"):
                     groups.append((pid, [seg]))
                 elif seg is not None and pid == "claude" and not claude_onboarding_suppressed:
-                    # Claude 의 status(온보딩·토큰 만료·스캔 중)는 버리지 않는다. 다만
+                    # Claude 의 status(온보딩·토큰 만료·대기 중)는 버리지 않는다. 다만
                     # 제공자 블록이 아니라 전역 줄이다 — 마크 없이 필 전체 폭을 쓴다.
                     # (Codex 가 실제로 뜬 상태의 온보딩 안내는 위에서 이미 걸러졌다.)
                     groups.insert(0, (None, [seg]))
@@ -786,16 +846,6 @@ class PetWindow(QWidget):
         # 들어가므로). 실제 어댑터를 구동하는 시험만 잡는다.
         budget = self._pill_budget_for(need) + cp.SUMMARY_LOGO_W
         blocks = cp.summary_lines(groups, measure, budget, measure_sub)
-        # 토큰 만료로 추정치에 내려간 상태 표식 — Claude 블록의 **마지막 게이지 줄** 끝에
-        # run 하나로 붙인다. 게이지 '행'으로 만들면 있지도 않은 0% 를 지어내고, 그냥
-        # 마지막 줄에 붙이면 리셋 줄 옆에 흐리게 그려져 "리셋에 대한 주석"처럼 읽힌다.
-        if segment[0] == "estimate" and cp.OAUTH_STATUS.get("auth_error"):
-            gauge_runs = cp.roam_summary_runs([segment], cp.t)[0]
-            n_gauge = len(cp._summary_fold_runs(gauge_runs, budget - cp.SUMMARY_LOGO_W, measure))
-            for pid, lines in blocks:
-                if pid in ("claude", None) and lines:
-                    lines[min(max(n_gauge, 1), len(lines)) - 1].append((" ⚠", "status"))
-                    break
         # 각 줄을 **그 줄을 그리는 글꼴**로 잰다. 모든 줄을 11pt 로 재면 9.5pt 로 그려질
         # 리셋 줄이 실제보다 넓게 잡혀 필이 부푼다 — 접힘과 같은 뿌리의 두 번째 사례다.
         text_w = 0.0
@@ -948,10 +998,10 @@ class PetWindow(QWidget):
         stats = st["stats"]
         if stats and spike_info(stats):
             return "failed"
-        if st["oauth"]:
-            pct = max((row[1] for row in st["oauth"]), default=0)
-            return "failed" if pct >= 85 else ("waiting" if pct >= 50 else "idle")
-        return cp.mood_for(stats) if stats else "idle"
+        # 서버 %가 기준이다(Claude·Codex 중 보이는 쪽). 서버 행이 없으면 idle — 로그에서
+        # 기분을 만들지 않는다(macOS 판 current_mood 와 같다).
+        # 제공자별로 따로 넘긴다 — 각자 자기 게이지 선택으로 걸러진다(cp.mood_for).
+        return cp.mood_for(None, st["oauth"], codex_rows=st.get("codex"))
 
     def _apply_pending(self):
         """새로고침 워커가 남긴 결과를 메인 스레드(tick)에서 반영한다 — 워커는 위젯·상태를 직접 만지지 않는다."""
@@ -959,10 +1009,13 @@ class PetWindow(QWidget):
             pending, self._pending = self._pending, None
         if pending is None:
             return False
-        prev = self.state["stats"]
+        prev_oauth, prev_codex = self.state["oauth"], self.state.get("codex")
         self.state.update(pending)
-        s = pending.get("stats")
-        if prev and s and prev["session"]["pct"] > 5 and s["session"]["pct"] < 1:
+        # 세션 리셋 점프 — 서버 세션 행이 >5% 에서 <1% 로(제공자별, macOS 판 refresh 워커와 같은
+        # cp.session_reset_jump). 로그 %는 쓰지 않는다. 이번 패스가 행을 못 가져왔으면(실패한
+        # 패스) 판정하지 않는다 — 비교할 '이번 값'이 없다.
+        if ("oauth" in pending or "codex" in pending) and cp.session_reset_jump(
+                prev_oauth, self.state["oauth"], prev_codex, self.state.get("codex")):
             self.set_override("jumping")
         return True
 
@@ -1050,15 +1103,56 @@ class PetWindow(QWidget):
         def work():
             values = {}
             try:
-                values["stats"] = cp.compute_usage()
-                values["oauth"] = cp.fetch_exact_usage()      # 정확 모드 (180s 캐시)
+                oauth = cp.fetch_exact_usage()                 # 정확 모드 (180s 캐시)
                 # Codex 자격증명이 없으면 파일 한 번 못 열고 끝난다 — 망을 타지 않으므로
                 # Codex 를 안 쓰는 사용자에게 드는 비용은 없다. 읽을 게 없으면 None 이고,
                 # 그러면 어댑터가 구간 자체를 안 붙인다(0% 를 지어내지 않는다).
-                values["codex"] = cp.fetch_codex_usage()
+                codex = cp.fetch_codex_usage()
+                # 로그는 급증 감지에만 쓴다. 모델별 레인의 대상은 서버의 모델별 행이 정한다.
+                s = cp.compute_usage(model_keyword=cp.model_keyword_from_rows(oauth))
+                now_utc = s["now"]
+                codex_entries = []
+                codex_logs = (cp.provider_shown(cp.RUNTIME, "codex")
+                              and cp.RUNTIME.get("codex_mode") != "api")
+                if codex_logs and (codex or cp.LEARNED_LIMITS.get("codex_session")
+                                   or cp.LEARNED_LIMITS.get("codex_weekly")):
+                    codex_entries = cp.parse_codex_entries(now_utc - timedelta(days=7))
+                # 급증 한도는 서버 %로부터 배운다(보정 UI 대체). 배운 뒤 같은 패스의 로그로
+                # 급증을 다시 판정한다 — 파일을 다시 읽지 않는 계산뿐이다. 엔트리는 state 에
+                # 남기지 않는다(macOS 판 워커처럼 꺼내서 쓴다).
+                rows = s.pop("rows", None) or []
+                # 같은 캐시 응답(180초)에 EMA 를 거듭 걸지 않게 응답의 조회 시각을 키로 넘긴다.
+                cp.learn_server_limits(oauth, codex, rows, codex_entries,
+                                       model_kw=s.get("model_kw"),
+                                       claude_fetch=cp._oauth_cache.get("t"),
+                                       codex_fetch=cp._codex_cache.get("t"))
+                try:
+                    mult = float(cp.RUNTIME.get("spike_mult", 1.0)) or 1.0
+                except (TypeError, ValueError):
+                    mult = 1.0
+                spikes = dict(cp.claude_spikes(rows, now_utc, s.get("model_kw"), mult=mult))
+                spikes.update(cp.codex_spikes(codex_entries, now_utc, mult=mult))
+                s["spikes"] = spikes
+                values["stats"] = s
+                values["oauth"] = oauth
+                values["codex"] = codex
                 values["cost"] = cp.fetch_api_cost_today()
                 if cp.RUNTIME["mode"] == "api":
                     values["cost_month"] = cp.fetch_api_cost_month()
+                # Codex API 모드: OpenAI 조직 비용. 실패 종류는 Claude 쪽과 같은 규칙으로
+                # 키 거부(사용자가 할 일 있음)와 일시 실패를 가른다(cp.api_error_kind).
+                if cp.RUNTIME.get("codex_mode") == "api" and cp.provider_shown(cp.RUNTIME, "codex"):
+                    values["codex_cost"] = cp.fetch_codex_cost_today()
+                    values["codex_cost_month"] = cp.fetch_codex_cost_month()
+                    _ckind = cp.api_error_kind(cp.CODEX_API_STATUS.get("last_error"))
+                    values["codex_api_error"] = _ckind == "key"
+                    values["codex_api_stale"] = _ckind == "transient"
+                # Codex 를 보이는데 토큰이 없으면 우클릭 메뉴에 설치/로그인(macOS 판과 같은 판단).
+                # Codex 를 쓰는 사람(CLI 또는 Codex 홈이 있음)에게만 낸다.
+                values["codex_onboard"] = cp.compute_codex_onboard_state(
+                    cp.provider_shown(cp.RUNTIME, "codex"), cp.RUNTIME.get("codex_mode"),
+                    bool(cp.read_codex_token(cp.codex_auth_path())), bool(find_codex_cli()),
+                    cp.codex_home_exists())
                 # 크레딧 금액 문자열. 모드는 **지금** 읽는다(파싱 시점이 아니라) — 파싱은
                 # 180초 캐시 뒤에 있어서, 거기서 굳히면 토글을 바꿔도 최대 3분 동안 옛 모드가
                 # 남는다. 크레딧 행이 없으면 None 이고, 그러면 roam_summary 가 그 원소를
@@ -1074,17 +1168,15 @@ class PetWindow(QWidget):
                 _api_kind = cp.api_error_kind(cp.API_STATUS.get("last_error"))
                 values["api_error"] = _api_kind == "key"
                 values["api_stale"] = _api_kind == "transient"
-                # 두 번째 인자는 '파일이 있느냐'가 아니라 '창 안에 집계된 항목이 있느냐'다.
-                # 몇 달 전 로그 파일 하나가 남아 있다고 지금 보여 줄 데이터가 있는 것은 아니고,
-                # 그 파일이 온보딩 안내를 영원히 막고 있었다(코어 refresh 워커의 같은 주석).
-                values["onboard"] = cp.compute_onboard_state(
-                    values["oauth"], bool(values["stats"].get("entries")))
+                # 온보딩 안내는 **토큰**으로 판단한다(macOS 워커와 같다) — 로그가 있어도 토큰이
+                # 없으면 숫자를 볼 길이 없다. 확인은 캐시·자격증명 파일만(cp.claude_token_present).
+                values["onboard"] = cp.compute_onboard_state(oauth, cp.claude_token_present())
                 # 토큰을 살려 두는 자리. 판단은 순수 함수(cp.recovery_tick)가 하고 여기서는
                 # 실행만 한다. 여기서 action 을 보고 values["onboard"] 를 덮어쓰지 **않는다** —
                 # 맥에서 그 두 줄은 도달 불가능한 코드였고, 조건을 느슨하게 풀면 이번엔 반대로
                 # 보여 줄 수치가 있는 사용자의 필을 '미설치' 문구로 덮는다.
                 self._recovery_step()
-            except Exception as e:  # 추정 실패는 화면에 '스캔 중' 으로 남고 다음 새로고침에 다시 시도
+            except Exception as e:  # 실패한 패스는 화면에 대기 상태로 남고 다음 새로고침에 다시 시도
                 print(f"[refresh] failed: {type(e).__name__}", file=sys.stderr)
             finally:
                 with self._refresh_lock:
@@ -1451,8 +1543,8 @@ class PetWindow(QWidget):
     def _context_menu(self, gpos):
         """우클릭 메뉴 — macOS 판 rightMouseDown_ 과 같은 항목·순서·상태.
 
-        [설치/로그인] [업데이트] 설정… · 접기/펴기 · 화면 돌아다니기(✓) · 로그인 시 자동 실행(✓) · 크기 원래대로 · 펫 ▸ · ─ ·
-        제거 · 종료 · ─ · ClaudePet vX(비활성) · 업데이트 확인…  (맨 위 두 항목은 해당 상태일 때만, 각각 구분선과 함께)
+        [Claude 설치/로그인] [Codex 설치/로그인] [업데이트] 설정… · 접기/펴기 · 화면 돌아다니기(✓) · 로그인 시 자동 실행(✓) · 크기 원래대로 · 펫 ▸ · ─ ·
+        제거 · 종료 · ─ · ClaudePet vX(비활성) · 업데이트 확인…  (맨 위 세 항목은 해당 상태일 때만, 각각 구분선과 함께)
         """
         self.roam_display.reset()              # macOS 판 roam_interrupt: 요약 래치 해제
         m = QMenu(self)
@@ -1460,6 +1552,12 @@ class PetWindow(QWidget):
         upd = self.state.get("update")
         if upd:
             top.append((cp.t("menu_update", v=upd[0]), self._do_update))
+        # Codex 도 Claude 와 같은 모양(macOS 판 rightMouseDown_ 과 같은 순서) — 맨 위가 Claude,
+        # 그 아래 Codex, 그 아래 업데이트. 둘 다 0 번에 끼우므로 Codex 를 먼저 넣는다.
+        cob = self.state.get("codex_onboard")
+        if cob:
+            top.insert(0, (cp.t("menu_install_codex"), self._install_codex) if cob == "install"
+                       else (cp.t("menu_login_codex"), self._login_codex))
         ob = self.state.get("onboard")
         if ob:
             top.insert(0, (cp.t("menu_install_cc"), self._install_claude) if ob == "install"
@@ -1707,6 +1805,32 @@ class PetWindow(QWidget):
         self._run_in_console([self._ps_echo(cp.t("term_login")),
                               "& '" + binp.replace("'", "''") + "' auth login",
                               "Write-Host ''", self._ps_echo(cp.t("term_done"))])
+
+    def _install_codex(self):
+        """Codex 설치(npm) → 이어서 로그인까지 새 콘솔에서 (macOS 판 start_codex_install).
+
+        npm 과 codex 는 cmd 로 부른다: PowerShell 에서 이름만 쓰면 npm.ps1/codex.ps1 이 먼저 잡히고,
+        Windows 클라이언트의 기본 실행 정책(Restricted)이 그 스크립트를 막는다. 설치 직후에는 이
+        콘솔의 PATH 에 npm 전역 폴더가 없을 수 있어 앞에 붙인다.
+        """
+        need = self._ps_echo(cp.t("term_need_npm"))
+        self._run_in_console([self._ps_echo(cp.t("term_installing_codex")),
+                              "if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { "
+                              + need + " }",
+                              'cmd /c "npm install -g @openai/codex"',
+                              "Write-Host ''", self._ps_echo(cp.t("term_login")),
+                              '$env:Path = "$env:APPDATA\\npm;" + $env:Path',
+                              'cmd /c "codex login"',
+                              "Write-Host ''", self._ps_echo(cp.t("term_done"))])
+
+    def _login_codex(self):
+        """설치돼 있으나 로그인만 필요한 경우 (macOS 판 start_codex_login). 찾은 CLI 의 폴더를 PATH 앞에."""
+        binp = find_codex_cli()
+        lines = [self._ps_echo(cp.t("term_login"))]
+        if binp:
+            lines.append("$env:Path = '" + os.path.dirname(binp).replace("'", "''") + ";' + $env:Path")
+        lines += ['cmd /c "codex login"', "Write-Host ''", self._ps_echo(cp.t("term_done"))]
+        self._run_in_console(lines)
 
     # ── 완전 삭제 (macOS 판 uninstallApp_ / do_uninstall 과 같은 순서: 거절할 수 있는 단계가 먼저) ──
     def _uninstall(self):
@@ -2034,7 +2158,7 @@ class PetWindow(QWidget):
             except Exception:
                 pass
 
-    # ── 설정 창 (macOS 판 open_settings / open_advanced_limits / save_settings 와 같은 좌표·계약) ──
+    # ── 설정 창 (macOS 판 open_settings / save_settings 와 같은 좌표·계약) ──
     def _open_settings(self):
         self.roam_display.reset()              # 설정 창은 명시적 중단: 요약 래치 해제
         if self.ui.get("panel"):
@@ -2046,45 +2170,14 @@ class PetWindow(QWidget):
         dlg.raise_()
         dlg.activateWindow()
 
-    def adv_value(self, key):
-        """고급 창의 입력값. 창이 없으면 빈 문자열 = '기존 한도 유지' (macOS 판 adv_value)."""
-        w = self.ui.get(key)
-        return w.text() if w else ""
-
-    def close_advanced(self):
-        if self.ui.get("adv_closing"):
-            return
-        self.ui["adv_closing"] = True
-        try:
-            p = self.ui.get("adv_panel")
-            if p:
-                p.blockSignals(True)
-                p.hide()
-                p.deleteLater()
-            self.ui["adv_panel"] = None
-            for k in ADV_FIELD_KEYS:
-                self.ui[k] = None
-        finally:
-            self.ui["adv_closing"] = False
-
     def close_main_panel(self):
-        """본 창을 닫는 유일한 경로. 자식을 먼저 정리한다 (macOS 판 close_main_panel)."""
-        self.close_advanced()
+        """설정 창을 닫는 유일한 경로(저장 성공, X 버튼) — macOS 판 close_main_panel. 창과 참조는 같이 죽는다."""
         p = self.ui.get("panel")
         if p:
             p.blockSignals(True)
             p.hide()
             p.deleteLater()
         self.ui["panel"] = None        # 다음에 열 때 새 언어로 재구성
-
-    def open_advanced_limits(self):
-        if self.ui.get("adv_panel"):
-            self.ui["adv_panel"].raise_()
-            return
-        parent = self.ui.get("panel")
-        if not parent:
-            return                      # 본 창이 없으면 열지 않는다(고아 방지)
-        AdvancedLimitsDialog(self, parent).show()
 
     def closeEvent(self, e):
         """창 닫기 요청(WM_CLOSE) 은 곧 앱 종료다. 트레이의 보이기/숨기기는 setVisible 이라 여기를 거치지 않는다.
@@ -2114,36 +2207,30 @@ class PetWindow(QWidget):
         box.exec()
 
     def save_settings(self):
+        """설정 저장 — macOS 판 save_settings 와 같은 폼·같은 트랜잭션. 검증 → 파일 기록이 모두
+        성공한 뒤에야 반영하고, 실패하면 창은 열린 채 아무것도 바뀌지 않는다. 로그는 읽지 않는다 —
+        역산할 한도가 없다."""
         ui = self.ui
         pet_ids = ui.get("pet_ids") or []
         sel_pet = pet_ids[ui["pet"].currentIndex()] if pet_ids else None
         prev_pet = self.cfg.get("pet") or (pet_ids[0] if pet_ids else None)
-        widx = ui["wreset"].currentIndex()
         form = {
             "pet": sel_pet,
             "lang": cp.SUPPORTED_LANGS[ui["lang"].currentIndex()],
             "mode": "api" if ui["mode"].currentIndex() == 1 else "sub",
-            "model_keyword": (ui["kw"].text().strip().lower() or "auto"),
-            "weekly_reset_day": None if widx == 0 else widx - 1,
-            "weekly_reset_hour": ui["whour"].text(),
             "api_budget": ui["bud"].text(),
             "spike_mult": [0.5, 1.0, 2.0][ui["sens"].currentIndex()],
             "greet": bool(ui["greet"].isChecked()),
             "admin_key": ui["key"].text().strip(),
-            "session_limit_m": self.adv_value("ses"),
-            "weekly_limit_m": self.adv_value("wk"),
-            "opus_limit_m": self.adv_value("op"),
-            "session_pct": ui["cs"].text(),
-            "weekly_pct": ui["cw"].text(),
-            "opus_pct": ui["cm"].text(),
+            "show_claude": bool(ui["show_claude"].isChecked()),
+            "claude_gauges": [g for g, b in ui["claude_g"].items() if b.isChecked()],
+            "show_codex": bool(ui["show_codex"].isChecked()),
+            "codex_mode": "api" if ui["codex_mode"].currentIndex() == 1 else "sub",
+            "codex_gauges": [g for g, b in ui["codex_g"].items() if b.isChecked()],
+            "openai_admin_key": ui["okey"].text().strip(),
+            "codex_budget": ui["cbud"].text(),
         }
-
-        def stats_for(snapshot):
-            snap = dict(cp.RUNTIME)
-            snap.update({k: v for k, v in snapshot.items() if v is not None or k == "weekly_reset_day"})
-            return cp.compute_usage(runtime=snap)
-
-        plan, err = cp.plan_settings_save(self.cfg, form, stats_for=stats_for)
+        plan, err = cp.plan_settings_save(self.cfg, form)
         if err:
             self.settings_error(err)
             return
@@ -2152,12 +2239,11 @@ class PetWindow(QWidget):
         if not ok:
             self.settings_error(cp.t("s_err_save"))
             return
-        for fld in ("cs", "cw", "cm"):
-            ui[fld].setText("")
-        with self._refresh_lock:               # 저장 전에 시작된 새로고침이 뒤늦게 덮어쓰지 못하게 세대를 올린다
+        # 세대를 올려, 저장 전에(옛 설정으로) 시작된 새로고침이 뒤늦게 덮어쓰지 못하게 한다.
+        # 예: Codex 를 API 모드로 바꿨는데 옛 패스가 비용 없이 끝나 '조회 중'이 눌러앉는 일.
+        with self._refresh_lock:
             self._refresh_gen += 1
             self._pending = None
-        self.state["stats"] = cp.compute_usage()
         self.state["repaint"] = True
         cp._oauth_cache["t"] = 0.0             # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
         self.close_main_panel()
@@ -2165,16 +2251,15 @@ class PetWindow(QWidget):
         self.update()
 
 
-ADV_FIELD_KEYS = ("ses", "wk", "op")
-
-
 class SettingsDialog(QDialog):
-    """macOS 판 open_settings 의 NSPanel(420×612) 을 같은 좌표로 옮긴 것.
+    """macOS 판 open_settings 의 NSPanel(420×568) 을 같은 좌표로 옮긴 것.
 
     AppKit 은 y 가 아래에서 위로, Qt 는 위에서 아래로 커지므로 위젯의 위쪽 = PHT − y − h 로 뒤집는다.
-    라벨·입력·팝업·버튼의 x/폭/높이와 y 간격은 macOS 판과 같다(높이 예산 612 ≤ 656 도 그대로).
+    라벨·입력·팝업·체크·버튼의 x/폭/높이와 y 간격은 macOS 판과 같다. 펫·언어, Claude Code 구역,
+    Codex 구역(같은 모양), 공통(급증 민감도·인사), 저장·버전 순서이고 높이 예산 ≤ 656 도 그대로다
+    (CLAUDE.md Danger zone). 보정·한도·고급 창은 2026-10-05 에 없어졌다.
     """
-    PWID, PHT = 420, 612
+    PWID, PHT = 420, 568
 
     def __init__(self, win):
         super().__init__(None, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowStaysOnTopHint)
@@ -2187,9 +2272,6 @@ class SettingsDialog(QDialog):
         def label(text, x, y, w=150, h=20):
             l = QLabel(text, self)
             l.setGeometry(x, self.PHT - y - h, w, h)
-            if h > 20:                         # 여러 줄 라벨(note2): 줄바꿈 허용, 위에서부터
-                l.setWordWrap(True)
-                l.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             return l
 
         def field(x, y, w, value, secure=False):
@@ -2199,85 +2281,95 @@ class SettingsDialog(QDialog):
                 f.setEchoMode(QLineEdit.Password)
             return f
 
+        def check(title, x, y, w, on):
+            b = QCheckBox(title, self)
+            b.setGeometry(x, self.PHT - y - 22, w, 22)
+            b.setChecked(bool(on))
+            return b
+
         def popup(x, y, w, items, index):
+            # macOS 판 popup 처럼 y 는 라벨 기준선이고 팝업은 3pt 아래에서 26pt 높이다.
             c = QComboBox(self)
-            c.setGeometry(x, self.PHT - y - 26, w, 26)
+            c.setGeometry(x, self.PHT - (y - 3) - 26, w, 26)
             c.addItems(list(items))
             if items:
                 c.setCurrentIndex(max(0, min(index, len(items) - 1)))
             return c
+
+        def section(title, show_key, y):
+            """구역 제목(굵게)과 같은 줄 오른쪽의 '필에 표시' 체크 (macOS 판 section)."""
+            head = label(title, 20, y, 150)
+            f = head.font()
+            f.setBold(True)
+            f.setPointSize(13)
+            head.setFont(f)
+            return check(t("s_show_in_pill"), 180, y, 220, R.get(show_key, True))
 
         y = self.PHT - 40
         label(t("s_pet"), 20, y)
         pet_list_s = cp.discover_pets()
         pet_ids = [p["id"] for p in pet_list_s]
         cur_pet = cfg.get("pet") or (pet_ids[0] if pet_ids else None)
-        pet_pop = popup(180, y - 3, 220, [p["name"] for p in pet_list_s],
+        pet_pop = popup(180, y, 220, [p["name"] for p in pet_list_s],
                         pet_ids.index(cur_pet) if cur_pet in pet_ids else 0)
 
         y -= 34
         label(t("s_language"), 20, y)
-        lang_pop = popup(180, y - 3, 160, [cp.LANG_NAMES[c] for c in cp.SUPPORTED_LANGS],
+        lang_pop = popup(180, y, 160, [cp.LANG_NAMES[c] for c in cp.SUPPORTED_LANGS],
                          cp.SUPPORTED_LANGS.index(cp.L["lang"]))
 
-        y -= 34
+        gauge_title = {"session": t("s_gauge_session"), "weekly": t("s_gauge_weekly"),
+                       "model": t("s_gauge_model"), "credit": t("s_gauge_credit")}
+
+        # ── Claude Code 구역 ──
+        y -= 42
+        show_claude = section(t("s_sec_claude"), "show_claude", y)
+        y -= 30
         label(t("s_data_source"), 20, y)
-        mode = popup(180, y - 3, 220, [t("s_mode_sub"), t("s_mode_api")], 1 if R["mode"] == "api" else 0)
-
-        y -= 34
-        label(t("s_model_kw"), 20, y)
-        f_kw = field(180, y - 2, 100, R.get("model_keyword", "auto"))
-        label(t("s_auto_detect"), 288, y, 120)
-
-        y -= 34
-        label(t("s_weekly_reset"), 20, y)
-        wd = R.get("weekly_reset_day")
-        wreset = popup(180, y - 3, 130, [t("s_rolling7")] + list(cp.WEEKDAYS_FULL[cp.L["lang"]]),
-                       0 if wd is None else int(wd) + 1)
-        f_wh = field(318, y - 2, 40, int(R.get("weekly_reset_hour", 20)))
-        label(t("s_hour"), 362, y, 30)
-
-        y -= 40
-        label(t("s_calib1"), 20, y, 380)
-        y -= 20
-        label(t("s_calib2"), 20, y, 380)
-        y -= 28
-        label(t("s_calib_session"), 20, y)
-        f_cs = field(180, y - 2, 60, "")
+        mode = popup(180, y, 220, [t("s_mode_sub"), t("s_mode_api")], 1 if R["mode"] == "api" else 0)
         y -= 30
-        label(t("s_calib_weekly_all"), 20, y)
-        f_cw = field(180, y - 2, 60, "")
-        y -= 30
-        label(t("s_calib_weekly_model"), 20, y)
-        f_cm = field(180, y - 2, 60, "")
-
-        y -= 30
-        label(t("s_limit_note1"), 20, y, 380)
-        y -= 56
-        label(t("s_limit_note2"), 20, y, 380, h=52)
-        y -= 24
-        label(t("s_limit_note3"), 20, y, 240)
-        adv_btn = QPushButton(t("s_limit_advanced_button"), self)
-        adv_btn.setGeometry(268, self.PHT - (y - 3) - 24, 132, 24)
-        adv_btn.clicked.connect(win.open_advanced_limits)
-
-        y -= 36
-        label(t("s_spike_sens"), 20, y)
-        m = R.get("spike_mult", 1.0)
-        sens = popup(180, y - 3, 220, [t("s_sens_high"), t("s_sens_normal"), t("s_sens_low")],
-                     0 if m < 0.9 else (2 if m > 1.5 else 1))
-
-        y -= 32
-        greet = QCheckBox(t("s_greet"), self)
-        greet.setGeometry(20, self.PHT - y - 22, 340, 22)
-        greet.setChecked(bool(R.get("greet")))
-
-        y -= 34
+        label(t("s_gauges"), 20, y)
+        chosen = set(R.get("claude_gauges") or [])
+        claude_g = {}
+        for n, g in enumerate(cp.CLAUDE_GAUGES):
+            # 2열 × 2행 — 네 이름이 어느 로케일에서도 120pt 안에 들어간다 (macOS 판과 같은 칸)
+            gx, gy = 180 + (n % 2) * 120, y - (n // 2) * 24
+            claude_g[g] = check(gauge_title[g], gx, gy, 116, g in chosen)
+        y -= 54
         label(t("s_admin_key"), 20, y)
         f_key = field(180, y - 2, 220, R.get("admin_key", ""), secure=True)
         y -= 30
         label(t("s_budget"), 20, y)
         f_bud = field(180, y - 2, 90, R.get("api_budget") or 0)
+
+        # ── Codex 구역 (같은 모양) ──
+        y -= 42
+        show_codex = section(t("s_sec_codex"), "show_codex", y)
+        y -= 30
+        label(t("s_data_source"), 20, y)
+        codex_mode = popup(180, y, 220, [t("s_codex_mode_sub"), t("s_codex_mode_api")],
+                           1 if R.get("codex_mode") == "api" else 0)
+        y -= 30
+        label(t("s_gauges"), 20, y)
+        chosen = set(R.get("codex_gauges") or [])
+        codex_g = {}
+        for n, g in enumerate(cp.CODEX_GAUGES):
+            codex_g[g] = check(gauge_title[g], 180 + n * 120, y, 116, g in chosen)
+        y -= 30
+        label(t("s_openai_key"), 20, y)
+        f_okey = field(180, y - 2, 220, R.get("openai_admin_key", ""), secure=True)
+        y -= 30
+        label(t("s_codex_budget"), 20, y)
+        f_cbud = field(180, y - 2, 90, R.get("codex_budget") or 0)
+
+        # ── 공통 ──
+        y -= 42
+        label(t("s_spike_sens"), 20, y)
+        m = R.get("spike_mult", 1.0)
+        sens = popup(180, y, 220, [t("s_sens_high"), t("s_sens_normal"), t("s_sens_low")],
+                     0 if m < 0.9 else (2 if m > 1.5 else 1))
+        y -= 32
+        greet = check(t("s_greet"), 20, y, 380, R.get("greet"))
 
         vl = label(f"ClaudePet v{cp.APP_VERSION}", 20, 18, 200)
         vl.setStyleSheet("color: palette(placeholder-text);")     # NSColor.secondaryLabelColor
@@ -2285,63 +2377,20 @@ class SettingsDialog(QDialog):
         save_btn.setGeometry(self.PWID - 110, self.PHT - 12 - 30, 90, 30)
         save_btn.clicked.connect(win.save_settings)
 
-        # ses/wk/op(절대 한도)는 여기 없다 — 고급 창이 생길 때 비로소 ui 에 들어온다 (adv_value 계약).
         win.ui.update({"panel": self, "mode": mode, "sens": sens, "greet": greet,
-                       "key": f_key, "bud": f_bud, "kw": f_kw, "wreset": wreset, "whour": f_wh,
-                       "lang": lang_pop, "cs": f_cs, "cw": f_cw, "cm": f_cm,
+                       "key": f_key, "bud": f_bud, "lang": lang_pop,
+                       "show_claude": show_claude, "claude_g": claude_g,
+                       "show_codex": show_codex, "codex_mode": codex_mode, "codex_g": codex_g,
+                       "okey": f_okey, "cbud": f_cbud,
                        "pet": pet_pop, "pet_ids": pet_ids})
         scr = win.screen() or QApplication.primaryScreen()        # macOS panel.center()
         a = scr.availableGeometry()
         self.move(a.center().x() - self.PWID // 2, a.center().y() - self.PHT // 2)
 
     def closeEvent(self, e):
-        # X 로 닫힐 때: 자식 먼저, 그다음 본 창 (macOS 판 windowWillClose_ → close_main_panel)
+        # X 로 닫힐 때 (macOS 판 windowWillClose_ → close_main_panel)
         if self.win.ui.get("panel") is self:
             self.win.close_main_panel()
-        e.accept()
-
-
-class AdvancedLimitsDialog(QDialog):
-    """절대 한도(고급) 창 — macOS 판 open_advanced_limits 의 500×190 과 같은 좌표. 칸은 항상 빈 칸 = 지금 한도 유지."""
-    AW, AH = 500, 190
-
-    def __init__(self, win, parent):
-        super().__init__(parent, Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowStaysOnTopHint)
-        self.win = win
-        t, R = cp.t, cp.RUNTIME
-        self.setWindowTitle(t("s_limit_advanced"))
-        self.setWindowIcon(app_icon())
-        self.setFixedSize(self.AW, self.AH)
-
-        def alabel(text, x, yy, w=150, h=20):
-            l = QLabel(text, self)
-            l.setGeometry(x, self.AH - yy - h, w, h)
-            return l
-
-        def afield(x, yy, w):
-            f = QLineEdit("", self)
-            f.setGeometry(x, self.AH - yy - 22, w, 22)
-            return f
-
-        yy = self.AH - 34
-        alabel(t("s_limit_note1"), 16, yy, self.AW - 32)
-        yy -= 30
-        made = []
-        for key_l, tokens in (("s_limit_session", R["session_limit"]),
-                              ("s_limit_weekly", R["weekly_limit"]),
-                              ("s_limit_model", R["opus_limit"])):
-            alabel(t(key_l), 16, yy, 170)                         # 라벨 16..186 | 입력 190..290 | 현재값 300..484
-            made.append(afield(190, yy - 2, 100))
-            alabel(t("s_limit_current", value=cp.fmt_limit_m(tokens)), 300, yy, 184)
-            yy -= 30
-        for k, w in zip(ADV_FIELD_KEYS, made):
-            win.ui[k] = w
-        win.ui["adv_panel"] = self
-        self.move(parent.x() + 30, parent.y() + 40)
-
-    def closeEvent(self, e):
-        if self.win.ui.get("adv_panel") is self:
-            self.win.close_advanced()                             # 자식만 정리 — 본 창은 그대로
         e.accept()
 
 

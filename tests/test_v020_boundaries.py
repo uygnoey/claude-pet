@@ -161,10 +161,6 @@ def file_identity(path):
 
 # ═══════════════════════ Boundary 1 — settings ═══════════════════════
 
-_UI_TEXT = {"kw": "auto", "whour": "20", "bud": "0", "key": "",
-            "ses": "8", "wk": "60", "op": "15", "cs": "", "cw": "", "cm": ""}
-
-
 class FakeField:
     def __init__(self, v=""):
         self.v = str(v)
@@ -235,7 +231,23 @@ def extract_nested_source(path, names):
 
 
 class B1Settings(SentinelCase):
-    """Boundary 1 — settings in log-estimate (subscription) mode."""
+    """Boundary 1 — settings, rewritten 2026-10-05 (sou-verify) for
+    docs-design/server-only-usage-20261005.md.
+
+    The limits, calibration %, weekly-reset hour/weekday and model keyword left the
+    product. Deleted with them: ``test_direct_limit_applies_immediately``,
+    ``test_calibration_pct_applies_immediately`` and the three tests that executed
+    ``save_settings`` with faked widgets (success / failure / mutant control) — the
+    widgets they faked (``ses``/``cs``/``whour``…), ``ADV_FIELD_KEYS``, ``adv_value`` and
+    ``close_advanced`` are all removed. Round 2 restored the three executed-
+    ``save_settings`` tests against the new widgets (below). Kept: the seam test (unchanged). Rewritten: immediate
+    apply, whole-save rejection and restart persistence, on the new keys — with an old
+    config file that still carries the removed keys, which must survive on disk and
+    never reach RUNTIME.
+    """
+
+    OLD_KEYS = ("session_limit", "weekly_limit", "opus_limit", "model_keyword",
+                "weekly_reset_day", "weekly_reset_hour")
 
     def setUp(self):
         super().setUp()
@@ -245,10 +257,12 @@ class B1Settings(SentinelCase):
         self.addCleanup(setattr, claude_pet, "CONFIG_PATH", self._orig_cfg_path)
         self._runtime = dict(claude_pet.RUNTIME)
         self.addCleanup(self._restore_runtime)
-        # a pre-existing config with keys the settings panel does NOT own
+        # a pre-existing config with keys the settings panel does NOT own, including the
+        # removed limit/model/weekly keys an older version wrote
         self.base_disk = {"x": 11, "y": 22, "scale": 0.75, "pet": "dog",
                           "session_limit": 8_000_000, "weekly_limit": 60_000_000,
-                          "opus_limit": 15_000_000}
+                          "opus_limit": 15_000_000, "model_keyword": "opus",
+                          "weekly_reset_day": 5, "weekly_reset_hour": 20}
         with open(self.cfg_path, "w") as f:
             json.dump(self.base_disk, f)
 
@@ -257,85 +271,60 @@ class B1Settings(SentinelCase):
         claude_pet.RUNTIME.update(self._runtime)
 
     def form(self, **over):
-        f = {"pet": "dog", "lang": "en", "mode": "sub", "model_keyword": "auto",
-             "weekly_reset_day": None, "weekly_reset_hour": "20",
-             "api_budget": "0", "spike_mult": 1.0, "greet": True, "admin_key": "",
-             "session_limit_m": "8", "weekly_limit_m": "60", "opus_limit_m": "15",
-             "session_pct": "", "weekly_pct": "", "opus_pct": ""}
+        f = {"pet": "dog", "lang": "en", "mode": "sub", "api_budget": "0",
+             "spike_mult": 1.0, "greet": True, "admin_key": "",
+             "show_claude": True, "claude_gauges": ["session", "weekly", "model", "credit"],
+             "show_codex": True, "codex_mode": "sub", "codex_gauges": ["session", "weekly"],
+             "openai_admin_key": "", "codex_budget": "0"}
         f.update(over)
         return f
 
-    # ── (a)+(b) direct limit: validates and reaches cfg/RUNTIME immediately ──
-    def test_direct_limit_applies_immediately(self):
+    # ── (a)+(b) new keys validate and reach cfg/RUNTIME/file immediately ──
+    def test_new_settings_apply_immediately(self):
         cfg = dict(self.base_disk)
-        plan, err = claude_pet.plan_settings_save(cfg, self.form(session_limit_m="12.5"))
+        plan, err = claude_pet.plan_settings_save(
+            cfg, self.form(show_codex=False, codex_budget="12.5",
+                           claude_gauges=["weekly", "credit"]))
         self.assertIsNone(err)
-        # 12.5 M tokens: distinct from the prior 8_000_000, from a raw 12.5,
-        # and from 12 (truncation) — no rival implementation lands here.
-        self.assertEqual(plan["updates"]["session_limit"], 12_500_000)
+        # 12.5: distinct from the default 0.0, from the raw string, and from 12.
+        self.assertEqual(plan["updates"]["codex_budget"], 12.5)
         ok, merged = claude_pet.apply_settings_plan(plan, cfg,
                                                     apply_fn=claude_pet.apply_config)
         self.assertTrue(ok)
-        self.assertEqual(cfg["session_limit"], 12_500_000, "cfg not updated")
-        self.assertEqual(claude_pet.RUNTIME["session_limit"], 12_500_000,
-                         "RUNTIME not updated")
+        self.assertEqual(cfg["codex_budget"], 12.5, "cfg not updated")
+        self.assertEqual(claude_pet.RUNTIME["codex_budget"], 12.5, "RUNTIME not updated")
+        self.assertEqual(claude_pet.RUNTIME["show_codex"], False)
+        self.assertEqual(claude_pet.RUNTIME["claude_gauges"], ["weekly", "credit"])
         with open(self.cfg_path, encoding="utf-8") as f:
             on_disk = json.load(f)
-        self.assertEqual(on_disk["session_limit"], 12_500_000, "file not updated")
-        # keys the panel does not own survive (lost-update protection)
+        self.assertEqual(on_disk["codex_budget"], 12.5, "file not updated")
         for k in ("x", "y", "scale"):
             self.assertEqual(on_disk[k], self.base_disk[k])
-        # untouched gauges keep their exact token counts through the M round-trip
-        self.assertEqual(on_disk["weekly_limit"], 60_000_000)
-        self.assertEqual(on_disk["opus_limit"], 15_000_000)
-
-    # ── (a)+(b) calibration %: back-solves and reaches cfg/RUNTIME ──
-    def test_calibration_pct_applies_immediately(self):
-        cfg = dict(self.base_disk)
-        stats = {"session": {"used": 4_000_000}, "weekly": {"used": 1},
-                 "opus": {"used": 1}}
-        # direct=1M and pct=25% of used=4M → 16M. Rivals: direct-wins → 1M,
-        # ignore-pct → 8M (prior), used*pct → 1M, used → 4M. All distinct.
-        plan, err = claude_pet.plan_settings_save(
-            cfg, self.form(session_limit_m="1", session_pct="25%"),
-            usage_stats=stats)
-        self.assertIsNone(err)
-        self.assertEqual(plan["updates"]["session_limit"], 16_000_000)
-        ok, _ = claude_pet.apply_settings_plan(plan, cfg,
-                                               apply_fn=claude_pet.apply_config)
-        self.assertTrue(ok)
-        self.assertEqual(cfg["session_limit"], 16_000_000)
-        self.assertEqual(claude_pet.RUNTIME["session_limit"], 16_000_000)
-        with open(self.cfg_path, encoding="utf-8") as f:
-            on_disk = json.load(f)
-        self.assertEqual(on_disk["session_limit"], 16_000_000)
+        for k in self.OLD_KEYS:
+            self.assertEqual(on_disk[k], self.base_disk[k], "%s rewritten or deleted" % k)
+            self.assertNotIn(k, claude_pet.RUNTIME, "%s reached RUNTIME" % k)
 
     # ── (d) an invalid field rejects the WHOLE save, atomically ──
     def test_invalid_input_rejects_whole_save(self):
         cases = [
-            ("hour out of range", {"weekly_reset_hour": "25"}),
-            ("hour not a number", {"weekly_reset_hour": "eight"}),
             ("negative budget", {"api_budget": "-1"}),
-            ("zero limit", {"opus_limit_m": "0"}),
-            ("limit with percent sign", {"weekly_limit_m": "60%"}),
-            ("pct over 100", {"weekly_pct": "150"}),
-            ("pct is bare percent sign", {"opus_pct": "%"}),
+            ("budget with percent sign", {"api_budget": "1%2"}),
+            ("negative codex budget", {"codex_budget": "-1"}),
+            ("codex budget not a number", {"codex_budget": "ten"}),
+            ("codex budget nan", {"codex_budget": "nan"}),
             # one valid field alongside an invalid one: nothing may be applied
-            ("valid limit + invalid hour",
-             {"session_limit_m": "12.5", "weekly_reset_hour": "25"}),
-            ("valid limit + invalid other limit",
-             {"session_limit_m": "12.5", "opus_limit_m": "-3"}),
+            ("valid gauges + invalid codex budget",
+             {"claude_gauges": ["weekly"], "codex_budget": "-3"}),
+            ("valid codex budget + invalid budget",
+             {"codex_budget": "12.5", "api_budget": "inf"}),
         ]
-        stats = {"session": {"used": 4_000_000}, "weekly": {"used": 4_000_000},
-                 "opus": {"used": 4_000_000}}
         for label, over in cases:
             with self.subTest(label):
                 cfg = dict(self.base_disk)
                 before_cfg = dict(cfg)
                 before_rt = dict(claude_pet.RUNTIME)
                 before_file = file_identity(self.cfg_path)
-                plan, err = claude_pet.plan_settings_save(cfg, self.form(**over),
-                                                          usage_stats=stats)
+                plan, err = claude_pet.plan_settings_save(cfg, self.form(**over))
                 self.assertIsNone(plan, "%s produced a plan" % label)
                 self.assertTrue(err, "%s produced no error message" % label)
                 ok, merged = claude_pet.apply_settings_plan(plan, cfg)
@@ -346,23 +335,11 @@ class B1Settings(SentinelCase):
                                  "RUNTIME mutated by a rejected save")
                 self.assertEqual(file_identity(self.cfg_path), before_file,
                                  "config file changed on a rejected save")
-        # Blank direct input is not an invalid number: it means preserve the
-        # existing exact-token limit.  Keep this beside the rejected rivals so
-        # the boundary cannot drift back to treating blank as zero or error.
-        cfg = dict(self.base_disk)
-        plan, err = claude_pet.plan_settings_save(
-            cfg, self.form(session_limit_m=""), usage_stats=stats)
-        self.assertIsNone(err)
-        self.assertEqual(
-            plan["updates"]["session_limit"],
-            self.base_disk["session_limit"],
-        )
         # POSITIVE CONTROL — an implementation that refuses everything would pass
         # every subTest above. The same harness with a valid form must go through.
         cfg = dict(self.base_disk)
         before_file = file_identity(self.cfg_path)
-        plan, err = claude_pet.plan_settings_save(
-            cfg, self.form(session_limit_m="12.5"), usage_stats=stats)
+        plan, err = claude_pet.plan_settings_save(cfg, self.form(codex_budget="12.5"))
         self.assertIsNone(err)
         ok, _ = claude_pet.apply_settings_plan(plan, cfg,
                                                apply_fn=claude_pet.apply_config)
@@ -371,33 +348,41 @@ class B1Settings(SentinelCase):
                             "positive control: the config file must change")
 
     # ── (c) persistence across a real restart (fresh interpreter) ──
-    def test_saved_limits_survive_restart(self):
-        # use the sandbox HOME path, which is what a restarted app reads
+    def test_saved_settings_survive_restart(self):
         claude_pet.CONFIG_PATH = os.path.join(SANDBOX_HOME, ".claude_pet.json")
         if os.path.exists(claude_pet.CONFIG_PATH):
             os.remove(claude_pet.CONFIG_PATH)
+        with open(claude_pet.CONFIG_PATH, "w") as f:
+            json.dump({k: self.base_disk[k] for k in self.OLD_KEYS}, f)
 
-        # CONTROL: with no config file, a fresh interpreter reports the defaults.
+        # CONTROL: a config holding only the removed keys → the new defaults, and none
+        # of the removed keys loaded.
         defaults = self._restart_child()
-        self.assertEqual(defaults["session_limit"], 8_000_000)
-        self.assertEqual(defaults["weekly_limit"], 60_000_000)
+        self.assertEqual(defaults["show_claude"], True)
+        self.assertEqual(defaults["codex_mode"], "sub")
+        self.assertEqual(defaults["old"], [])
 
-        cfg = {}
+        cfg = claude_pet.load_config()
         plan, err = claude_pet.plan_settings_save(
-            cfg, self.form(session_limit_m="12.5", weekly_limit_m="77",
-                           opus_limit_m="3.25", weekly_reset_hour="9",
-                           model_keyword="opus"))
+            cfg, self.form(show_claude=False, claude_gauges=["weekly", "credit"],
+                           codex_mode="api", codex_gauges=["weekly"],
+                           codex_budget="7.5"))
         self.assertIsNone(err)
         ok, _ = claude_pet.apply_settings_plan(plan, cfg,
                                                apply_fn=claude_pet.apply_config)
         self.assertTrue(ok)
 
         after = self._restart_child()
-        self.assertEqual(after["session_limit"], 12_500_000)
-        self.assertEqual(after["weekly_limit"], 77_000_000)
-        self.assertEqual(after["opus_limit"], 3_250_000)
-        self.assertEqual(after["weekly_reset_hour"], 9)
-        self.assertEqual(after["model_keyword"], "opus")
+        self.assertEqual(after["show_claude"], False)
+        self.assertEqual(after["claude_gauges"], ["weekly", "credit"])
+        self.assertEqual(after["codex_mode"], "api")
+        self.assertEqual(after["codex_gauges"], ["weekly"])
+        self.assertEqual(after["codex_budget"], 7.5)
+        self.assertEqual(after["old"], [], "a removed key was loaded after restart")
+        with open(claude_pet.CONFIG_PATH, encoding="utf-8") as f:
+            on_disk = json.load(f)
+        for k in self.OLD_KEYS:
+            self.assertEqual(on_disk[k], self.base_disk[k], "%s was not preserved" % k)
         os.remove(claude_pet.CONFIG_PATH)
 
     def _restart_child(self):
@@ -408,9 +393,13 @@ class B1Settings(SentinelCase):
             "import claude_pet as p\n"
             "assert p.CONFIG_PATH.startswith(%r), p.CONFIG_PATH\n"
             "p.apply_config(p.load_config())\n"
-            "print(json.dumps({k: p.RUNTIME[k] for k in "
-            "('session_limit','weekly_limit','opus_limit','weekly_reset_hour',"
-            "'model_keyword')}))\n" % (REPO, SANDBOX_HOME))
+            "keys = ('show_claude','claude_gauges','show_codex','codex_mode',"
+            "'codex_gauges','codex_budget')\n"
+            "old = ('session_limit','weekly_limit','opus_limit','model_keyword',"
+            "'weekly_reset_day','weekly_reset_hour')\n"
+            "out = {k: p.RUNTIME.get(k) for k in keys}\n"
+            "out['old'] = [k for k in old if k in p.RUNTIME]\n"
+            "print(json.dumps(out))\n" % (REPO, SANDBOX_HOME))
         out = subprocess.run([sys.executable, "-c", code], capture_output=True,
                              text=True, env=dict(os.environ), timeout=120)
         self.assertEqual(out.returncode, 0, out.stderr)
@@ -448,45 +437,47 @@ class B1Settings(SentinelCase):
             self.assertIsInstance(g.body[-1], ast.Return)
 
     # ── executing save_settings itself (widgets faked): state + panel ──
+    # Restored 2026-10-05 round 2 (Coordinator decision after review), adapted to the new
+    # form. Widget keys are the ones 67c7312's save_settings reads: pet/lang/mode/sens/
+    # codex_mode popups, bud/key/okey/cbud fields, greet/show_claude/show_codex checks,
+    # claude_g/codex_g dicts of gauge checks.
     @staticmethod
     def _install_save_helpers(namespace):
-        # save_settings closes over these run_gui helpers in production.  The
-        # extracted harness must execute the same definitions, in dependency
-        # order, rather than reimplementing their behavior with lambdas.
-        _, run_gui, _ = extract_nested_source(claude_pet.__file__, ["run_gui"])
-        key_assignment = next(
-            node for node in run_gui.body
-            if (isinstance(node, ast.Assign) and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "ADV_FIELD_KEYS"))
-        namespace["ADV_FIELD_KEYS"] = ast.literal_eval(key_assignment.value)
-        for name in ("adv_value", "close_advanced", "close_main_panel"):
-            segment, _, _ = extract_nested_source(
-                claude_pet.__file__, ["run_gui", name])
-            exec(compile(segment, claude_pet.__file__, "exec"), namespace)
+        segment, _, _ = extract_nested_source(claude_pet.__file__,
+                                              ["run_gui", "close_main_panel"])
+        exec(compile(segment, claude_pet.__file__, "exec"), namespace)
 
-    def _run_save_settings(self, ui_text=None, popups=None):
-        seg, _, _ = extract_nested_source(claude_pet.__file__,
-                                          ["run_gui", "save_settings"])
-        ns = dict(claude_pet.__dict__)
-        text = dict(_UI_TEXT)
-        text.update(ui_text or {})
-        pops = {"pet": 0, "lang": 0, "mode": 0, "wreset": 0, "sens": 1}
-        pops.update(popups or {})
+    def _ui(self, text=None, checks=None):
+        values = {"bud": "0", "key": "", "okey": "", "cbud": "0"}
+        values.update(text or {})
+        flags = {"greet": 1, "show_claude": 1, "show_codex": 1}
+        flags.update(checks or {})
         panel = FakePanel()
         ui = {"pet_ids": ["dog", "fox"], "panel": panel,
-              "greet": FakeCheck(1)}
-        for k, v in text.items():
+              "claude_g": {g: FakeCheck(1) for g in ("session", "weekly", "model", "credit")},
+              "codex_g": {g: FakeCheck(1) for g in ("session", "weekly")}}
+        for k, v in values.items():
             ui[k] = FakeField(v)
-        for k, v in pops.items():
+        for k, v in flags.items():
+            ui[k] = FakeCheck(v)
+        for k, v in {"pet": 0, "lang": 0, "mode": 0, "sens": 1, "codex_mode": 0}.items():
             ui[k] = FakePopup(v)
+        return ui, panel
+
+    def _run_save_settings(self, text=None, checks=None, source=None):
+        seg = source or extract_nested_source(claude_pet.__file__,
+                                              ["run_gui", "save_settings"])[0]
+        cache = claude_pet._oauth_cache
+        saved_cache = dict(cache)
+        self.addCleanup(lambda: (cache.clear(), cache.update(saved_cache)))
+        ns = dict(claude_pet.__dict__)
+        ui, panel = self._ui(text, checks)
         cfg = dict(self.base_disk)
-        state = {"stats": None, "repaint": False}
+        state = {"stats": None, "repaint": False, "refresh_generation": 0}
         ticker, view = FakeTicker(), FakeView()
         errors = []
         harness = {"ui": ui, "cfg": cfg, "state": state, "ticker": ticker,
-                   "view": view, "panel": panel, "errors": errors,
-                   "set_pet_calls": []}
+                   "view": view, "panel": panel, "errors": errors, "set_pet_calls": []}
         ns.update({
             "ui": ui, "cfg": cfg, "state": state, "ticker": ticker, "view": view,
             "settings_error": lambda msg: errors.append(msg),
@@ -498,76 +489,51 @@ class B1Settings(SentinelCase):
         return harness
 
     def test_save_settings_success_updates_state_and_closes_panel(self):
-        h = self._run_save_settings({"ses": "12.5"})
+        h = self._run_save_settings({"cbud": "12.5"}, {"show_codex": 0})
         self.assertEqual(h["errors"], [])
-        self.assertEqual(h["cfg"]["session_limit"], 12_500_000)
-        self.assertEqual(claude_pet.RUNTIME["session_limit"], 12_500_000)
-        self.assertIsNotNone(h["state"]["stats"], "state['stats'] not refreshed")
+        self.assertEqual(h["cfg"]["codex_budget"], 12.5)
+        self.assertEqual(claude_pet.RUNTIME["codex_budget"], 12.5)
+        self.assertIs(claude_pet.RUNTIME["show_codex"], False)
         self.assertTrue(h["state"]["repaint"])
         self.assertIsNone(h["ui"]["panel"], "panel not released on success")
         self.assertEqual(h["panel"].ordered_out, 1)
         self.assertEqual(h["ticker"].refreshes, 1)
-        self.assertEqual([h["ui"][f].stringValue() for f in ("cs", "cw", "cm")],
-                         ["", "", ""], "calibration fields not cleared")
+        with open(self.cfg_path, encoding="utf-8") as f:
+            on_disk = json.load(f)
+        for k in self.OLD_KEYS:
+            self.assertEqual(on_disk[k], self.base_disk[k])
 
     def test_save_settings_failure_keeps_panel_open_and_state_untouched(self):
         before_rt = dict(claude_pet.RUNTIME)
         before_file = file_identity(self.cfg_path)
-        h = self._run_save_settings({"ses": "12.5", "whour": "25"})
+        h = self._run_save_settings({"cbud": "-1"})
         self.assertEqual(len(h["errors"]), 1, "no error alert was raised")
         self.assertIs(h["ui"]["panel"], h["panel"], "panel was released on failure")
         self.assertEqual(h["panel"].ordered_out, 0, "panel was closed on failure")
-        self.assertIsNone(h["state"]["stats"])
         self.assertFalse(h["state"]["repaint"])
         self.assertEqual(h["cfg"], self.base_disk)
         self.assertEqual(dict(claude_pet.RUNTIME), before_rt)
         self.assertEqual(file_identity(self.cfg_path), before_file)
         self.assertEqual(h["ticker"].refreshes, 0)
-        self.assertEqual(h["ui"]["cs"].stringValue(), "")
 
     def test_mutant_control_for_the_failure_path(self):
-        """MUTANT: strip both `return`s from the rejection paths, so a rejected
-        save falls through into the success block. The failure test above must
-        be able to see that — otherwise it asserts nothing.
-
-        (Removing only the first `return` is NOT observable: apply_settings_plan
-        rejects a None plan and the second guard returns anyway. That is
-        defence in depth in the production code, and it is why the mutant has
-        to remove both.)
-        """
-        seg, _, _ = extract_nested_source(claude_pet.__file__,
-                                          ["run_gui", "save_settings"])
+        """MUTANT: strip both ``return``s from the rejection paths, so a rejected save
+        falls through into the success block. The failure test above must be able to see
+        that — otherwise it asserts nothing. (Removing only the first is not observable:
+        apply_settings_plan rejects a None plan and the second guard returns anyway.)"""
+        seg, _, _ = extract_nested_source(claude_pet.__file__, ["run_gui", "save_settings"])
         mutated, n = re.subn(r"\n( +)settings_error\(([^\n]*)\)([^\n]*)\n\1return\n",
                              lambda m: "\n%ssettings_error(%s)%s\n"
                                        % (m.group(1), m.group(2), m.group(3)),
                              seg)
         self.assertEqual(n, 2, "mutant instrument is broken: expected 2 rejection "
                                "paths with a bare return, found %d" % n)
-        self.assertNotEqual(mutated, seg)
-        ns = dict(claude_pet.__dict__)
-        panel = FakePanel()
-        ui = {"pet_ids": ["dog"], "panel": panel, "greet": FakeCheck(1)}
-        text = dict(_UI_TEXT)
-        text["whour"] = "25"                       # same rejected input as above
-        for k, v in text.items():
-            ui[k] = FakeField(v)
-        for k in ("pet", "lang", "mode", "wreset", "sens"):
-            ui[k] = FakePopup(0)
-        state = {"stats": None, "repaint": False}
-        cfg = dict(self.base_disk)
-        ns.update({"ui": ui, "cfg": cfg, "state": state,
-                   "ticker": FakeTicker(), "view": FakeView(),
-                   "settings_error": lambda m: None, "set_pet": lambda p: None})
-        self._install_save_helpers(ns)
-        exec(compile(mutated, "<mutant>", "exec"), ns)
-        ns["save_settings"]()
-        # the mutant closes the panel and repaints on a REJECTED save — exactly
-        # what test_save_settings_failure_keeps_panel_open asserts must not happen
-        self.assertEqual(panel.ordered_out, 1,
+        h = self._run_save_settings({"cbud": "-1"}, source=mutated)
+        self.assertEqual(h["panel"].ordered_out, 1,
                          "the mutant did not change observable behaviour, so the "
                          "failure test above is not discriminating")
-        self.assertIsNone(ui["panel"])
-        self.assertTrue(state["repaint"])
+        self.assertIsNone(h["ui"]["panel"])
+        self.assertTrue(h["state"]["repaint"])
 
 
 # ═══════════════════════ Boundary 2 — bundle + seeding ═══════════════════════
