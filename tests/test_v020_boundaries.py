@@ -239,9 +239,8 @@ class B1Settings(SentinelCase):
     ``test_calibration_pct_applies_immediately`` and the three tests that executed
     ``save_settings`` with faked widgets (success / failure / mutant control) — the
     widgets they faked (``ses``/``cs``/``whour``…), ``ADV_FIELD_KEYS``, ``adv_value`` and
-    ``close_advanced`` are all removed, and the new widget keys are the Developer's to
-    choose. Re-adding an executed-``save_settings`` gate against the new widgets is a
-    follow-up once they exist. Kept: the seam test (unchanged). Rewritten: immediate
+    ``close_advanced`` are all removed. Round 2 restored the three executed-
+    ``save_settings`` tests against the new widgets (below). Kept: the seam test (unchanged). Rewritten: immediate
     apply, whole-save rejection and restart persistence, on the new keys — with an old
     config file that still carries the removed keys, which must survive on disk and
     never reach RUNTIME.
@@ -437,6 +436,104 @@ class B1Settings(SentinelCase):
             self.assertTrue(any("settings_error" in ast.dump(x) for x in g.body))
             self.assertIsInstance(g.body[-1], ast.Return)
 
+    # ── executing save_settings itself (widgets faked): state + panel ──
+    # Restored 2026-10-05 round 2 (Coordinator decision after review), adapted to the new
+    # form. Widget keys are the ones 67c7312's save_settings reads: pet/lang/mode/sens/
+    # codex_mode popups, bud/key/okey/cbud fields, greet/show_claude/show_codex checks,
+    # claude_g/codex_g dicts of gauge checks.
+    @staticmethod
+    def _install_save_helpers(namespace):
+        segment, _, _ = extract_nested_source(claude_pet.__file__,
+                                              ["run_gui", "close_main_panel"])
+        exec(compile(segment, claude_pet.__file__, "exec"), namespace)
+
+    def _ui(self, text=None, checks=None):
+        values = {"bud": "0", "key": "", "okey": "", "cbud": "0"}
+        values.update(text or {})
+        flags = {"greet": 1, "show_claude": 1, "show_codex": 1}
+        flags.update(checks or {})
+        panel = FakePanel()
+        ui = {"pet_ids": ["dog", "fox"], "panel": panel,
+              "claude_g": {g: FakeCheck(1) for g in ("session", "weekly", "model", "credit")},
+              "codex_g": {g: FakeCheck(1) for g in ("session", "weekly")}}
+        for k, v in values.items():
+            ui[k] = FakeField(v)
+        for k, v in flags.items():
+            ui[k] = FakeCheck(v)
+        for k, v in {"pet": 0, "lang": 0, "mode": 0, "sens": 1, "codex_mode": 0}.items():
+            ui[k] = FakePopup(v)
+        return ui, panel
+
+    def _run_save_settings(self, text=None, checks=None, source=None):
+        seg = source or extract_nested_source(claude_pet.__file__,
+                                              ["run_gui", "save_settings"])[0]
+        cache = claude_pet._oauth_cache
+        saved_cache = dict(cache)
+        self.addCleanup(lambda: (cache.clear(), cache.update(saved_cache)))
+        ns = dict(claude_pet.__dict__)
+        ui, panel = self._ui(text, checks)
+        cfg = dict(self.base_disk)
+        state = {"stats": None, "repaint": False, "refresh_generation": 0}
+        ticker, view = FakeTicker(), FakeView()
+        errors = []
+        harness = {"ui": ui, "cfg": cfg, "state": state, "ticker": ticker,
+                   "view": view, "panel": panel, "errors": errors, "set_pet_calls": []}
+        ns.update({
+            "ui": ui, "cfg": cfg, "state": state, "ticker": ticker, "view": view,
+            "settings_error": lambda msg: errors.append(msg),
+            "set_pet": lambda pid: harness["set_pet_calls"].append(pid),
+        })
+        self._install_save_helpers(ns)
+        exec(compile(seg, claude_pet.__file__, "exec"), ns)
+        ns["save_settings"]()
+        return harness
+
+    def test_save_settings_success_updates_state_and_closes_panel(self):
+        h = self._run_save_settings({"cbud": "12.5"}, {"show_codex": 0})
+        self.assertEqual(h["errors"], [])
+        self.assertEqual(h["cfg"]["codex_budget"], 12.5)
+        self.assertEqual(claude_pet.RUNTIME["codex_budget"], 12.5)
+        self.assertIs(claude_pet.RUNTIME["show_codex"], False)
+        self.assertTrue(h["state"]["repaint"])
+        self.assertIsNone(h["ui"]["panel"], "panel not released on success")
+        self.assertEqual(h["panel"].ordered_out, 1)
+        self.assertEqual(h["ticker"].refreshes, 1)
+        with open(self.cfg_path, encoding="utf-8") as f:
+            on_disk = json.load(f)
+        for k in self.OLD_KEYS:
+            self.assertEqual(on_disk[k], self.base_disk[k])
+
+    def test_save_settings_failure_keeps_panel_open_and_state_untouched(self):
+        before_rt = dict(claude_pet.RUNTIME)
+        before_file = file_identity(self.cfg_path)
+        h = self._run_save_settings({"cbud": "-1"})
+        self.assertEqual(len(h["errors"]), 1, "no error alert was raised")
+        self.assertIs(h["ui"]["panel"], h["panel"], "panel was released on failure")
+        self.assertEqual(h["panel"].ordered_out, 0, "panel was closed on failure")
+        self.assertFalse(h["state"]["repaint"])
+        self.assertEqual(h["cfg"], self.base_disk)
+        self.assertEqual(dict(claude_pet.RUNTIME), before_rt)
+        self.assertEqual(file_identity(self.cfg_path), before_file)
+        self.assertEqual(h["ticker"].refreshes, 0)
+
+    def test_mutant_control_for_the_failure_path(self):
+        """MUTANT: strip both ``return``s from the rejection paths, so a rejected save
+        falls through into the success block. The failure test above must be able to see
+        that — otherwise it asserts nothing. (Removing only the first is not observable:
+        apply_settings_plan rejects a None plan and the second guard returns anyway.)"""
+        seg, _, _ = extract_nested_source(claude_pet.__file__, ["run_gui", "save_settings"])
+        mutated, n = re.subn(r"\n( +)settings_error\(([^\n]*)\)([^\n]*)\n\1return\n",
+                             lambda m: "\n%ssettings_error(%s)%s\n"
+                                       % (m.group(1), m.group(2), m.group(3)),
+                             seg)
+        self.assertEqual(n, 2, "mutant instrument is broken: expected 2 rejection "
+                               "paths with a bare return, found %d" % n)
+        h = self._run_save_settings({"cbud": "-1"}, source=mutated)
+        self.assertEqual(h["panel"].ordered_out, 1,
+                         "the mutant did not change observable behaviour, so the "
+                         "failure test above is not discriminating")
+        self.assertIsNone(h["ui"]["panel"])
+        self.assertTrue(h["state"]["repaint"])
 
 
 # ═══════════════════════ Boundary 2 — bundle + seeding ═══════════════════════

@@ -468,22 +468,20 @@ class AdapterWiringTests(unittest.TestCase):
         self.assertIn("OAUTH_STATUS", expression)
         self.assertIn("auth_error", expression)
 
-    def test_the_onboarding_call_site_uses_the_in_window_entry_count(self):
-        """D. ``compute_onboard_state(...)``'s second argument is derived from the
-        snapshot's ``entries``, not from ``_has_claude_logs()``.
-
-        Rivals: today's ``_has_claude_logs()`` (True for a months-old corpus, so the hint
-        never appears); a literal ``True``/``False``; ``bool(s)``, which is a truthy dict
-        whatever the count. Requiring the word ``entries`` in the argument expression
-        separates all three.
+    def test_the_onboarding_call_site_uses_a_token_flag(self):
+        """D, revised 2026-10-05 round 2 (sou-verify; Coordinator decision after review):
+        onboarding depends on whether a Claude OAuth token exists, not on log entries. The
+        old version of this test required ``entries`` in the flag; that is now the rival —
+        a user whose token is gone but whose logs are recent would never be offered the
+        sign-in. Each call site's flag must be token-derived and must not mention entries.
         """
         tree = module_ast()
         calls = calls_to(tree, "compute_onboard_state")
         self.assertEqual(len(calls), 1, "expected exactly one compute_onboard_state call site")
-        self.assertEqual(len(calls[0].args), 2, "compute_onboard_state takes two positional args")
-        flag = ast.unparse(calls[0].args[1])
-        self.assertIn("entries", flag,
-                      f"the onboarding flag must come from the in-window entry count, got {flag!r}")
+        flag = " ".join([ast.unparse(a) for a in calls[0].args[1:]]
+                        + [ast.unparse(k.value) for k in calls[0].keywords])
+        self.assertNotIn("entries", flag)
+        self.assertIn("token", flag.lower(), f"the onboarding flag is not token-derived: {flag!r}")
         self.assertNotIn("_has_claude_logs", flag)
 
     def test_has_claude_logs_is_gone_from_the_module(self):
@@ -502,11 +500,12 @@ class AdapterWiringTests(unittest.TestCase):
 
 
 class OnboardStateContractTests(LogTreeMixin, unittest.TestCase):
-    """D. ``compute_onboard_state()`` itself is unchanged; pin what it does with the flag."""
+    """D, revised 2026-10-05 round 2: ``compute_onboard_state(oauth, has_token)``. Logs —
+    recent or stale — no longer suppress onboarding; only a token (or server rows) does.
+    The keyword ``has_token`` is used so the old ``stats_have_logs`` signature fails."""
 
     def setUp(self):
         self.setUpLogTree()
-        # 이 함수는 환경 변수와 RUNTIME["mode"] 를 먼저 본다 — 둘 다 고정해 둔다.
         env = dict(os.environ)
         env.pop("CLAUDE_PET_FORCE_ONBOARD", None)
         patcher = mock.patch.dict(os.environ, env, clear=True)
@@ -516,41 +515,23 @@ class OnboardStateContractTests(LogTreeMixin, unittest.TestCase):
         claude_pet.RUNTIME["mode"] = "sub"
         self.addCleanup(claude_pet.RUNTIME.__setitem__, "mode", original_mode)
 
-    def test_a_stale_only_corpus_reaches_onboarding_once_the_flag_is_the_entry_count(self):
-        """The end-to-end shape of defect 2, at the only level reachable without a GUI:
-        for a tree whose only ``*.jsonl`` predates the window, ``compute_usage()`` reports
-        zero entries, and ``compute_onboard_state`` with that count as its flag offers
-        onboarding rather than ``None``.
-
-        Rivals: passing ``_has_claude_logs()`` for this tree (True → ``None``, the bug);
-        passing the raw file count (1 → truthy → ``None``); passing the snapshot dict
-        itself (truthy → ``None``). All three return ``None``; the specified flag
-        returns an onboarding key.
-        """
-        ancient = datetime.now(UTC) - timedelta(days=90)
-        self.write_log([usage_record(timestamp=ancient, message_id="m", request_id="r",
-                                     output_tokens=500)],
-                       relative_path="proj/old.jsonl")
-
+    def test_recent_logs_without_a_token_still_reach_onboarding(self):
+        """A tree with in-window entries and no token → onboarding. Rival: round 1's
+        entries flag (5 entries → None)."""
+        recent = datetime.now(UTC) - timedelta(minutes=5)
+        self.write_log([usage_record(timestamp=recent, message_id="m", request_id="r",
+                                     output_tokens=500)], relative_path="proj/new.jsonl")
         stats = claude_pet.compute_usage()
-        self.assertEqual(stats["entries"], 0)
-
-        self.assertIn(claude_pet.compute_onboard_state(None, bool(stats["entries"])),
+        self.assertEqual(stats["entries"], 1)
+        self.assertIn(claude_pet.compute_onboard_state(None, has_token=False),
                       ("install", "login"))
 
-    def test_the_flag_is_what_suppresses_onboarding(self):
-        """NOT A GATE — ``compute_onboard_state()`` is unchanged by this fix, so this is
-        green against the unfixed tree. It is a characterization test: it pins the
-        contract the new call site relies on, so that a later change to this function
-        cannot quietly invalidate the fix above.
-
-        Truth table for the two arguments, so that "it returned None" is never
-        ambiguous about which input caused it. Rival: an implementation that ignores the
-        flag and re-derives it internally from the log tree, which would answer
-        ``install``/``login`` for the True row against this empty tree."""
-        self.assertIsNone(claude_pet.compute_onboard_state(None, True))
-        self.assertIsNone(claude_pet.compute_onboard_state([("Session", 1.0, None, "")], False))
-        self.assertIn(claude_pet.compute_onboard_state(None, False), ("install", "login"))
+    def test_a_token_suppresses_onboarding_even_without_rows(self):
+        self.assertIsNone(claude_pet.compute_onboard_state(None, has_token=True))
+        self.assertIsNone(claude_pet.compute_onboard_state([("Session", 1.0, None, "")],
+                                                           has_token=False))
+        self.assertIn(claude_pet.compute_onboard_state(None, has_token=False),
+                      ("install", "login"))
 
 
 if __name__ == "__main__":

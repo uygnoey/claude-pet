@@ -209,5 +209,52 @@ class WinContextMenuParityTests(unittest.TestCase):
                                 f"{name} does not run {needle!r}")
 
 
+class WinRound2CallSiteTests(unittest.TestCase):
+    """Round 2 (Coordinator decisions after review, 2026-10-05), Windows call sites."""
+
+    def setUp(self):
+        self.win = _class(_tree(PORT), "PetWindow")
+        self.refresh = _method(self.win, "refresh")
+
+    def _calls(self, node, name):
+        return [c for c in ast.walk(node) if isinstance(c, ast.Call)
+                and (getattr(c.func, "attr", None) == name or getattr(c.func, "id", None) == name)]
+
+    def test_claude_onboarding_flag_is_token_derived(self):
+        """R2-1. Rival: ``bool(values["stats"].get("entries"))`` (logs hide the sign-in)."""
+        calls = self._calls(self.refresh, "compute_onboard_state")
+        self.assertEqual(len(calls), 1)
+        flag = " ".join([ast.unparse(a) for a in calls[0].args[1:]]
+                        + [ast.unparse(k.value) for k in calls[0].keywords])
+        self.assertNotIn("entries", flag)
+        self.assertIn("token", flag.lower(), flag)
+
+    def test_codex_onboarding_knows_whether_codex_is_in_use(self):
+        """R2-2: five arguments (or the ``codex_home_exists`` keyword), fed by the core's
+        ``codex_home_exists``."""
+        calls = self._calls(self.refresh, "compute_codex_onboard_state")
+        self.assertEqual(len(calls), 1)
+        c = calls[0]
+        self.assertTrue(len(c.args) == 5 or "codex_home_exists" in [k.arg for k in c.keywords])
+        self.assertIn("codex_home_exists", _reach_core(self.refresh))
+
+    def test_learning_passes_fetch_keys(self):
+        """R2-4: non-constant ``claude_fetch=`` and ``codex_fetch=``."""
+        calls = self._calls(self.refresh, "learn_server_limits")
+        self.assertEqual(len(calls), 1)
+        kws = {k.arg: k.value for k in calls[0].keywords}
+        for key in ("claude_fetch", "codex_fetch"):
+            with self.subTest(key=key):
+                self.assertIn(key, kws)
+                self.assertNotIsInstance(kws[key], ast.Constant)
+
+    def test_mood_passes_codex_rows_separately(self):
+        """R2-6b: Claude and Codex rows go in separately so each is filtered by its own
+        gauge selection."""
+        calls = self._calls(_method(self.win, "current_mood"), "mood_for")
+        self.assertEqual(len(calls), 1)
+        self.assertIn("codex_rows", [k.arg for k in calls[0].keywords])
+
+
 if __name__ == "__main__":
     unittest.main()

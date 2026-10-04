@@ -761,18 +761,44 @@ class SettingsPlanTests(_RuntimeGuard):
 # ═════════════════════ §7 — Codex onboarding (core half) ═════════════════════
 
 class CodexOnboardTests(_RuntimeGuard):
-    """``compute_codex_onboard_state(show_codex, codex_mode, has_token, cli_present)`` and
-    the two Terminal helpers ``start_codex_install()`` / ``start_codex_login()``."""
+    """``compute_codex_onboard_state(show_codex, codex_mode, has_token, cli_present,
+    codex_home_exists)`` and the two Terminal helpers.
+
+    Round 2 (Coordinator, 2026-10-05): the Codex items appear only when Codex is in use —
+    the CLI is found or the Codex home directory exists. Neither → None even when shown.
+    CLI absent + home present → "install"; CLI present + no token → "login".
+    """
 
     def test_truth_table(self):
-        """Rivals: offering login when Codex is hidden; offering it in API mode; offering
-        install when the CLI is there."""
+        """Rivals: the round-1 four-argument rule (no CLI, no home → "install" — offers
+        Codex to every user who never touched it); "login" without a CLI; offering
+        anything when hidden, in API mode, or with a token."""
         fn = need(self, "compute_codex_onboard_state")
-        self.assertIsNone(fn(False, "sub", False, False))
-        self.assertIsNone(fn(True, "api", False, False))
-        self.assertIsNone(fn(True, "sub", True, False))
-        self.assertEqual(fn(True, "sub", False, False), "install")
-        self.assertEqual(fn(True, "sub", False, True), "login")
+        self.assertIsNone(fn(False, "sub", False, True, True))
+        self.assertIsNone(fn(True, "api", False, True, True))
+        self.assertIsNone(fn(True, "sub", True, True, True))
+        self.assertIsNone(fn(True, "sub", False, False, False),
+                          "Codex not in use (no CLI, no ~/.codex) must offer nothing")
+        self.assertEqual(fn(True, "sub", False, False, True), "install")
+        self.assertEqual(fn(True, "sub", False, True, False), "login")
+        self.assertEqual(fn(True, "sub", False, True, True), "login")
+
+    def test_codex_home_exists_follows_the_root_rule(self):
+        """``codex_home_exists(env=None, home=None)`` — the directory ``codex_auth_path``
+        lives in ($CODEX_HOME, else <home>/.codex) is a directory."""
+        fn = need(self, "codex_home_exists")
+        with tempfile.TemporaryDirectory() as td:
+            self.assertFalse(fn(env={}, home=td))
+            os.mkdir(os.path.join(td, ".codex"))
+            self.assertTrue(fn(env={}, home=td))
+            other = os.path.join(td, "cx")
+            self.assertFalse(fn(env={"CODEX_HOME": other}, home=td),
+                             "$CODEX_HOME wins over ~/.codex")
+            os.mkdir(other)
+            self.assertTrue(fn(env={"CODEX_HOME": other}, home=td))
+            with open(os.path.join(td, "afile"), "w") as f:
+                f.write("x")
+            self.assertFalse(fn(env={"CODEX_HOME": os.path.join(td, "afile")}, home=td))
 
     def test_terminal_commands(self):
         """macOS runs the official npm package and ``codex login`` in Terminal, the same
@@ -912,6 +938,302 @@ class MacGuiWiringTests(unittest.TestCase):
                      "compute_codex_onboard_state", "parse_codex_entries", "codex_spikes"):
             with self.subTest(name=name):
                 self.assertIn(name, reach)
+
+
+# ═════════════════════ Round 2 (Coordinator decisions after review, 2026-10-05) ═════════════════════
+
+class ClaudeOnboardOnTokenTests(_RuntimeGuard):
+    """R2-1: ``compute_onboard_state(oauth, has_token)`` — onboarding depends on whether a
+    Claude OAuth token exists, not on log entries. A token with no server rows (outage)
+    shows no onboarding. The parameter is named ``has_token``; tests pass it by keyword so
+    the round-1 ``stats_have_logs`` signature fails loudly."""
+
+    def setUp(self):
+        super().setUp()
+        env = dict(os.environ)
+        env.pop("CLAUDE_PET_FORCE_ONBOARD", None)
+        p = mock.patch.dict(os.environ, env, clear=True)
+        p.start()
+        self.addCleanup(p.stop)
+        claude_pet.RUNTIME["mode"] = "sub"
+
+    def test_truth_table(self):
+        with mock.patch.object(claude_pet, "_find_claude_cli", return_value="/x/claude"):
+            self.assertEqual(claude_pet.compute_onboard_state(None, has_token=False), "login")
+            self.assertIsNone(claude_pet.compute_onboard_state(None, has_token=True),
+                              "a token without server rows is an outage, not a sign-in")
+            self.assertIsNone(claude_pet.compute_onboard_state(
+                [("Session", 1.0, None, None)], has_token=True))
+        with mock.patch.object(claude_pet, "_find_claude_cli", return_value=None):
+            self.assertEqual(claude_pet.compute_onboard_state(None, has_token=False), "install")
+        claude_pet.RUNTIME["mode"] = "api"
+        self.assertIsNone(claude_pet.compute_onboard_state(None, has_token=False))
+
+    def test_the_mac_call_site_passes_a_token_flag_not_entries(self):
+        """Rival: round 1's ``bool(s.get("entries"))`` — logs suppress the sign-in item for
+        a user whose token is gone."""
+        refresh = _nested(_run_gui_tree(), "refresh_")
+        calls = [c for c in ast.walk(refresh) if isinstance(c, ast.Call)
+                 and getattr(c.func, "id", None) == "compute_onboard_state"]
+        self.assertEqual(len(calls), 1)
+        args = [ast.unparse(a) for a in calls[0].args[1:]] + \
+               [ast.unparse(k.value) for k in calls[0].keywords]
+        flag = " ".join(args)
+        self.assertNotIn("entries", flag)
+        self.assertIn("token", flag.lower(), f"onboarding flag is not token-derived: {flag!r}")
+
+
+class CodexParsePrefilterTests(unittest.TestCase):
+    """R2-3: a line without the substring ``"token_count"`` never reaches ``json.loads``."""
+
+    def test_non_token_lines_are_not_decoded(self):
+        now = datetime.now(UTC)
+        ts = (now - timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
+        token = {"type": "event_msg", "timestamp": ts,
+                 "payload": {"type": "token_count",
+                             "info": {"last_token_usage": {"input_tokens": 0,
+                                                           "cached_input_tokens": 0,
+                                                           "output_tokens": 4},
+                                      "total_token_usage": {"total_tokens": 9}}}}
+        noise = {"type": "response_item", "timestamp": ts,
+                 "payload": {"type": "message", "content": "x" * 200}}
+        with tempfile.TemporaryDirectory() as td:
+            root = os.path.join(td, "sessions")
+            os.makedirs(os.path.join(root, "2026"))
+            with open(os.path.join(root, "2026", "r.jsonl"), "w", encoding="utf-8") as f:
+                for i in range(60):
+                    f.write(json.dumps(noise) + "\n")
+                    if i in (10, 40):
+                        token["payload"]["info"]["total_token_usage"]["total_tokens"] = 9 + i
+                        f.write(json.dumps(token) + "\n")
+            real = json.loads
+            calls = []
+            with mock.patch.object(claude_pet.json, "loads",
+                                   side_effect=lambda *a, **k: calls.append(1) or real(*a, **k)):
+                rows = claude_pet.parse_codex_entries(now - timedelta(days=7), root=root)
+        self.assertEqual([r[1] for r in rows], [20.0, 20.0])
+        self.assertEqual(len(calls), 2, f"json.loads ran {len(calls)} times for 2 token lines")
+
+
+class LearnOnlyOnFreshReadingTests(_RuntimeGuard):
+    """R2-4: ``learn_server_limits(oauth_rows, codex_rows, entries, codex_entries,
+    learned=None, model_kw=None, claude_fetch=None, codex_fetch=None)``.
+
+    ``claude_fetch`` / ``codex_fetch`` identify the server reading (the fetch time of the
+    cached response). A provider whose key equals the one recorded at its last learning is
+    skipped — the EMA is not re-applied to a cached row. ``None`` means "always learn"
+    (one-shot callers such as ``--report``). Keys are per provider.
+    """
+
+    R = datetime(2026, 10, 5, 15, 0, tzinfo=UTC)
+
+    def rows(self):
+        return [(claude_pet.t("session"), 40.0, self.R, None)]
+
+    def codex(self):
+        return [("codex_session", 40.0, self.R, None)]
+
+    def entries(self, total):
+        return [entry(self.R - timedelta(hours=1), total, model="claude-x")]
+
+    def codex_entries(self, total):
+        return [(self.R - timedelta(hours=1), float(total), "codex", float(total))]
+
+    def test_the_same_reading_is_not_learned_twice(self):
+        """First reading: T 2000 at 40 % → 5000. The same cached reading again with T 4000:
+        unchanged (rival: re-applying the EMA → 6500). A new reading: 6500."""
+        fn = claude_pet.learn_server_limits
+        learned = {}
+        fn(self.rows(), None, self.entries(2_000), [], learned=learned, claude_fetch=100.0)
+        self.assertAlmostEqual(learned["session"], 5_000.0)
+        fn(self.rows(), None, self.entries(4_000), [], learned=learned, claude_fetch=100.0)
+        self.assertAlmostEqual(learned["session"], 5_000.0, msg="EMA re-applied to a cached row")
+        fn(self.rows(), None, self.entries(4_000), [], learned=learned, claude_fetch=280.0)
+        self.assertAlmostEqual(learned["session"], 6_500.0)
+
+    def test_keys_are_per_provider(self):
+        """Same Claude reading, new Codex reading → only Codex learns again."""
+        fn = claude_pet.learn_server_limits
+        learned = {}
+        fn(self.rows(), self.codex(), self.entries(2_000), self.codex_entries(2_000),
+           learned=learned, claude_fetch=1.0, codex_fetch=1.0)
+        fn(self.rows(), self.codex(), self.entries(4_000), self.codex_entries(4_000),
+           learned=learned, claude_fetch=1.0, codex_fetch=2.0)
+        self.assertAlmostEqual(learned["session"], 5_000.0)
+        self.assertAlmostEqual(learned["codex_session"], 6_500.0)
+
+    def test_none_always_learns(self):
+        """NOT A GATE — green against 67c7312 (it always learns). Guards the one-shot
+        caller contract while the fetch keys are added."""
+        fn = claude_pet.learn_server_limits
+        learned = {}
+        fn(self.rows(), None, self.entries(2_000), [], learned=learned)
+        fn(self.rows(), None, self.entries(4_000), [], learned=learned)
+        self.assertAlmostEqual(learned["session"], 6_500.0)
+
+    def test_the_refresh_worker_passes_both_fetch_keys(self):
+        """macOS ``refresh_`` passes non-constant ``claude_fetch=`` and ``codex_fetch=``."""
+        refresh = _nested(_run_gui_tree(), "refresh_")
+        calls = [c for c in ast.walk(refresh) if isinstance(c, ast.Call)
+                 and getattr(c.func, "id", None) == "learn_server_limits"]
+        self.assertEqual(len(calls), 1)
+        kws = {k.arg: k.value for k in calls[0].keywords}
+        for key in ("claude_fetch", "codex_fetch"):
+            with self.subTest(key=key):
+                self.assertIn(key, kws)
+                self.assertNotIsInstance(kws[key], ast.Constant)
+
+
+class SpikeMarkNeverOnCreditTests(unittest.TestCase):
+    """R2-6a: the Claude spike marks the first visible row (the adapter filters hidden
+    gauges first), but never the credit row."""
+
+    def test_credit_row_is_never_marked(self):
+        credit = claude_pet.t("credit")
+        kind, rows = claude_pet.roam_summary("sub", [(credit, 30.0, None)], None, None,
+                                             None, False, spike_first=True)
+        self.assertEqual(kind, "exact")
+        self.assertEqual([r[2] for r in rows], [False])
+
+    def test_first_visible_gauge_row_is_marked_when_session_is_hidden(self):
+        """NOT A GATE — green against 67c7312 (the adapter already filters before
+        ``roam_summary``). Regression guard for the "first visible row" half of R2-6a."""
+        credit, weekly = claude_pet.t("credit"), claude_pet.t("weekly")
+        kind, rows = claude_pet.roam_summary("sub", [(weekly, 30.0, None), (credit, 5.0, None)],
+                                             None, None, None, False, spike_first=True)
+        self.assertEqual([r[2] for r in rows], [True, False])
+
+
+class MoodOnShownGaugesTests(_RuntimeGuard):
+    """R2-6b: ``mood_for(stats, rows=None, runtime=None, codex_rows=None)`` — ``rows`` are
+    Claude server rows, ``codex_rows`` Codex rows; only shown providers' selected gauges
+    count."""
+
+    RT = {"mode": "sub", "codex_mode": "sub", "show_claude": True, "show_codex": True,
+          "claude_gauges": ["weekly"], "codex_gauges": ["weekly"]}
+
+    def claude_rows(self):
+        return [(claude_pet.t("session"), 90.0, None, None),
+                (claude_pet.t("weekly"), 10.0, None, None)]
+
+    def test_hidden_claude_gauge_does_not_drive_the_mood(self):
+        """Rival: worst over every row → "failed" from the hidden 90 % session row."""
+        self.assertEqual(claude_pet.mood_for(None, self.claude_rows(), dict(self.RT)), "idle")
+        rt = dict(self.RT, claude_gauges=["session", "weekly"])
+        self.assertEqual(claude_pet.mood_for(None, self.claude_rows(), rt), "failed")
+        rt = dict(self.RT, claude_gauges=["session"], show_claude=False)
+        self.assertEqual(claude_pet.mood_for(None, self.claude_rows(), rt), "idle")
+
+    def test_codex_rows_are_filtered_by_codex_gauges(self):
+        codex = [("codex_session", 90.0, None, None), ("codex_weekly", 55.0, None, None)]
+        self.assertEqual(claude_pet.mood_for(None, [], dict(self.RT), codex_rows=codex),
+                         "waiting")
+        rt = dict(self.RT, codex_gauges=["session", "weekly"])
+        self.assertEqual(claude_pet.mood_for(None, [], rt, codex_rows=codex), "failed")
+
+    def test_current_mood_passes_codex_rows_separately(self):
+        cm = _nested(_run_gui_tree(), "current_mood")
+        calls = [c for c in ast.walk(cm) if isinstance(c, ast.Call)
+                 and getattr(c.func, "id", None) == "mood_for"]
+        self.assertEqual(len(calls), 1)
+        self.assertIn("codex_rows", [k.arg for k in calls[0].keywords])
+
+
+class ConfigCoercionTests(_RuntimeGuard):
+    """R2-6c: "false"/"0"/False/0 are false for ``show_*``; a non-list ``*_gauges`` falls
+    back to the default, in ``provider_shown`` and in ``apply_config``."""
+
+    def test_provider_shown_coerces(self):
+        for false in ("false", "False", "0", False, 0, "no"):
+            with self.subTest(value=false):
+                self.assertFalse(claude_pet.provider_shown(
+                    {"show_claude": false, "claude_gauges": ["weekly"]}, "claude"))
+        for true in (True, "true", "1", 1):
+            with self.subTest(value=true):
+                self.assertTrue(claude_pet.provider_shown(
+                    {"show_codex": true, "codex_gauges": ["weekly"]}, "codex"))
+        for junk in ("weekly", 5, None, {"weekly": True}):
+            with self.subTest(gauges=junk):
+                self.assertTrue(claude_pet.provider_shown(
+                    {"show_claude": True, "claude_gauges": junk}, "claude"),
+                    "a non-list gauge setting must fall back to the default, not hide")
+
+    def test_apply_config_normalises(self):
+        lang = claude_pet.L["lang"]
+        claude_pet.apply_config({"show_claude": "false", "show_codex": "0",
+                                 "claude_gauges": "weekly", "codex_gauges": 7, "lang": lang})
+        rt = claude_pet.RUNTIME
+        self.assertIs(rt["show_claude"], False)
+        self.assertIs(rt["show_codex"], False)
+        self.assertEqual(rt["claude_gauges"], ["session", "weekly", "model", "credit"])
+        self.assertEqual(rt["codex_gauges"], ["session", "weekly"])
+        claude_pet.apply_config({"show_claude": "true", "claude_gauges": ["weekly"],
+                                 "lang": lang})
+        self.assertIs(rt["show_claude"], True)
+        self.assertEqual(rt["claude_gauges"], ["weekly"])
+
+
+class CodexCostPageCapTests(_RuntimeGuard):
+    """R2-6d: running into ``CODEX_COST_MAX_PAGES`` is an error, not a partial success."""
+
+    def test_the_page_cap_reports_an_error(self):
+        claude_pet.RUNTIME["openai_admin_key"] = "sk-admin-SYNTHETIC"
+        status = claude_pet.CODEX_API_STATUS
+        saved = dict(status)
+        self.addCleanup(lambda: (status.clear(), status.update(saved)))
+        status["last_error"] = None
+        page = {"data": [{"results": [{"amount": {"value": 1.0}}]}],
+                "has_more": True, "next_page": "more"}
+        calls = []
+
+        def fake(req, timeout=None):
+            calls.append(req)
+            return io.BytesIO(json.dumps(page).encode())
+
+        with mock.patch.object(claude_pet, "CODEX_COST_MAX_PAGES", 3), \
+                mock.patch.object(claude_pet.urllib.request, "urlopen", side_effect=fake), \
+                mock.patch.object(claude_pet, "_dbg"):
+            value = claude_pet.fetch_codex_cost(datetime(2026, 10, 1, tzinfo=UTC))
+        self.assertEqual(len(calls), 3)
+        self.assertIsNone(value, "a truncated sum was reported as the cost")
+        self.assertIsNotNone(status["last_error"])
+        self.assertEqual(claude_pet.api_error_kind(status["last_error"]), "transient")
+
+
+class ReportReasonTests(_RuntimeGuard):
+    """R2-6e: ``--report`` with no server rows prints a reason line,
+    ``t("r_no_server_rows")`` (new TR key, all four locales)."""
+
+    def test_reason_line(self):
+        for lang in claude_pet.SUPPORTED_LANGS:
+            with self.subTest(lang=lang):
+                self.assertTrue(str(claude_pet.TR[lang].get("r_no_server_rows", "")).strip())
+        stats = {"entries": 0, "spikes": {}, "burn_5m": 0.0, "burn_5m_opus": 0.0,
+                 "last_activity": None, "now": datetime.now(UTC), "model_kw": "opus",
+                 "rows": []}
+        out = io.StringIO()
+        with mock.patch.object(claude_pet, "compute_usage", return_value=stats), \
+                mock.patch.object(claude_pet, "fetch_exact_usage", return_value=None), \
+                mock.patch.object(claude_pet, "fetch_codex_usage", return_value=None), \
+                mock.patch.object(claude_pet, "fetch_api_cost_today", return_value=None), \
+                mock.patch.object(claude_pet, "parse_codex_entries", return_value=[]), \
+                redirect_stdout(out):
+            claude_pet.print_report()
+        self.assertIn(claude_pet.t("r_no_server_rows"), out.getvalue())
+
+
+class MacCodexOnboardCallSiteTests(unittest.TestCase):
+    """R2-2, macOS call site: five arguments (or ``codex_home_exists=``), and the refresh
+    worker reaches ``codex_home_exists``."""
+
+    def test_call_site(self):
+        refresh = _nested(_run_gui_tree(), "refresh_")
+        calls = [c for c in ast.walk(refresh) if isinstance(c, ast.Call)
+                 and getattr(c.func, "id", None) == "compute_codex_onboard_state"]
+        self.assertEqual(len(calls), 1)
+        c = calls[0]
+        self.assertTrue(len(c.args) == 5 or "codex_home_exists" in [k.arg for k in c.keywords])
+        self.assertIn("codex_home_exists", _reachable_module_calls(refresh))
 
 
 if __name__ == "__main__":
