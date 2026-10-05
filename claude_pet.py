@@ -4010,8 +4010,10 @@ def fetch_exact_usage():
         if not rows and prev and _oauth_last_call["transient"] \
                 and not OAUTH_STATUS.get("auth_error"):
             # 일시 실패 — 직전 서버 값 유지(gauges·ok_t 는 그대로라 급증 한도를 다시 배우지 않는다).
-            # 리셋이 지난 레인만 뺀다.
-            return drop_reset_rows(prev)
+            # 리셋이 지난 레인만 빼고, 거른 결과를 캐시에도 넣어 다음 캐시 적중에도 빠져 있게 한다.
+            kept = drop_reset_rows(prev)
+            _oauth_cache["gauges"] = kept
+            return kept
         if rows:
             _oauth_cache["ok_t"] = now   # CLI 폴백(옵트인)이 낸 새 값도 성공이다
     else:
@@ -4315,7 +4317,9 @@ def fetch_codex_usage():
         elif prev and is_transient_fetch_error(err):
             _dbg("codex fetch: kept last rows", len(prev))
             # 일시 실패 — 직전 서버 값 유지(ok_t 는 그대로 → 다시 배우지 않음), 리셋 지난 레인은 뺀다.
-            return drop_reset_rows(prev)
+            kept = drop_reset_rows(prev)
+            _codex_cache["rows"] = kept      # 다음 캐시 적중에도 리셋 지난 레인은 빠져 있다
+            return kept
     _codex_cache["rows"] = rows
     _dbg("codex fetch: rows", len(rows or ()))
     return rows
