@@ -1,25 +1,67 @@
-"""Static release-preparation gates for v1.0.1.
+"""Static release-preparation gates for v1.1.0.
 
-Status as of 2026-09-30 (Verifier minos-verify): v1.0.0 is published — annotated tag
-``v1.0.0`` (e340b154) on origin, pointing at 837c867; GitHub release published
-2026-09-30T05:03:07Z.  Unlike v0.26.1, the tag is *not* on the release commit: 59b807e
-carried the first v1.0.0 wording, and 8e5a722 reworded the section before the tag was
-pushed, so the release commit's blob (a165d9da) differs from the tag's (86d1e9ad).
-**What is pinned below as "published" is the tag's tree**
-(``git show v1.0.0:RELEASE_NOTES.md``), independently confirmed byte-for-byte against the
-live GitHub release body (``gh release view v1.0.0 --json body``, checked 2026-09-30) —
-see the provenance note above ``PUBLISHED_V100_AND_OLDER_SHA256``.  So everything from the
-``**v1.0.0**`` heading to the end of ``RELEASE_NOTES.md`` is frozen text and is pinned
-here byte for byte, alongside the older v0.26.1, v0.26, v0.25, v0.24, v0.23 and v0.22
-pins.  The single unpublished section above it is ``**v1.0.1**``, and ``APP_VERSION`` is
-``"1.0.1"`` — the bump the release commit carries.  ``PublishedV023NotesContractTests``
-through ``PublishedV0261NotesContractTests`` and ``PublishedV100NotesContractTests`` keep
-holding the frozen prose to the source it describes (a published promise outlives its
-release; the v1.0.0 class is the former ``StagedV100NotesFormatTests`` with its method
-names unchanged and one assertion re-scoped — see its docstring), and
-``StagedV101NotesFormatTests`` holds the v1.0.1 section to CLAUDE.md's release-note
+Status as of 2026-10-05 (Verifier rel110-verify): v1.0.1 is published — annotated tag
+``v1.0.1`` (dbbdd75d) on origin, pointing at e772ca4; GitHub release published
+2026-09-30T09:45:29Z.  The tag's ``RELEASE_NOTES.md`` blob (c2f0b2d6) is the same blob
+the v1.0.1 release commit a23d384 carried, so — as for v0.26.1 and unlike v1.0.0 — the
+release commit and the tag agree.  Running ``release.sh``'s ``gen_release_notes`` awk
+program (ver=``**v1.0.1**``) over the tag's file reproduces the live release body
+(``gh release view v1.0.1 --json body``, checked 2026-10-05) byte for byte, 3210 bytes
+(gh's output adds one trailing newline) — see the provenance note above
+``PUBLISHED_V101_AND_OLDER_SHA256``.  So everything from the ``**v1.0.1**`` heading to the
+end of ``RELEASE_NOTES.md`` is frozen text and is pinned here byte for byte, alongside the
+older v1.0.0, v0.26.1, v0.26, v0.25, v0.24, v0.23 and v0.22 pins.  The single unpublished
+section above it is ``**v1.1.0**``, and ``APP_VERSION`` is ``"1.1.0"`` — the bump the
+release commit 4c088dc carries.  ``PublishedV023NotesContractTests`` through
+``PublishedV100NotesContractTests`` and ``PublishedV101NotesContractTests`` keep holding
+the frozen prose to the source it describes (a published promise outlives its release;
+the v1.0.1 class is the former ``StagedV101NotesFormatTests`` with its method names
+unchanged and one assertion re-scoped — see its docstring), and
+``StagedV110NotesFormatTests`` holds the v1.1.0 section to CLAUDE.md's release-note
 format rule and ties every checkable claim in it to the source.
 
+Every v1.0.1 claim was judged individually against the v1.1.0 tree.  The v1.1.0 change
+(server-only usage, per-provider settings, log spikes for Claude and Codex) touches the
+pill, the settings panel and spike detection; the v1.0.1 claims are about the release
+tooling (arm64 build interpreter, ``MIN_MACOS``, the minos gate, the updater's asset
+preference) and the version comparator, none of which that change touched — every one of
+them still holds and none was dropped.  The single re-scope is the version a published
+bullet names ("같은 1.0.1로"), which is now tied to the section's own heading rather than
+to ``APP_VERSION``, exactly as v1.0.0's was when it was published.  (The assertions the
+server-only change *did* make obsolete — the published v0.24 notes' ``≈``/``⚠`` ties —
+were already removed by bf25e95, with its reason, before this release.)
+
+The v1.1.0 ties, one test per bullet.  "필에는 이제 서버가 알려 준 사용량만 표시합니다.
+로그로 계산한 추정치(≈)와 한도 보정 설정은 없어졌고, 한도를 보정해 둔 분도 따로 할 일은
+없습니다" against ``roam_summary`` never reading the log snapshot (``stats``) and having no
+``estimate`` segment, against ``SUMMARY_APPROX`` and every ``≈`` being gone from the
+source, against the three limit keys and the calibration/advanced-limits UI being gone
+from ``RUNTIME``, ``TR`` and the module, and against ``apply_config`` reading only
+``_RUNTIME_CONFIG_KEYS``, which names none of the old keys (so an old config file needs no
+action).  "설정 창이 Claude Code와 Codex 구역으로 나뉘어, 제공자마다 필 표시 여부, 볼
+게이지, 구독과 API 비용 중 무엇을 볼지 고릅니다(Codex 비용은 OpenAI Admin 키)" against
+``open_settings`` building two ``section``s titled ``TR["ko"]["s_sec_claude"]`` /
+``["s_sec_codex"]``, each with a show checkbox (``show_claude`` / ``show_codex``), a gauge
+list (``s_gauges``) and a sub/API popup, against the ``RUNTIME`` defaults for those keys,
+and against ``fetch_codex_cost`` reading ``openai_admin_key`` and querying OpenAI's
+organization costs endpoint.  "Codex를 켰는데 설치나 로그인이 안 되어 있으면 우클릭 메뉴에
+Codex 설치·로그인 항목이 나옵니다" against ``compute_codex_onboard_state`` and the menu
+wiring — and **that sentence is held to who actually sees the item**: the state is
+``None`` in Codex API mode and, without a token, ``None`` unless the Codex CLI or the Codex
+home (``codex_home_exists``) is present, so a Codex user who has never installed it sees
+nothing.  "급증 알림이 Codex 사용에도 울리고, 기준을 서버 값에서 익히기 때문에 실행 직후에는
+기준을 익힐 때까지 알림이 없습니다" against ``codex_spikes`` feeding the refresh worker's
+spikes and ``provider_spiking`` reading the Codex lanes, against ``is_spike`` refusing to
+judge without a limit, ``LEARNED_LIMITS`` starting empty and living outside ``RUNTIME``
+(never saved, so every launch starts unlearned), and ``learn_server_limits`` learning only
+from server rows.  "Windows도 같은 1.1.0으로 같은 기능을 받습니다" against ``APP_VERSION``,
+``windows/build_win.py`` reading it, and the port calling the same core functions for each
+of the three bullets (the settings sections, ``cp.compute_codex_onboard_state`` and the
+Codex menu items, ``cp.codex_spikes`` / ``cp.learn_server_limits`` / ``cp.provider_spiking``).
+The behavioural gates are tests/test_server_only_usage.py, tests/test_codex_usage.py and
+windows/tests/test_win_server_only_usage.py; this module only ties the prose to them.
+
+The v1.0.1 section (published) was tied as follows when it was staged, and still is.
 The v1.0.1 ties, one test per bullet: "Apple Silicon용 다운로드와 그 자동 업데이트가
 macOS 26.3 이상에서만 열리던 문제를 고쳤습니다. 이제 안내대로 macOS 12 이상에서 열립니다"
 against the updater's arm64 asset preference (``UPDATE_ASSET_NAMES["arm64"]`` names the
@@ -46,7 +88,8 @@ while ``claude_pet.py`` differs from the tag only in ``APP_VERSION`` — which i
 Lineage: ``test_v022_release_contract.py`` → ``test_v023_release_contract.py`` →
 ``test_v024_release_contract.py`` → ``test_v025_release_contract.py`` →
 ``test_v026_release_contract.py`` → ``test_v026_1_release_contract.py`` →
-``test_v1_0_0_release_contract.py`` → this file; each
+``test_v1_0_0_release_contract.py`` → ``test_v1_0_1_release_contract.py`` →
+this file; each
 release renames the module with ``git mv`` and rewrites it for the version its release
 commit carries.  The name spells all three parts of the version: squeezed the way
 ``v026`` squeezed 0.26, 1.0.0 would read ``v100``, which looks like version 100.  A
@@ -249,6 +292,21 @@ PUBLISHED_V0261_AND_OLDER_SHA256 = (
 # trees, so the v1.0.0 section was appended above it and nothing below moved.
 PUBLISHED_V100_AND_OLDER_SHA256 = (
     "aed895d1ff5b94ba95aabac313a9aa1e5abc1a6b0131978be7202a38a06ad451"
+)
+# v1.0.1-and-older: from the ``**v1.0.1**`` heading through EOF, computed from the *tag*'s
+# tree (`git show v1.0.1:RELEASE_NOTES.md`; annotated tag dbbdd75d -> e772ca4, blob
+# c2f0b2d6, 26947 bytes, of which the suffix is 22567).  That blob is also the v1.0.1
+# release commit a23d384's — nothing reworded the section between the release commit and
+# the tag.  Independently confirmed against the live GitHub release body
+# (`gh release view v1.0.1 --json body`, checked 2026-10-05; published
+# 2026-09-30T09:45:29Z): running release.sh's gen_release_notes awk program
+# (ver=**v1.0.1**) over the tag's file reproduces the body's 3210 bytes exactly (gh's
+# --jq output adds one trailing newline), so the 499-byte v1.0.1 section users received is
+# the one pinned here.  Identical in the working tree after the v1.1.0 section was staged
+# above it (4c088dc, 2026-10-05).  The v1.0.0 suffix is unchanged at 22068 bytes across
+# these trees, so the v1.0.1 section was appended above it and nothing below moved.
+PUBLISHED_V101_AND_OLDER_SHA256 = (
+    "4d7f342b6532477c09005374f7378df7646f236c3f96015ad405a80913446d79"
 )
 
 # The cadence the published v0.23 notes promise, and the Korean label they name.
@@ -694,24 +752,25 @@ def _guards(root: ast.AST, node: ast.AST) -> list[ast.AST]:
 
 
 class VersionAndPinContractTests(unittest.TestCase):
-    def test_v101_version_and_final_source_pins_propagate(self):
+    def test_v110_version_and_final_source_pins_propagate(self):
         problems: list[str] = []
 
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
-        if versions != ["1.0.1"]:
-            problems.append(f"APP_VERSION must be one literal '1.0.1', got {versions!r}")
+        if versions != ["1.1.0"]:
+            problems.append(f"APP_VERSION must be one literal '1.1.0', got {versions!r}")
 
         verifier_text = RELEASE_VERIFIER.read_text(encoding="utf-8")
-        if "--expect-version 1.0.1" not in verifier_text:
-            problems.append("verify_release_artifact.py usage must show --expect-version 1.0.1")
+        if "--expect-version 1.1.0" not in verifier_text:
+            problems.append("verify_release_artifact.py usage must show --expect-version 1.1.0")
         # A bare version-number substring check would false-positive here: "1.0" is a
-        # literal prefix of "1.0.1" (as "0.26" was of "0.26.1"), so a naive
+        # literal prefix of "1.0.1" (as "0.26" was of "0.26.1", and "1.1" is of "1.1.0"), so a naive
         # `f"--expect-version {stale}" in text` would flag the very string this test just
         # required above. The negative lookahead excludes exactly that case — it only
         # fires on a *bare* stale version, never on it being a prefix of the current one.
-        # "1.0", "1.1" and "1.0.2" are the plausible wrong bumps; the rest are the
-        # versions before.
-        for stale in ("1.0.0", "0.26.1", "0.26", "0.25", "0.24", "1.0", "1.1", "1.0.2"):
+        # "1.1", "1.1.1", "1.2", "1.2.0" and "1.0.2" are the plausible wrong bumps; the
+        # rest are the versions before.
+        for stale in ("1.0.1", "1.0.0", "0.26.1", "0.26", "0.25", "0.24", "1.0",
+                      "1.1", "1.1.1", "1.2", "1.2.0", "1.0.2"):
             if re.search(rf"--expect-version {re.escape(stale)}(?!\.\d)", verifier_text):
                 problems.append(
                     f"verify_release_artifact.py still advertises --expect-version {stale}"
@@ -819,13 +878,24 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
             "published v1.0.0-and-older bytes were rewritten or dropped",
         )
 
-    def test_v101_is_the_only_unpublished_heading_and_sits_directly_above_v100(self):
+    def test_published_v101_and_older_bytes_are_untouched(self):
+        raw = RELEASE_NOTES.read_bytes()
+        published_marker = b"**v1.0.1**"
+        self.assertEqual(raw.count(published_marker), 1, "published v1.0.1 heading changed")
+        published_suffix = raw[raw.index(published_marker) :]
+        self.assertEqual(
+            hashlib.sha256(published_suffix).hexdigest(),
+            PUBLISHED_V101_AND_OLDER_SHA256,
+            "published v1.0.1-and-older bytes were rewritten or dropped",
+        )
+
+    def test_v110_is_the_only_unpublished_heading_and_sits_directly_above_v101(self):
         """Rivals this heading-shape regex must not miss: a stale two-part-only pattern
         (``\\d+\\.\\d+``) silently fails to match a three-part heading like
         ``**v0.26.1**`` at all — a regex bug that would have made every assertion below
         vacuously pass against an empty ``headings`` list rather than catching a
         misplaced or duplicated heading. The pattern below allows an optional third
-        component for exactly this reason — and ``**v1.0.1**`` has one too."""
+        component for exactly this reason — and ``**v1.1.0**`` has one too."""
         text = RELEASE_NOTES.read_text(encoding="utf-8")
         changelog = "### 📝 변경 내역 / Changelog"
         self.assertEqual(text.count(changelog), 1)
@@ -834,11 +904,11 @@ class PublishedNotesImmutabilityTests(unittest.TestCase):
         self.assertTrue(headings, "changelog has no release heading")
         self.assertEqual(
             headings[:2],
-            ["1.0.1", "1.0.0"],
-            "the unpublished v1.0.1 section must sit directly above the published "
-            f"v1.0.0 heading, with nothing newer above it; got {headings[:2]!r}",
+            ["1.1.0", "1.0.1"],
+            "the unpublished v1.1.0 section must sit directly above the published "
+            f"v1.0.1 heading, with nothing newer above it; got {headings[:2]!r}",
         )
-        self.assertEqual(headings.count("1.0.1"), 1, "v1.0.1 heading must appear once")
+        self.assertEqual(headings.count("1.1.0"), 1, "v1.1.0 heading must appear once")
 
 
 class PublishedV023NotesContractTests(unittest.TestCase):
@@ -2602,12 +2672,22 @@ class PublishedV100NotesContractTests(unittest.TestCase):
         self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
 
 
-class StagedV101NotesFormatTests(unittest.TestCase):
-    """The unpublished v1.0.1 section, held to CLAUDE.md's release-note format rule and to
-    the source it describes.
+class PublishedV101NotesContractTests(unittest.TestCase):
+    """The published v1.0.1 section: its bytes are frozen above, and the source must still
+    keep every promise it made.
 
-    The section is staged text until the tag is pushed, so correcting it is ordinary work;
-    the format gate only says what CLAUDE.md step 2 says: exactly three top-level bullets,
+    This is the v1.1.0 release's former ``StagedV101NotesFormatTests`` with its method
+    names unchanged — its status moved from staged to published when the ``v1.0.1`` tag
+    and GitHub release went out on 2026-09-30T09:45:29Z.  One assertion is re-scoped, in
+    ``test_v101_windows_ships_the_same_version``: "같은 1.0.1로" used to be tied to
+    ``APP_VERSION`` being ``"1.0.1"`` (and the staged heading being ``APP_VERSION``), which
+    was the claim while the section was staged; now that ``APP_VERSION`` has moved on, the
+    version the bullet names is tied to the section's own heading (the release it
+    describes), while the Windows packager tie beside it — still a property of
+    ``APP_VERSION`` — is unchanged.  The heading-equals-``APP_VERSION`` check lives on in
+    ``StagedV110NotesFormatTests``.  Every other assertion was re-run against the v1.1.0
+    release tree (4c088dc, 2026-10-05) and still holds: none of them is about what the
+    server-only change touched.  The format gate says what CLAUDE.md step 2 says: exactly three top-level bullets,
     no nesting, at most 450 normalized characters, 1-2 Korean sentences per bullet, and
     none of the forbidden token classes.  Every checkable claim in it is then tied to the
     source, one test per bullet (see the module docstring for the two hand-checked facts
@@ -2785,23 +2865,520 @@ class StagedV101NotesFormatTests(unittest.TestCase):
     def test_v101_windows_ships_the_same_version(self):
         """"Windows도 같은 1.0.1로 나오지만 기능은 달라진 것이 없습니다."
 
-        "같은 1.0.1로": the version named is ``APP_VERSION``, and ``windows/build_win.py``'s
-        ``app_version`` reads it out of claude_pet.py, as the macOS packagers do.  "기능은
+        "같은 1.0.1로": the version named is the section's own heading (it was
+        ``APP_VERSION`` while staged — see the class docstring), and ``windows/build_win.py``'s
+        ``app_version`` reads ``APP_VERSION`` out of claude_pet.py, as the macOS packagers do.  "기능은
         달라진 것이 없습니다" is a statement about a diff, which no static tie can make; it
         was checked by hand (module docstring).
 
-        Rivals: a version in the notes that is not ``APP_VERSION``; the Windows packager
+        Rivals: a version in the notes that is not the section's own; the Windows packager
         carrying its own version literal."""
         problems: list[str] = []
         bullet = self._bullet(r"Windows")
         named = re.search(r"(\d+(?:\.\d+)+)\s*로\s*나오", bullet)
+        # "같은 1.0.1로": the version named is the release this (published) section
+        # describes — it was APP_VERSION while the section was staged.
+        own = [v for v, body in _changelog_sections(self.text) if body == self.visible]
+        if not named or own != [named.group(1)]:
+            problems.append(f"the bullet names {named and named.group(1)!r}; the section it "
+                            f"sits in is {own!r}")
+        win_version = _module_defs(WIN_BUILD).get("app_version")
+        if win_version is None or not ("claude_pet.py" in _code_strings([win_version])
+                                       and any("APP_VERSION" in s
+                                               for s in _code_strings([win_version]))):
+            problems.append("windows/build_win.py's app_version must read APP_VERSION out of "
+                            "claude_pet.py")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+
+# ── Helpers for the v1.1.0 ties ──────────────────────────────────────────────────────────
+
+
+def _tr_keys_called(node: ast.AST) -> list[str]:
+    """Every literal key handed to ``t("key")`` / ``cp.t("key")`` anywhere inside node."""
+    out = []
+    for n in ast.walk(node):
+        if (isinstance(n, ast.Call) and n.args and isinstance(n.args[0], ast.Constant)
+                and isinstance(n.args[0].value, str)
+                and ((isinstance(n.func, ast.Name) and n.func.id == "t")
+                     or (isinstance(n.func, ast.Attribute) and n.func.attr == "t"))):
+            out.append(n.args[0].value)
+    return out
+
+
+def _dict_display_keys(path: Path, name: str) -> set[str]:
+    """The literal keys of the module-level ``name = {…}`` display, whose values need not be
+    literals (``RUNTIME`` calls ``os.environ``; ``SUMMARY_COLORS`` names colour constants)."""
+    node = _module_assignment(path, name)
+    if not isinstance(node.value, ast.Dict):
+        raise AssertionError(f"{name} must stay a dict display")
+    return {k.value for k in node.value.keys if isinstance(k, ast.Constant)}
+
+
+def _runtime_default_keys(path: Path) -> set[str]:
+    return _dict_display_keys(path, "RUNTIME")
+
+
+def _settings_builders(tree: ast.AST) -> list[ast.AST]:
+    """Every function that builds a ``section(t("s_sec_…"), "show_…", …)`` row — the
+    settings panel (macOS ``open_settings``, the port's settings dialog)."""
+    found = []
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for n in _own_walk(fn):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                    and n.func.id == "section" and len(n.args) >= 2):
+                found.append(fn)
+                break
+    return found
+
+
+def _section_pairs(fn: ast.AST) -> set[tuple[str, str]]:
+    """(TR key of the title, show key) for every ``section(...)`` call in fn."""
+    pairs = set()
+    for n in _own_walk(fn):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "section"
+                and len(n.args) >= 2 and isinstance(n.args[1], ast.Constant)):
+            keys = _tr_keys_called(n.args[0])
+            if len(keys) == 1:
+                pairs.add((keys[0], n.args[1].value))
+    return pairs
+
+
+class StagedV110NotesFormatTests(unittest.TestCase):
+    """The unpublished v1.1.0 section, held to CLAUDE.md's release-note format rule and to
+    the source it describes.
+
+    The section is staged text until the tag is pushed, so correcting it is ordinary work;
+    the format gate only says what CLAUDE.md step 2 says: exactly three top-level bullets,
+    no nesting, at most 450 normalized characters, 1-2 Korean sentences per bullet, and
+    none of the forbidden token classes.  Every checkable claim in it is then tied to the
+    source, one test per claim (see the module docstring for the list).  The v1.1.0 notes
+    quote no UI string, so ``test_v110_notes_quote_no_ui_string`` pins that, and a quote
+    added later has to bring its own tie.
+
+    The ties are deliberately loose about *shape* — each is a property of the named
+    mechanism — while the behaviour is gated in tests/test_server_only_usage.py,
+    tests/test_codex_usage.py and windows/tests/test_win_server_only_usage.py.
+    """
+
+    def setUp(self):
+        text = RELEASE_NOTES.read_text(encoding="utf-8")
+        self.text = text
+        self.visible = _notes_block(text, "**v1.1.0**", "**v1.0.1**")
+        self.top_level, self.nested, self.bullets = _bullet_shape(self.visible)
+        self.body = "\n".join(self.bullets)
+
+    def _bullet(self, pattern: str) -> str:
+        """The one bullet matching pattern — found by what it says, not by its position."""
+        matching = [b for b in self.bullets if re.search(pattern, b)]
+        self.assertEqual(len(matching), 1,
+                         f"expected exactly one v1.1.0 bullet matching {pattern!r}, "
+                         f"got {len(matching)}")
+        return matching[0]
+
+    def _sentence(self, pattern: str) -> str:
+        """The one sentence (in any bullet) matching pattern."""
+        matching = [s for b in self.bullets for s in _sentences(b) if re.search(pattern, s)]
+        self.assertEqual(len(matching), 1,
+                         f"expected exactly one v1.1.0 sentence matching {pattern!r}, "
+                         f"got {len(matching)}")
+        return matching[0]
+
+    def test_v110_notes_follow_the_three_bullet_450_character_format(self):
+        problems: list[str] = []
+        if len(self.top_level) != 3:
+            problems.append(f"v1.1.0 must have exactly 3 top-level bullets, got {len(self.top_level)}")
+        if self.nested:
+            problems.append("v1.1.0 must not contain nested bullets")
+        normalized_body = " ".join(self.visible.split())
+        if len(normalized_body) > 450:
+            problems.append(f"v1.1.0 Korean body is {len(normalized_body)} Unicode characters; max is 450")
+        for index, bullet in enumerate(self.bullets, 1):
+            if not re.search(r"[가-힣]", bullet):
+                problems.append(f"bullet {index} must be Korean")
+            count = len(_sentences(bullet))
+            if not 1 <= count <= 2:
+                problems.append(f"bullet {index} has {count} sentences; CLAUDE.md allows 1-2")
+        prose_for_forbidden_scan = self.body.replace("`", "")
+        for label, pattern in FORBIDDEN_NOTE_PATTERNS.items():
+            match = re.search(pattern, prose_for_forbidden_scan, re.I)
+            if match:
+                problems.append(f"remove {label}: {match.group(0)!r}")
+        # The only number a v1.1.0 bullet may carry is the version (commit 4c088dc: "숫자는
+        # 버전뿐") — anything else would need a §5 record behind it.
+        numbers = set(re.findall(r"\d+(?:\.\d+)*", self.body))
+        versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
+        if numbers - set(versions):
+            problems.append(f"the notes carry numbers other than the version: "
+                            f"{sorted(numbers - set(versions))!r}")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v110_notes_quote_no_ui_string(self):
+        self.assertEqual(re.findall(r'"([^"]+)"', self.body), [],
+                         "the v1.1.0 notes now quote a UI string — tie it to TR['ko'] "
+                         "the way the earlier classes do")
+
+    def test_v110_heading_and_version_are_the_bump(self):
+        """The staged heading is the version the release commit bumps to.
+
+        Rivals: a heading left at 1.0.1 or written as 1.1; ``APP_VERSION`` not bumped, or
+        bumped to something the heading does not say."""
+        versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
+        heading = _changelog_sections(self.text)[0][0]
+        self.assertEqual(versions, [heading],
+                         f"the staged heading is v{heading}; APP_VERSION is {versions!r}")
+
+    def test_v110_pill_shows_only_server_values_and_calibration_is_gone(self):
+        """"필에는 이제 서버가 알려 준 사용량만 표시합니다. 로그로 계산한 추정치(≈)와 한도
+        보정 설정은 없어졌고, 한도를 보정해 둔 분도 따로 할 일은 없습니다."
+
+        "서버가 알려 준 사용량만": the pill's Claude segment (``roam_summary``) never reads
+        the log snapshot it is handed (``stats``) and has no ``estimate`` segment; the
+        Codex segment (``codex_summary_segment``) is built from the server rows or the API
+        cost only.  "추정치(≈)": ``SUMMARY_APPROX`` is gone, no code string carries ``≈``,
+        and ``SUMMARY_COLORS`` has no ``estimate`` colour.  "한도 보정 설정은 없어졌고": the
+        three limit keys (and the model keyword / weekly reset settings that fed the
+        estimate) are gone from the ``RUNTIME`` defaults; no ``CLAUDE_PET_*_LIMIT``
+        environment override survives; no ``TR`` key for the limit/calibration UI survives
+        in any locale; the advanced-limits window is gone.  "따로 할 일은 없습니다":
+        ``apply_config`` reads only ``_RUNTIME_CONFIG_KEYS``, which names none of the old
+        keys, so an old ``~/.claude_pet.json`` that still carries them is simply not read.
+
+        Rivals: ``roam_summary`` falling back to ``stats`` when there are no server rows
+        (the pre-1.1.0 estimate path); the ``≈`` prefix left in; a limit key left in
+        ``RUNTIME`` or re-read from the config file (then a calibrated user's old value
+        would still act); the calibration fields left in the panel."""
+        problems: list[str] = []
+        bullet = self._bullet(r"서버가\s*알려\s*준\s*사용량만")
+        if not _has_all(bullet, (r"추정치", r"≈", r"한도\s*보정\s*설정은\s*없어", r"따로\s*할\s*일은\s*없")):
+            problems.append("the bullet must say the estimate (≈) and the limit calibration are "
+                            "gone and calibrated users have nothing to do")
+
+        defs = _module_defs(APP_SOURCE)
+        literals = _module_literals(APP_SOURCE)
+        summary = defs.get("roam_summary")
+        if summary is None:
+            problems.append("claude_pet.py must define roam_summary")
+        else:
+            params = {a.arg for a in summary.args.args + summary.args.kwonlyargs}
+            reads = {n.id for n in ast.walk(summary) if isinstance(n, ast.Name)
+                     and isinstance(n.ctx, ast.Load)}
+            if "stats" in params and "stats" in reads:
+                problems.append("roam_summary must not read the log snapshot (stats)")
+            if "estimate" in _code_strings([summary], literals):
+                problems.append("roam_summary must not produce an estimate segment")
+        codex_seg = defs.get("codex_summary_segment")
+        if codex_seg is None or not (_calls_to(codex_seg, "roam_summary_codex")
+                                     and _calls_to(codex_seg, "roam_summary_codex_cost")):
+            problems.append("the Codex segment must be built only from server rows "
+                            "(roam_summary_codex) or the API cost (roam_summary_codex_cost)")
+        tree = _module_tree(APP_SOURCE)
+        names = {t.id for n in tree.body if isinstance(n, ast.Assign)
+                 for t in n.targets if isinstance(t, ast.Name)}
+        if "SUMMARY_APPROX" in names:
+            problems.append("SUMMARY_APPROX must be gone")
+        code = _code_strings([tree])
+        if any("≈" in s for s in code):
+            problems.append("no code string may carry ≈ any more")
+        colours = _dict_display_keys(APP_SOURCE, "SUMMARY_COLORS")
+        if "exact" not in colours or "estimate" in colours:
+            problems.append(f"SUMMARY_COLORS must keep exact and have no estimate colour; "
+                            f"got {sorted(colours)!r}")
+
+        old_keys = {"session_limit", "weekly_limit", "opus_limit", "model_keyword",
+                    "weekly_reset_day", "weekly_reset_hour"}
+        left = old_keys & _runtime_default_keys(APP_SOURCE)
+        if left:
+            problems.append(f"RUNTIME still defaults the removed settings {sorted(left)!r}")
+        envs = sorted(s for s in code if re.fullmatch(r"CLAUDE_PET_\w*LIMIT\w*", s))
+        if envs:
+            problems.append(f"limit environment overrides survive: {envs!r}")
+        table = _tr_table()
+        ui = sorted({k for lang in table.values() for k in lang
+                     if re.match(r"s_(?:limit|calib|err_calib|err_limit|model_kw|weekly_reset|rolling7)", k)})
+        if ui:
+            problems.append(f"the limit/calibration UI strings survive: {ui!r}")
+        nested = {n.name for n in ast.walk(tree)
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        gone = sorted(nested & {"open_advanced_limits", "close_advanced",
+                                "prepare_settings_config", "_calibration_percent_error"})
+        if gone:
+            problems.append(f"the calibration path survives: {gone!r}")
+
+        keys = _literal_assignments(APP_SOURCE, "_RUNTIME_CONFIG_KEYS")
+        if len(keys) != 1 or not isinstance(keys[0], tuple):
+            problems.append("_RUNTIME_CONFIG_KEYS must be one literal tuple")
+        elif old_keys & set(keys[0]):
+            problems.append(f"apply_config would still read {sorted(old_keys & set(keys[0]))!r}")
+        apply = defs.get("apply_config")
+        loops = [n for n in ast.walk(apply) if isinstance(n, ast.For)] if apply else []
+        if not apply or not any(isinstance(l.iter, ast.Name) and l.iter.id == "_RUNTIME_CONFIG_KEYS"
+                                for l in loops):
+            problems.append("apply_config must copy only _RUNTIME_CONFIG_KEYS into RUNTIME")
+        elif any(isinstance(n, ast.Constant) and n.value in old_keys for n in ast.walk(apply)):
+            problems.append("apply_config must not name a removed key")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v110_settings_have_a_claude_and_a_codex_section_on_both_platforms(self):
+        """"설정 창이 Claude Code와 Codex 구역으로 나뉘어, 제공자마다 필 표시 여부, 볼 게이지,
+        구독과 API 비용 중 무엇을 볼지 고릅니다(Codex 비용은 OpenAI Admin 키)."
+
+        On macOS (``open_settings``) and in the port's settings dialog alike: two
+        ``section`` rows titled ``s_sec_claude`` ("Claude Code") and ``s_sec_codex``
+        ("Codex"), each carrying its show checkbox (``show_claude`` / ``show_codex``); a
+        gauge list (``s_gauges``) per section; a sub/API popup per section
+        (``s_mode_sub``/``s_mode_api``, ``s_codex_mode_sub``/``s_codex_mode_api``); an
+        OpenAI Admin key field (``s_openai_key``).  The ``RUNTIME`` defaults carry the keys
+        those widgets edit.  "Codex 비용은 OpenAI Admin 키": ``fetch_codex_cost`` reads
+        ``RUNTIME["openai_admin_key"]`` and queries OpenAI's organization costs endpoint.
+
+        Rivals: one shared section; a section without its own show checkbox or gauge list;
+        Codex with no sub/API choice; Codex cost read with the Anthropic Admin key; the
+        port's dialog left at the old layout."""
+        problems: list[str] = []
+        bullet = self._bullet(r"구역")
+        if not _has_all(bullet, (r"Claude\s*Code와\s*Codex\s*구역", r"필\s*표시", r"게이지",
+                                 r"구독과\s*API\s*비용", r"OpenAI\s*Admin\s*키")):
+            problems.append("the bullet must name the two sections, the three choices and the "
+                            "OpenAI Admin key")
+        table = _tr_table()
+        if (table["ko"].get("s_sec_claude"), table["ko"].get("s_sec_codex")) != ("Claude Code", "Codex"):
+            problems.append("TR['ko'] must title the sections 'Claude Code' and 'Codex'")
+        if "OpenAI Admin" not in table["ko"].get("s_codex_mode_api", ""):
+            problems.append("the Codex API choice must say OpenAI Admin")
+
+        needed_pairs = {("s_sec_claude", "show_claude"), ("s_sec_codex", "show_codex")}
+        needed_keys = ("s_mode_sub", "s_mode_api", "s_codex_mode_sub", "s_codex_mode_api",
+                       "s_openai_key", "s_show_in_pill")
+        for path in (APP_SOURCE, WIN_APP):
+            builders = _settings_builders(_module_tree(path))
+            fits = [fn for fn in builders if needed_pairs <= _section_pairs(fn)]
+            if len(fits) != 1:
+                problems.append(f"{path.name}: expected one settings builder with both "
+                                f"sections, got {len(fits)}")
+                continue
+            keys = _tr_keys_called(fits[0])
+            missing = [k for k in needed_keys if k not in keys]
+            if missing:
+                problems.append(f"{path.name}: the settings panel lacks {missing!r}")
+            if keys.count("s_gauges") < 2:
+                problems.append(f"{path.name}: each section must carry its own gauge list")
+
+        defaults = _runtime_default_keys(APP_SOURCE)
+        missing = sorted({"mode", "show_claude", "claude_gauges", "show_codex", "codex_mode",
+                          "codex_gauges", "openai_admin_key"} - defaults)
+        if missing:
+            problems.append(f"RUNTIME lacks defaults for {missing!r}")
+
+        cost = _module_defs(APP_SOURCE).get("fetch_codex_cost")
+        url = _literal_assignments(APP_SOURCE, "CODEX_COST_URL")
+        if cost is None or "openai_admin_key" not in _code_strings([cost]):
+            problems.append("fetch_codex_cost must read RUNTIME['openai_admin_key']")
+        elif "admin_key" in _code_strings([cost]):
+            problems.append("fetch_codex_cost must not read the Anthropic admin_key")
+        if url != ["https://api.openai.com/v1/organization/costs"] or (
+                cost is not None and "CODEX_COST_URL" not in _names(cost)):
+            problems.append("fetch_codex_cost must query OpenAI's organization costs endpoint")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v110_codex_menu_sentence_names_who_actually_sees_the_items(self):
+        """"Codex를 켰는데 설치나 로그인이 안 되어 있으면 우클릭 메뉴에 Codex 설치·로그인
+        항목이 나옵니다." (the wording at 4c088dc)
+
+        The wiring: the refresh worker (macOS and the port) sets ``codex_onboard`` from
+        ``compute_codex_onboard_state(provider_shown(…, "codex"), codex_mode, has_token,
+        cli_present, codex_home_exists())``, and the right-click menu turns ``"install"``
+        into ``menu_install_codex`` → ``installCodex:`` and ``"login"`` into
+        ``menu_login_codex`` → ``loginCodex:``.
+
+        Who sees it is decided by ``compute_codex_onboard_state``, a pure function this
+        test evaluates from its source text (as the v1.0.0 tie evaluates
+        ``PUBLISHED_VER_TUPLE``): the sentence may promise the items only where that
+        function returns a state.  Two cases are read off it: (a) Codex shown in
+        subscription mode, no token, **no CLI and no Codex home** — a Codex user who has
+        never installed it; (b) Codex shown in **API mode** without a token.  If the
+        function returns ``None`` in (a), the sentence must restrict the items to a machine
+        where Codex is installed or its folder exists; if ``None`` in (b), it must restrict
+        them to subscription.  Either restriction becomes unnecessary — and this test stops
+        asking for it — the moment the source starts showing the item in that case.
+
+        Rivals: the sentence promising an install item to every user who has Codex turned on
+        (false at 4c088dc for (a)); promising it in API mode (false for (b)); the menu
+        mapping the states to the wrong actions; the port computing the state some other
+        way."""
+        problems: list[str] = []
+        sentence = self._sentence(r"설치\s*·\s*로그인\s*항목")
+        if not _has_all(sentence, (r"우클릭\s*메뉴", r"Codex\s*설치\s*·\s*로그인\s*항목")):
+            problems.append("the sentence must name the right-click Codex install/login items")
+
+        fn = _module_def(APP_SOURCE, "compute_codex_onboard_state")
+        source = ast.get_source_segment(APP_SOURCE.read_text(encoding="utf-8"), fn)
+        free = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)} - {
+            a.arg for a in fn.args.args}
+        if free:
+            problems.append(f"compute_codex_onboard_state must stay pure; it reads {sorted(free)!r}")
+        else:
+            namespace = {"__builtins__": {}}
+            exec(compile(source, "<compute_codex_onboard_state>", "exec"), namespace)
+            state = namespace["compute_codex_onboard_state"]
+            if (state(True, "sub", False, True, True), state(True, "sub", False, False, True),
+                    state(True, "sub", True, True, True), state(False, "sub", False, True, True)) \
+                    != ("login", "install", None, None):
+                problems.append("compute_codex_onboard_state must give login with the CLI, "
+                                "install with only the Codex home, nothing with a token or "
+                                "with Codex hidden")
+            never_installed = state(True, "sub", False, False, False)
+            api_mode = state(True, "api", False, True, True)
+            presence = (r"(?:설치(?:돼|되어)\s*있|폴더가?\s*있|흔적|써\s*(?:온|본|왔|봤)|"
+                        r"쓰던|쓰고\s*있|사용해\s*(?:온|본))")
+            if never_installed is None and not re.search(presence, sentence):
+                problems.append(
+                    "the sentence promises the items to anyone with Codex on who has not "
+                    "installed it, but compute_codex_onboard_state gives None without the "
+                    "Codex CLI or the Codex home — say the item appears only where Codex is "
+                    f"installed or its folder exists; sentence: {sentence!r}")
+            if api_mode is None and not re.search(r"구독", sentence):
+                problems.append(
+                    "compute_codex_onboard_state gives None in Codex API mode — the sentence "
+                    f"must restrict the items to subscription; sentence: {sentence!r}")
+
+        for path, qual in ((APP_SOURCE, None), (WIN_APP, "cp")):
+            calls = [n for n in ast.walk(_module_tree(path)) if isinstance(n, ast.Call)
+                     and ((qual is None and isinstance(n.func, ast.Name)
+                           and n.func.id == "compute_codex_onboard_state")
+                          or (qual and isinstance(n.func, ast.Attribute)
+                              and n.func.attr == "compute_codex_onboard_state"
+                              and isinstance(n.func.value, ast.Name) and n.func.value.id == qual))]
+            if len(calls) != 1:
+                problems.append(f"{path.name}: expected one compute_codex_onboard_state call, "
+                                f"got {len(calls)}")
+                continue
+            text = ast.unparse(calls[0])
+            if not ("provider_shown" in text and "'codex'" in text and "codex_mode" in text
+                    and "codex_home_exists()" in text and "read_codex_token" in text):
+                problems.append(f"{path.name}: the state must come from provider_shown('codex'), "
+                                f"codex_mode, the token and codex_home_exists(); got {text}")
+        mac_menu = [ast.unparse(n) for n in ast.walk(_module_tree(APP_SOURCE))
+                    if isinstance(n, ast.IfExp)
+                    and {"menu_install_codex", "menu_login_codex"} <= set(_tr_keys_called(n))]
+        if not any("'installCodex:'" in m and "'loginCodex:'" in m
+                   and m.index("menu_install_codex") < m.index("'installCodex:'")
+                   < m.index("menu_login_codex") < m.index("'loginCodex:'")
+                   and "== 'install'" in m for m in mac_menu):
+            problems.append("the macOS menu must map 'install' to menu_install_codex/installCodex: "
+                            "and otherwise menu_login_codex/loginCodex:")
+        win_menu = [ast.unparse(n) for n in ast.walk(_module_tree(WIN_APP))
+                    if isinstance(n, ast.IfExp)
+                    and {"menu_install_codex", "menu_login_codex"} <= set(_tr_keys_called(n))]
+        if not any("_install_codex" in m and "_login_codex" in m and "== 'install'" in m
+                   for m in win_menu):
+            problems.append("the port's menu must map 'install' to its Codex install item and "
+                            "otherwise to its login item")
+        self.assertFalse(problems, "\n" + "\n".join(f"- {p}" for p in problems))
+
+    def test_v110_spikes_cover_codex_and_wait_for_a_learned_limit(self):
+        """"급증 알림이 Codex 사용에도 울리고, 기준을 서버 값에서 익히기 때문에 실행 직후에는
+        기준을 익힐 때까지 알림이 없습니다. Windows도 같은 1.1.0으로 같은 기능을 받습니다."
+
+        "Codex 사용에도": the refresh worker on both platforms merges ``codex_spikes`` into
+        the spikes it stores, and ``provider_spiking`` reads the two Codex lanes.  "기준을
+        서버 값에서 익히기": the worker calls ``learn_server_limits`` with the server rows
+        (``fetch_exact_usage`` / ``fetch_codex_usage``), and ``learn_lane`` — the only
+        writer of a learned limit — is called from nowhere else.  "익힐 때까지 알림이
+        없습니다": ``is_spike`` returns False when the limit is missing or zero, and both
+        spike functions take the limit from the learned table.  "실행 직후에는":
+        ``LEARNED_LIMITS`` starts as an empty literal, is not a ``RUNTIME`` default nor a
+        config key, and no function that touches the config file names it — so every
+        launch starts unlearned.  "Windows도 같은 1.1.0으로": the staged heading is
+        ``APP_VERSION`` and ``windows/build_win.py`` reads it.
+
+        Rivals: Codex lanes missing from ``provider_spiking`` or never computed; a default
+        limit restored (the old 8M/60M/15M guesses), which would alert before anything is
+        learned; learned limits persisted to the config (then "실행 직후" would be false and
+        removed limit keys could come back); the port not running the same learning."""
+        problems: list[str] = []
+        sentence = self._sentence(r"급증\s*알림")
+        if not _has_all(sentence, (r"Codex\s*사용에도", r"서버\s*값에서\s*익히",
+                                   r"실행\s*직후", r"알림이\s*없")):
+            problems.append("the sentence must say spikes cover Codex and wait for a limit "
+                            "learned from server values")
+        defs = _module_defs(APP_SOURCE)
+        lanes = _literal_assignments(APP_SOURCE, "_PROVIDER_LANES")
+        if not lanes or set(lanes[0].get("codex", ())) != {"codex_session", "codex_weekly"}:
+            problems.append("provider_spiking must read the codex_session and codex_weekly lanes")
+        spike_fn = defs.get("is_spike")
+        guard = spike_fn is not None and any(
+            isinstance(n, ast.If) and isinstance(n.test, ast.UnaryOp)
+            and isinstance(n.test.op, ast.Not)
+            and len(n.body) == 1 and isinstance(n.body[0], ast.Return)
+            and isinstance(n.body[0].value, ast.Constant) and n.body[0].value.value is False
+            for n in spike_fn.body)
+        if not guard:
+            problems.append("is_spike must return False before it judges when there is no limit")
+        for name in ("claude_spikes", "codex_spikes"):
+            fn = defs.get(name)
+            text = ast.unparse(fn) if fn else ""
+            if "LEARNED_LIMITS if learned is None else learned" not in text \
+                    or "learned.get(" not in text:
+                problems.append(f"{name} must take its limits from the learned table")
+        learned = _literal_assignments(APP_SOURCE, "LEARNED_LIMITS")
+        if learned != [{}]:
+            problems.append(f"LEARNED_LIMITS must start as an empty dict, got {learned!r}")
+        if "LEARNED_LIMITS" in _runtime_default_keys(APP_SOURCE):
+            problems.append("LEARNED_LIMITS must not be a RUNTIME default")
+        config_fns = [fn for fn in defs.values() if "CONFIG_PATH" in _names(fn)]
+        if not config_fns:
+            problems.append("no function touches CONFIG_PATH — the persistence check is vacuous")
+        persisted = sorted(fn.name for fn in config_fns if "LEARNED_LIMITS" in _names(fn))
+        if persisted:
+            problems.append(f"learned limits must not touch the config file: {persisted!r}")
+        writers = sorted(fn.name for fn in defs.values()
+                         if _calls_to(fn, "learn_lane") and fn.name != "learn_server_limits")
+        if writers:
+            problems.append(f"learn_lane must be called only from learn_server_limits: {writers!r}")
+
+        for path, qual in ((APP_SOURCE, None), (WIN_APP, "cp")):
+            def called(node, name):
+                return [n for n in ast.walk(node) if isinstance(n, ast.Call)
+                        and ((qual is None and isinstance(n.func, ast.Name) and n.func.id == name)
+                             or (qual and isinstance(n.func, ast.Attribute) and n.func.attr == name
+                                 and isinstance(n.func.value, ast.Name) and n.func.value.id == qual))]
+            workers = [fn for fn in ast.walk(_module_tree(path))
+                       if isinstance(fn, ast.FunctionDef)
+                       and called(fn, "learn_server_limits") and called(fn, "codex_spikes")
+                       and called(fn, "fetch_exact_usage") and called(fn, "fetch_codex_usage")]
+            worker = min(workers, key=lambda f: f.end_lineno - f.lineno) if workers else None
+            if worker is None:
+                problems.append(f"{path.name}: no refresh worker both learns from the server "
+                                "and computes Codex spikes")
+                continue
+            learn = called(worker, "learn_server_limits")[0]
+            first_two = [ast.unparse(a) for a in learn.args[:2]]
+            bound = {}
+            for n in ast.walk(worker):
+                if isinstance(n, ast.Assign):
+                    for t in n.targets:
+                        if isinstance(t, ast.Name):
+                            bound.setdefault(t.id, []).append(ast.unparse(n.value))
+            if len(first_two) != 2 or [bound.get(v) for v in first_two] != [
+                    [f"{qual + '.' if qual else ''}fetch_exact_usage()"],
+                    [f"{qual + '.' if qual else ''}fetch_codex_usage()"]]:
+                problems.append(f"{path.name}: learn_server_limits must learn from the server "
+                                f"rows only; got {first_two!r} bound to "
+                                f"{[bound.get(v) for v in first_two]!r}")
+            if not any("spikes.update" in ast.unparse(n) for n in called(worker, "codex_spikes")) \
+                    and not any(isinstance(p, ast.Call) and ast.unparse(p.func) == "spikes.update"
+                                and any(a is c for a in p.args for c in called(worker, "codex_spikes"))
+                                for p in ast.walk(worker)):
+                problems.append(f"{path.name}: Codex spikes must be merged into the stored spikes")
+
+        named = re.search(r"Windows도\s*같은\s*(\d+(?:\.\d+)+)\s*으로", self.body)
         versions = _literal_assignments(APP_SOURCE, "APP_VERSION")
         if not named or versions != [named.group(1)]:
-            problems.append(f"the bullet names {named and named.group(1)!r}; APP_VERSION is "
-                            f"{versions!r}")
-        heading = _changelog_sections(self.text)[0][0]
-        if versions != [heading]:
-            problems.append(f"the staged heading is v{heading}; APP_VERSION is {versions!r}")
+            problems.append(f"the notes say Windows ships {named and named.group(1)!r}; "
+                            f"APP_VERSION is {versions!r}")
         win_version = _module_defs(WIN_BUILD).get("app_version")
         if win_version is None or not ("claude_pet.py" in _code_strings([win_version])
                                        and any("APP_VERSION" in s
