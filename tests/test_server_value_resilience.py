@@ -675,6 +675,23 @@ class ClaudeSuccessKeyTests(_ClockMixin, ClaudeHarness):
         self.assertIsNone(self.fetch(_net), "no lane left → None")
 
 
+    def test_kept_rows_stay_filtered_on_the_next_cache_hit(self):
+        """The filtered rows are what the cache holds: the call right after the transient
+        failure (no cache reset — the cache-hit path) must not bring the reset lane back,
+        and the success key must not move.  Rival: return the filtered rows but leave the
+        unfiltered ones in the cache (68fb6dd: [17], then [95, 17])."""
+        rows = self.fetch(claude_body_reset(95, 17, T0 + 600, T0 + 86400))
+        self.assertEqual(_pcts(rows), [95, 17])
+        ok = claude_pet._oauth_cache.get("ok_t")
+        self.clock.t = T0 + 1200
+        self.assertEqual(_pcts(self.fetch(_http(500))), [17])
+        self.clock.t += 5                  # inside the cache window: no request, no reset of t
+        again = claude_pet.fetch_exact_usage()
+        self.assertEqual(self.http.requests, 2, "fixture: the next call must be a cache hit")
+        self.assertEqual(_pcts(again), [17], "the cache hit brought the reset lane back")
+        self.assertEqual(claude_pet._oauth_cache.get("ok_t"), ok, "ok_t moved")
+
+
 class CodexSuccessKeyTests(_ClockMixin, CodexHarness):
     def setUp(self):
         super().setUp()
@@ -725,6 +742,22 @@ class CodexSuccessKeyTests(_ClockMixin, CodexHarness):
                          "a kept session row past its reset must go; the weekly row stays")
         self.clock.t = T0 + 90000
         self.assertIsNone(self.fetch(_net), "no lane left → None")
+
+
+    def test_kept_rows_stay_filtered_on_the_next_cache_hit(self):
+        """Codex twin of the Claude test: the cache-hit call after the transient failure must
+        not bring the reset lane back, and ``ok_t`` must not move."""
+        rows = self.fetch(codex_body_reset(95, 34, T0 + 600, T0 + 86400))
+        self.assertEqual(_pcts(rows), [95, 34])
+        ok = claude_pet._codex_cache.get("ok_t")
+        self.clock.t = T0 + 1200
+        self.assertEqual([r[0] for r in self.fetch(_http(500)) or ()], ["codex_weekly"])
+        self.clock.t += 5
+        again = claude_pet.fetch_codex_usage()
+        self.assertEqual(self.http.requests, 2, "fixture: the next call must be a cache hit")
+        self.assertEqual([r[0] for r in again or ()], ["codex_weekly"],
+                         "the cache hit brought the reset lane back")
+        self.assertEqual(claude_pet._codex_cache.get("ok_t"), ok, "ok_t moved")
 
 
 class WorkersPassTheSuccessKeyTests(unittest.TestCase):
