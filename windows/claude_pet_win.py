@@ -481,7 +481,8 @@ class PetWindow(QWidget):
             cp.RUNTIME, self.state.get("codex"),
             cp.provider_spiking(self.state.get("stats"), "codex"),
             self.state.get("codex_cost"), self.state.get("codex_cost_month"),
-            bool(self.state.get("codex_api_error")), bool(self.state.get("codex_api_stale")))
+            bool(self.state.get("codex_api_error")), bool(self.state.get("codex_api_stale")),
+            auth_error=bool(cp.CODEX_STATUS.get("auth_error")))
         self.sticky = {"on": False}
         self._down = None
         self._moved = False
@@ -711,6 +712,7 @@ class PetWindow(QWidget):
                bool(R.get("openai_admin_key")), R.get("codex_budget"),
                st.get("codex_cost"), st.get("codex_cost_month"),
                bool(st.get("codex_api_error")), bool(st.get("codex_api_stale")),
+               bool(cp.CODEX_STATUS.get("auth_error")),
                int(time.time() / 5))
         memo = getattr(self, "_summary_memo", None)
         if memo and memo[0] == key:
@@ -2234,6 +2236,7 @@ class PetWindow(QWidget):
         if err:
             self.settings_error(err)
             return
+        prev_settings = cp.settings_snapshot()
         ok, _merged = cp.apply_settings_plan(plan, self.cfg, apply_fn=cp.apply_config,
                                              set_pet_fn=self._set_pet, prev_pet=prev_pet)
         if not ok:
@@ -2245,7 +2248,12 @@ class PetWindow(QWidget):
             self._refresh_gen += 1
             self._pending = None
         self.state["repaint"] = True
-        cp._oauth_cache["t"] = 0.0             # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
+        # 다시 조회해야 하는 바뀜일 때만 캐시를 비운다(macOS 판과 같은 cp.settings_cache_resets).
+        reset_oauth, reset_codex = cp.settings_cache_resets(prev_settings, cp.settings_snapshot())
+        if reset_oauth:
+            cp._oauth_cache["t"] = 0.0
+        if reset_codex:
+            cp._codex_cache["t"] = 0.0
         self.close_main_panel()
         self.refresh()
         self.update()
@@ -2297,11 +2305,14 @@ class SettingsDialog(QDialog):
             return c
 
         def section(title, show_key, y):
-            """구역 제목(굵게)과 같은 줄 오른쪽의 '필에 표시' 체크 (macOS 판 section)."""
+            """구역 제목(굵게)과 같은 줄 오른쪽의 '필에 표시' 체크 (macOS 판 section).
+
+            macOS 는 boldSystemFontOfSize_(13) — 굵기만 다르고 크기는 보통 라벨(13pt)과 같다.
+            그래서 여기서도 굵게만 하고 크기는 label() 의 기본 글꼴 그대로 둔다(크기를 정하면
+            Qt 기본보다 커져 제목만 도드라졌다 — Windows 실기 2026-10-05)."""
             head = label(title, 20, y, 150)
             f = head.font()
             f.setBold(True)
-            f.setPointSize(13)
             head.setFont(f)
             return check(t("s_show_in_pill"), 180, y, 220, R.get(show_key, True))
 

@@ -126,7 +126,11 @@ One small pill next to the pet, two lines:
 - **Line 2 — resets**: `reset Session in 3h 42m · Weekly in 2d 3h`.
 - **Numbers are always the server's**: emerald = server-computed %, coral = API cost. The pet never shows a number estimated
   from logs — with no server value the pill shows a status instead (e.g. "Token expired — run Claude Code once to restore usage",
-  a sign-in prompt, or "Nothing to show" when both providers are hidden).
+  a sign-in prompt, or "Nothing to show" when both providers are hidden). An expired Codex sign-in shows its own status:
+  "Codex token expired — run codex once to restore usage".
+- **A brief server hiccup does not blank the pill**: if a refresh fails with a rate limit, a server error, a network error or a
+  garbled answer, the last values received stay on screen until the next successful refresh. Only a rejected token clears them.
+  Saving settings redraws from the values already fetched; only a new language, data source or Admin key fetches again.
 - **Label colour says how much is left**: white, yellow from 50 %, red from 85 % — and red with ▲ while that gauge is spiking.
 - The text is set in the bundled **Pretendard** typeface (SIL Open Font License), so it looks the same on every machine.
 

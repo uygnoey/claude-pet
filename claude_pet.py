@@ -1141,12 +1141,13 @@ TR = {
     "s_gauge_session": "Session", "s_gauge_weekly": "Weekly",
     "s_gauge_model": "Per model", "s_gauge_credit": "Credit",
     "s_codex_mode_sub": "Subscription",
-    "s_codex_mode_api": "API (OpenAI Admin API cost)",
+    "s_codex_mode_api": "API (OpenAI Admin cost)",
     "s_openai_key": "OpenAI Admin API key", "s_codex_budget": "API monthly budget ($)",
     "s_err_codex_budget": ("Codex API monthly budget: enter a number of 0 or more. "
                            "Nothing was saved."),
     "no_providers": "Nothing to show — turn on Claude Code or Codex in Settings",
     "codex_need_admin_key": "Codex: right-click → Settings to enter an OpenAI Admin API key",
+    "codex_token_expired": "Codex token expired — run codex once to restore usage",
     "codex_api_key_rejected": "⚠ Codex: OpenAI Admin API key rejected — check the key in Settings",
     "codex_api_unreachable": "⚠ Codex usage temporarily unavailable — retrying",
     "menu_install_codex": "⬇︎ Install Codex…",
@@ -1219,11 +1220,12 @@ TR = {
     "s_gauge_session": "세션", "s_gauge_weekly": "주간",
     "s_gauge_model": "모델별", "s_gauge_credit": "크레딧",
     "s_codex_mode_sub": "구독 (로그인 계정)",
-    "s_codex_mode_api": "API (OpenAI Admin API 비용)",
+    "s_codex_mode_api": "API (OpenAI Admin 비용)",
     "s_openai_key": "OpenAI Admin API 키", "s_codex_budget": "API 월 예산 ($)",
     "s_err_codex_budget": "Codex API 월 예산: 0 이상 숫자를 입력하세요. 저장하지 않았습니다.",
     "no_providers": "표시할 제공자가 없어요 — 설정에서 Claude Code 나 Codex 를 켜세요",
     "codex_need_admin_key": "Codex: 우클릭 → 설정에서 OpenAI Admin API 키를 입력하세요",
+    "codex_token_expired": "Codex 토큰 만료 — codex 한번 실행하면 사용량 복구",
     "codex_api_key_rejected": "⚠ Codex: OpenAI Admin API 키가 거부됨 — 설정에서 키를 확인하세요",
     "codex_api_unreachable": "⚠ Codex 사용량을 잠시 가져올 수 없음 — 다시 시도하는 중",
     "menu_install_codex": "⬇︎ Codex 설치…",
@@ -1282,7 +1284,7 @@ TR = {
     "upd_install_failed": "アップデートをインストールできませんでした。しばらくしてからもう一度お試しください。",
     "upd_busy": "すでにアップデートを確認中です。",
     "settings_title": "Claude Pet 設定", "s_data_source": "データソース",
-    "s_mode_sub": "サブスク (ログイン中のアカウント)", "s_mode_api": "API (Admin API コスト)",
+    "s_mode_sub": "サブスク (ログイン中)", "s_mode_api": "API (Admin API コスト)",
     "s_spike_sens": "急増アラート感度", "s_sens_high": "高 (少しの使用でも警告)",
     "s_sens_normal": "普通", "s_sens_low": "低 (大量使用時のみ警告)",
     "s_greet": "マウスが近づいたら手を振る", "s_admin_key": "Admin API キー",
@@ -1296,13 +1298,14 @@ TR = {
     "s_show_in_pill": "ピルに表示", "s_gauges": "表示するゲージ",
     "s_gauge_session": "セッション", "s_gauge_weekly": "週間",
     "s_gauge_model": "モデル別", "s_gauge_credit": "クレジット",
-    "s_codex_mode_sub": "サブスク (ログイン中のアカウント)",
-    "s_codex_mode_api": "API (OpenAI Admin API コスト)",
+    "s_codex_mode_sub": "サブスク (ログイン中)",
+    "s_codex_mode_api": "API (OpenAI Admin コスト)",
     "s_openai_key": "OpenAI Admin API キー", "s_codex_budget": "API 月次予算 ($)",
     "s_err_codex_budget": ("Codex API 月次予算: 0 以上の数値を入力してください。"
                            "保存していません。"),
     "no_providers": "表示するプロバイダがありません — 設定で Claude Code か Codex をオンにしてください",
     "codex_need_admin_key": "Codex: 右クリック → 設定で OpenAI Admin API キーを入力してください",
+    "codex_token_expired": "Codex トークン期限切れ — codex を一度実行すると使用量が復帰",
     "codex_api_key_rejected": "⚠ Codex: OpenAI Admin API キーが拒否されました — 設定でキーを確認してください",
     "codex_api_unreachable": "⚠ Codex の使用量を一時的に取得できません — 再試行中",
     "menu_install_codex": "⬇︎ Codex をインストール…",
@@ -1384,6 +1387,7 @@ TR = {
                            "mayor o igual que 0. No se guardó nada."),
     "no_providers": "Nada que mostrar — activa Claude Code o Codex en Ajustes",
     "codex_need_admin_key": "Codex: clic derecho → Ajustes para introducir una clave de OpenAI Admin API",
+    "codex_token_expired": "Token de Codex expirado — ejecuta codex una vez para restaurar el uso",
     "codex_api_key_rejected": "⚠ Codex: clave de OpenAI Admin API rechazada — revísala en Ajustes",
     "codex_api_unreachable": "⚠ Uso de Codex no disponible por ahora — reintentando",
     "menu_install_codex": "⬇︎ Instalar Codex…",
@@ -2852,6 +2856,24 @@ def _label_order(label):
 #   필에는 그리지 않는다(roam_summary_text의 memo 키도 그대로). fetch_exact_usage가
 #   실패 캐시 길이를 정할 때와 디버그 로그에만 쓴다.
 OAUTH_STATUS = {"auth_error": False, "last_error": None}
+# 이번 _fetch_oauth_usage 호출이 일시 실패(429·5xx·네트워크·파싱)로 끝났는가. last_error 는 토큰이
+# 없어 요청을 보내지 않은 호출에서도 직전 값이 남아 있으므로, "이번 호출"의 판단은 여기서 한다.
+_oauth_last_call = {"transient": False}
+
+
+def is_transient_fetch_error(err):
+    """조회 실패 종류가 일시적인가 — 429, 5xx, 네트워크(시간 초과 포함), 파싱. 401/403 은 아니다.
+
+    일시 실패 뒤에는 직전에 성공한 서버 값을 그대로 보여 준다(fetch_exact_usage·fetch_codex_usage).
+    토큰 거부는 값을 지워야 '토큰 만료' 상태가 보이므로 여기에 들지 않는다."""
+    if err in ("net", "parse", "http:429"):
+        return True
+    if isinstance(err, str) and err.startswith("http:"):
+        try:
+            return 500 <= int(err[5:]) <= 599
+        except ValueError:
+            return False
+    return False
 
 
 def _fetch_oauth_usage():
@@ -2867,6 +2889,7 @@ def _fetch_oauth_usage():
                  소스로 재검증한다. last_error에 종류를 남긴다.
     _dbg 줄에는 상태 코드·클래스 이름·불리언만 쓴다. 토큰이나 응답 본문은 절대 안 쓴다.
     """
+    _oauth_last_call["transient"] = False
     tok = _read_oauth_token()
     if not tok:
         return None
@@ -2900,11 +2923,13 @@ def _fetch_oauth_usage():
                 OAUTH_STATUS["auth_error"] = True
                 return None
             c["suspect"] = True
+            _oauth_last_call["transient"] = is_transient_fetch_error("http:%s" % code)
             return None
         except Exception as e:
             # URLError·socket.timeout·SSL·연결 끊김 등 전송 단계 실패 전부
             OAUTH_STATUS["last_error"] = "net"
             c["suspect"] = True
+            _oauth_last_call["transient"] = True
             _dbg("oauth fetch: net", type(e).__name__, "attempt", attempt)
             return None
         try:
@@ -2912,6 +2937,7 @@ def _fetch_oauth_usage():
         except Exception as e:
             OAUTH_STATUS["last_error"] = "parse"
             c["suspect"] = True
+            _oauth_last_call["transient"] = True
             _dbg("oauth fetch: parse", type(e).__name__)
             return None
         OAUTH_STATUS["auth_error"] = False
@@ -3947,11 +3973,15 @@ def fetch_exact_usage():
     """정확 사용량 [(label, pct, reset_dt, reset_text)] 최대 4줄.
     OAuth 우선, 모델별(Fable 등) 줄이 없으면 CLI(claude -p /usage)에서 보충.
     180초 캐시 (과호출 시 429). 실패한 조회는 OAUTH_FAIL_RETRY_SEC(60초)만 캐시하되
-    429는 예외로 180초를 그대로 둔다 — 캐시가 존재하는 이유가 과호출이다."""
+    429는 예외로 180초를 그대로 둔다 — 캐시가 존재하는 이유가 과호출이다.
+    일시 실패(429·5xx·네트워크·파싱, is_transient_fetch_error)면 직전에 성공한 값을 그대로
+    돌려준다 — 서버가 잠깐 답하지 않았다고 숫자가 사라지지 않게. 401/403 은 값을 지운다
+    (그래야 '토큰 만료' 상태가 보인다)."""
     now = time.time()
     if now - _oauth_cache["t"] < OAUTH_CACHE_SEC:
         return _oauth_cache["gauges"]
     _oauth_cache["t"] = now          # 조회 중인 동안 다른 호출자는 이전 값을 받는다
+    prev = _oauth_cache.get("gauges")
     rows = _fetch_oauth_usage()
     if rows is None:
         err = OAUTH_STATUS.get("last_error")
@@ -3959,6 +3989,9 @@ def fetch_exact_usage():
             # 실패는 짧게 캐시: t를 과거로 물려 OAUTH_FAIL_RETRY_SEC 뒤에 만료되게 한다.
             _oauth_cache["t"] = now - (OAUTH_CACHE_SEC - OAUTH_FAIL_RETRY_SEC)
         rows = _fetch_cli_usage()
+        if not rows and prev and _oauth_last_call["transient"] \
+                and not OAUTH_STATUS.get("auth_error"):
+            return prev              # 일시 실패 — 직전 서버 값 유지(gauges 도 그대로)
     elif not any(_label_order(r[0]) == 2 for r in rows):
         # OAuth 응답에 모델별 항목이 없으면 CLI에서 Fable 줄 보충
         cli = _fetch_cli_usage() or []
@@ -4188,6 +4221,9 @@ def parse_codex_usage(payload, now=None, windows=None):
 
 
 _codex_cache = {"t": 0.0, "rows": None}
+# Codex 조회 상태 — OAUTH_STATUS 와 같은 모양. auth_error: 마지막 조회가 401/403 이었다(성공하거나
+# 토큰이 아예 없으면 내린다 — 자격증명이 없는 것은 만료가 아니다). last_error: 마지막 실패의 종류.
+CODEX_STATUS = {"auth_error": False, "last_error": None}
 # 마지막 응답의 레인별 창 길이(초) — parse_codex_usage 가 적고 codex_window_seconds 가 읽는다.
 CODEX_WINDOWS = {}
 
@@ -4200,7 +4236,9 @@ def fetch_codex_usage():
     OAUTH_FAIL_RETRY_SEC(60초)만 — 캐시가 존재하는 이유가 과호출이라 429 만 줄이면 안 된다.
     조회하는 동안 다른 호출자는 직전 값을 받는다.
     토큰은 읽기만 한다. 만료됐다면 되살리는 것은 Codex CLI 의 일이고, 우리는 그 자리에서
-    행을 지울 뿐이다 — 자격증명을 되쓸 수 없는 쪽이 갱신을 시도하면 사용자가 재로그인한다.
+    행을 지우고 CODEX_STATUS["auth_error"] 를 올릴 뿐이다(필은 codex_token_expired 상태를 보인다) —
+    자격증명을 되쓸 수 없는 쪽이 갱신을 시도하면 사용자가 재로그인한다.
+    일시 실패(429·5xx·네트워크·파싱)면 직전에 성공한 행을 그대로 돌려준다(Claude 쪽과 같다).
 
     요청에는 auth.json 의 계정 id 를 ChatGPT-Account-Id 헤더로 싣는다. Codex CLI 가 보내는
     것과 같고, 빠지면 서버가 다른 계정 문맥으로 답한다(모듈 주석: 같은 순간 100% 대 76%).
@@ -4210,7 +4248,10 @@ def fetch_codex_usage():
     if now - _codex_cache["t"] < OAUTH_CACHE_SEC:
         return _codex_cache["rows"]
     _codex_cache["t"] = now
+    prev = _codex_cache.get("rows")
     tok, acct = read_codex_auth(codex_auth_path())
+    # 토큰이 아예 없으면 만료가 아니다(자격증명 없음 = 행도 상태도 없음) — 깃발을 내린다.
+    CODEX_STATUS["auth_error"] = bool(tok) and CODEX_STATUS["auth_error"]
     if not tok:
         _codex_cache["rows"] = None
         return None
@@ -4239,6 +4280,16 @@ def fetch_codex_usage():
             _dbg("codex fetch: parse", type(e).__name__)
     if rows is None and err and err != "http:429":
         _codex_cache["t"] = now - (OAUTH_CACHE_SEC - OAUTH_FAIL_RETRY_SEC)
+    if err is None:
+        CODEX_STATUS["auth_error"] = False
+        CODEX_STATUS["last_error"] = None
+    else:
+        CODEX_STATUS["last_error"] = err
+        if err in ("http:401", "http:403"):
+            CODEX_STATUS["auth_error"] = True
+        elif prev and is_transient_fetch_error(err):
+            _dbg("codex fetch: kept last rows", len(prev))
+            return prev               # 일시 실패 — 직전 서버 값 유지
     _codex_cache["rows"] = rows
     _dbg("codex fetch: rows", len(rows or ()))
     return rows
@@ -7999,11 +8050,13 @@ def session_reset_jump(prev_claude, claude, prev_codex, codex):
 
 
 def codex_summary_segment(runtime, rows, spiking=False, cost_today=None, cost_month=None,
-                          api_error=False, api_stale=False):
+                          api_error=False, api_stale=False, auth_error=False):
     """Codex 구간 하나(표시 설정·게이지 선택·API 모드 반영). 보일 게 없으면 None.
 
     어댑터의 codex_summary 훅이 부른다. 구독 모드는 서버 행을 고른 게이지로 거른 뒤
     roam_summary_codex 로, API 모드는 roam_summary_codex_cost 로 간다.
+    구독 모드에서 행이 없고 auth_error(CODEX_STATUS, 401/403)면 ("status", "codex_token_expired") —
+    Claude 의 token_expired 와 같은 자리다. 행이 있으면 행이 이긴다.
     """
     rt = RUNTIME if runtime is None else runtime
     if not provider_shown(rt, "codex"):
@@ -8014,7 +8067,36 @@ def codex_summary_segment(runtime, rows, spiking=False, cost_today=None, cost_mo
                                        api_error=api_error, api_stale=api_stale)
     rows = filter_codex_rows(rows if isinstance(rows, list) else None,
                              rt.get("codex_gauges", list(CODEX_GAUGES)))
-    return roam_summary_codex(rows, spiking=spiking) if rows else None
+    if rows:
+        return roam_summary_codex(rows, spiking=spiking)
+    return ("status", "codex_token_expired") if auth_error else None
+
+
+def settings_cache_resets(prev, new):
+    """설정 저장 전후(prev, new: RUNTIME 키 + "lang")를 비교해 (reset_oauth, reset_codex).
+
+    다시 조회해야 하는 바뀜만 캐시를 비운다:
+      언어            → Claude(서버 행 라벨이 조회할 때 번역된다)
+      mode, admin_key → Claude
+      codex_mode, openai_admin_key → Codex
+    그 밖(게이지·표시·예산·민감도·인사·펫)은 아무것도 비우지 않는다 — 받은 값으로 다시 그리면 된다.
+    """
+    prev = prev or {}
+    new = new or {}
+
+    def changed(k):
+        return prev.get(k) != new.get(k)
+
+    reset_oauth = any(changed(k) for k in ("lang", "mode", "admin_key"))
+    reset_codex = any(changed(k) for k in ("codex_mode", "openai_admin_key"))
+    return reset_oauth, reset_codex
+
+
+def settings_snapshot(runtime=None):
+    """settings_cache_resets 에 넘길 현재 설정 — RUNTIME 사본에 지금 언어를 더한다."""
+    snap = dict(RUNTIME if runtime is None else runtime)
+    snap["lang"] = L.get("lang")
+    return snap
 
 
 # 요약 필 글자색 — 사용자 결정 2026-09-12(같은 날 "텍스트랑 수치랑 색을 반대로" 로 확정). **수치**가 출처를
@@ -8781,7 +8863,8 @@ def run_gui():
     state["codex_summary"] = lambda: codex_summary_segment(
         RUNTIME, state.get("codex"), provider_spiking(state.get("stats"), "codex"),
         state.get("codex_cost"), state.get("codex_cost_month"),
-        bool(state.get("codex_api_error")), bool(state.get("codex_api_stale")))
+        bool(state.get("codex_api_error")), bool(state.get("codex_api_stale")),
+        auth_error=bool(CODEX_STATUS.get("auth_error")))
     sticky = {"on": False}
     ui = {}   # 설정 창 위젯 참조 (GC 방지)
     def _run_update_check():
@@ -9428,6 +9511,7 @@ def run_gui():
                bool(RUNTIME.get("openai_admin_key")), RUNTIME.get("codex_budget"),
                state.get("codex_cost"), state.get("codex_cost_month"),
                bool(state.get("codex_api_error")), bool(state.get("codex_api_stale")),
+               bool(CODEX_STATUS.get("auth_error")),
                int(_time.time() / 5))
         if _summary_memo["key"] == key:
             return _summary_memo["value"]
@@ -10109,6 +10193,7 @@ def run_gui():
         if err:
             settings_error(err)     # 창은 열어 둔 채, 아무것도 바뀌지 않았다
             return
+        prev_settings = settings_snapshot()
         ok, _merged = apply_settings_plan(plan, cfg, apply_fn=apply_config,
                                           set_pet_fn=set_pet, prev_pet=prev_pet)
         if not ok:
@@ -10120,7 +10205,13 @@ def run_gui():
         # 예: Codex 를 API 모드로 바꿨는데 옛 패스가 비용 없이 끝나 '조회 중'이 눌러앉는 일.
         gen = begin_refresh_generation(state)
         commit_refresh_result(state, gen, {"repaint": True})
-        _oauth_cache["t"] = 0.0   # 정확 모드 라벨 언어 즉시 반영(캐시 무효화)
+        # 다시 조회해야 하는 바뀜일 때만 캐시를 비운다(settings_cache_resets). 게이지·표시·예산 같은
+        # 것은 이미 받은 서버 값으로 다시 그리면 된다 — 저장할 때마다 다시 묻지 않는다.
+        reset_oauth, reset_codex = settings_cache_resets(prev_settings, settings_snapshot())
+        if reset_oauth:
+            _oauth_cache["t"] = 0.0
+        if reset_codex:
+            _codex_cache["t"] = 0.0
         close_main_panel()
         ticker.refresh_(None)
         view.setNeedsDisplay_(True)

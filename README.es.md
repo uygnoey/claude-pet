@@ -127,7 +127,12 @@ Una píldora pequeña junto a la mascota, en dos líneas:
 - **Los números son siempre del servidor**: esmeralda = % calculado por el servidor, coral = coste de API. La mascota nunca
   muestra un número estimado a partir de los registros: sin valor del servidor la píldora muestra un estado (p. ej. "Token
   expirado — ejecuta Claude Code una vez para restaurar el uso", un aviso de inicio de sesión o "Nada que mostrar" si ocultas
-  ambos proveedores).
+  ambos proveedores). Si caduca la sesión de Codex aparece su propio estado: "Token de Codex expirado — ejecuta codex una vez
+  para restaurar el uso".
+- **Un fallo pasajero del servidor no vacía la píldora**: si una actualización falla por límite de peticiones, error del
+  servidor, error de red o una respuesta ilegible, se quedan en pantalla los últimos valores recibidos hasta la siguiente
+  consulta correcta. Solo un token rechazado los borra. Guardar los ajustes vuelve a dibujar con los valores ya obtenidos;
+  solo un idioma, fuente de datos o clave Admin nuevos consultan otra vez.
 - **El color de la etiqueta dice cuánto queda**: blanco, amarillo desde el 50 %, rojo desde el 85 % — y rojo con ▲ mientras
   ese medidor se dispara.
 - El texto usa la tipografía **Pretendard** incluida en la app (SIL Open Font License), así se ve igual en cualquier equipo.

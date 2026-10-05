@@ -82,7 +82,7 @@ macOS 12+ (Apple Silicon · Intel con el zip universal) · autocontenido
 **v1.1.0**
 
 - 필에는 이제 서버가 알려 준 사용량만 표시합니다. 로그로 계산한 추정치(≈)와 한도 보정 설정은 없어졌고, 한도를 보정해 둔 분도 따로 할 일은 없습니다.
-- 설정 창이 Claude Code와 Codex 구역으로 나뉘어, 제공자마다 필 표시 여부, 볼 게이지, 구독과 API 비용 중 무엇을 볼지 고릅니다(Codex 비용은 OpenAI Admin 키). Codex를 켰는데 설치나 로그인이 안 되어 있으면 우클릭 메뉴에 Codex 설치·로그인 항목이 나옵니다.
+- 설정 창이 Claude Code와 Codex 구역으로 나뉘어, 제공자마다 필 표시 여부, 볼 게이지, 구독과 API 비용 중 무엇을 볼지 고릅니다(Codex 비용은 OpenAI Admin 키). Codex를 구독으로 켰고 Codex가 설치돼 있거나 Codex 폴더가 있는데 로그인이 안 되어 있으면 우클릭 메뉴에 Codex 설치·로그인 항목이 나옵니다.
 - 급증 알림이 Codex 사용에도 울리고, 기준을 서버 값에서 익히기 때문에 실행 직후에는 기준을 익힐 때까지 알림이 없습니다. Windows도 같은 1.1.0으로 같은 기능을 받습니다.
 
 **v1.0.1**

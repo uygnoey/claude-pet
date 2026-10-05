@@ -864,7 +864,28 @@ only, never key bytes.
 `token_expired` when the server rejected the OAuth token (401/403 — whatever the logs
 hold), onboarding (`onb_install` / `onb_login`) when there is no Claude OAuth token,
 `loading` / `scanning` while waiting for the first answer, `no_providers` when both
-providers are hidden. The JSONL logs feed spike detection only (above).
+providers are hidden. Codex has the same expiry status: `fetch_codex_usage()` sets
+`CODEX_STATUS["auth_error"]` on 401/403 (and clears it on a success, or when there is no Codex
+token at all — no credentials is the "no row, no status" case, not expiry), and
+`codex_summary_segment(..., auth_error=)` — fed from `CODEX_STATUS` by both adapters' hooks —
+returns `codex_token_expired` for a shown, subscription-mode Codex with no rows. Rows win over
+the flag on both sides. The JSONL logs feed spike detection only (above).
+
+**A transient failure keeps the last good server values.** After a success, a fetch that fails
+with 429, a 5xx, a network error or timeout, or an unparseable body
+(`is_transient_fetch_error()`) returns the previous rows, from both `fetch_exact_usage()` and
+`fetch_codex_usage()` — the numbers do not vanish because the server hiccuped once. A 401/403
+clears them, because keeping them would hide `token_expired` / `codex_token_expired`. Claude's
+"was this call transient" is recorded per call in `_oauth_last_call`, not read from
+`OAUTH_STATUS["last_error"]`, which stays stale across a call that sent no request.
+
+**Saving settings refetches only when the change needs it.** Both `save_settings` zero
+`_oauth_cache["t"]` / `_codex_cache["t"]` only through `settings_cache_resets(prev, new)`
+(snapshots from `settings_snapshot()`, i.e. `RUNTIME` plus `"lang"`): a language change, a
+Claude `mode` switch or a changed `admin_key` resets the OAuth cache (row labels are translated
+at parse time); a `codex_mode` switch or a changed `openai_admin_key` resets the Codex cache;
+gauges, show toggles, budgets, sensitivity, greeting and pet reset nothing — the pill redraws
+from the values already fetched.
 
 **Onboarding is decided by the token, not by the logs.** `compute_onboard_state(oauth,
 has_token)` returns None in API mode, when there are server rows, or when a Claude OAuth
@@ -1029,7 +1050,7 @@ for Codex. Each returns one `(kind, payload)` segment or nothing:
 | --- | --- | --- |
 | `exact` | server rows exist for that provider | the chosen gauge rows, server labels verbatim, values in emerald |
 | `cost` | that provider is in API mode with its Admin key and a cost | today's cost, then this month's when known (`/ $budget` when a budget is set) |
-| `status` | otherwise | one translated status key — `token_expired`, `onb_install` / `onb_login`, `scanning` / `loading`, `need_admin_key` / `api_key_rejected` / `api_unreachable`, and for Codex `codex_need_admin_key` / `codex_api_key_rejected` / `codex_api_unreachable` |
+| `status` | otherwise | one translated status key — `token_expired`, `onb_install` / `onb_login`, `scanning` / `loading`, `need_admin_key` / `api_key_rejected` / `api_unreachable`, and for Codex `codex_token_expired`, `codex_need_admin_key` / `codex_api_key_rejected` / `codex_api_unreachable` |
 
 **There is no `estimate` kind.** `SUMMARY_APPROX` (`≈`), `SUMMARY_COLORS["estimate"]`
 (amber) and the trailing `⚠` the adapter used to append after a token rejection were all

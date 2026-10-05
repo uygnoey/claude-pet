@@ -60,7 +60,7 @@ ZIP installation is also available: extract the appropriate ZIP and move ClaudeP
 
 Claude Code: exact mode requests Anthropic's server-computed usage percentages and reset times using the existing Claude Code OAuth credential. Categories such as session, weekly and per-model usage depend on what Anthropic returns for that account.
 
-No local estimate: the numbers on the pill are always server values. When no server value is available — not signed in, the token was rejected, or the first response has not arrived — the pill shows a status line instead of a number. Logs are never turned into a percentage.
+No local estimate: the numbers on the pill are always server values. When no server value is available — not signed in, the token was rejected, or the first response has not arrived — the pill shows a status line instead of a number. Logs are never turned into a percentage. An expired Codex sign-in shows its own status ("Codex token expired — run codex once to restore usage"). A transient failure — rate limit, server error, network error or timeout, unreadable response — keeps the last values received on screen until the next successful refresh, for both providers; only a rejected token (401/403) clears them. Saving settings redraws from the values already fetched and fetches again only when the language, a provider's data source or an Admin key changed.
 
 Codex: usage is read from OpenAI's server using the existing Codex login on the computer. Codex shows the limits its account has — today a single weekly limit — on one line with the time left until it resets. There is nothing to set up; if Codex is not used, nothing is added.
 
