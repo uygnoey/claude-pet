@@ -874,10 +874,15 @@ the flag on both sides. The JSONL logs feed spike detection only (above).
 **A transient failure keeps the last good server values.** After a success, a fetch that fails
 with 429, a 5xx, a network error or timeout, or an unparseable body
 (`is_transient_fetch_error()`) returns the previous rows, from both `fetch_exact_usage()` and
-`fetch_codex_usage()` — the numbers do not vanish because the server hiccuped once. A 401/403
-clears them, because keeping them would hide `token_expired` / `codex_token_expired`. Claude's
+`fetch_codex_usage()` — the numbers do not vanish because the server hiccuped once. They are
+cleared when the token is rejected (401/403) or absent (signed out): keeping them would hide
+`token_expired` / `codex_token_expired`, or show a signed-out user someone's old numbers. Claude's
 "was this call transient" is recorded per call in `_oauth_last_call`, not read from
-`OAUTH_STATUS["last_error"]`, which stays stale across a call that sent no request.
+`OAUTH_STATUS["last_error"]`, which stays stale across a call that sent no request — so a call
+that finds no token after a transient failure clears the values. **A kept row whose reset time
+has passed is dropped** (`drop_reset_rows()`), that lane only; the other lanes stay, and with no
+lane left the result is None — a stale 95% must not sit next to a window that has already reset.
+**Kept values do not re-teach the spike limits**: see `ok_t` below.
 
 **Saving settings refetches only when the change needs it.** Both `save_settings` zero
 `_oauth_cache["t"]` / `_codex_cache["t"]` only through `settings_cache_resets(prev, new)`
@@ -898,10 +903,12 @@ prompt on a 30-second timer. The refresh fetches usage first, so a Keychain user
 already cached by then.
 
 **`learn_server_limits()` learns once per server reading.** The refresh runs every 30 s but
-the OAuth and Codex responses are cached for 180 s, so the worker passes
-`claude_fetch=_oauth_cache["t"]` and `codex_fetch=_codex_cache["t"]`; a provider whose key
-equals the one recorded at its last learning is skipped, and the EMA is not re-applied to a
-cached row. `None` (as `--report` passes) always learns. With no server rows at all,
+the OAuth and Codex responses are cached for 180 s, so both workers (macOS and Windows) pass
+`claude_fetch=_oauth_cache["ok_t"]` and `codex_fetch=_codex_cache["ok_t"]` — the time of the last
+**successful** answer, which only a success moves (a transient failure, a 401/403 and a cache hit
+leave it alone). A provider whose key equals the one recorded at its last learning is skipped, so
+the EMA is not re-applied to a cached row nor to the last values kept through a transient failure.
+Do not key this on `t`: every attempt rewrites `t`, so a kept answer would be learned again. `None` (as `--report` passes) always learns. With no server rows at all,
 `--report` prints `r_no_server_rows`.
 
 **The token cache is source-aware and re-validates without prompting.** `_oauth_token_cache`

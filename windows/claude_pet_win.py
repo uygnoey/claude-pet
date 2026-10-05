@@ -1123,11 +1123,12 @@ class PetWindow(QWidget):
                 # 급증을 다시 판정한다 — 파일을 다시 읽지 않는 계산뿐이다. 엔트리는 state 에
                 # 남기지 않는다(macOS 판 워커처럼 꺼내서 쓴다).
                 rows = s.pop("rows", None) or []
-                # 같은 캐시 응답(180초)에 EMA 를 거듭 걸지 않게 응답의 조회 시각을 키로 넘긴다.
+                # 같은 응답에 EMA 를 거듭 걸지 않게 마지막 '성공' 응답의 시각을 키로 넘긴다(macOS 판과 같다) —
+                # 캐시 적중도, 일시 실패로 유지한 직전 값도 같은 키라 다시 배우지 않는다.
                 cp.learn_server_limits(oauth, codex, rows, codex_entries,
                                        model_kw=s.get("model_kw"),
-                                       claude_fetch=cp._oauth_cache.get("t"),
-                                       codex_fetch=cp._codex_cache.get("t"))
+                                       claude_fetch=cp._oauth_cache["ok_t"],
+                                       codex_fetch=cp._codex_cache["ok_t"])
                 try:
                     mult = float(cp.RUNTIME.get("spike_mult", 1.0)) or 1.0
                 except (TypeError, ValueError):

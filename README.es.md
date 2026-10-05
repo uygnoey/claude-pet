@@ -131,7 +131,7 @@ Una píldora pequeña junto a la mascota, en dos líneas:
   para restaurar el uso".
 - **Un fallo pasajero del servidor no vacía la píldora**: si una actualización falla por límite de peticiones, error del
   servidor, error de red o una respuesta ilegible, se quedan en pantalla los últimos valores recibidos hasta la siguiente
-  consulta correcta. Solo un token rechazado los borra. Guardar los ajustes vuelve a dibujar con los valores ya obtenidos;
+  consulta correcta. Solo se borran si el token es rechazado o no existe (sesión cerrada), y un valor cuyo reinicio ya pasó no se conserva. Guardar los ajustes vuelve a dibujar con los valores ya obtenidos;
   solo un idioma, fuente de datos o clave Admin nuevos consultan otra vez.
 - **El color de la etiqueta dice cuánto queda**: blanco, amarillo desde el 50 %, rojo desde el 85 % — y rojo con ▲ mientras
   ese medidor se dispara.

@@ -2247,7 +2247,7 @@ OAUTH_CACHE_SEC = 180   # 과호출 시 429 → 3분 캐시 필수
 # 존재하는 이유가 바로 과호출이라, 429 뒤에 더 빨리 다시 두드리면 안 된다.
 OAUTH_FAIL_RETRY_SEC = 60
 OAUTH_TOKEN_RETRY = 120   # 토큰 못 읽었을 때 재시도 간격(초)
-_oauth_cache = {"t": 0.0, "gauges": None}
+_oauth_cache = {"t": 0.0, "gauges": None, "ok_t": None}   # ok_t: 마지막 '성공' 응답 시각(급증 한도 학습 키)
 # 토큰은 성공 시 메모리에 캐시 — 재조회 시 macOS 허용 프롬프트가 반복되기 때문.
 # 만료(401)로 실패할 때만 force=True로 다시 읽는다.
 # 못 읽으면 "포기"하지 않고 next_retry 이후 다시 시도한다 → 새로 설치/업데이트해
@@ -2859,6 +2859,24 @@ OAUTH_STATUS = {"auth_error": False, "last_error": None}
 # 이번 _fetch_oauth_usage 호출이 일시 실패(429·5xx·네트워크·파싱)로 끝났는가. last_error 는 토큰이
 # 없어 요청을 보내지 않은 호출에서도 직전 값이 남아 있으므로, "이번 호출"의 판단은 여기서 한다.
 _oauth_last_call = {"transient": False}
+
+
+def drop_reset_rows(rows):
+    """일시 실패로 유지하는 직전 행에서 리셋 시각이 이미 지난 레인을 뺀다. 남는 게 없으면 None.
+
+    리셋이 지난 창의 옛 % (예: 95%)는 이제 틀린 값이다 — '리셋됨' 옆에 남겨 두지 않는다.
+    리셋 시각이 없는 행은 판단할 근거가 없으니 그대로 둔다. 현재 시각은 모듈의 datetime.now 로 읽는다."""
+    now = datetime.now(timezone.utc)
+    kept = []
+    for r in rows or ():
+        reset = r[2] if len(r) > 2 else None
+        if isinstance(reset, datetime):
+            if reset.tzinfo is None:
+                reset = reset.replace(tzinfo=timezone.utc)
+            if reset <= now:
+                continue
+        kept.append(r)
+    return kept or None
 
 
 def is_transient_fetch_error(err):
@@ -3991,14 +4009,20 @@ def fetch_exact_usage():
         rows = _fetch_cli_usage()
         if not rows and prev and _oauth_last_call["transient"] \
                 and not OAUTH_STATUS.get("auth_error"):
-            return prev              # 일시 실패 — 직전 서버 값 유지(gauges 도 그대로)
-    elif not any(_label_order(r[0]) == 2 for r in rows):
-        # OAuth 응답에 모델별 항목이 없으면 CLI에서 Fable 줄 보충
-        cli = _fetch_cli_usage() or []
-        have = {r[0] for r in rows}
-        for r in cli:
-            if r[0] not in have:
-                rows.append(r)
+            # 일시 실패 — 직전 서버 값 유지(gauges·ok_t 는 그대로라 급증 한도를 다시 배우지 않는다).
+            # 리셋이 지난 레인만 뺀다.
+            return drop_reset_rows(prev)
+        if rows:
+            _oauth_cache["ok_t"] = now   # CLI 폴백(옵트인)이 낸 새 값도 성공이다
+    else:
+        _oauth_cache["ok_t"] = now   # 성공 응답 — 이 시각이 급증 한도 학습 키다
+        if not any(_label_order(r[0]) == 2 for r in rows):
+            # OAuth 응답에 모델별 항목이 없으면 CLI에서 Fable 줄 보충
+            cli = _fetch_cli_usage() or []
+            have = {r[0] for r in rows}
+            for r in cli:
+                if r[0] not in have:
+                    rows.append(r)
     if rows:
         rows = sorted(rows, key=lambda r: _label_order(r[0]))[:PILL_ROWS]
     _oauth_cache["gauges"] = rows
@@ -4220,7 +4244,7 @@ def parse_codex_usage(payload, now=None, windows=None):
     return rows or None
 
 
-_codex_cache = {"t": 0.0, "rows": None}
+_codex_cache = {"t": 0.0, "rows": None, "ok_t": None}   # ok_t: 마지막 '성공' 응답 시각
 # Codex 조회 상태 — OAUTH_STATUS 와 같은 모양. auth_error: 마지막 조회가 401/403 이었다(성공하거나
 # 토큰이 아예 없으면 내린다 — 자격증명이 없는 것은 만료가 아니다). last_error: 마지막 실패의 종류.
 CODEX_STATUS = {"auth_error": False, "last_error": None}
@@ -4283,13 +4307,15 @@ def fetch_codex_usage():
     if err is None:
         CODEX_STATUS["auth_error"] = False
         CODEX_STATUS["last_error"] = None
+        _codex_cache["ok_t"] = now
     else:
         CODEX_STATUS["last_error"] = err
         if err in ("http:401", "http:403"):
             CODEX_STATUS["auth_error"] = True
         elif prev and is_transient_fetch_error(err):
             _dbg("codex fetch: kept last rows", len(prev))
-            return prev               # 일시 실패 — 직전 서버 값 유지
+            # 일시 실패 — 직전 서버 값 유지(ok_t 는 그대로 → 다시 배우지 않음), 리셋 지난 레인은 뺀다.
+            return drop_reset_rows(prev)
     _codex_cache["rows"] = rows
     _dbg("codex fetch: rows", len(rows or ()))
     return rows
@@ -10602,11 +10628,12 @@ def run_gui():
                     # 급증 한도는 서버 %로부터 배운다(보정 UI 대체). 배운 뒤 같은 패스의
                     # 로그로 급증을 다시 판정한다 — 파일을 다시 읽지 않는 계산뿐이다.
                     rows = s.pop("rows", None) or []
-                    # 같은 캐시 응답(180초)에 EMA 를 거듭 걸지 않게 응답의 조회 시각을 키로 넘긴다.
+                    # 같은 응답에 EMA 를 거듭 걸지 않게 마지막 '성공' 응답의 시각을 키로 넘긴다 —
+                    # 캐시 적중(180초)도, 일시 실패로 유지한 직전 값도 같은 키라 다시 배우지 않는다.
                     learn_server_limits(oauth, codex, rows, codex_entries,
                                         model_kw=s.get("model_kw"),
-                                        claude_fetch=_oauth_cache.get("t"),
-                                        codex_fetch=_codex_cache.get("t"))
+                                        claude_fetch=_oauth_cache["ok_t"],
+                                        codex_fetch=_codex_cache["ok_t"])
                     try:
                         mult = float(RUNTIME.get("spike_mult", 1.0)) or 1.0
                     except (TypeError, ValueError):
