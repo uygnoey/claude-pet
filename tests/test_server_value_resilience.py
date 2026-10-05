@@ -541,5 +541,214 @@ class WinSectionTitleFontTests(unittest.TestCase):
                                       "the section title is measured against")
 
 
+# ───────────────────── fix round 2 (review of 71dc340) ─────────────────────
+#
+# R2-1  A kept (transient) answer must not re-teach the spike limits.  Seam:
+#       ``_oauth_cache["ok_t"]`` / ``_codex_cache["ok_t"]`` — the time of the last
+#       *successful* server answer.  It changes on a success and on nothing else (a transient
+#       failure, a 401/403, a cache hit).  Both refresh workers hand it to
+#       ``learn_server_limits`` as ``claude_fetch=`` / ``codex_fetch=``.  Rivals: keying on
+#       ``t`` (which every attempt rewrites — the reviewer's repro taught session 50.0 twice);
+#       a key that does not move on a later success (the next real answer is never learned).
+# R2-2  Claude's "transient" verdict is per call: after a transient failure, a call that finds
+#       no token (signed out) must clear the values.  Rival: reading OAUTH_STATUS["last_error"]
+#       (still the old transient class on that call).
+# R2-3  A kept row whose reset time has passed is dropped — **only that lane**; the other
+#       lanes are still kept, and if no lane is left the result is None.  A stale 95% must not
+#       sit next to "리셋됨".  Rivals: keep everything; clear everything.
+
+from datetime import datetime as _DT, timedelta as _TD, timezone as _TZ  # noqa: E402
+
+T0 = 1_800_000_000.0
+
+
+class _Clock:
+    def __init__(self, t):
+        self.t = t
+
+    def time(self):
+        return self.t
+
+
+def _fake_datetime(clock):
+    class FakeDT(_DT):
+        @classmethod
+        def now(cls, tz=None):
+            d = _DT.fromtimestamp(clock.t, _TZ.utc)
+            return d if tz is not None else d.replace(tzinfo=None)
+
+        @classmethod
+        def utcnow(cls):
+            return _DT.fromtimestamp(clock.t, _TZ.utc).replace(tzinfo=None)
+    return FakeDT
+
+
+class _ClockMixin:
+    def start_clock(self):
+        self.clock = _Clock(T0)
+        for p in (mock.patch.object(claude_pet.time, "time", new=self.clock.time),
+                  mock.patch.object(claude_pet, "datetime", new=_fake_datetime(self.clock))):
+            p.start()
+            self.addCleanup(p.stop)
+
+
+def _iso(ts):
+    return _DT.fromtimestamp(ts, _TZ.utc).isoformat()
+
+
+def claude_body_reset(session, weekly, s_reset, w_reset):
+    return json.dumps({"limits": [
+        {"kind": "five_hour", "percent": session, "resets_at": _iso(s_reset)},
+        {"kind": "seven_day", "percent": weekly, "resets_at": _iso(w_reset)},
+    ]}).encode()
+
+
+def codex_body_reset(session, weekly, s_reset, w_reset):
+    return json.dumps({"rate_limit": {
+        "primary_window": {"used_percent": session, "limit_window_seconds": 5 * 3600,
+                           "reset_at": int(s_reset)},
+        "secondary_window": {"used_percent": weekly, "limit_window_seconds": 7 * 86400,
+                             "reset_at": int(w_reset)},
+    }}).encode()
+
+
+class ClaudeSuccessKeyTests(_ClockMixin, ClaudeHarness):
+    def setUp(self):
+        super().setUp()
+        self.start_clock()
+
+    def test_ok_t_moves_only_on_success(self):
+        self.fetch(claude_body(42, 17))
+        self.assertEqual(claude_pet._oauth_cache.get("ok_t"), T0,
+                         "missing seam: _oauth_cache['ok_t'] must be the last success time")
+        for label, outcome in TRANSIENTS:
+            with self.subTest(failure=label):
+                self.clock.t += 61
+                self.fetch(outcome)
+                self.assertEqual(claude_pet._oauth_cache.get("ok_t"), T0,
+                                 f"{label} moved the success key")
+        self.clock.t = T0 + 1000
+        self.fetch(claude_body(55, 20))
+        self.assertEqual(claude_pet._oauth_cache.get("ok_t"), T0 + 1000,
+                         "a later success must move the key")
+
+    def test_kept_answer_is_not_learned_twice(self):
+        calls = []
+        with mock.patch.object(claude_pet, "learn_lane",
+                               new=lambda learned, lane, pct, *a, **k: calls.append((lane, pct))):
+            learned = {}
+            rows = self.fetch(claude_body(50, 20))
+            claude_pet.learn_server_limits(rows, None, [], [], learned=learned,
+                                           claude_fetch=claude_pet._oauth_cache.get("ok_t"))
+            self.clock.t += 61
+            rows = self.fetch(_http(500))
+            self.assertEqual(_pcts(rows), [50, 20], "fixture: the 500 must keep the rows")
+            claude_pet.learn_server_limits(rows, None, [], [], learned=learned,
+                                           claude_fetch=claude_pet._oauth_cache.get("ok_t"))
+            self.assertEqual(sorted(calls), [("session", 50.0), ("weekly", 20.0)],
+                             "the kept answer was learned again")
+            self.clock.t += 200
+            rows = self.fetch(claude_body(60, 25))
+            claude_pet.learn_server_limits(rows, None, [], [], learned=learned,
+                                           claude_fetch=claude_pet._oauth_cache.get("ok_t"))
+            self.assertIn(("session", 60.0), calls, "the next real answer was not learned")
+
+    def test_signed_out_after_a_transient_failure_clears_the_values(self):
+        rows = self.fetch(claude_body(42, 17), _http(503))
+        self.assertEqual(_pcts(rows), [42, 17], "fixture: the 503 must keep the rows")
+        self.assertTrue(claude_pet.OAUTH_STATUS.get("last_error"),
+                        "fixture: last_error must still hold the transient class")
+        with mock.patch.object(claude_pet, "_read_oauth_token", new=lambda force=False: None):
+            claude_pet._oauth_cache["t"] = 0.0
+            self.assertIsNone(claude_pet.fetch_exact_usage(),
+                              "signed out after a transient failure kept the old values")
+        self.assertEqual(self.http.requests, 2, "no request may be sent without a token")
+
+    def test_kept_row_past_its_reset_is_dropped_lane_by_lane(self):
+        rows = self.fetch(claude_body_reset(95, 17, T0 + 600, T0 + 86400))
+        self.assertEqual(_pcts(rows), [95, 17])
+        self.clock.t = T0 + 1200          # the session window has reset, the week has not
+        rows = self.fetch(_http(500))
+        self.assertEqual(_pcts(rows), [17],
+                         "a kept session row past its reset must go; the weekly row stays")
+        self.clock.t = T0 + 90000         # both past
+        self.assertIsNone(self.fetch(_net), "no lane left → None")
+
+
+class CodexSuccessKeyTests(_ClockMixin, CodexHarness):
+    def setUp(self):
+        super().setUp()
+        self.start_clock()
+
+    def test_ok_t_moves_only_on_success(self):
+        self.fetch(codex_body(12, 34))
+        self.assertEqual(claude_pet._codex_cache.get("ok_t"), T0,
+                         "missing seam: _codex_cache['ok_t'] must be the last success time")
+        for label, outcome in TRANSIENTS:
+            with self.subTest(failure=label):
+                self.clock.t += 61
+                self.fetch(outcome)
+                self.assertEqual(claude_pet._codex_cache.get("ok_t"), T0,
+                                 f"{label} moved the success key")
+        self.clock.t = T0 + 1000
+        self.fetch(codex_body(40, 50))
+        self.assertEqual(claude_pet._codex_cache.get("ok_t"), T0 + 1000,
+                         "a later success must move the key")
+
+    def test_kept_answer_is_not_learned_twice(self):
+        calls = []
+        with mock.patch.object(claude_pet, "learn_lane",
+                               new=lambda learned, lane, pct, *a, **k: calls.append((lane, pct))):
+            learned = {}
+            rows = self.fetch(codex_body(50, 20))
+            claude_pet.learn_server_limits(None, rows, [], [], learned=learned,
+                                           codex_fetch=claude_pet._codex_cache.get("ok_t"))
+            self.clock.t += 61
+            rows = self.fetch(_http(502))
+            self.assertEqual(_pcts(rows), [50, 20], "fixture: the 502 must keep the rows")
+            claude_pet.learn_server_limits(None, rows, [], [], learned=learned,
+                                           codex_fetch=claude_pet._codex_cache.get("ok_t"))
+            self.assertEqual(sorted(calls), [("codex_session", 50.0), ("codex_weekly", 20.0)],
+                             "the kept answer was learned again")
+            self.clock.t += 200
+            rows = self.fetch(codex_body(60, 25))
+            claude_pet.learn_server_limits(None, rows, [], [], learned=learned,
+                                           codex_fetch=claude_pet._codex_cache.get("ok_t"))
+            self.assertIn(("codex_session", 60.0), calls, "the next real answer was not learned")
+
+    def test_kept_row_past_its_reset_is_dropped_lane_by_lane(self):
+        rows = self.fetch(codex_body_reset(95, 34, T0 + 600, T0 + 86400))
+        self.assertEqual(_pcts(rows), [95, 34])
+        self.clock.t = T0 + 1200
+        rows = self.fetch(_http(500))
+        self.assertEqual([r[0] for r in rows or ()], ["codex_weekly"],
+                         "a kept session row past its reset must go; the weekly row stays")
+        self.clock.t = T0 + 90000
+        self.assertIsNone(self.fetch(_net), "no lane left → None")
+
+
+class WorkersPassTheSuccessKeyTests(unittest.TestCase):
+    """Both refresh workers hand learn_server_limits the success key, not ``t``."""
+
+    def check(self, path):
+        calls = [n for n in ast.walk(_tree(path)) if isinstance(n, ast.Call)
+                 and ast.unparse(n.func).split(".")[-1] == "learn_server_limits"
+                 and any(k.arg in ("claude_fetch", "codex_fetch") for k in n.keywords)]
+        self.assertTrue(calls, f"{path.name}: no worker passes learning keys")
+        for c in calls:
+            kw = {k.arg: ast.unparse(k.value) for k in c.keywords}
+            for arg, cache in (("claude_fetch", "_oauth_cache"), ("codex_fetch", "_codex_cache")):
+                text = kw.get(arg, "")
+                self.assertTrue(cache in text and re.search(r"['\"]ok_t['\"]", text),
+                                f"{path.name}: {arg} must be {cache}['ok_t'] (the last "
+                                f"success), got {text!r}")
+
+    def test_macos_worker(self):
+        self.check(APP_SOURCE)
+
+    def test_windows_worker(self):
+        self.check(WIN_APP)
+
+
 if __name__ == "__main__":
     unittest.main()
