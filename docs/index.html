@@ -87,7 +87,7 @@
             "name": "Claude Pet",
             "url": "https://claude-pet.yeongyu.me/",
             "description": "A free, open-source desktop pet for macOS and Windows. See your Claude Code and Codex usage in one small pill while a little friend keeps you company.",
-            "softwareVersion": "1.0.1",
+            "softwareVersion": "1.1.0",
             "operatingSystem": "macOS 12+ (Apple Silicon and Intel); Windows 10/11 (x64)",
             "applicationCategory": "UtilitiesApplication",
             "softwareRequirements": "A Claude Code or Codex login on this computer",
@@ -103,7 +103,7 @@
               "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win-setup.exe",
               "https://github.com/uygnoey/claude-pet/releases/latest/download/claude-pet-win.zip"
             ],
-            "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v1.0.1",
+            "releaseNotes": "https://github.com/uygnoey/claude-pet/releases/tag/v1.1.0",
             "author": {
               "@id": "https://claude-pet.yeongyu.me/#author"
             },
@@ -124,7 +124,7 @@
             "image": "https://claude-pet.yeongyu.me/assets/social-preview-20260913.png",
             "screenshot": "https://claude-pet.yeongyu.me/assets/preview.png",
             "license": "https://opensource.org/licenses/MIT",
-            "datePublished": "2026-09-30",
+            "datePublished": "2026-10-06",
             "inLanguage": [
               "en",
               "ko",
@@ -195,7 +195,7 @@
               "@id": "https://claude-pet.yeongyu.me/#app"
             },
             "primaryImageOfPage": "https://claude-pet.yeongyu.me/assets/social-preview-20260913.png",
-            "dateModified": "2026-10-02",
+            "dateModified": "2026-10-06",
             "inLanguage": "en",
             "speakable": {
               "@type": "SpeakableSpecification",
@@ -653,7 +653,7 @@ footer small span{display:block}
     <span class="langsel"><select id="language" aria-label="Language" data-i18n-attr="aria-label:lang.label"><option value="en">English</option><option value="ko">한국어</option><option value="ja">日本語</option><option value="es">Español</option></select></span>
     <button type="button" class="chipbtn" id="themeBtn" aria-label="Switch between light and dark theme" data-i18n-attr="aria-label:theme.aria">◐</button>
     <a class="chipbtn heartchip" href="https://github.com/sponsors/uygnoey" title="Sponsor via GitHub Sponsors" data-i18n-attr="title:chip.sponsorTitle"><span aria-hidden="true">♥</span><span class="chiptxt"> <span data-i18n="chip.sponsor">Sponsor</span></span></a>
-    <a class="chipbtn" id="verChip" href="https://github.com/uygnoey/claude-pet/releases/latest" title="Latest release on GitHub" data-i18n-attr="title:chip.latestTitle"><span class="chiptxt" data-i18n="chip.latest">Latest</span> <b id="ver">v1.0.1</b></a>
+    <a class="chipbtn" id="verChip" href="https://github.com/uygnoey/claude-pet/releases/latest" title="Latest release on GitHub" data-i18n-attr="title:chip.latestTitle"><span class="chiptxt" data-i18n="chip.latest">Latest</span> <b id="ver">v1.1.0</b></a>
   </header>
 
   <main>
@@ -787,7 +787,7 @@ footer small span{display:block}
       <div class="body one">
         <div class="dl-head">
           <h2 id="h-dl" data-i18n="dl.h">Bring home<br>a new friend.</h2>
-          <p class="muted"><span data-i18n="dl.latest">Latest version</span> <b class="num" id="ver2">v1.0.1</b> · <a id="relnotes" href="https://github.com/uygnoey/claude-pet/releases/latest" data-i18n="dl.notes">Release notes</a></p>
+          <p class="muted"><span data-i18n="dl.latest">Latest version</span> <b class="num" id="ver2">v1.1.0</b> · <a id="relnotes" href="https://github.com/uygnoey/claude-pet/releases/latest" data-i18n="dl.notes">Release notes</a></p>
         </div>
         <p class="detect muted" id="detectBox" hidden></p>
         <div class="plats">
@@ -1787,7 +1787,7 @@ footer small span{display:block}
   };
   // which pet explains which window; the words are "lines.<window>"
   const NARR = {hero:"cat", providers:"scorpion", usage:"fox", reset:"elephant", pets:"dog", walk:"cat", sponsor:"dog", download:"cat"};
-  let latestTag = "v1.0.1";
+  let latestTag = "v1.1.0";
   const linesFor = id => L("lines." + id, {ver: latestTag});
 
   // ── theme toggle and menu-bar clock ──

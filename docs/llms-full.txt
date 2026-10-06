@@ -1,8 +1,8 @@
 # Claude Pet — Full product reference
 
 Canonical website: https://claude-pet.yeongyu.me/
-Reference release: v1.0.1, published 2026-09-30T09:45:29Z (2026-09-30 18:45 KST).
-Reference updated: 2026-10-02.
+Reference release: v1.1.0, published 2026-10-06T00:25:29Z (2026-10-06 09:25 KST).
+Reference updated: 2026-10-06.
 
 ## Purpose
 
@@ -100,7 +100,7 @@ Website: https://claude-pet.yeongyu.me/
 Website privacy: https://claude-pet.yeongyu.me/privacy.html
 Repository: https://github.com/uygnoey/claude-pet
 License: https://github.com/uygnoey/claude-pet/blob/main/LICENSE
-Published release: https://github.com/uygnoey/claude-pet/releases/tag/v1.0.1
+Published release: https://github.com/uygnoey/claude-pet/releases/tag/v1.1.0
 Latest downloads: https://github.com/uygnoey/claude-pet/releases/latest
 Apple Silicon DMG: https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet.dmg
 Universal DMG (Intel and Apple Silicon): https://github.com/uygnoey/claude-pet/releases/latest/download/ClaudePet-universal.dmg
